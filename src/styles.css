@@ -47,6 +47,7 @@ a {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 button {
@@ -163,14 +164,12 @@ a {
   text-decoration: none;
 }
 
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 13px 7px 13px 7px;
-  color: white;
-  background: var(--forest-800);
+.brand-logo {
+  display: block;
+  width: 38px;
+  height: 46px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 7px rgba(16, 46, 32, 0.16));
 }
 
 .site-nav {
@@ -310,15 +309,35 @@ main {
   transform: translateY(-2px);
 }
 
+.primary-button:active,
+.secondary-button:active,
+.menu-button:active,
+.demo-tab:active,
+.market-row:active,
+.text-action:active {
+  opacity: 0.78;
+}
+
 .primary-button:disabled {
   opacity: 0.52;
   cursor: wait;
   transform: none;
 }
 
+.secondary-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .primary-button--small {
   min-height: 46px;
   margin-top: 18px;
+  padding: 0 17px;
+}
+
+.secondary-button--small {
+  min-height: 46px;
   padding: 0 17px;
 }
 
@@ -677,6 +696,12 @@ main {
   line-height: 1.55;
 }
 
+.demo-card--action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .demo-card--lead p:not(.demo-overline) {
   color: #d4e1d2;
 }
@@ -693,6 +718,16 @@ main {
   background: transparent;
   font-weight: 700;
   cursor: pointer;
+}
+
+.text-action:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.text-action--dark {
+  margin-top: auto;
+  color: var(--forest-800);
 }
 
 .scan-layout,
@@ -722,6 +757,7 @@ main {
 
 .scan-frame--scanning svg {
   color: var(--maize-500);
+  animation: demo-scan-pulse 700ms ease-in-out infinite alternate;
 }
 
 .scan-frame--result {
@@ -743,6 +779,18 @@ main {
   color: var(--forest-900) !important;
   background: #e1ebbd;
   font-weight: 700;
+}
+
+.demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.demo-actions .primary-button--small {
+  margin-top: 0;
 }
 
 .mini-map {
@@ -800,11 +848,27 @@ main {
   gap: 14px;
   align-items: center;
   justify-content: space-between;
-  padding: 13px 0;
+  width: 100%;
+  padding: 13px 10px;
+  border: 0;
   border-bottom: 1px solid rgba(32, 82, 56, 0.13);
+  color: var(--forest-950);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
 }
 
-.market-row > div {
+.market-row:hover,
+.market-row--selected {
+  background: rgba(121, 168, 67, 0.13);
+}
+
+.market-row--selected {
+  box-shadow: inset 4px 0 0 var(--forest-700);
+}
+
+.market-row-name {
   display: grid;
   gap: 5px;
 }
@@ -814,13 +878,25 @@ main {
   font-weight: 700;
 }
 
-.market-row > div span {
+.market-row-name > span {
   display: inline-flex;
   gap: 5px;
   align-items: center;
   color: var(--ink-muted);
   font-size: 0.88rem;
   font-weight: 400;
+}
+
+.market-selection {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(32, 82, 56, 0.14);
+  border-radius: 16px 8px 16px 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.market-selection p {
+  margin: 0;
 }
 
 .cost-summary {
@@ -852,9 +928,36 @@ main {
   border-bottom: 1px solid rgba(32, 82, 56, 0.13);
 }
 
+.cost-lines > .demo-actions--costs {
+  justify-content: flex-start;
+  margin-top: 8px;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
 .cost-line-total {
   color: var(--forest-900);
   font-size: 1.18rem;
+}
+
+.demo-feedback {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  min-height: 46px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(32, 82, 56, 0.14);
+  border-radius: 14px 7px 14px 7px;
+  color: var(--forest-900);
+  background: rgba(255, 255, 255, 0.76);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+@keyframes demo-scan-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
 }
 
 .closing-section {
@@ -1090,6 +1193,13 @@ main {
   .market-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .demo-actions,
+  .demo-actions .primary-button,
+  .demo-actions .secondary-button,
+  .market-selection .primary-button {
+    width: 100%;
   }
 }
 
