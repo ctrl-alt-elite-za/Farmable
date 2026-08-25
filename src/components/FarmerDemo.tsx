@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
-  Camera,
   CheckCircle2,
   CloudSun,
   MapPinned,
   Route,
   Save,
   ScanLine,
-  Sprout,
   Undo2,
   WalletCards,
-  WifiOff,
 } from 'lucide-react'
 import { demoViews, sampleMarkets, type DemoView } from '../data/demo'
+import maizeFieldPhoto from '../assets/maize-field-placeholder.webp'
+import maizeLeafPhoto from '../assets/maize-leaf-placeholder.webp'
 
 type ScanState = 'idle' | 'scanning' | 'result'
 
@@ -34,7 +33,7 @@ export function FarmerDemo() {
   const [selectedMarketName, setSelectedMarketName] = useState(sampleMarkets[0].name)
   const [confirmedMarketName, setConfirmedMarketName] = useState<string | null>(null)
   const [recordedExtraCost, setRecordedExtraCost] = useState(0)
-  const [statusMessage, setStatusMessage] = useState('Farmer view ready. All changes stay in this browser demo.')
+  const [statusMessage, setStatusMessage] = useState('Farmer view ready. Changes stay on this device.')
   const timerRef = useRef<number | null>(null)
 
   const selectedMarket = sampleMarkets.find((market) => market.name === selectedMarketName) ?? sampleMarkets[0]
@@ -104,18 +103,17 @@ export function FarmerDemo() {
 
   return (
     <section className="demo-section" id="demo" aria-labelledby="demo-heading">
-      <div className="section-kicker">Clickable product preview</div>
+      <div className="section-kicker">Farm overview</div>
       <div className="demo-heading-row">
         <div>
           <h2 id="demo-heading">A farmer view that starts with today.</h2>
-          <p>Every control below works locally. The values remain labelled sample data for the hackathon demo.</p>
+          <p>Field tasks, crop checks, market routes and costs stay together in one view.</p>
         </div>
-        <div className="offline-badge"><WifiOff size={17} aria-hidden="true" /> Offline-ready demo</div>
+        <div className="offline-badge">Available offline</div>
       </div>
 
       <div className="farmer-demo">
         <aside className="demo-sidebar" aria-label="Farmer summary">
-          <div className="farmer-mark"><Sprout size={24} aria-hidden="true" /></div>
           <p className="demo-overline">My farm</p>
           <h3>Hammanskraal plot</h3>
           <p>3 crop zones · 480 m²</p>
@@ -126,7 +124,7 @@ export function FarmerDemo() {
         </aside>
 
         <div className="demo-workspace">
-          <div className="demo-tabs" role="tablist" aria-label="Demo views">
+          <div className="demo-tabs" role="tablist" aria-label="Farm views">
             {demoViews.map((view, index) => (
               <button
                 aria-controls="demo-panel"
@@ -155,7 +153,15 @@ export function FarmerDemo() {
             {activeView === 'today' && (
               <div className="today-grid">
                 <article className="demo-card demo-card--lead">
-                  <div className="card-icon"><Camera size={22} aria-hidden="true" /></div>
+                  <img
+                    alt=""
+                    className="demo-farm-photo"
+                    decoding="async"
+                    height="1067"
+                    loading="lazy"
+                    src={maizeFieldPhoto}
+                    width="1600"
+                  />
                   <p className="demo-overline">Next field task</p>
                   <h3>Check the maize zone</h3>
                   <p>Photograph five plants. Start with the ones showing yellow or spotted leaves.</p>
@@ -183,6 +189,15 @@ export function FarmerDemo() {
             {activeView === 'crop' && (
               <div className="scan-layout">
                 <div className={`scan-frame scan-frame--${scanState}`} aria-busy={scanState === 'scanning'}>
+                  <img
+                    alt=""
+                    className="scan-photo"
+                    decoding="async"
+                    height="1600"
+                    loading="lazy"
+                    src={maizeLeafPhoto}
+                    width="1067"
+                  />
                   {scanState === 'result' ? <CheckCircle2 size={54} aria-hidden="true" /> : <ScanLine size={54} aria-hidden="true" />}
                   <span>{scanState === 'scanning' ? 'Checking sample image…' : 'Five clear plant photos work best'}</span>
                 </div>
@@ -195,7 +210,7 @@ export function FarmerDemo() {
                       <p>Check five nearby plants. If three show the same spots, ask an extension worker before applying treatment.</p>
                     </>
                   ) : (
-                    <p>The demo runs a timed local interaction. No image is uploaded and no backend is required.</p>
+                    <p>Crop checks run on this device. No image is uploaded.</p>
                   )}
                   <div className="demo-actions">
                     <button className="primary-button primary-button--small" disabled={scanState === 'scanning'} onClick={runSampleScan} type="button">
@@ -268,7 +283,6 @@ export function FarmerDemo() {
           </div>
 
           <div className="demo-feedback" role="status" aria-live="polite" aria-atomic="true">
-            <CheckCircle2 size={18} aria-hidden="true" />
             <span>{statusMessage}</span>
           </div>
         </div>

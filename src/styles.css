@@ -169,7 +169,11 @@ a {
   width: 38px;
   height: 46px;
   object-fit: contain;
-  filter: drop-shadow(0 5px 7px rgba(16, 46, 32, 0.16));
+  filter: none;
+}
+
+.brand--footer .brand-logo {
+  filter: brightness(0) invert(1);
 }
 
 .site-nav {
@@ -544,18 +548,8 @@ main {
     var(--forest-900);
 }
 
-.farmer-mark {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  margin-bottom: 60px;
-  border-radius: 16px 8px 16px 8px;
-  color: var(--forest-950);
-  background: var(--maize-300);
-}
-
 .demo-sidebar .demo-overline {
+  margin-top: 108px;
   color: var(--leaf-300);
 }
 
@@ -645,26 +639,39 @@ main {
 }
 
 .demo-card--lead {
+  position: relative;
   display: flex;
+  isolation: isolate;
+  overflow: hidden;
   flex-direction: column;
   justify-content: flex-end;
   grid-row: 1 / 3;
   padding: clamp(28px, 5vw, 46px);
   color: #f7f9ed;
-  background:
-    radial-gradient(circle at 78% 18%, rgba(241, 202, 79, 0.23), transparent 28%),
-    linear-gradient(145deg, var(--forest-800), var(--forest-950));
+  background: var(--forest-950);
 }
 
-.card-icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  margin-bottom: auto;
-  border-radius: 14px 7px 14px 7px;
-  color: var(--forest-950);
-  background: var(--maize-300);
+.demo-card--lead::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(to top, rgba(16, 46, 32, 0.98) 6%, rgba(16, 46, 32, 0.72) 52%, rgba(16, 46, 32, 0.14));
+  content: '';
+}
+
+.demo-farm-photo,
+.scan-photo {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.demo-card--lead > :not(.demo-farm-photo) {
+  position: relative;
+  z-index: 2;
 }
 
 .demo-card .demo-overline {
@@ -755,14 +762,35 @@ main {
   text-align: center;
 }
 
+.scan-frame {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: white;
+  background: var(--forest-950);
+}
+
+.scan-frame::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: rgba(16, 46, 32, 0.54);
+  content: '';
+}
+
+.scan-frame > :not(.scan-photo) {
+  position: relative;
+  z-index: 2;
+}
+
 .scan-frame--scanning svg {
   color: var(--maize-500);
   animation: demo-scan-pulse 700ms ease-in-out infinite alternate;
 }
 
 .scan-frame--result {
-  color: var(--forest-800);
-  background: #f7fbe9;
+  color: white;
+  background: var(--forest-950);
 }
 
 .scan-copy,
@@ -1082,16 +1110,7 @@ main {
   }
 
   .demo-sidebar {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    column-gap: 14px;
-    align-items: center;
     padding: 20px;
-  }
-
-  .farmer-mark {
-    grid-row: 1 / 4;
-    margin: 0;
   }
 
   .demo-sidebar .demo-overline,
@@ -1100,8 +1119,11 @@ main {
     margin: 0;
   }
 
+  .demo-sidebar .demo-overline {
+    margin-top: 0;
+  }
+
   .sync-note {
-    grid-column: 1 / -1;
     margin-top: 16px;
   }
 
