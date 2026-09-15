@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Fails if backend/ or migrations/ contain hand-written SQL. Per #3/#2:
+# Fails if apps/backend/ or migrations/ contain hand-written SQL. Per #3/#2:
 # every database access must go through the SQLAlchemy ORM / GeoAlchemy2 —
 # no text(), no SQL strings passed to execute(), no op.execute() in Alembic,
 # no raw cursors. This is a defense against SQL injection, not a style rule.
 set -euo pipefail
 
 dirs=()
-[ -d backend ] && dirs+=(backend)
+[ -d apps/backend ] && dirs+=(apps/backend)
 [ -d migrations ] && dirs+=(migrations)
 
 if [ ${#dirs[@]} -eq 0 ]; then
-  echo "no backend/ or migrations/ yet, skipping"
+  echo "no apps/backend/ or migrations/ yet, skipping"
   exit 0
 fi
 

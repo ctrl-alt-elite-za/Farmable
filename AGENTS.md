@@ -18,16 +18,16 @@ clone. Tool versions are pinned in `.python-version`, `.nvmrc`,
 
 ## Commands
 
-| Command                 | Does                                                                            |
-| ----------------------- | ------------------------------------------------------------------------------- |
-| `make setup`            | One-time (and repeatable) environment setup                                     |
-| `make lint`             | Ruff, ESLint                                                                    |
-| `make format`           | Ruff format, Prettier — applies fixes                                           |
-| `make typecheck`        | mypy, TypeScript project references                                             |
-| `make test`             | pytest (backend), workspace test scripts                                        |
-| `make hooks`            | (Re-)installs the pre-commit and pre-push git hooks                             |
-| `make check-no-raw-sql` | Fails if `backend/`/`migrations/` contain hand-written SQL                      |
-| `make client`           | Regenerates `packages/api-client` from the backend OpenAPI schema (added in #3) |
+| Command                 | Does                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `make setup`            | One-time (and repeatable) environment setup                                          |
+| `make lint`             | Ruff, ESLint                                                                         |
+| `make format`           | Ruff format, Prettier — applies fixes                                                |
+| `make typecheck`        | mypy, TypeScript project references                                                  |
+| `make test`             | pytest (apps/backend), workspace test scripts                                        |
+| `make hooks`            | (Re-)installs the pre-commit and pre-push git hooks                                  |
+| `make check-no-raw-sql` | Fails if `apps/backend/`/`migrations/` contain hand-written SQL                      |
+| `make client`           | Regenerates `packages/api-client` from `apps/backend`'s OpenAPI schema (added in #3) |
 
 Each command is a no-op (and exits 0) for a language that has no source
 files yet, so they all pass on the empty skeleton and keep working as `#3`
@@ -35,17 +35,18 @@ and `#4` add code.
 
 ## Conventions
 
-- **Monorepo layout:** `backend/` (Python API + worker), `apps/mobile/`
-  (Expo app), `packages/api-client/` (generated, never hand-edited),
-  `packages/geo/` (pure TS geometry library), `ml/` (forecast/backtest),
+- **Monorepo layout:** `apps/backend/` (Python API + worker), `apps/mobile/`
+  (Expo app), `apps/ml-service/` (forecast/backtest),
+  `packages/api-client/` (generated, never hand-edited),
+  `packages/geo/` (pure TS geometry library),
   `infra/` (deploy config), `e2e/` (end-to-end tests), `docs/decisions/`
   (ADRs).
 - **Database access only through the SQLAlchemy ORM — never hand-written
   SQL.** No `text()`, no SQL strings passed to `execute()`, no Alembic
   `op.execute()`, no raw cursors. `make check-no-raw-sql` enforces this —
-  it runs automatically on `git push` whenever `backend/` or `migrations/`
-  changed (see `scripts/changed-scopes.sh`), and becomes a required CI
-  check on `main` in #5.
+  it runs automatically on `git push` whenever `apps/backend/` or
+  `migrations/` changed (see `scripts/changed-scopes.sh`), and becomes a
+  required CI check on `main` in #5.
 - Formatting and simple lint issues are auto-fixed on commit (pre-commit
   hooks) and, if any slip through, on the PR itself (autofix.ci) — never
   hand-format to match a linter.

@@ -12,7 +12,7 @@ export default tseslint.config(
       '**/build/**',
       '**/.expo/**',
       '**/.venv/**',
-      'ml/data/**',
+      'apps/ml-service/data/**',
       'packages/api-client/**',
     ],
   },

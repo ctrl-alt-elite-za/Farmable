@@ -11,17 +11,23 @@ credentials.json
 *serviceAccount*.json
 
 # Datasets (raw data is fetched/documented, not committed)
-ml/data/raw/
+apps/ml-service/data/raw/
 *.csv.gz
 *.parquet
 
-# Dependencies
-node_modules/
+# Python
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
 
-# Build output
+# Node / JS / TS
+node_modules/
+.pnpm-store/
 dist/
 build/
 .expo/
@@ -29,6 +35,16 @@ build/
 *.apk
 .next/
 coverage/
+
+# ML artifacts (model weights/checkpoints, notebooks, MLflow — see #20)
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.onnx
+checkpoints/
+.ipynb_checkpoints/
+mlruns/
 
 # Editors / OS
 .DS_Store

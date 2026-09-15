@@ -28,7 +28,7 @@ jobs:
       - name: Format
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          if [ -n "$(scripts/has-py-files.sh backend ml)" ]; then
+          if [ -n "$(scripts/has-py-files.sh apps/backend apps/ml-service)" ]; then
             uv run ruff check --fix .
             uv run ruff format .
           fi

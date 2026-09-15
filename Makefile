@@ -5,8 +5,8 @@ export PATH := $(HOME)/.local/bin:$(PATH)
 # tree walk instead of each target re-running find. Recomputed on every
 # invocation (not cached to a file) since Make re-evaluates := at parse time,
 # which is exactly once per `make` run.
-PY_FILES := $(shell scripts/has-py-files.sh backend ml)
-PY_TEST_FILES := $(shell find backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
+PY_FILES := $(shell scripts/has-py-files.sh apps/backend apps/ml-service)
+PY_TEST_FILES := $(shell find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
 
 .PHONY: setup lint format typecheck test hooks check-no-raw-sql client
 
@@ -46,15 +46,15 @@ format:
 	pnpm exec prettier --write .
 
 typecheck:
-	@if [ -n "$(PY_FILES)" ]; then uv run mypy backend ml; else echo "no Python files yet, skipping mypy"; fi
+	@if [ -n "$(PY_FILES)" ]; then uv run mypy apps/backend apps/ml-service; else echo "no Python files yet, skipping mypy"; fi
 	pnpm -r --if-present run typecheck
 
 test:
-	@if [ -n "$(PY_TEST_FILES)" ]; then uv run pytest backend; else echo "no backend tests yet, skipping pytest"; fi
+	@if [ -n "$(PY_TEST_FILES)" ]; then uv run pytest apps/backend; else echo "no backend tests yet, skipping pytest"; fi
 	pnpm -r --if-present run test
 
 check-no-raw-sql:
 	@scripts/check-no-raw-sql.sh
 
 client:
-	@echo "make client is implemented in #3 once the backend's OpenAPI schema exists."
+	@echo "make client is implemented in #3 once apps/backend's OpenAPI schema exists."

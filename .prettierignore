@@ -1,6 +1,6 @@
 pnpm-lock.yaml
 uv.lock
-ml/data/
+apps/ml-service/data/
 **/dist/
 **/build/
 **/.expo/

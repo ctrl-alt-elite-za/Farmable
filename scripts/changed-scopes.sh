@@ -21,7 +21,13 @@ if [ -z "$base" ]; then
   exit $?
 fi
 
-changed_dirs="$(git diff --name-only "$base"...HEAD | cut -d/ -f1 | sort -u)"
+# backend/ml-service/mobile all live under apps/, so a plain `cut -d/ -f1`
+# would collapse them all to "apps" and lose the distinction the case
+# statement below needs — take two path segments for anything under apps/,
+# one segment otherwise (migrations/, docs/, etc).
+changed_dirs="$(git diff --name-only "$base"...HEAD \
+  | awk -F/ '{ if ($1 == "apps" && NF >= 2) print $1"/"$2; else print $1 }' \
+  | sort -u)"
 
 if [ -z "$changed_dirs" ]; then
   echo "no changes since $base, skipping"
@@ -31,20 +37,20 @@ fi
 status=0
 for dir in $changed_dirs; do
   case "$dir" in
-    backend)
-      # check-no-raw-sql runs whenever backend/ changed, even before any
-      # .py files exist, since it also covers migrations/ and is cheap.
+    apps/backend)
+      # check-no-raw-sql runs whenever apps/backend/ changed, even before
+      # any .py files exist, since it also covers migrations/ and is cheap.
       scripts/check-no-raw-sql.sh || status=1
-      if [ -n "$(scripts/has-py-files.sh backend)" ]; then
-        uv run ruff check --fix backend || status=1
-        uv run mypy backend || status=1
-        [ -n "$(find backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ] && { uv run pytest backend -q || status=1; }
+      if [ -n "$(scripts/has-py-files.sh apps/backend)" ]; then
+        uv run ruff check --fix apps/backend || status=1
+        uv run mypy apps/backend || status=1
+        [ -n "$(find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ] && { uv run pytest apps/backend -q || status=1; }
       fi
       ;;
-    ml)
-      if [ -n "$(scripts/has-py-files.sh ml)" ]; then
-        uv run ruff check --fix ml || status=1
-        uv run mypy ml || status=1
+    apps/ml-service)
+      if [ -n "$(scripts/has-py-files.sh apps/ml-service)" ]; then
+        uv run ruff check --fix apps/ml-service || status=1
+        uv run mypy apps/ml-service || status=1
       fi
       ;;
     migrations)
@@ -53,11 +59,12 @@ for dir in $changed_dirs; do
   esac
 done
 
-# JS/TS packages: pnpm's own git-diff-aware filter ("...[<base>]") already
-# resolves which workspace packages changed — including via the dependency
-# graph, and correctly through renames/moves — so apps/ and packages/ don't
-# need a hardcoded case branch here the way backend/ml do. --if-present is a
-# no-op when nothing matches, same as the Makefile's `pnpm -r --if-present`.
+# JS/TS packages (apps/mobile, packages/*): pnpm's own git-diff-aware filter
+# ("...[<base>]") already resolves which workspace packages changed —
+# including via the dependency graph, and correctly through renames/moves —
+# so they don't need a hardcoded case branch the way the Python apps above
+# do. --if-present is a no-op when nothing matches, same as the Makefile's
+# `pnpm -r --if-present`.
 pnpm --filter "...[$base]" --if-present run lint -- --fix || status=1
 pnpm --filter "...[$base]" --if-present run typecheck || status=1
 pnpm --filter "...[$base]" --if-present run test || status=1
