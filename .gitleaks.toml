@@ -1,0 +1,12 @@
+title = "Farmable gitleaks config"
+
+[extend]
+useDefault = true
+
+# The default AWS example-key allowlist would otherwise let
+# AKIAIOSFODNN7EXAMPLE through; we want that string caught too.
+[[rules]]
+id = "aws-access-key-strict"
+description = "AWS Access Key ID (no example-key allowlisting)"
+regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+tags = ["key", "aws"]

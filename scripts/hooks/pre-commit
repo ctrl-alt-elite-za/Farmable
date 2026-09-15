@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Runs pre-commit, then re-stages files that pre-commit's own hooks (ruff --fix,
+# ruff-format, prettier, eslint --fix, end-of-file-fixer, trailing-whitespace)
+# modified — but ONLY for files that were fully staged before the commit, so a
+# partially-staged file never gets unstaged hunks silently swept into the commit.
+# This exists because plain pre-commit aborts a commit when a hook edits a file;
+# it does not re-add the fix, so `ruff format --check` would still fail on the
+# resulting commit. See issue #2's acceptance criteria.
+set -euo pipefail
+
+export PATH="$HOME/.local/bin:$PATH"
+
+# Snapshot which tracked files are staged with NO unstaged changes of their own
+# (i.e. `git diff --name-only` does not also list them). Only these are safe to
+# silently re-add after a hook fixes them.
+fully_staged_files() {
+  comm -23 \
+    <(git diff --cached --name-only --diff-filter=ACM | sort) \
+    <(git diff --name-only | sort)
+}
+
+before="$(fully_staged_files)"
+
+if uv run pre-commit run --hook-stage pre-commit; then
+  exit 0
+fi
+
+# pre-commit failed. If it only failed because hooks *modified* files, and
+# every modified file was fully staged beforehand, re-add and try once more.
+after="$(fully_staged_files)"
+changed="$(git diff --name-only || true)"
+
+if [ -z "$changed" ]; then
+  # Nothing was left modified-but-unstaged; a real lint/type error, not an
+  # autofix. Fail as-is.
+  echo "pre-commit failed (not an autofix situation) — see output above." >&2
+  exit 1
+fi
+
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  if ! grep -qxF "$f" <<<"$before"; then
+    echo "pre-commit modified '$f', which was not fully staged before the" >&2
+    echo "commit — refusing to auto-stage partial changes. Review and" >&2
+    echo "'git add' it yourself, then commit again." >&2
+    exit 1
+  fi
+done <<<"$changed"
+
+# Every changed file was safe to re-add.
+git diff --name-only -z | xargs -0 -r git add --
+
+if uv run pre-commit run --hook-stage pre-commit; then
+  exit 0
+fi
+
+echo "pre-commit still failing after autofix + re-stage — see output above." >&2
+exit 1
