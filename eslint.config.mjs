@@ -7,6 +7,13 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   eslintConfigPrettier,
   {
-    ignores: ['**/dist/**', '**/build/**', '**/.expo/**', 'ml/data/**', 'packages/api-client/**'],
+    ignores: [
+      '**/dist/**',
+      '**/build/**',
+      '**/.expo/**',
+      '**/.venv/**',
+      'ml/data/**',
+      'packages/api-client/**',
+    ],
   },
 );

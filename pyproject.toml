@@ -18,7 +18,10 @@ line-length = 100
 extend-exclude = ["ml/data"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+# S = flake8-bandit: catches some SQL-injection-shaped code (e.g. S608
+# string-built queries) as an extra layer alongside scripts/check-no-raw-sql.sh,
+# which is the actual enforcer of #2/#3's "ORM only, no hand-written SQL" rule.
+select = ["E", "F", "I", "UP", "B", "S"]
 
 [tool.mypy]
 python_version = "3.12"

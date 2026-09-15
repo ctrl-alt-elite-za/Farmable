@@ -39,15 +39,16 @@ for dir in $changed_dirs; do
         uv run mypy ml || status=1
       fi
       ;;
-    apps|packages)
-      pnpm --filter "./$dir/**" --if-present run lint -- --fix || status=1
-      pnpm --filter "./$dir/**" --if-present run typecheck || status=1
-      pnpm --filter "./$dir/**" --if-present run test || status=1
-      ;;
-    *)
-      : # not a code scope (docs, infra config, etc.) — nothing to run
-      ;;
   esac
 done
+
+# JS/TS packages: pnpm's own git-diff-aware filter ("...[<base>]") already
+# resolves which workspace packages changed — including via the dependency
+# graph, and correctly through renames/moves — so apps/ and packages/ don't
+# need a hardcoded case branch here the way backend/ml do. --if-present is a
+# no-op when nothing matches, same as the Makefile's `pnpm -r --if-present`.
+pnpm --filter "...[$base]" --if-present run lint -- --fix || status=1
+pnpm --filter "...[$base]" --if-present run typecheck || status=1
+pnpm --filter "...[$base]" --if-present run test || status=1
 
 exit $status

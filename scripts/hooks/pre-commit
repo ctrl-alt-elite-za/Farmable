@@ -27,7 +27,6 @@ fi
 
 # pre-commit failed. If it only failed because hooks *modified* files, and
 # every modified file was fully staged beforehand, re-add and try once more.
-after="$(fully_staged_files)"
 changed="$(git diff --name-only || true)"
 
 if [ -z "$changed" ]; then
