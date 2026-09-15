@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# Pre-push hook: for each top-level folder touched since the remote's version
-# of this branch, run lint (with autofix), typecheck and fast unit tests for
-# just that folder. Keeps pre-push fast by never touching untouched folders.
-# See #2's "problems caught in seconds on the laptop" pre-push requirement.
+# Pre-push hook: for each top-level folder touched since origin/main, run
+# lint (with autofix), typecheck and fast unit tests for just that folder.
+# Keeps pre-push fast by never touching untouched folders. See #2's
+# "problems caught in seconds on the laptop" pre-push requirement.
+#
+# pre-commit's pre-push driver doesn't forward the pushed ref to a hook's
+# `entry` command as an argument (only git's own .git/hooks/pre-push gets
+# $1=remote-name/$2=remote-url, which aren't revisions), so this always
+# diffs against origin/main rather than trying to guess the actual pushed
+# ref. That's the right base for this repo's trunk-based workflow anyway.
 set -euo pipefail
 
 export PATH="$HOME/.local/bin:$PATH"
 
-remote="${1:-@{push}}"
-base="$(git merge-base HEAD "$remote" 2>/dev/null || git merge-base HEAD origin/main 2>/dev/null || echo "")"
+base="$(git merge-base HEAD origin/main 2>/dev/null || echo "")"
 
 if [ -z "$base" ]; then
   echo "no merge base found, running full lint/typecheck/test instead"
@@ -27,6 +32,9 @@ status=0
 for dir in $changed_dirs; do
   case "$dir" in
     backend)
+      # check-no-raw-sql runs whenever backend/ changed, even before any
+      # .py files exist, since it also covers migrations/ and is cheap.
+      scripts/check-no-raw-sql.sh || status=1
       if [ -n "$(scripts/has-py-files.sh backend)" ]; then
         uv run ruff check --fix backend || status=1
         uv run mypy backend || status=1
@@ -38,6 +46,9 @@ for dir in $changed_dirs; do
         uv run ruff check --fix ml || status=1
         uv run mypy ml || status=1
       fi
+      ;;
+    migrations)
+      scripts/check-no-raw-sql.sh || status=1
       ;;
   esac
 done

@@ -6,6 +6,11 @@ set -euo pipefail
 
 branch="${1:-$(git rev-parse --abbrev-ref HEAD)}"
 repo_url="${2:-$(git config --get remote.origin.url)}"
+# Derive owner/repo from the URL (handles both git@github.com:x/y.git and
+# https://github.com/x/y.git) so the branch-protection check below works
+# against whatever repo/fork this is actually run against, not a hardcoded
+# slug from when this script was first written.
+repo_slug="$(echo "$repo_url" | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
@@ -15,6 +20,9 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 echo "== cloning $repo_url @ $branch into $tmp =="
 git clone --branch "$branch" --single-branch "$repo_url" "$tmp/repo"
 cd "$tmp/repo"
+# changed-scopes.sh (tested below) diffs against origin/main; --single-branch
+# above only fetched $branch, so fetch main too unless $branch already is main.
+[ "$branch" = "main" ] || git fetch origin main:refs/remotes/origin/main
 
 echo "== make setup =="
 make setup || fail "make setup did not exit 0"
@@ -35,26 +43,41 @@ def f( x,y ):
     return x+y
 PYEOF
 git add backend/tmp_check/badly_formatted.py
-if git commit -m "test: badly formatted python" >/tmp/commit.log 2>&1; then
+if git commit -m "test: badly formatted python" >"$tmp/commit.log" 2>&1; then
   export PATH="$HOME/.local/bin:$PATH"
   uv run ruff format --check backend/tmp_check/badly_formatted.py \
     || fail "ruff format --check failed on the committed file"
   pass "badly formatted Python auto-fixed on commit"
 else
-  cat /tmp/commit.log
+  cat "$tmp/commit.log"
   fail "commit of badly formatted python did not succeed after autofix"
 fi
 
 echo "== gitleaks blocks a committed secret =="
 echo "aws_key = \"AKIAIOSFODNN7EXAMPLE\"" > backend/tmp_check/leak.py # gitleaks:allow
 git add backend/tmp_check/leak.py
-if git commit -m "test: leaked secret" >/tmp/leak.log 2>&1; then
+if git commit -m "test: leaked secret" >"$tmp/leak.log" 2>&1; then
   fail "commit with a secret was NOT blocked"
 else
-  grep -qi "leak.py" /tmp/leak.log || fail "gitleaks output did not name the file"
+  grep -qi "leak.py" "$tmp/leak.log" || fail "gitleaks output did not name the file"
   pass "gitleaks blocked the commit and named the file"
   git reset --hard HEAD >/dev/null
 fi
+
+echo "== pre-push hook (scripts/changed-scopes.sh) catches raw SQL in backend/ =="
+mkdir -p backend/tmp_check
+echo "cursor.execute('select * from users where id = ' + user_id)" > backend/tmp_check/raw_sql.py
+git add backend/tmp_check/raw_sql.py
+git commit -m "test: raw sql in backend" >"$tmp/rawsql-commit.log" 2>&1 \
+  || { cat "$tmp/rawsql-commit.log"; fail "commit for the raw-SQL scope test did not succeed"; }
+if scripts/changed-scopes.sh >"$tmp/changed-scopes.log" 2>&1; then
+  cat "$tmp/changed-scopes.log"
+  fail "changed-scopes.sh did not catch raw SQL added under backend/"
+else
+  grep -qi "raw_sql.py" "$tmp/changed-scopes.log" || fail "changed-scopes.sh output did not name the file"
+  pass "pre-push scope check (changed-scopes.sh) caught the raw SQL and named the file"
+fi
+git reset --hard HEAD~1 >/dev/null
 
 echo "== dependabot.yml =="
 for eco in pip npm github-actions; do
@@ -71,9 +94,9 @@ pass "AGENTS.md has all required sections"
 
 echo "== branch protection on main (requires network + gh auth) =="
 if command -v gh >/dev/null 2>&1; then
-  reviews=$(gh api repos/ctrl-alt-elite-za/Farmable/branches/main/protection \
+  reviews=$(gh api "repos/$repo_slug/branches/main/protection" \
     --jq '.required_pull_request_reviews.required_approving_review_count' 2>/dev/null || echo "0")
-  force=$(gh api repos/ctrl-alt-elite-za/Farmable/branches/main/protection \
+  force=$(gh api "repos/$repo_slug/branches/main/protection" \
     --jq '.allow_force_pushes.enabled' 2>/dev/null || echo "true")
   [ "${reviews:-0}" -ge 1 ] || fail "required_approving_review_count < 1"
   [ "$force" = "false" ] || fail "force pushes are not blocked"

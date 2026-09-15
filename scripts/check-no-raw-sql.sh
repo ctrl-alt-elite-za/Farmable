@@ -14,7 +14,10 @@ if [ ${#dirs[@]} -eq 0 ]; then
   exit 0
 fi
 
-pattern="(\btext\(|\.execute\(\s*[\"']|op\.execute\(|\bcursor\(\))"
+# Avoid \b and \s: GNU grep -E supports them as extensions but BSD/macOS
+# grep -E does not, and this now runs on every contributor's push (via
+# scripts/changed-scopes.sh), not just Linux CI.
+pattern="([^A-Za-z0-9_]|^)text\(|\.execute\([[:space:]]*[\"']|op\.execute\(|([^A-Za-z0-9_]|^)cursor\(\)"
 if hits=$(grep -RInE --include='*.py' "$pattern" "${dirs[@]}"); then
   echo "Hand-written SQL found (forbidden — use the ORM instead):" >&2
   echo "$hits" >&2

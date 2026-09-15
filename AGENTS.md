@@ -42,7 +42,10 @@ and `#4` add code.
   (ADRs).
 - **Database access only through the SQLAlchemy ORM — never hand-written
   SQL.** No `text()`, no SQL strings passed to `execute()`, no Alembic
-  `op.execute()`, no raw cursors. `make check-no-raw-sql` enforces this.
+  `op.execute()`, no raw cursors. `make check-no-raw-sql` enforces this —
+  it runs automatically on `git push` whenever `backend/` or `migrations/`
+  changed (see `scripts/changed-scopes.sh`), and becomes a required CI
+  check on `main` in #5.
 - Formatting and simple lint issues are auto-fixed on commit (pre-commit
   hooks) and, if any slip through, on the PR itself (autofix.ci) — never
   hand-format to match a linter.
