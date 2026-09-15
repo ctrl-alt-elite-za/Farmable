@@ -66,7 +66,15 @@ fi
 
 echo "== pre-push hook (scripts/changed-scopes.sh) catches raw SQL in backend/ =="
 mkdir -p backend/tmp_check
-echo "cursor.execute('select * from users where id = ' + user_id)" > backend/tmp_check/raw_sql.py
+# A parameterized, non-concatenated query: ruff's bandit S608 rule (which
+# already runs at commit-time, before this file even reaches push) only
+# flags string-built queries, so this must still commit cleanly — proving
+# check-no-raw-sql.sh (the pre-push check under test) is what catches the
+# blanket "no hand-written SQL at all" rule, not a duplicate of ruff's S608.
+cat > backend/tmp_check/raw_sql.py <<'PYEOF'
+def get_user(cursor, user_id):
+    cursor.execute("select * from users where id = %s", (user_id,))
+PYEOF
 git add backend/tmp_check/raw_sql.py
 git commit -m "test: raw sql in backend" >"$tmp/rawsql-commit.log" 2>&1 \
   || { cat "$tmp/rawsql-commit.log"; fail "commit for the raw-SQL scope test did not succeed"; }
