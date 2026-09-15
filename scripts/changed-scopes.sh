@@ -27,14 +27,14 @@ status=0
 for dir in $changed_dirs; do
   case "$dir" in
     backend)
-      if [ -n "$(find backend -name '*.py' 2>/dev/null)" ]; then
+      if [ -n "$(scripts/has-py-files.sh backend)" ]; then
         uv run ruff check --fix backend || status=1
         uv run mypy backend || status=1
         [ -n "$(find backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ] && { uv run pytest backend -q || status=1; }
       fi
       ;;
     ml)
-      if [ -n "$(find ml -name '*.py' 2>/dev/null)" ]; then
+      if [ -n "$(scripts/has-py-files.sh ml)" ]; then
         uv run ruff check --fix ml || status=1
         uv run mypy ml || status=1
       fi

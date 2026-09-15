@@ -14,7 +14,7 @@ if [ ${#dirs[@]} -eq 0 ]; then
   exit 0
 fi
 
-pattern='(\btext\(|\.execute\(\s*["\x27]|op\.execute\(|\bcursor\(\))'
+pattern="(\btext\(|\.execute\(\s*[\"']|op\.execute\(|\bcursor\(\))"
 if hits=$(grep -RInE --include='*.py' "$pattern" "${dirs[@]}"); then
   echo "Hand-written SQL found (forbidden — use the ORM instead):" >&2
   echo "$hits" >&2

@@ -28,7 +28,7 @@ jobs:
       - name: Format
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          if [ -n "$(find backend ml -name '*.py' 2>/dev/null)" ]; then
+          if [ -n "$(scripts/has-py-files.sh backend ml)" ]; then
             uv run ruff check --fix .
             uv run ruff format .
           fi
