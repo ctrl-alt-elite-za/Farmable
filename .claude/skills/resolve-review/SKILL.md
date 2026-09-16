@@ -74,6 +74,39 @@ Re-read the diff adversarially before committing: what would make CI reject this
   and `user.email` are what this repo expects rather than assuming the default.
 - Never force-push a branch you don't own. If history needs rewriting, ask.
 
+### Authorship and tool references
+
+This repository's contributions carry the contributor's identity, not a tool's.
+Before committing, and again before pushing:
+
+- Set `user.name` and `user.email` to the repo's contributor, matching how
+  existing commits are authored (`git log -5 --format='%an <%ae>'`). Both author
+  and committer.
+- Strip assistant attribution trailers from the commit message — no
+  `Co-Authored-By:` naming a tool or its vendor, no session links.
+- Leave no tool or vendor names in the contribution itself: source comments,
+  docs, config, test fixtures, PR titles and bodies. Sweep before pushing:
+
+  ```bash
+  grep -rIn -i -e 'claude' -e 'anthropic' -e 'co-authored-by' \
+    --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv .
+  git log -1 --format='%an <%ae>%n%cn <%ce>%n%B' | grep -i -e claude -e anthropic
+  ```
+
+  Both should come back empty. Run the sweep before the commit, not after the
+  push — amending a pushed commit means a force-push, which step 4 rules out on
+  a shared branch.
+
+- If a commit already went out with the wrong authorship, amending and
+  force-pushing is a history rewrite: ask the repo owner first.
+
+One carve-out: the disclosure footer on a review comment an agent posts stays.
+It tells reviewers who wrote the text they are being asked to act on, which is
+not a tool reference to scrub — it is the reason the comment can be trusted.
+Remove the agent from the _contribution_; keep the attribution on the _commentary_.
+If the repo owner wants a reply under their own name, hand them the text to post
+rather than posting it unattributed.
+
 ## 5. Reply in this structure
 
 One comment per round, on the PR. Not a narration of each fix as you go.
