@@ -11,8 +11,10 @@ make setup
 ```
 
 `make setup` installs `uv` if missing, syncs Python dependencies (`uv sync`),
-enables Corepack, installs Node dependencies (`pnpm install`), and installs
-the git hooks. It works on Windows via WSL, macOS and Linux from a fresh
+enables Corepack (installing its shims into `$HOME/.local/bin`, so it never
+needs write access to a system-owned Node directory), installs Node
+dependencies (`pnpm install`), and installs the git hooks. Make sure
+`$HOME/.local/bin` is on your `PATH` — see the README for details. It works on Windows via WSL, macOS and Linux from a fresh
 clone. Tool versions are pinned in `.python-version`, `.nvmrc`,
 `package.json`'s `packageManager`, and `.pre-commit-config.yaml`.
 
@@ -24,7 +26,7 @@ clone. Tool versions are pinned in `.python-version`, `.nvmrc`,
 | `make lint`             | Ruff, ESLint                                                                         |
 | `make format`           | Ruff format, Prettier — applies fixes                                                |
 | `make typecheck`        | mypy, TypeScript project references                                                  |
-| `make test`             | pytest (apps/backend), workspace test scripts                                        |
+| `make test`             | pytest (`scripts/tests`, `apps/backend`), workspace test scripts                     |
 | `make hooks`            | (Re-)installs the pre-commit and pre-push git hooks                                  |
 | `make check-no-raw-sql` | Fails if `apps/backend/`/`migrations/` contain hand-written SQL                      |
 | `make client`           | Regenerates `packages/api-client` from `apps/backend`'s OpenAPI schema (added in #3) |
@@ -43,7 +45,8 @@ and `#4` add code.
   (ADRs).
 - **Database access only through the SQLAlchemy ORM — never hand-written
   SQL.** No `text()`, no SQL strings passed to `execute()`, no Alembic
-  `op.execute()`, no raw cursors. `make check-no-raw-sql` enforces this —
+  `op.execute()`, no raw cursors. `make check-no-raw-sql` enforces this by
+  parsing the Python AST (so multi-line calls are caught too) —
   it runs automatically on `git push` whenever `apps/backend/` or
   `migrations/` changed (see `scripts/changed-scopes.sh`), and becomes a
   required CI check on `main` in #5.

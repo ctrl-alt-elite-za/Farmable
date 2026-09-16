@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Fails if apps/backend/ or migrations/ contain hand-written SQL.
 # Database access must go through the ORM only.
+# The actual check is AST-based (scripts/check_no_raw_sql.py) so that calls
+# spanning multiple lines are detected too.
 set -euo pipefail
+
+export PATH="$HOME/.local/bin:$PATH"
 
 dirs=()
 [ -d apps/backend ] && dirs+=(apps/backend)
@@ -12,12 +16,7 @@ if [ ${#dirs[@]} -eq 0 ]; then
   exit 0
 fi
 
-# No \b/\s: those are GNU-only grep -E extensions, not portable to BSD/macOS.
-pattern="([^A-Za-z0-9_]|^)text\(|\.execute\([[:space:]]*[\"']|op\.execute\(|([^A-Za-z0-9_]|^)cursor\(\)"
-if hits=$(grep -RInE --include='*.py' "$pattern" "${dirs[@]}"); then
-  echo "Hand-written SQL found (forbidden — use the ORM instead):" >&2
-  echo "$hits" >&2
-  exit 1
+if command -v uv >/dev/null 2>&1; then
+  exec uv run --no-project python scripts/check_no_raw_sql.py "${dirs[@]}"
 fi
-
-echo "no raw SQL found"
+exec python3 scripts/check_no_raw_sql.py "${dirs[@]}"
