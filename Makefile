@@ -1,7 +1,10 @@
 SHELL := /bin/bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 
-PY_FILES := $(shell scripts/has-py-files.sh apps/backend apps/ml-service)
+PY_DIRS := apps/backend apps/ml-service scripts
+PY_FILES := $(shell scripts/has-py-files.sh $(PY_DIRS))
+# mypy errors on a directory with no .py files, so pass only populated ones.
+MYPY_DIRS := $(shell for d in $(PY_DIRS); do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
 PY_TEST_FILES := $(shell find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
 SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
 
@@ -47,7 +50,7 @@ format:
 	pnpm exec prettier --write .
 
 typecheck:
-	@if [ -n "$(PY_FILES)" ]; then uv run mypy apps/backend apps/ml-service; else echo "no Python files yet, skipping mypy"; fi
+	@if [ -n "$(PY_FILES)" ]; then uv run mypy $(MYPY_DIRS); else echo "no Python files yet, skipping mypy"; fi
 	pnpm -r --if-present run typecheck
 
 test:
