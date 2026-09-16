@@ -30,8 +30,6 @@ ARG_SENSITIVE_METHODS = {"execute", "executemany"}
 # SQLAlchemy's raw-SQL constructor, bare or qualified (`sa.text`, `sqlalchemy.text`).
 SQL_TEXT_FUNCTIONS = {"text"}
 ALLOW_MARKER = "raw-sql: allow"
-# For a file this checker cannot analyse at all, where no call node exists to mark.
-ALLOW_FILE_MARKER = "raw-sql: allow-file"
 
 # A string is only SQL if it reads as a statement. Without this, `runner.execute("ls -la")`
 # and `task.execute("nightly-report")` are reported, which is a guardrail blocking
@@ -426,8 +424,6 @@ def check_file(path: Path) -> list[str]:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError as exc:
         return [f"{path}:{exc.lineno or 0}: could not parse ({exc.msg})"]
-    except RecursionError:
-        return [f"{path}:0: could not parse (expression nested too deeply)"]
 
     lines = source.splitlines()
     collector = _Collector()
@@ -453,14 +449,6 @@ def check_file(path: Path) -> list[str]:
     return [message for _, message in sorted(hits)]
 
 
-def _file_waived(path: Path) -> bool:
-    """True if the file carries the file-level allow marker."""
-    try:
-        return ALLOW_FILE_MARKER in path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
-
-
 def check_paths(dirs: list[Path]) -> list[str]:
     """Check every file, reporting one that cannot be analysed rather than
     letting it abort the run and discard the violations already found."""
@@ -470,13 +458,10 @@ def check_paths(dirs: list[Path]) -> list[str]:
             try:
                 hits.extend(check_file(path))
             except Exception as exc:  # noqa: BLE001 - one bad file must not end the run
-                if _file_waived(path):
-                    continue
-                kind = type(exc).__name__
-                hits.append(
-                    f"{path}:0: could not be analysed ({kind}); "
-                    f"mark the file `# {ALLOW_FILE_MARKER}` if this is expected"
-                )
+                # Deliberately not waivable in-file: a marker that switches off a
+                # whole file is a way to smuggle SQL past the check. Exclude such
+                # a file by path in configuration instead, where review sees it.
+                hits.append(f"{path}:0: could not be analysed ({type(exc).__name__})")
     return hits
 
 

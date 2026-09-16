@@ -703,19 +703,25 @@ def test_undecodable_file_does_not_hide_other_findings(tmp_path: Path) -> None:
     assert any("latin.py" in hit for hit in hits)
 
 
-def test_unanalysable_file_can_be_waived(tmp_path: Path) -> None:
-    """A file-level finding has no call node, so it needs a file-level marker."""
-    (tmp_path / "deep.py").write_text(
-        "# raw-sql: allow-file\nq = " + " + ".join(['"x"'] * 3000) + "\n", encoding="utf-8"
+def test_an_unanalysable_file_cannot_be_waived_in_file(tmp_path: Path) -> None:
+    """A file-level marker was a bypass: pad a file, waive it, smuggle SQL."""
+    (tmp_path / "smuggle.py").write_text(
+        "# raw-sql: allow-file\n"
+        'cursor.execute("DROP TABLE users")\n'
+        "pad = " + " + ".join(['"x"'] * 3000) + "\n",
+        encoding="utf-8",
     )
-    (tmp_path / "real.py").write_text('cursor.execute("DROP TABLE t")\n', encoding="utf-8")
-    hits = check_paths([tmp_path])
-    assert not any("deep.py" in hit for hit in hits)
-    assert any("real.py" in hit for hit in hits)
-
-
-def test_unanalysable_finding_names_the_waiver(tmp_path: Path) -> None:
-    (tmp_path / "deep.py").write_text("q = " + " + ".join(['"x"'] * 3000) + "\n", encoding="utf-8")
     hits = check_paths([tmp_path])
     assert len(hits) == 1
-    assert "raw-sql: allow-file" in hits[0]
+    assert "could not be analysed" in hits[0]
+
+
+def test_per_call_marker_still_waives_one_call(tmp_path: Path) -> None:
+    """The per-call marker is bounded, so it stays."""
+    path = write(
+        tmp_path,
+        'legacy.execute("SELECT 1")  # raw-sql: allow\ncursor.execute("DROP TABLE t")\n',
+    )
+    hits = check_file(path)
+    assert len(hits) == 1
+    assert ":2:" in hits[0]

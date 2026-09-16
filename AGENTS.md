@@ -45,9 +45,16 @@ and `#4` add code.
   (ADRs).
 - **Database access only through the SQLAlchemy ORM — never hand-written
   SQL.** No `text()`, no SQL strings passed to `execute()`, no Alembic
-  `op.execute()`, no raw cursors. `make check-no-raw-sql` enforces this by
-  parsing the Python AST (so multi-line calls are caught too) —
-  it runs automatically on `git push` whenever `apps/backend/` or
+  `op.execute()`, no raw cursors. Three checks enforce this, deliberately
+  overlapping: ruff's `TID251` bans importing `sqlalchemy.text` at all, which
+  needs no SQL recognition and cannot be defeated by formatting or dialect;
+  ruff's `S608` catches query strings built by interpolation; and
+  `make check-no-raw-sql` parses the AST for what neither can see — methods
+  called on a runtime object, such as `cursor.execute("SELECT ...")`. A single
+  false positive can be waived in place with a `# raw-sql: allow` comment (or
+  `# noqa: TID251` for the import rule); there is deliberately no way to switch
+  the check off for a whole file. The AST check runs automatically on
+  `git push` whenever `apps/backend/` or
   `migrations/` changed (see `scripts/changed-scopes.sh`), and becomes a
   required CI check on `main` in #5.
 - Formatting and simple lint issues are auto-fixed on commit (pre-commit
