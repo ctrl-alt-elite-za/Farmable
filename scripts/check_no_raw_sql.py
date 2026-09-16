@@ -34,7 +34,7 @@ ALLOW_MARKER = "raw-sql: allow"
 # and `task.execute("nightly-report")` are reported, which is a guardrail blocking
 # correct code. No dialect is pinned in this repo, so this covers ANSI plus the
 # PostgreSQL commands Alembic and SQLAlchemy emit.
-_LEADING = r"^\s*(?:--[^\n]*\n\s*)*"
+_LEADING = r"^\s*(?:(?:--[^\n]*\n|/\*[\s\S]*?\*/)\s*)*"
 # Unambiguous: these words do not start an ordinary English sentence handed to a
 # non-SQL `.execute()`, so the keyword alone is enough.
 _STRONG = (
@@ -53,21 +53,16 @@ _CLAUSE = (
     r"database|role|user|session|search_path|constraint|column|trigger|function|"
     r"sequence|extension|as|on|set)\b|[=;]"
 )
-# MULTILINE: formatted SQL puts the verb at the start of a line, not of the
-# string, so `"""\n  with recent as (...)\n  select ...\n"""` is recognised.
-SQL_STATEMENT = re.compile(
-    rf"^[ \t]*(?:--[^\n]*\n[ \t]*)*({_STRONG})\b",
-    re.IGNORECASE | re.MULTILINE,
+# `.match()` anchors at position 0, so re.MULTILINE would never reach a later
+# line; leading whitespace is what actually lets a formatted block through.
+SQL_STATEMENT = re.compile(rf"{_LEADING}({_STRONG})(?=[\s(;]|$)", re.IGNORECASE)
+# A CTE opens with the ambiguous word `with`, so match the shape of a CTE rather
+# than "an ambiguous opener with a verb somewhere after it" - the latter reports
+# prose such as "show the report and update the archive".
+SQL_STATEMENT_CTE = re.compile(
+    rf'{_LEADING}with\s+(?:recursive\s+)?[A-Za-z_"][\w".]*\s+as\s*\(',
+    re.IGNORECASE,
 )
-# A CTE opens with the ambiguous word `with`, so a weak opener followed anywhere
-# by an unambiguous verb is a statement: `with recent as (select 1) select ...`.
-SQL_STATEMENT_CTE = re.compile(rf"{_LEADING}({_WEAK})\b[\s\S]*\b({_STRONG})\b", re.IGNORECASE)
-# Scanning the whole string for a clause word flags ordinary prose ("show the
-# file as backup"), so an ambiguous keyword only counts when the string is
-# written the way SQL conventionally is: the keyword in capitals, or a
-# statement terminator. Lowercase `set search_path to public` is therefore not
-# recognised on its own - text() covers the usual route, and a literal that
-# needs flagging can be caught by its clause words instead.
 SQL_STATEMENT_WEAK = re.compile(
     rf"{_LEADING}({_WEAK.upper()})\b(\s|;|$)",
 )

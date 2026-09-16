@@ -571,3 +571,73 @@ def test_formatted_multiline_sql_is_detected(tmp_path: Path) -> None:
         '""")\n',
     )
     assert len(check_file(path)) == 1
+
+
+# Adversarial review of round 5: recognition must not widen into prose.
+
+
+def test_plain_formatted_sql_is_detected(tmp_path: Path) -> None:
+    """A leading newline and indent is how multi-line SQL is actually written."""
+    path = write(
+        tmp_path,
+        'cursor.execute("""\n    select *\n    from users\n""")\n',
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_prose_with_a_sql_verb_later_stays_clean(tmp_path: Path) -> None:
+    """An ambiguous opener plus a verb somewhere after it is not a statement."""
+    path = write(
+        tmp_path,
+        'runner.execute("show the report and update the archive")\n'
+        'runner.execute("copy the file and create a backup")\n'
+        'runner.execute("set the flag and drop the cache")\n'
+        'runner.execute("use the select box on the form")\n',
+    )
+    assert check_file(path) == []
+
+
+def test_shell_script_argument_stays_clean(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'runner.execute("""\nset -e\nupdate-config --now\n""")\n',
+    )
+    assert check_file(path) == []
+
+
+def test_leading_comment_before_a_statement_is_detected(tmp_path: Path) -> None:
+    path = write(tmp_path, 'cursor.execute("-- active users\\nselect 1")\n')
+    assert len(check_file(path)) == 1
+
+
+def test_paths_and_commands_opening_with_a_sql_verb_stay_clean(tmp_path: Path) -> None:
+    """A hyphen or dot ends a word, so `\\b` alone called these statements."""
+    path = write(
+        tmp_path,
+        'runner.execute("delete-me.txt")\n'
+        'runner.execute("update-config --now")\n'
+        'runner.execute("drop.sh")\n'
+        'runner.execute("truncate-logs")\n',
+    )
+    assert check_file(path) == []
+
+
+def test_block_comment_before_a_statement_is_detected(tmp_path: Path) -> None:
+    path = write(tmp_path, 'cursor.execute("/* active users */ select 1")\n')
+    assert len(check_file(path)) == 1
+
+
+def test_recursive_cte_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'cursor.execute("WITH RECURSIVE tree AS (select 1) select * from tree")\n',
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_words_merely_starting_with_a_verb_stay_clean(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'runner.execute("SELECTION criteria")\nrunner.execute("insertion point")\n',
+    )
+    assert check_file(path) == []
