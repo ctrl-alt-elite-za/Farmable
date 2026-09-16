@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 # Verifies issue #2's acceptance criteria end-to-end in a throwaway clone.
 # Run from anywhere; it clones the current branch into a temp dir.
-# Usage: scripts/verify-issue-2.sh [branch] [owner/repo]
+# Usage: scripts/verify-issue-2.sh [--allow-skips] [branch] [owner/repo]
+#
+# Exit codes: 0 = every check ran and passed
+#             1 = a check failed
+#             2 = all checks that ran passed, but some were skipped
+#                 (partial verification; use --allow-skips to exit 0 instead)
 set -euo pipefail
+
+allow_skips=0
+if [ "${1:-}" = "--allow-skips" ]; then
+  allow_skips=1
+  shift
+fi
 
 branch="${1:-$(git rev-parse --abbrev-ref HEAD)}"
 repo_url="${2:-$(git config --get remote.origin.url)}"
@@ -10,8 +21,11 @@ repo_slug="$(echo "$repo_url" | sed -E 's#^(git@github\.com:|https://github\.com
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+skipped=()
+
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1" >&2; exit 1; }
+skip() { skipped+=("$1"); echo "SKIP: $1" >&2; }
 
 echo "== cloning $repo_url @ $branch into $tmp =="
 git clone --branch "$branch" --single-branch "$repo_url" "$tmp/repo"
@@ -90,17 +104,28 @@ done
 pass "AGENTS.md has all required sections"
 
 echo "== branch protection on main (requires network + gh auth) =="
-if command -v gh >/dev/null 2>&1; then
-  reviews=$(gh api "repos/$repo_slug/branches/main/protection" \
-    --jq '.required_pull_request_reviews.required_approving_review_count' 2>/dev/null || echo "0")
-  force=$(gh api "repos/$repo_slug/branches/main/protection" \
-    --jq '.allow_force_pushes.enabled' 2>/dev/null || echo "true")
+if ! command -v gh >/dev/null 2>&1; then
+  skip "branch protection on main (gh CLI not available)"
+elif ! protection="$(gh api "repos/$repo_slug/branches/main/protection" 2>/dev/null)"; then
+  skip "branch protection on main (gh could not read the protection API: not authenticated, no network, or insufficient permissions)"
+else
+  reviews="$(echo "$protection" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("required_pull_request_reviews",{}).get("required_approving_review_count",0))')"
+  force="$(echo "$protection" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(str(d.get("allow_force_pushes",{}).get("enabled",True)).lower())')"
   [ "${reviews:-0}" -ge 1 ] || fail "required_approving_review_count < 1"
   [ "$force" = "false" ] || fail "force pushes are not blocked"
   pass "branch protection: reviews>=1, force pushes blocked"
-else
-  echo "SKIP: gh not available, skipping branch protection check"
 fi
 
 echo
-echo "All checks passed."
+if [ ${#skipped[@]} -eq 0 ]; then
+  echo "All checks passed."
+  exit 0
+fi
+
+echo "PARTIAL VERIFICATION: ${#skipped[@]} check(s) could not be run:" >&2
+for item in "${skipped[@]}"; do
+  echo "  - $item" >&2
+done
+echo "Every check that ran passed, but this is NOT a full verification." >&2
+[ "$allow_skips" -eq 1 ] && exit 0
+exit 2

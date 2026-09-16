@@ -3,13 +3,23 @@ export PATH := $(HOME)/.local/bin:$(PATH)
 
 PY_FILES := $(shell scripts/has-py-files.sh apps/backend apps/ml-service)
 PY_TEST_FILES := $(shell find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
+SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
 
 .PHONY: setup lint format typecheck test hooks check-no-raw-sql client
 
 setup:
 	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
 	@command -v corepack >/dev/null 2>&1 || { echo "corepack not found - install Node $$(cat .nvmrc) first (see README)"; exit 1; }
-	@corepack enable
+	@# Install the Corepack shims into a user-writable dir: plain `corepack enable`
+	@# writes beside the Node binary, which is EACCES on system-owned Node.
+	@mkdir -p $(HOME)/.local/bin
+	@corepack enable --install-directory "$(HOME)/.local/bin" \
+		|| corepack enable \
+		|| { echo "corepack enable failed - see README troubleshooting"; exit 1; }
+	@command -v pnpm >/dev/null 2>&1 || { \
+		echo "pnpm not on PATH after corepack enable."; \
+		echo "Add this to your shell profile: export PATH=\"$$HOME/.local/bin:$$PATH\""; \
+		exit 1; }
 	@# uv and pnpm install in parallel; each exit code is checked explicitly.
 	@set -e; \
 	(uv sync) & uv_pid=$$!; \
@@ -41,6 +51,7 @@ typecheck:
 	pnpm -r --if-present run typecheck
 
 test:
+	@if [ -n "$(SCRIPT_TEST_FILES)" ]; then uv run pytest scripts/tests -q; fi
 	@if [ -n "$(PY_TEST_FILES)" ]; then uv run pytest apps/backend; else echo "no backend tests yet, skipping pytest"; fi
 	pnpm -r --if-present run test
 

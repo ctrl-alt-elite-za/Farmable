@@ -18,7 +18,7 @@ importers:
         specifier: ^9.1.0
         version: 9.1.2(eslint@9.39.5)
       prettier:
-        specifier: ^3.3.3
+        specifier: 3.9.6
         version: 3.9.6
       typescript:
         specifier: ^5.7.2

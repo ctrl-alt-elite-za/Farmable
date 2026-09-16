@@ -10,6 +10,7 @@ dev = [
     "ruff>=0.8.0,<0.9.0",
     "mypy>=1.13.0,<1.14.0",
     "pre-commit>=4.0.0,<4.1.0",
+    "pytest>=8.3.0,<9.0.0",
 ]
 
 [tool.ruff]
@@ -20,6 +21,11 @@ extend-exclude = ["apps/ml-service/data"]
 [tool.ruff.lint]
 # S = flake8-bandit, extra layer alongside scripts/check-no-raw-sql.sh.
 select = ["E", "F", "I", "UP", "B", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests are allowed to use `assert` (S101 is flake8-bandit's production rule).
+"**/test_*.py" = ["S101"]
+"**/*_test.py" = ["S101"]
 
 [tool.mypy]
 python_version = "3.12"
