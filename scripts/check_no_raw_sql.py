@@ -29,7 +29,10 @@ A name is only treated as SQL when the binding that actually reaches the call
 says so: bindings are tracked per scope and in source order, so an unrelated
 function reusing the name, or a later reassignment, does not leak either way.
 
-A line the check gets wrong can be exempted with a `raw-sql: allow` comment.
+A line the check gets wrong can be exempted with a `raw-sql: allow` comment. A
+whole file cannot be exempted from inside itself - that was a way to smuggle SQL
+past the check - so a file that defeats the parser is listed in
+`[tool.check-no-raw-sql] exclude`, where review can see it.
 """
 
 from __future__ import annotations
@@ -37,7 +40,9 @@ from __future__ import annotations
 import ast
 import re
 import sys
+import tomllib
 from collections import deque
+from fnmatch import fnmatch
 from pathlib import Path
 
 # Raw SQL regardless of what is passed - there is no ORM form of these.
@@ -466,37 +471,131 @@ def check_file(path: Path) -> list[str]:
     return [message for _, message in sorted(hits)]
 
 
-def check_paths(dirs: list[Path]) -> list[str]:
+class Result:
+    """What the run found, and what it actually looked at.
+
+    The counts exist so the invariant can be checked rather than assumed: a
+    clean verdict is only meaningful if every file was examined. Three separate
+    defects have produced "no raw SQL found" while examining nothing.
+    """
+
+    __slots__ = ("hits", "analysed", "excluded", "seen")
+
+    def __init__(self) -> None:
+        self.hits: list[str] = []
+        self.analysed = 0
+        self.excluded = 0
+        self.seen = 0
+
+    @property
+    def unexamined(self) -> int:
+        return self.seen - self.analysed - self.excluded
+
+
+def check_paths(dirs: list[Path], excludes: list[str] | None = None) -> Result:
     """Check every file, reporting one that cannot be analysed rather than
     letting it abort the run and discard the violations already found."""
-    hits = []
+    patterns = excludes or []
+    result = Result()
     for directory in dirs:
         for path in sorted(directory.rglob("*.py")):
+            result.seen += 1
+            if _excluded(path, patterns):
+                result.excluded += 1
+                continue
             try:
-                hits.extend(check_file(path))
+                result.hits.extend(check_file(path))
+                result.analysed += 1
             except Exception as exc:  # noqa: BLE001 - one bad file must not end the run
-                # Deliberately not waivable in-file: a marker that switches off a
-                # whole file is a way to smuggle SQL past the check. Exclude such
-                # a file by path in configuration instead, where review sees it.
-                hits.append(f"{path}:0: could not be analysed ({type(exc).__name__})")
-    return hits
+                # Deliberately not waivable in-file: a marker that switches off
+                # a whole file is a way to smuggle SQL past the check. Use an
+                # exclude entry, which is visible in review.
+                result.hits.append(
+                    f"{path}:0: could not be analysed ({type(exc).__name__}); "
+                    f"add it to [tool.check-no-raw-sql] exclude if that is expected"
+                )
+                result.analysed += 1
+    return result
+
+
+def _excluded(path: Path, patterns: list[str]) -> bool:
+    text = path.as_posix()
+    return any(fnmatch(text, pattern) or fnmatch(path.name, pattern) for pattern in patterns)
+
+
+def load_excludes(config: Path) -> list[str]:
+    """Exclusions live in pyproject.toml so they are visible in review."""
+    if not config.is_file():
+        return []
+    with config.open("rb") as handle:
+        data = tomllib.load(handle)
+    section = data.get("tool", {}).get("check-no-raw-sql", {})
+    patterns = section.get("exclude", [])
+    if not isinstance(patterns, list) or any(not isinstance(p, str) for p in patterns):
+        raise ValueError("[tool.check-no-raw-sql] exclude must be a list of strings")
+    return patterns
+
+
+def _parse_args(argv: list[str]) -> tuple[list[Path], list[str]]:
+    """Strict: an argument that is not an existing directory is an error.
+
+    Silently dropping a mistyped path is how a check comes back clean without
+    having looked at anything.
+    """
+    paths: list[Path] = []
+    excludes: list[str] = []
+    rest = list(argv)
+    while rest:
+        arg = rest.pop(0)
+        if arg == "--exclude":
+            if not rest:
+                raise ValueError("--exclude needs a pattern")
+            excludes.append(rest.pop(0))
+        elif arg.startswith("--exclude="):
+            excludes.append(arg.split("=", 1)[1])
+        elif arg.startswith("-"):
+            raise ValueError(f"unknown option: {arg}")
+        else:
+            candidate = Path(arg)
+            if not candidate.is_dir():
+                raise ValueError(f"not a directory: {arg}")
+            paths.append(candidate)
+    return paths, excludes
 
 
 def main(argv: list[str]) -> int:
-    dirs = [Path(a) for a in argv if Path(a).is_dir()]
+    try:
+        dirs, excludes = _parse_args(argv)
+        excludes += load_excludes(Path("pyproject.toml"))
+    except (ValueError, tomllib.TOMLDecodeError) as exc:
+        print(f"check-no-raw-sql: {exc}", file=sys.stderr)
+        return 2
+
     if not dirs:
         print("no directories to check, skipping")
         return 0
 
-    hits = check_paths(dirs)
-    if hits:
+    result = check_paths(dirs, excludes)
+
+    # The invariant: a clean verdict means every file was examined. If this ever
+    # fails, the check has stopped checking - say so rather than report success.
+    if result.unexamined:
+        print(
+            f"check-no-raw-sql: {result.unexamined} file(s) were neither analysed "
+            "nor excluded; refusing to report a result",
+            file=sys.stderr,
+        )
+        return 2
+
+    if result.hits:
         print("Hand-written SQL found (forbidden - use the ORM instead):", file=sys.stderr)
-        for hit in hits:
+        for hit in result.hits:
             print(f"  {hit}", file=sys.stderr)
         print(f"If a line is a false positive, mark it with `# {ALLOW_MARKER}`.", file=sys.stderr)
         return 1
 
-    print("no raw SQL found")
+    excluded = f", {result.excluded} excluded" if result.excluded else ""
+    print(f"no raw SQL found ({result.analysed} file(s) checked{excluded})")
     return 0
 
 

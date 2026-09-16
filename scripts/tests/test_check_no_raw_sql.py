@@ -6,7 +6,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from check_no_raw_sql import check_file, check_paths, looks_like_sql  # noqa: E402
+from check_no_raw_sql import (  # noqa: E402
+    check_file,
+    check_paths,
+    looks_like_sql,
+    main,
+)
 
 
 def write(tmp_path: Path, source: str) -> Path:
@@ -654,7 +659,7 @@ def test_deeply_nested_expression_does_not_abort_the_run(tmp_path: Path) -> None
     (tmp_path / "deep.py").write_text(
         "q = " + " + ".join(['"x"'] * 3000) + "\ncursor.execute(q)\n", encoding="utf-8"
     )
-    hits = check_paths([tmp_path])
+    hits = check_paths([tmp_path]).hits
     violations = [hit for hit in hits if "aaa_violation.py" in hit]
     unanalysable = [hit for hit in hits if "deep.py" in hit]
     assert len(violations) == 1
@@ -698,7 +703,7 @@ def test_undecodable_file_does_not_hide_other_findings(tmp_path: Path) -> None:
     """A stray byte must not end the run; UnicodeDecodeError is not an OSError."""
     (tmp_path / "aaa_ok.py").write_text('cursor.execute("DROP TABLE t")\n', encoding="utf-8")
     (tmp_path / "latin.py").write_bytes(b'x = "\xff\xfe"\ncursor.execute("DELETE FROM users")\n')
-    hits = check_paths([tmp_path])
+    hits = check_paths([tmp_path]).hits
     assert any("aaa_ok.py" in hit for hit in hits)
     assert any("latin.py" in hit for hit in hits)
 
@@ -711,7 +716,7 @@ def test_an_unanalysable_file_cannot_be_waived_in_file(tmp_path: Path) -> None:
         "pad = " + " + ".join(['"x"'] * 3000) + "\n",
         encoding="utf-8",
     )
-    hits = check_paths([tmp_path])
+    hits = check_paths([tmp_path]).hits
     assert len(hits) == 1
     assert "could not be analysed" in hits[0]
 
@@ -738,3 +743,65 @@ def test_non_sql_strings_are_why_recognition_cannot_be_dropped(tmp_path: Path) -
         'runner.execute("ls -la")\ntask.execute("nightly-report")\n',
     )
     assert check_file(path) == []
+
+
+# The invariant. Every defect that made this check report success while
+# examining nothing arrived by a different mechanism - a crash, a file-level
+# waiver, a mistyped path. Example tests cannot catch the next mechanism, so
+# assert the property instead: a clean verdict means every file was examined.
+
+PATHOLOGICAL: dict[str, bytes] = {
+    "clean.py": b"session.execute(select(User))\n",
+    "violation.py": b'cursor.execute("DROP TABLE users")\n',
+    "syntax_error.py": b"def broken(:\n",
+    "undecodable.py": b'x = "\xff\xfe"\n',
+    "waiver_attempt.py": b'# raw-sql: allow-file\ncursor.execute("DELETE FROM t")\n',
+    "deep.py": b"q = " + b" + ".join([b'"x"'] * 3000) + b"\n",
+    "empty.py": b"",
+}
+
+
+def test_every_file_is_examined_or_excluded(tmp_path: Path) -> None:
+    """No input may leave a file neither analysed nor deliberately excluded."""
+    for name, content in PATHOLOGICAL.items():
+        (tmp_path / name).write_bytes(content)
+    result = check_paths([tmp_path])
+    assert result.seen == len(PATHOLOGICAL)
+    assert result.unexamined == 0
+
+
+def test_a_clean_verdict_requires_having_examined_everything(tmp_path: Path) -> None:
+    """Exit 0 must mean 'checked and found nothing', never 'did not look'."""
+    for name, content in PATHOLOGICAL.items():
+        (tmp_path / name).write_bytes(content)
+    result = check_paths([tmp_path])
+    assert result.hits, "pathological corpus must not come back clean"
+    assert main([str(tmp_path)]) == 1
+
+
+def test_no_single_file_can_suppress_another(tmp_path: Path) -> None:
+    """Whatever one file does, a violation in another is still reported."""
+    (tmp_path / "violation.py").write_bytes(b'cursor.execute("DROP TABLE users")\n')
+    for name, content in PATHOLOGICAL.items():
+        if name == "clean.py":
+            continue
+        neighbour = tmp_path / f"neighbour_{name}"
+        neighbour.write_bytes(content)
+        result = check_paths([tmp_path])
+        assert any("violation.py" in hit for hit in result.hits), f"hidden by {name}"
+        neighbour.unlink()
+
+
+def test_a_path_that_is_not_a_directory_is_an_error(tmp_path: Path) -> None:
+    assert main([str(tmp_path / "nope")]) == 2
+
+
+def test_an_unknown_option_is_an_error(tmp_path: Path) -> None:
+    assert main(["--bogus", str(tmp_path)]) == 2
+
+
+def test_exclusion_is_counted_not_silent(tmp_path: Path) -> None:
+    (tmp_path / "deep.py").write_bytes(PATHOLOGICAL["deep.py"])
+    result = check_paths([tmp_path], ["deep.py"])
+    assert result.excluded == 1
+    assert result.hits == []

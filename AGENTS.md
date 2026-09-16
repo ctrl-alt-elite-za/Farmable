@@ -54,8 +54,12 @@ and `#4` add code.
   `make check-no-raw-sql` parses the AST for what neither can see — methods
   called on a runtime object, such as `cursor.execute("SELECT ...")`. A single
   false positive can be waived in place with a `# raw-sql: allow` comment (or
-  `# noqa: TID251` for the import rule); there is deliberately no way to switch
-  the check off for a whole file. The AST check runs automatically on
+  `# noqa: TID251` for the import rule). There is deliberately no way to switch
+  the check off from inside a file; a file that genuinely cannot be parsed goes
+  in `[tool.check-no-raw-sql] exclude` in `pyproject.toml`, where taking code
+  out of the guardrail shows up in review. A clean run reports how many files
+  it examined, and refuses to report at all if any file was neither analysed
+  nor excluded. The AST check runs automatically on
   `git push` whenever `apps/backend/` or
   `migrations/` changed (see `scripts/changed-scopes.sh`), and becomes a
   required CI check on `main` in #5.

@@ -48,5 +48,12 @@ python_version = "3.12"
 ignore_missing_imports = true
 exclude = ["apps/ml-service/data"]
 
+[tool.check-no-raw-sql]
+# Files scripts/check-no-raw-sql.sh cannot analyse (a generated file whose
+# expressions defeat the parser, say). Listed here rather than waived by a
+# comment inside the file, so excluding code from the guardrail is visible in
+# review. Patterns match the repo-relative path or the bare filename.
+exclude = []
+
 [tool.uv]
 package = false
