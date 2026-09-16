@@ -100,14 +100,27 @@ Before committing, and again before pushing:
 - If a commit already went out with the wrong authorship, amending and
   force-pushing is a history rewrite: ask the repo owner first.
 
-One carve-out: the disclosure footer on a review comment an agent posts stays.
-It tells reviewers who wrote the text they are being asked to act on, which is
-not a tool reference to scrub — it is the reason the comment can be trusted.
-Remove the agent from the _contribution_; keep the attribution on the _commentary_.
-If the repo owner wants a reply under their own name, hand them the text to post
-rather than posting it unattributed.
+Commentary is handled in step 5, not here: the default is that the agent does
+not post it at all, so there is no agent-authored comment to scrub.
 
 ## 5. Reply in this structure
+
+**Draft the reply; let the repo owner post it.** Write the comment out in the
+session and hand it over. Do not post it to the PR yourself unless the owner
+asks you to in so many words.
+
+This is the default for two reasons. A comment posted by an agent carries a
+disclosure footer saying so — that footer is not optional and is never stripped,
+because a reviewer acting on the text is entitled to know what wrote it. And the
+reply is the author speaking to their reviewer; it reads better, and belongs in
+the thread, under their name. Handing over the text gets a clean comment with no
+tool branding _and_ honest attribution, because the person who posts it is the
+person who signs it.
+
+So: no agent-posted comment, no footer to remove. If the owner does ask you to
+post it directly, the footer goes on and stays on — at that point it is an
+agent-authored comment and is labelled as one. Never post it stripped, and never
+post under the owner's name as though they wrote it.
 
 One comment per round, on the PR. Not a narration of each fix as you go.
 
