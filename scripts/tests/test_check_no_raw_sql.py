@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from check_no_raw_sql import check_file, string_valued_names  # noqa: E402
+from check_no_raw_sql import check_file, looks_like_sql  # noqa: E402
 
 
 def write(tmp_path: Path, source: str) -> Path:
@@ -150,9 +150,11 @@ def test_orm_select_passed_to_execute_is_clean(tmp_path: Path) -> None:
     assert check_file(path) == []
 
 
-def test_string_valued_names_tracks_assignments(tmp_path: Path) -> None:
-    tree = ast.parse('a = "x"\nb: str = "y"\nc = 3\n')
-    assert string_valued_names(tree) == {"a", "b"}
+def test_looks_like_sql_distinguishes_statements_from_plain_strings() -> None:
+    assert looks_like_sql(ast.parse('"SELECT 1"', mode="eval").body)
+    assert looks_like_sql(ast.parse('"  delete from users"', mode="eval").body)
+    assert not looks_like_sql(ast.parse('"ls -la"', mode="eval").body)
+    assert not looks_like_sql(ast.parse('"nightly-report"', mode="eval").body)
 
 
 # Adversarial review: gaps found in the round-2 checker.
@@ -208,3 +210,123 @@ def test_hits_are_ordered_by_line_number(tmp_path: Path) -> None:
     assert len(hits) == 11
     assert ":2:" in hits[1]
     assert ":11:" in hits[10]
+
+
+# Review round 3: name tracking must respect scope and source order.
+
+
+def test_name_reused_in_another_function_is_not_flagged(tmp_path: Path) -> None:
+    """A string bound in one function must not leak into another's scope."""
+    path = write(
+        tmp_path,
+        "def a():\n"
+        '    query = "label"\n'
+        "\n"
+        "def b(session):\n"
+        "    query = select(User)\n"
+        "    session.execute(query)\n",
+    )
+    assert check_file(path) == []
+
+
+def test_reassignment_before_an_orm_execute_is_not_flagged(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'query = "label"\nquery = select(User)\nsession.execute(query)\n',
+    )
+    assert check_file(path) == []
+
+
+def test_non_sql_strings_to_unrelated_execute_are_not_flagged(tmp_path: Path) -> None:
+    """A guardrail that blocks `runner.execute("ls -la")` blocks correct code."""
+    path = write(
+        tmp_path,
+        'cmd = "ls -la"\nrunner.execute(cmd)\ntask.execute("nightly-report")\n',
+    )
+    assert check_file(path) == []
+
+
+def test_sql_in_one_function_is_caught_despite_reuse_elsewhere(tmp_path: Path) -> None:
+    """The mirror case: name reuse must not hide real SQL in another scope."""
+    path = write(
+        tmp_path,
+        "def f(session):\n"
+        "    query = select(User)\n"
+        "    session.execute(query)\n"
+        "\n"
+        "def g(cursor):\n"
+        '    query = "DELETE FROM users"\n'
+        "    cursor.execute(query)\n",
+    )
+    hits = check_file(path)
+    assert len(hits) == 1
+    assert ":7:" in hits[0]
+
+
+def test_binding_after_the_call_does_not_reach_it(tmp_path: Path) -> None:
+    """Order matters: SQL assigned after the call is not what the call used."""
+    path = write(
+        tmp_path,
+        "def f(session):\n"
+        "    query = select(User)\n"
+        "    session.execute(query)\n"
+        '    query = "SELECT 1"\n',
+    )
+    assert check_file(path) == []
+
+
+def test_parameter_shadows_a_module_level_sql_string(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'query = "SELECT * FROM users"\n'
+        "\n"
+        "def f(session, query):\n"
+        "    session.execute(query)\n",
+    )
+    assert check_file(path) == []
+
+
+def test_module_level_sql_reaches_a_function_that_does_not_rebind(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'QUERY = "SELECT * FROM users"\n' "\n" "def f(cursor):\n" "    cursor.execute(QUERY)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_sql_appended_with_augmented_assignment_is_detected(tmp_path: Path) -> None:
+    """`sql += " WHERE ..."` appends to SQL; it does not make it not-SQL."""
+    path = write(
+        tmp_path,
+        "def f(cursor):\n"
+        '    sql = "SELECT * FROM users"\n'
+        '    sql += " WHERE active = 1"\n'
+        "    cursor.execute(sql)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_walrus_bound_sql_is_detected(tmp_path: Path) -> None:
+    path = write(tmp_path, 'cursor.execute(sql := "DROP TABLE users")\n')
+    assert len(check_file(path)) == 1
+
+
+def test_sql_in_both_branches_of_a_conditional_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(cursor, flag):\n"
+        "    if flag:\n"
+        '        q = "SELECT 1"\n'
+        "    else:\n"
+        '        q = "SELECT 2"\n'
+        "    cursor.execute(q)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_appending_to_a_non_sql_string_stays_clean(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(runner):\n" '    cmd = "ls"\n' '    cmd += " -la"\n' "    runner.execute(cmd)\n",
+    )
+    assert check_file(path) == []
