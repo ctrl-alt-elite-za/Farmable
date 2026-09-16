@@ -43,6 +43,13 @@ for dir in $changed_dirs; do
     migrations)
       scripts/check-no-raw-sql.sh || status=1
       ;;
+    scripts)
+      if [ -n "$(scripts/has-py-files.sh scripts)" ]; then
+        uv run ruff check --fix scripts || status=1
+        uv run mypy scripts || status=1
+        [ -d scripts/tests ] && { uv run pytest scripts/tests -q || status=1; }
+      fi
+      ;;
   esac
 done
 

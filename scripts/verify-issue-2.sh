@@ -21,11 +21,19 @@ repo_slug="$(echo "$repo_url" | sed -E 's#^(git@github\.com:|https://github\.com
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-skipped=()
+# A plain counter and a newline-delimited list, not an array: referencing an
+# empty array under `set -u` is an error in bash < 4.4, which macOS still ships.
+skipped_count=0
+skipped_list=""
 
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1" >&2; exit 1; }
-skip() { skipped+=("$1"); echo "SKIP: $1" >&2; }
+skip() {
+  skipped_count=$((skipped_count + 1))
+  skipped_list="${skipped_list}  - $1
+"
+  echo "SKIP: $1" >&2
+}
 
 echo "== cloning $repo_url @ $branch into $tmp =="
 git clone --branch "$branch" --single-branch "$repo_url" "$tmp/repo"
@@ -117,15 +125,13 @@ else
 fi
 
 echo
-if [ ${#skipped[@]} -eq 0 ]; then
+if [ "$skipped_count" -eq 0 ]; then
   echo "All checks passed."
   exit 0
 fi
 
-echo "PARTIAL VERIFICATION: ${#skipped[@]} check(s) could not be run:" >&2
-for item in "${skipped[@]}"; do
-  echo "  - $item" >&2
-done
+echo "PARTIAL VERIFICATION: $skipped_count check(s) could not be run:" >&2
+printf '%s' "$skipped_list" >&2
 echo "Every check that ran passed, but this is NOT a full verification." >&2
 [ "$allow_skips" -eq 1 ] && exit 0
 exit 2

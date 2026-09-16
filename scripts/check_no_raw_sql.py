@@ -7,6 +7,8 @@ so calls that span several lines are caught just like single-line ones.
 Rules are evaluated most-specific first. Some methods are raw SQL whatever they
 are handed (`op.execute`, `exec_driver_sql`); others depend on the argument
 (`execute("SELECT ...")` is SQL, `execute(select(User))` is the ORM).
+
+A line the check gets wrong can be exempted with a `raw-sql: allow` comment.
 """
 
 from __future__ import annotations
@@ -21,20 +23,31 @@ UNCONDITIONAL_METHODS = {"exec_driver_sql", "executescript"}
 ARG_SENSITIVE_METHODS = {"execute", "executemany"}
 # SQLAlchemy's raw-SQL constructor, bare or qualified (`sa.text`, `sqlalchemy.text`).
 SQL_TEXT_FUNCTIONS = {"text"}
+ALLOW_MARKER = "raw-sql: allow"
 
 
-def _callee_name(func: ast.expr) -> tuple[str | None, str]:
-    """Return (attribute owner name or None, called name) for a call target."""
+def _dotted_name(node: ast.expr) -> str | None:
+    """Return `a.b.c` for a Name/Attribute chain, else None."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        base = _dotted_name(node.value)
+        return f"{base}.{node.attr}" if base else None
+    return None
+
+
+def _callee(func: ast.expr) -> tuple[str | None, str]:
+    """Return (dotted receiver or None, called name) for a call target."""
     if isinstance(func, ast.Attribute):
-        owner = func.value.id if isinstance(func.value, ast.Name) else None
-        return owner, func.attr
+        return _dotted_name(func.value), func.attr
     if isinstance(func, ast.Name):
         return None, func.id
     return None, ""
 
 
-def _qualified(owner: str | None, name: str) -> str:
-    return f"{owner}.{name}" if owner else name
+def _is_alembic_op(owner: str | None) -> bool:
+    """True for `op`, `alembic.op`, `self.op` - any receiver ending in `op`."""
+    return owner is not None and (owner == "op" or owner.endswith(".op"))
 
 
 def _is_string_literal(node: ast.expr | None) -> bool:
@@ -42,7 +55,7 @@ def _is_string_literal(node: ast.expr | None) -> bool:
         return isinstance(node.value, str)
     if isinstance(node, ast.JoinedStr):  # f-string
         return True
-    if isinstance(node, ast.BinOp):  # "SELECT " + table
+    if isinstance(node, ast.BinOp):  # "SELECT " + table, "SELECT %s" % x
         return _is_string_literal(node.left) or _is_string_literal(node.right)
     return False
 
@@ -51,25 +64,31 @@ def _is_text_call(node: ast.expr | None) -> bool:
     """True for `text(...)`, `sa.text(...)`, `sqlalchemy.text(...)`."""
     if not isinstance(node, ast.Call):
         return False
-    _, name = _callee_name(node.func)
+    _, name = _callee(node.func)
     return name in SQL_TEXT_FUNCTIONS
 
 
 def string_valued_names(tree: ast.AST) -> set[str]:
-    """Names bound to a string literal anywhere in the file.
+    """Names bound to a string literal and never rebound to anything else.
 
-    Catches the indirection `sql = "DELETE FROM users"; cursor.execute(sql)`.
+    Catches `sql = "DELETE FROM users"; cursor.execute(sql)`. A name that is
+    also assigned a non-string somewhere is dropped, so an ORM statement held
+    in a name that once held a string is not reported.
     """
-    names: set[str] = set()
+    strings: set[str] = set()
+    others: set[str] = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and _is_string_literal(node.value):
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    names.add(target.id)
-        elif isinstance(node, ast.AnnAssign) and _is_string_literal(node.value):
-            if isinstance(node.target, ast.Name):
-                names.add(node.target.id)
-    return names
+        if isinstance(node, ast.Assign):
+            targets, value = node.targets, node.value
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets, value = [node.target], node.value
+        else:
+            continue
+        bucket = strings if _is_string_literal(value) else others
+        for target in targets:
+            if isinstance(target, ast.Name):
+                bucket.add(target.id)
+    return strings - others
 
 
 def _is_sql_argument(node: ast.expr | None, string_names: set[str]) -> bool:
@@ -81,16 +100,16 @@ def _is_sql_argument(node: ast.expr | None, string_names: set[str]) -> bool:
 
 
 def _describe(node: ast.Call, string_names: set[str]) -> str | None:
-    owner, name = _callee_name(node.func)
+    owner, name = _callee(node.func)
     first_arg = node.args[0] if node.args else None
-    label = _qualified(owner, name)
+    label = f"{owner}.{name}" if owner else name
 
     # Most specific first: these are raw SQL whatever the argument is, so they
     # must be tested before the argument-sensitive rule can return early.
     if name in UNCONDITIONAL_METHODS:
         return f"{label}() - always raw SQL"
-    if name == "execute" and owner == "op":
-        return "op.execute() - always raw SQL"
+    if name == "execute" and _is_alembic_op(owner):
+        return f"{label}() - always raw SQL"
 
     if name in ARG_SENSITIVE_METHODS and isinstance(node.func, ast.Attribute):
         if _is_sql_argument(first_arg, string_names):
@@ -106,6 +125,16 @@ def _describe(node: ast.Call, string_names: set[str]) -> str | None:
     return None
 
 
+def _parents(tree: ast.AST) -> dict[int, ast.AST]:
+    return {id(child): node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+
+
+def _allowed(node: ast.Call, lines: list[str]) -> bool:
+    """True if any line of the call carries the allow marker."""
+    last = getattr(node, "end_lineno", node.lineno) or node.lineno
+    return any(ALLOW_MARKER in line for line in lines[node.lineno - 1 : last])
+
+
 def check_file(path: Path) -> list[str]:
     """Return one message per raw-SQL usage found in `path`."""
     source = path.read_text(encoding="utf-8")
@@ -114,18 +143,35 @@ def check_file(path: Path) -> list[str]:
     except SyntaxError as exc:
         return [f"{path}:{exc.lineno or 0}: could not parse ({exc.msg})"]
 
+    lines = source.splitlines()
     string_names = string_valued_names(tree)
-    hits: list[str] = []
-    seen_lines: set[int] = set()
-    # ast.walk is breadth-first, so an outer call is described before the inner
-    # one it wraps; one message per line keeps `op.execute(text("..."))` to one.
+    parents = _parents(tree)
+    reported: set[int] = set()
+    hits: list[tuple[int, str]] = []
+
+    # ast.walk is breadth-first, so an enclosing call is seen before the call it
+    # wraps; skipping nodes nested in a reported one keeps `op.execute(text(...))`
+    # to a single message without collapsing unrelated calls on the same line.
     for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and node.lineno not in seen_lines:
-            what = _describe(node, string_names)
-            if what:
-                seen_lines.add(node.lineno)
-                hits.append(f"{path}:{node.lineno}: {what}")
-    return sorted(hits)
+        if not isinstance(node, ast.Call):
+            continue
+        if _enclosed_by(node, parents, reported):
+            continue
+        what = _describe(node, string_names)
+        if what and not _allowed(node, lines):
+            reported.add(id(node))
+            hits.append((node.lineno, f"{path}:{node.lineno}: {what}"))
+
+    return [message for _, message in sorted(hits)]
+
+
+def _enclosed_by(node: ast.AST, parents: dict[int, ast.AST], reported: set[int]) -> bool:
+    current = parents.get(id(node))
+    while current is not None:
+        if id(current) in reported:
+            return True
+        current = parents.get(id(current))
+    return False
 
 
 def check_paths(dirs: list[Path]) -> list[str]:
@@ -147,6 +193,7 @@ def main(argv: list[str]) -> int:
         print("Hand-written SQL found (forbidden - use the ORM instead):", file=sys.stderr)
         for hit in hits:
             print(f"  {hit}", file=sys.stderr)
+        print(f"If a line is a false positive, mark it with `# {ALLOW_MARKER}`.", file=sys.stderr)
         return 1
 
     print("no raw SQL found")

@@ -28,7 +28,7 @@ repos:
         name: prettier --write
         entry: pnpm exec prettier --write --ignore-unknown
         language: system
-        types: [text]
+        types_or: [javascript, jsx, ts, tsx, json, yaml, markdown, css, scss, html]
         exclude: ^(pnpm-lock\.yaml|uv\.lock)$
 
   - repo: local

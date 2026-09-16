@@ -1,5 +1,6 @@
 """Tests for the AST-based raw-SQL check."""
 
+import ast
 import sys
 from pathlib import Path
 
@@ -150,5 +151,60 @@ def test_orm_select_passed_to_execute_is_clean(tmp_path: Path) -> None:
 
 
 def test_string_valued_names_tracks_assignments(tmp_path: Path) -> None:
-    tree = __import__("ast").parse('a = "x"\nb: str = "y"\nc = 3\n')
+    tree = ast.parse('a = "x"\nb: str = "y"\nc = 3\n')
     assert string_valued_names(tree) == {"a", "b"}
+
+
+# Adversarial review: gaps found in the round-2 checker.
+
+
+def test_qualified_op_execute_is_detected(tmp_path: Path) -> None:
+    """`op` may be reached through an attribute chain, not only a bare name."""
+    path = write(
+        tmp_path,
+        "alembic.op.execute(build_sql())\nself.op.execute(build_sql())\n",
+    )
+    hits = check_file(path)
+    assert len(hits) == 2
+    assert "alembic.op.execute()" in hits[0]
+    assert "self.op.execute()" in hits[1]
+
+
+def test_name_rebound_to_non_string_is_not_flagged(tmp_path: Path) -> None:
+    """A name that once held a string but was rebound is not a SQL argument."""
+    path = write(
+        tmp_path,
+        'query = "SELECT 1"\nquery = select(User)\nsession.execute(query)\n',
+    )
+    assert check_file(path) == []
+
+
+def test_two_violations_on_one_line_are_both_reported(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'cursor.execute("SELECT 1"); cursor.execute("DROP TABLE users")\n',
+    )
+    assert len(check_file(path)) == 2
+
+
+def test_allow_marker_suppresses_a_violation(tmp_path: Path) -> None:
+    path = write(tmp_path, 'legacy.execute("SELECT 1")  # raw-sql: allow\n')
+    assert check_file(path) == []
+
+
+def test_allow_marker_works_on_a_multiline_call(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'legacy.execute(  # raw-sql: allow\n    "SELECT 1"\n)\n',
+    )
+    assert check_file(path) == []
+
+
+def test_hits_are_ordered_by_line_number(tmp_path: Path) -> None:
+    """Sorting must be numeric, not lexical: line 10 comes after line 2."""
+    body = "\n".join(f'cursor.execute("SELECT {i}")' for i in range(1, 12))
+    path = write(tmp_path, body + "\n")
+    hits = check_file(path)
+    assert len(hits) == 11
+    assert ":2:" in hits[1]
+    assert ":11:" in hits[10]
