@@ -39,6 +39,14 @@ The reported symptom is a sample, not the specification.
 - A version pinned in two places needs one source of truth, not the two edited
   to agree — they will drift again.
 
+- An exclusion reported in one place almost always exists in others. "X is
+  missing from Y" means grepping for every list that should name X and fixing
+  each one — the reviewer found the instance that happened to bite them, not the
+  whole set.
+- Switching on a check that was silently skipped will surface failures that have
+  nothing to do with the review. They were always there, masked. Fix them in the
+  same round; leaving them means the check you just enabled is red for everyone.
+
 Weigh the alternatives explicitly and pick the one that closes the class of bug.
 Record _why_ in the reply — reviewers approve reasoning, not just diffs.
 
@@ -61,7 +69,28 @@ Run the repo's own checks before pushing — lint, typecheck, tests, the full
 pre-commit run. Reproduce the original failure first, then show it passing. A
 push that turns CI red costs a cycle and the reviewer's trust.
 
-Re-read the diff adversarially before committing: what would make CI reject this?
+### Attack your own fix before the reviewer does
+
+Re-reading the diff is not enough — it shows you what you meant, not what you
+wrote. Run your fix against inputs you have not already made pass:
+
+- **Enumerate the variants** of whatever you just matched on. A rule keyed on a
+  name should be tried qualified, aliased, nested, and reached through an
+  attribute chain. A rule keyed on a value should be tried with the value
+  rebound, shadowed, or built at runtime.
+- **Write the inputs that must _not_ trigger**, not only the ones that must. A
+  guardrail that blocks correct code fails just as loudly as one that misses
+  bad code, and costs a contributor more.
+- **Probe the seams you introduced.** Any suppression, deduplication or caching
+  you added to make output tidy can hide a real result — feed it two genuine
+  violations in the place it collapses and check both survive.
+- **Check portability claims the repo makes.** If the README promises macOS or
+  WSL, shell you touched has to work on the oldest interpreter that implies, not
+  just the one in front of you.
+
+Findings from this pass are the same as findings from a reviewer: fix them now.
+A defect you find yourself is cheap; the same defect found in round three costs
+a review cycle and makes every other claim you made look softer.
 
 ## 4. Commit and push
 
@@ -140,6 +169,13 @@ Copy-pasteable commands with expected output, per finding. Start with the
 reviewer's own reproduction case.
 ```
 
+If a later round disproves something you told the reviewer, correct it in the
+next reply, in as many words. Descriptions of behaviour are what a reviewer
+verifies against; one that quietly stopped being true sends them to check a
+thing that no longer matches the code, and they will find the gap before you
+admit it. "I said X; it was only true for the bare form, here is what changed"
+costs a sentence and keeps the rest of the reply worth reading.
+
 Close with what you validated and — explicitly — what you did **not**. If a
 check couldn't run (needs network, credentials, a real deploy), say so rather
 than implying full coverage. A reviewer who finds an unstated gap stops trusting
@@ -164,6 +200,10 @@ dismiss approvals but can't add one.
 - Red CI or a merge conflict on a PR you own is work now, not "waiting on
   review". Never end a round having done nothing about it.
 - Never skip, disable, or quarantine a test to get green.
+- A check that can block a commit or a push needs a documented way to waive a
+  single case, and the failure output should name it. Without one, the first
+  false positive leaves a contributor editing the checker to get their work in —
+  and the next person copies that instead of the waiver.
 - "Flake" is not a root cause. Re-run once to confirm; a second failure is real.
 - Small, local asks (nits, renames, an added test) → fix and push. Large or
   architectural asks on a PR you don't own → propose in a reply; the author
