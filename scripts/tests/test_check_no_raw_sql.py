@@ -450,3 +450,124 @@ def test_prose_starting_with_an_ambiguous_keyword_stays_clean(tmp_path: Path) ->
         'runner.execute("set up the environment")\nrunner.execute("show me the report")\n',
     )
     assert check_file(path) == []
+
+
+# Adversarial review of round 4: reachability, expression forms, prose.
+
+
+def test_binding_in_an_exclusive_branch_does_not_reach_the_call(tmp_path: Path) -> None:
+    """A call in the `else` cannot be reached by a binding in the `if`."""
+    path = write(
+        tmp_path,
+        "def f(session, flag):\n"
+        "    query = select(User)\n"
+        "    if flag:\n"
+        '        query = "SELECT 1"\n'
+        "    else:\n"
+        "        session.execute(query)\n",
+    )
+    assert check_file(path) == []
+
+
+def test_call_in_the_same_branch_as_the_sql_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(session, flag):\n"
+        "    if flag:\n"
+        '        query = "SELECT 1"\n'
+        "        session.execute(query)\n"
+        "    else:\n"
+        "        query = select(User)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_sql_in_a_conditional_expression_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(session, flag):\n"
+        '    query = "SELECT * FROM users" if flag else select(User)\n'
+        "    session.execute(query)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_text_in_a_conditional_expression_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(session, flag):\n"
+        "    query = text(build()) if flag else select(User)\n"
+        "    session.execute(query)\n",
+    )
+    assert len(check_file(path)) >= 1
+
+
+def test_sql_behind_a_boolean_fallback_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(cursor, override):\n"
+        '    query = override or "DELETE FROM users"\n'
+        "    cursor.execute(query)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_sql_in_a_match_case_is_detected(tmp_path: Path) -> None:
+    """`match` arms are branches; the last case must not mask an earlier one."""
+    path = write(
+        tmp_path,
+        "def f(session, mode):\n"
+        "    match mode:\n"
+        "        case 1:\n"
+        '            query = "SELECT * FROM users"\n'
+        "        case _:\n"
+        "            query = select(User)\n"
+        "    session.execute(query)\n",
+    )
+    hits = check_file(path)
+    assert len(hits) == 1
+    assert ":7:" in hits[0]
+
+
+def test_prose_containing_sql_clause_words_stays_clean(tmp_path: Path) -> None:
+    """A clause word anywhere in a sentence is not a SQL statement."""
+    path = write(
+        tmp_path,
+        'runner.execute("show the file as backup")\n'
+        'runner.execute("copy the report to the archive")\n'
+        'runner.execute("set up the environment")\n',
+    )
+    assert check_file(path) == []
+
+
+def test_uppercase_ambiguous_keyword_is_sql(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'conn.execute("SET LOCAL statement_timeout = 5")\nconn.execute("BEGIN TRANSACTION")\n',
+    )
+    assert len(check_file(path)) == 2
+
+
+def test_terminated_statement_is_sql_whatever_its_case(tmp_path: Path) -> None:
+    path = write(tmp_path, 'conn.execute("commit;")\n')
+    assert len(check_file(path)) == 1
+
+
+def test_lowercase_cte_is_detected(tmp_path: Path) -> None:
+    """`with ... select ...` opens with an ambiguous word but is a statement."""
+    path = write(
+        tmp_path,
+        'cursor.execute("with recent as (select 1) select * from recent")\n',
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_formatted_multiline_sql_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'cursor.execute("""\n'
+        "    with recent as (select id from users)\n"
+        "    select * from recent\n"
+        '""")\n',
+    )
+    assert len(check_file(path)) == 1

@@ -53,10 +53,27 @@ _CLAUSE = (
     r"database|role|user|session|search_path|constraint|column|trigger|function|"
     r"sequence|extension|as|on|set)\b|[=;]"
 )
-SQL_STATEMENT = re.compile(rf"{_LEADING}({_STRONG})\b", re.IGNORECASE)
+# MULTILINE: formatted SQL puts the verb at the start of a line, not of the
+# string, so `"""\n  with recent as (...)\n  select ...\n"""` is recognised.
+SQL_STATEMENT = re.compile(
+    rf"^[ \t]*(?:--[^\n]*\n[ \t]*)*({_STRONG})\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+# A CTE opens with the ambiguous word `with`, so a weak opener followed anywhere
+# by an unambiguous verb is a statement: `with recent as (select 1) select ...`.
+SQL_STATEMENT_CTE = re.compile(rf"{_LEADING}({_WEAK})\b[\s\S]*\b({_STRONG})\b", re.IGNORECASE)
+# Scanning the whole string for a clause word flags ordinary prose ("show the
+# file as backup"), so an ambiguous keyword only counts when the string is
+# written the way SQL conventionally is: the keyword in capitals, or a
+# statement terminator. Lowercase `set search_path to public` is therefore not
+# recognised on its own - text() covers the usual route, and a literal that
+# needs flagging can be caught by its clause words instead.
 SQL_STATEMENT_WEAK = re.compile(
-    rf"{_LEADING}({_WEAK})\b(\s*$|\s*;|(?=.*(?:{_CLAUSE})))",
-    re.IGNORECASE | re.DOTALL,
+    rf"{_LEADING}({_WEAK.upper()})\b(\s|;|$)",
+)
+SQL_STATEMENT_TERMINATED = re.compile(
+    rf"{_LEADING}({_WEAK})\b(?:\s+[^\s;]+){{0,6}}\s*;\s*$",
+    re.IGNORECASE,
 )
 
 SCOPE_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef, ast.Module)
@@ -96,13 +113,22 @@ def _literal_chunks(node: ast.expr | None) -> list[str]:
         return []
     if isinstance(node, ast.NamedExpr):  # cursor.execute(sql := "DROP TABLE x")
         return _literal_chunks(node.value)
+    if isinstance(node, ast.IfExp):  # "SELECT 1" if flag else select(User)
+        return _literal_chunks(node.body) + _literal_chunks(node.orelse)
+    if isinstance(node, ast.BoolOp):  # override or "SELECT 1"
+        return [chunk for value in node.values for chunk in _literal_chunks(value)]
     if isinstance(node, ast.BinOp):  # "SELECT " + table, "SELECT %s" % args
         return _literal_chunks(node.left) + _literal_chunks(node.right)
     return []
 
 
 def _is_sql_text(chunk: str) -> bool:
-    return bool(SQL_STATEMENT.match(chunk) or SQL_STATEMENT_WEAK.match(chunk))
+    return bool(
+        SQL_STATEMENT.match(chunk)
+        or SQL_STATEMENT_WEAK.match(chunk)
+        or SQL_STATEMENT_TERMINATED.match(chunk)
+        or SQL_STATEMENT_CTE.match(chunk)
+    )
 
 
 def looks_like_sql(node: ast.expr | None) -> bool:
@@ -127,6 +153,18 @@ class Binding:
     def definitely_reaches(self, path: BranchPath) -> bool:
         """True if this binding runs on every path to a call at `path`."""
         return path[: len(self.path)] == self.path
+
+    def can_reach(self, path: BranchPath) -> bool:
+        """False when the binding sits in a branch exclusive with the call's.
+
+        Two positions are exclusive when they take different arms of the same
+        statement: `if x: q = "SELECT 1"` cannot reach a call in that `if`'s
+        `else`, so it must not be merged into the call's state.
+        """
+        for mine, theirs in zip(self.path, path, strict=False):
+            if mine[0] == theirs[0] and mine[1] != theirs[1]:
+                return False
+        return True
 
 
 class Scope:
@@ -158,7 +196,7 @@ class Scope:
                 return False
             return any(b.is_sql for b in self.parent._all(name))
 
-        reachable = [b for b in self.bindings[name] if b.lineno <= lineno]
+        reachable = [b for b in self.bindings[name] if b.lineno <= lineno and b.can_reach(path)]
         definite = [b for b in reachable if b.definitely_reaches(path)]
         base = definite[-1] if definite else None
         if base is not None and base.is_sql:
@@ -220,6 +258,14 @@ class _Collector(ast.NodeVisitor):
         for statement in node.finalbody:  # always runs
             self.visit(statement)
 
+    def visit_TryStar(self, node: ast.TryStar) -> None:
+        self.visit_Try(node)  # type: ignore[arg-type]
+
+    def visit_Match(self, node: ast.Match) -> None:
+        self.visit(node.subject)
+        for index, case in enumerate(node.cases):
+            self._branch(node, index, case.body)
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._visit_function(node)
 
@@ -244,7 +290,7 @@ class _Collector(ast.NodeVisitor):
         self._in_new_scope(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        is_sql = looks_like_sql(node.value) or _is_text_call(node.value)
+        is_sql = carries_sql(node.value)
         for target in node.targets:
             for name in _bound_names(target):
                 self.scope.bind(name, node.lineno, is_sql, self.path)
@@ -253,13 +299,13 @@ class _Collector(ast.NodeVisitor):
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if node.value is not None:
             for name in _bound_names(node.target):
-                self.scope.bind(name, node.lineno, looks_like_sql(node.value), self.path)
+                self.scope.bind(name, node.lineno, carries_sql(node.value), self.path)
         self.generic_visit(node)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         # An append keeps whatever the name already held, so `sql = "SELECT ..."`
         # followed by `sql += " WHERE ..."` stays SQL.
-        appended = looks_like_sql(node.value)
+        appended = carries_sql(node.value)
         for name in _bound_names(node.target):
             already = self.scope.holds_sql(name, node.lineno)
             self.scope.bind(name, node.lineno, already or appended, self.path)
@@ -267,7 +313,7 @@ class _Collector(ast.NodeVisitor):
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         for name in _bound_names(node.target):
-            self.scope.bind(name, node.lineno, looks_like_sql(node.value), self.path)
+            self.scope.bind(name, node.lineno, carries_sql(node.value), self.path)
         self.generic_visit(node)
 
     def visit_For(self, node: ast.For) -> None:
@@ -284,10 +330,19 @@ class _Collector(ast.NodeVisitor):
 
 def _is_text_call(node: ast.expr | None) -> bool:
     """True for `text(...)`, `sa.text(...)`, `sqlalchemy.text(...)`."""
+    if isinstance(node, ast.IfExp):
+        return _is_text_call(node.body) or _is_text_call(node.orelse)
+    if isinstance(node, ast.BoolOp):
+        return any(_is_text_call(value) for value in node.values)
     if not isinstance(node, ast.Call):
         return False
     _, name = _callee(node.func)
     return name in SQL_TEXT_FUNCTIONS
+
+
+def carries_sql(node: ast.expr | None) -> bool:
+    """True if a value binds SQL, as a literal statement or a text() call."""
+    return looks_like_sql(node) or _is_text_call(node)
 
 
 def _is_sql_argument(node: ast.expr | None, scope: Scope, lineno: int, path: BranchPath) -> bool:
