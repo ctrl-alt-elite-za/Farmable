@@ -1,10 +1,4 @@
-# Force LF everywhere regardless of which git client (Windows/WSL/macOS)
-# checks a file out or adds it. Without this, a Windows git-for-Windows
-# checkout with core.autocrlf=true corrupts shell scripts' shebang lines
-# with CRLF ("#!/usr/bin/env bash\r"), which fails to exec on Linux/macOS
-# with "bad interpreter" — a real problem for a repo whose contributors mix
-# Windows/WSL and macOS/Linux (see #2's "make setup works on Windows (WSL),
-# macOS and Linux" reliability criterion).
+# Force LF everywhere: CRLF in a shell script's shebang breaks it on Linux/macOS.
 * text=auto eol=lf
 
 *.sh text eol=lf

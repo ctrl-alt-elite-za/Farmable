@@ -1,7 +1,5 @@
 name: autofix.ci
 
-# autofix.ci reads this workflow's diff and commits Ruff/Prettier/ESLint
-# fixes straight to the PR branch when they'd otherwise fail CI. See #2.
 on:
   pull_request:
 

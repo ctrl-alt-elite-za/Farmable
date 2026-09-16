@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Fails if apps/backend/ or migrations/ contain hand-written SQL. Per #3/#2:
-# every database access must go through the SQLAlchemy ORM / GeoAlchemy2 —
-# no text(), no SQL strings passed to execute(), no op.execute() in Alembic,
-# no raw cursors. This is a defense against SQL injection, not a style rule.
+# Fails if apps/backend/ or migrations/ contain hand-written SQL.
+# Database access must go through the ORM only.
 set -euo pipefail
 
 dirs=()
@@ -14,9 +12,7 @@ if [ ${#dirs[@]} -eq 0 ]; then
   exit 0
 fi
 
-# Avoid \b and \s: GNU grep -E supports them as extensions but BSD/macOS
-# grep -E does not, and this now runs on every contributor's push (via
-# scripts/changed-scopes.sh), not just Linux CI.
+# No \b/\s: those are GNU-only grep -E extensions, not portable to BSD/macOS.
 pattern="([^A-Za-z0-9_]|^)text\(|\.execute\([[:space:]]*[\"']|op\.execute\(|([^A-Za-z0-9_]|^)cursor\(\)"
 if hits=$(grep -RInE --include='*.py' "$pattern" "${dirs[@]}"); then
   echo "Hand-written SQL found (forbidden — use the ORM instead):" >&2

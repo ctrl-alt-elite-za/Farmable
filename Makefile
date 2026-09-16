@@ -1,10 +1,6 @@
 SHELL := /bin/bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 
-# Set once so every target's "skip if no Python files yet" guard shares one
-# tree walk instead of each target re-running find. Recomputed on every
-# invocation (not cached to a file) since Make re-evaluates := at parse time,
-# which is exactly once per `make` run.
 PY_FILES := $(shell scripts/has-py-files.sh apps/backend apps/ml-service)
 PY_TEST_FILES := $(shell find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
 
@@ -14,9 +10,7 @@ setup:
 	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
 	@command -v corepack >/dev/null 2>&1 || { echo "corepack not found - install Node $$(cat .nvmrc) first (see README)"; exit 1; }
 	@corepack enable
-	@# uv and pnpm are independent package managers; install in parallel, but
-	@# still fail the whole target if either one fails (a bare `wait` swallows
-	@# exit codes, so each job's status is captured and checked explicitly).
+	@# uv and pnpm install in parallel; each exit code is checked explicitly.
 	@set -e; \
 	(uv sync) & uv_pid=$$!; \
 	(pnpm install --frozen-lockfile || pnpm install) & pnpm_pid=$$!; \
@@ -29,10 +23,7 @@ setup:
 
 hooks:
 	@uv run pre-commit install-hooks
-	@# pre-commit's own pre-commit hook aborts a commit when a hook edits a
-	@# file instead of re-adding it; scripts/hooks/pre-commit wraps it so a
-	@# commit with autofixed formatting still succeeds (see #2). The pre-push
-	@# hook uses plain `pre-commit install` since push has no "re-add" step.
+	@# scripts/hooks/pre-commit wraps pre-commit to re-add autofixed files.
 	@install -m 755 scripts/hooks/pre-commit .git/hooks/pre-commit
 	@uv run pre-commit install --hook-type pre-push -f
 

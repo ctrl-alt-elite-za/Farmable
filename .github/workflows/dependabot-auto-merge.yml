@@ -1,8 +1,6 @@
 name: dependabot-auto-merge
 
-# Auto-merges Dependabot PRs, but only patch-level security updates. Anything
-# else (minor/major, or non-security) is left for a person to review and
-# approve, per #2's Dependabot auto-merge rules.
+# Auto-merges Dependabot PRs, but only patch-level security updates.
 on:
   pull_request:
     branches: [main]

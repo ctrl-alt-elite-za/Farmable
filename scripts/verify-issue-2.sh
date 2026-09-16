@@ -6,10 +6,6 @@ set -euo pipefail
 
 branch="${1:-$(git rev-parse --abbrev-ref HEAD)}"
 repo_url="${2:-$(git config --get remote.origin.url)}"
-# Derive owner/repo from the URL (handles both git@github.com:x/y.git and
-# https://github.com/x/y.git) so the branch-protection check below works
-# against whatever repo/fork this is actually run against, not a hardcoded
-# slug from when this script was first written.
 repo_slug="$(echo "$repo_url" | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -20,8 +16,6 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 echo "== cloning $repo_url @ $branch into $tmp =="
 git clone --branch "$branch" --single-branch "$repo_url" "$tmp/repo"
 cd "$tmp/repo"
-# changed-scopes.sh (tested below) diffs against origin/main; --single-branch
-# above only fetched $branch, so fetch main too unless $branch already is main.
 [ "$branch" = "main" ] || git fetch origin main:refs/remotes/origin/main
 
 echo "== make setup =="
@@ -66,11 +60,6 @@ fi
 
 echo "== pre-push hook (scripts/changed-scopes.sh) catches raw SQL in apps/backend/ =="
 mkdir -p apps/backend/tmp_check
-# A parameterized, non-concatenated query: ruff's bandit S608 rule (which
-# already runs at commit-time, before this file even reaches push) only
-# flags string-built queries, so this must still commit cleanly — proving
-# check-no-raw-sql.sh (the pre-push check under test) is what catches the
-# blanket "no hand-written SQL at all" rule, not a duplicate of ruff's S608.
 cat > apps/backend/tmp_check/raw_sql.py <<'PYEOF'
 def get_user(cursor, user_id):
     cursor.execute("select * from users where id = %s", (user_id,))
