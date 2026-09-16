@@ -4,6 +4,8 @@ import ast
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from check_no_raw_sql import (  # noqa: E402
@@ -802,6 +804,80 @@ def test_an_unknown_option_is_an_error(tmp_path: Path) -> None:
 
 def test_exclusion_is_counted_not_silent(tmp_path: Path) -> None:
     (tmp_path / "deep.py").write_bytes(PATHOLOGICAL["deep.py"])
-    result = check_paths([tmp_path], ["deep.py"])
+    result = check_paths([tmp_path], ["deep.py"], root=tmp_path)
     assert result.excluded == 1
     assert result.hits == []
+
+
+def test_exclusion_matches_the_repo_relative_path_not_the_bare_name(
+    tmp_path: Path,
+) -> None:
+    """`queries.py` once excluded every file of that name anywhere in the tree."""
+    for folder in ("a", "b"):
+        (tmp_path / folder).mkdir()
+        (tmp_path / folder / "queries.py").write_text(
+            'cursor.execute("DROP TABLE x")\n', encoding="utf-8"
+        )
+    result = check_paths([tmp_path], ["a/queries.py"], root=tmp_path)
+    assert result.excluded == 1
+    assert len(result.hits) == 1
+    assert "b/queries.py" in result.hits[0]
+
+    bare = check_paths([tmp_path], ["queries.py"], root=tmp_path)
+    assert bare.excluded == 0
+    assert bare.unused_patterns == ["queries.py"]
+
+
+def test_a_pattern_matching_nothing_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stale or mistyped exclusion must not sit there doing nothing."""
+    (tmp_path / "ok.py").write_text("session.execute(select(User))\n", encoding="utf-8")
+    result = check_paths([tmp_path], ["nope/*.py"], root=tmp_path)
+    assert result.unused_patterns == ["nope/*.py"]
+    monkeypatch.chdir(tmp_path)
+    assert main(["--exclude", "nope/*.py", "."]) == 2
+
+
+def test_a_pattern_for_an_unscanned_directory_is_not_stale(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The pre-push hook scans only what changed; a pattern aimed elsewhere
+    must not fail that run."""
+    (tmp_path / "apps").mkdir()
+    (tmp_path / "apps" / "backend").mkdir(parents=True)
+    (tmp_path / "apps" / "backend" / "ok.py").write_text(
+        "session.execute(select(User))\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    assert main(["--exclude", "migrations/m.py", "apps/backend"]) == 0
+    assert main(["--exclude", "apps/backend/gone.py", "apps/backend"]) == 2
+
+
+def test_failures_are_counted_apart_from_clean_analyses(tmp_path: Path) -> None:
+    """`analysed` must mean walked, so the reconciliation stays meaningful."""
+    (tmp_path / "ok.py").write_text("session.execute(select(User))\n", encoding="utf-8")
+    (tmp_path / "deep.py").write_bytes(PATHOLOGICAL["deep.py"])
+    result = check_paths([tmp_path], root=tmp_path)
+    assert result.analysed == 1
+    assert result.failed == 1
+    assert result.unexamined == 0
+
+
+def test_absolute_and_escaping_patterns_are_rejected(tmp_path: Path) -> None:
+    """A pattern that can never match must not sit there doing nothing."""
+    (tmp_path / "a.py").write_text('cursor.execute("DROP TABLE x")\n', encoding="utf-8")
+    assert main(["--exclude", f"{tmp_path}/a.py", str(tmp_path)]) == 2
+    assert main(["--exclude", "../a.py", str(tmp_path)]) == 2
+    assert main(["--exclude", "", str(tmp_path)]) == 2
+
+
+def test_overlapping_directories_count_a_file_once(tmp_path: Path) -> None:
+    """Counts are load-bearing for the reconciliation, so they must be honest."""
+    nested = tmp_path / "apps" / "backend"
+    nested.mkdir(parents=True)
+    (nested / "a.py").write_text('cursor.execute("DROP TABLE x")\n', encoding="utf-8")
+    result = check_paths([tmp_path, nested], root=tmp_path)
+    assert result.seen == 1
+    assert len(result.hits) == 1
+    assert result.unexamined == 0

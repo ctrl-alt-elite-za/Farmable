@@ -439,13 +439,19 @@ def _read_source(path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="replace")
 
 
-def check_file(path: Path) -> list[str]:
-    """Return one message per raw-SQL usage found in `path`."""
+def check_file(path: Path, display: str | None = None) -> list[str]:
+    """Return one message per raw-SQL usage found in `path`.
+
+    `display` is how the file is named in findings; it must be the same
+    spelling exclude patterns match, or a path copied out of the output into
+    an exclude entry will not match anything.
+    """
+    shown = display or str(path)
     source = _read_source(path)
     try:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError as exc:
-        return [f"{path}:{exc.lineno or 0}: could not parse ({exc.msg})"]
+        return [f"{shown}:{exc.lineno or 0}: could not parse ({exc.msg})"]
 
     lines = source.splitlines()
     collector = _Collector()
@@ -479,48 +485,146 @@ class Result:
     defects have produced "no raw SQL found" while examining nothing.
     """
 
-    __slots__ = ("hits", "analysed", "excluded", "seen")
+    __slots__ = (
+        "hits",
+        "analysed",
+        "excluded",
+        "failed",
+        "seen",
+        "patterns",
+        "applicable",
+    )
 
     def __init__(self) -> None:
         self.hits: list[str] = []
-        self.analysed = 0
-        self.excluded = 0
+        self.analysed = 0  # walked successfully
+        self.excluded = 0  # skipped by an exclude pattern
+        self.failed = 0  # could not be analysed; reported as a finding
         self.seen = 0
+        self.patterns: dict[str, int] = {}
+        self.applicable: set[str] = set()
 
     @property
     def unexamined(self) -> int:
-        return self.seen - self.analysed - self.excluded
+        """Files in neither bucket.
+
+        Zero by construction today; it is a reconciliation that must keep
+        holding, so an edit adding an early exit to the loop is caught rather
+        than quietly shrinking what gets checked.
+        """
+        return self.seen - self.analysed - self.excluded - self.failed
+
+    @property
+    def unused_patterns(self) -> list[str]:
+        """Exclusions that matched nothing although their directory was scanned.
+
+        A pattern for a directory this run did not look at is not stale: the
+        pre-push hook scans only what changed, so erroring on those would make a
+        valid config fail unrelated work.
+        """
+        return [
+            pattern
+            for pattern, count in self.patterns.items()
+            if count == 0 and pattern in self.applicable
+        ]
 
 
-def check_paths(dirs: list[Path], excludes: list[str] | None = None) -> Result:
+def check_paths(
+    dirs: list[Path], excludes: list[str] | None = None, root: Path | None = None
+) -> Result:
     """Check every file, reporting one that cannot be analysed rather than
     letting it abort the run and discard the violations already found."""
     patterns = excludes or []
+    base = (root or Path.cwd()).resolve()
     result = Result()
+    result.patterns = dict.fromkeys(patterns, 0)
+    already: set[Path] = set()  # overlapping dirs must not count a file twice
     for directory in dirs:
+        scanned = _relative(directory, base)
+        for pattern in patterns:
+            if _pattern_applies(pattern, scanned):
+                result.applicable.add(pattern)
         for path in sorted(directory.rglob("*.py")):
+            resolved = path.resolve()
+            if resolved in already:
+                continue
+            already.add(resolved)
             result.seen += 1
-            if _excluded(path, patterns):
+            matched = _matching(path, patterns, base)
+            if matched is not None:
+                result.patterns[matched] += 1
                 result.excluded += 1
                 continue
             try:
-                result.hits.extend(check_file(path))
+                result.hits.extend(check_file(path, _relative(path, base)))
                 result.analysed += 1
             except Exception as exc:  # noqa: BLE001 - one bad file must not end the run
                 # Deliberately not waivable in-file: a marker that switches off
                 # a whole file is a way to smuggle SQL past the check. Use an
                 # exclude entry, which is visible in review.
                 result.hits.append(
-                    f"{path}:0: could not be analysed ({type(exc).__name__}); "
-                    f"add it to [tool.check-no-raw-sql] exclude if that is expected"
+                    f"{_relative(path, base)}:0: could not be analysed "
+                    f"({type(exc).__name__}); add it to "
+                    f"[tool.check-no-raw-sql] exclude if that is expected"
                 )
-                result.analysed += 1
+                result.failed += 1
     return result
 
 
-def _excluded(path: Path, patterns: list[str]) -> bool:
-    text = path.as_posix()
-    return any(fnmatch(text, pattern) or fnmatch(path.name, pattern) for pattern in patterns)
+def _pattern_applies(pattern: str, scanned: str) -> bool:
+    """Could this pattern match anything under a directory this run scanned?
+
+    Used only to decide whether a pattern matching nothing is stale. The
+    pre-push hook scans just the directories that changed, so a pattern aimed
+    elsewhere is not stale and must not fail the run.
+    """
+    if scanned in ("", "."):
+        return True
+    literal = re.split(r"[*?\[]", pattern, maxsplit=1)[0]
+    directory = literal.rsplit("/", 1)[0] if "/" in literal else ""
+    if not directory:
+        # No directory part, so it is aimed repo-wide; only judge it on a full scan.
+        return False
+    return (
+        directory == scanned
+        or directory.startswith(f"{scanned}/")
+        or scanned.startswith(f"{directory}/")
+    )
+
+
+def _relative(path: Path, root: Path) -> str:
+    """Path as written in the repo, so patterns mean what they look like."""
+    try:
+        return path.resolve().relative_to(root).as_posix()
+    except ValueError:
+        return path.resolve().as_posix()
+
+
+def _matching(path: Path, patterns: list[str], root: Path) -> str | None:
+    """The pattern that excludes this file, or None.
+
+    Matched against the repo-relative path only. Matching the bare filename as
+    well meant `exclude = ["queries.py"]` quietly excluded every file of that
+    name anywhere in the tree. `fnmatch` wildcards span `/`, so `*.generated.py`
+    still reaches a nested file.
+    """
+    text = _relative(path, root)
+    return next((pattern for pattern in patterns if fnmatch(text, pattern)), None)
+
+
+def validate_pattern(pattern: str) -> str:
+    """Reject a pattern that cannot match, instead of letting it do nothing.
+
+    Patterns are repo-relative, so an absolute path or one climbing out of the
+    tree never matches - and a silent no-op is how exclusions stop excluding.
+    """
+    if not pattern:
+        raise ValueError("exclude pattern is empty")
+    if pattern.startswith("/"):
+        raise ValueError(f"exclude pattern must be repo-relative, not absolute: {pattern!r}")
+    if ".." in Path(pattern).parts:
+        raise ValueError(f"exclude pattern must stay inside the repo: {pattern!r}")
+    return pattern
 
 
 def load_excludes(config: Path) -> list[str]:
@@ -533,7 +637,7 @@ def load_excludes(config: Path) -> list[str]:
     patterns = section.get("exclude", [])
     if not isinstance(patterns, list) or any(not isinstance(p, str) for p in patterns):
         raise ValueError("[tool.check-no-raw-sql] exclude must be a list of strings")
-    return patterns
+    return [validate_pattern(pattern) for pattern in patterns]
 
 
 def _parse_args(argv: list[str]) -> tuple[list[Path], list[str]]:
@@ -550,9 +654,9 @@ def _parse_args(argv: list[str]) -> tuple[list[Path], list[str]]:
         if arg == "--exclude":
             if not rest:
                 raise ValueError("--exclude needs a pattern")
-            excludes.append(rest.pop(0))
+            excludes.append(validate_pattern(rest.pop(0)))
         elif arg.startswith("--exclude="):
-            excludes.append(arg.split("=", 1)[1])
+            excludes.append(validate_pattern(arg.split("=", 1)[1]))
         elif arg.startswith("-"):
             raise ValueError(f"unknown option: {arg}")
         else:
@@ -576,6 +680,15 @@ def main(argv: list[str]) -> int:
         return 0
 
     result = check_paths(dirs, excludes)
+
+    if result.unused_patterns:
+        for pattern in result.unused_patterns:
+            print(
+                f"check-no-raw-sql: exclude pattern matched no file: {pattern!r} "
+                "(patterns are matched against the repo-relative path)",
+                file=sys.stderr,
+            )
+        return 2
 
     # The invariant: a clean verdict means every file was examined. If this ever
     # fails, the check has stopped checking - say so rather than report success.
