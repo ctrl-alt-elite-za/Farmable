@@ -50,3 +50,6 @@ mlruns/
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+# Agent tooling (kept out of the repo; lives in ~/.claude)
+.claude/
