@@ -60,12 +60,15 @@ SQL_STATEMENT = re.compile(rf"{_LEADING}({_STRONG})(?=[\s(;]|$)", re.IGNORECASE)
 # than "an ambiguous opener with a verb somewhere after it" - the latter reports
 # prose such as "show the report and update the archive".
 SQL_STATEMENT_CTE = re.compile(
-    rf'{_LEADING}with\s+(?:recursive\s+)?[A-Za-z_"][\w".]*\s+as\s*\(',
+    rf'{_LEADING}with\s+(?:recursive\s+)?[A-Za-z_"][\w".]*\s*(?:\([^)]*\))?\s*\bas\b\s*\(',
     re.IGNORECASE,
 )
 SQL_STATEMENT_WEAK = re.compile(
     rf"{_LEADING}({_WEAK.upper()})\b(\s|;|$)",
 )
+# `SELECT*FROM t` is valid but has no delimiter after the verb, so it needs its
+# own shape rather than allowing `*` after every verb.
+SQL_STATEMENT_STAR = re.compile(rf"{_LEADING}select\s*\*\s*from\b", re.IGNORECASE)
 SQL_STATEMENT_TERMINATED = re.compile(
     rf"{_LEADING}({_WEAK})\b(?:\s+[^\s;]+){{0,6}}\s*;\s*$",
     re.IGNORECASE,
@@ -99,22 +102,31 @@ def _is_alembic_op(owner: str | None) -> bool:
 
 
 def _literal_chunks(node: ast.expr | None) -> list[str]:
-    """Every string literal reachable in an expression, outermost first."""
-    if isinstance(node, ast.Constant):
-        return [node.value] if isinstance(node.value, str) else []
-    if isinstance(node, ast.JoinedStr):  # f-string
-        return [chunk for value in node.values for chunk in _literal_chunks(value)]
-    if isinstance(node, ast.FormattedValue):
-        return []
-    if isinstance(node, ast.NamedExpr):  # cursor.execute(sql := "DROP TABLE x")
-        return _literal_chunks(node.value)
-    if isinstance(node, ast.IfExp):  # "SELECT 1" if flag else select(User)
-        return _literal_chunks(node.body) + _literal_chunks(node.orelse)
-    if isinstance(node, ast.BoolOp):  # override or "SELECT 1"
-        return [chunk for value in node.values for chunk in _literal_chunks(value)]
-    if isinstance(node, ast.BinOp):  # "SELECT " + table, "SELECT %s" % args
-        return _literal_chunks(node.left) + _literal_chunks(node.right)
-    return []
+    """Every string literal reachable in an expression, outermost first.
+
+    Iterative: a long concatenation nests one BinOp per term, and recursion
+    here blew the stack on generated files, which aborted the whole scan.
+    """
+    chunks: list[str] = []
+    stack: list[ast.expr | None] = [node]
+    while stack:
+        current = stack.pop(0)
+        if isinstance(current, ast.Constant):
+            if isinstance(current.value, str):
+                chunks.append(current.value)
+        elif isinstance(current, ast.JoinedStr):  # f-string
+            stack[:0] = current.values
+        elif isinstance(current, ast.FormattedValue):
+            continue
+        elif isinstance(current, ast.BinOp):  # "SELECT " + table, "SELECT %s" % args
+            stack[:0] = [current.left, current.right]
+        elif isinstance(current, ast.NamedExpr):  # execute(sql := "DROP TABLE x")
+            stack.insert(0, current.value)
+        elif isinstance(current, ast.IfExp):  # "SELECT 1" if flag else select(User)
+            stack[:0] = [current.body, current.orelse]
+        elif isinstance(current, ast.BoolOp):  # override or "SELECT 1"
+            stack[:0] = current.values
+    return chunks
 
 
 def _is_sql_text(chunk: str) -> bool:
@@ -123,6 +135,7 @@ def _is_sql_text(chunk: str) -> bool:
         or SQL_STATEMENT_WEAK.match(chunk)
         or SQL_STATEMENT_TERMINATED.match(chunk)
         or SQL_STATEMENT_CTE.match(chunk)
+        or SQL_STATEMENT_STAR.match(chunk)
     )
 
 
@@ -402,6 +415,8 @@ def check_file(path: Path) -> list[str]:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError as exc:
         return [f"{path}:{exc.lineno or 0}: could not parse ({exc.msg})"]
+    except RecursionError:
+        return [f"{path}:0: could not parse (expression nested too deeply)"]
 
     lines = source.splitlines()
     collector = _Collector()
@@ -428,10 +443,17 @@ def check_file(path: Path) -> list[str]:
 
 
 def check_paths(dirs: list[Path]) -> list[str]:
+    """Check every file, reporting one that cannot be analysed rather than
+    letting it abort the run and discard the violations already found."""
     hits = []
     for directory in dirs:
         for path in sorted(directory.rglob("*.py")):
-            hits.extend(check_file(path))
+            try:
+                hits.extend(check_file(path))
+            except RecursionError:
+                hits.append(f"{path}:0: could not be analysed (nested too deeply)")
+            except OSError as exc:
+                hits.append(f"{path}:0: could not be read ({exc.strerror})")
     return hits
 
 

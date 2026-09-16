@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from check_no_raw_sql import check_file, looks_like_sql  # noqa: E402
+from check_no_raw_sql import check_file, check_paths, looks_like_sql  # noqa: E402
 
 
 def write(tmp_path: Path, source: str) -> Path:
@@ -639,5 +639,52 @@ def test_words_merely_starting_with_a_verb_stay_clean(tmp_path: Path) -> None:
     path = write(
         tmp_path,
         'runner.execute("SELECTION criteria")\nrunner.execute("insertion point")\n',
+    )
+    assert check_file(path) == []
+
+
+# Adversarial review of round 6: robustness and recognition gaps.
+
+
+def test_deeply_nested_expression_does_not_abort_the_run(tmp_path: Path) -> None:
+    """A file too deep to analyse is named; it must not discard other hits."""
+    (tmp_path / "aaa_violation.py").write_text(
+        'cursor.execute("DELETE FROM users")\n', encoding="utf-8"
+    )
+    (tmp_path / "deep.py").write_text(
+        "q = " + " + ".join(['"x"'] * 3000) + "\ncursor.execute(q)\n", encoding="utf-8"
+    )
+    hits = check_paths([tmp_path])
+    assert any("aaa_violation.py" in hit and "DELETE" not in hit for hit in hits)
+    assert any("deep.py" in hit for hit in hits)
+
+
+def test_long_concatenated_sql_is_still_read(tmp_path: Path) -> None:
+    """The literal walk is iterative, so ordinary long concatenations work."""
+    body = 'sql = "SELECT 1" ' + "".join(f'+ " x{i}" ' for i in range(400))
+    path = write(tmp_path, f"{body}\ncursor.execute(sql)\n")
+    assert len(check_file(path)) == 1
+
+
+def test_cte_with_a_column_list_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'cursor.execute("with cte(col1, col2) as (select 1) select 1")\n',
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_select_without_a_space_is_detected(tmp_path: Path) -> None:
+    path = write(tmp_path, 'cursor.execute("SELECT*FROM users")\n')
+    assert len(check_file(path)) == 1
+
+
+def test_shell_globs_opening_with_a_verb_stay_clean(tmp_path: Path) -> None:
+    """Allowing `*` after any verb would report `drop*.sh` and `delete*.bak`."""
+    path = write(
+        tmp_path,
+        'runner.execute("drop*.sh")\n'
+        'runner.execute("delete*.bak")\n'
+        'runner.execute("update*")\n',
     )
     assert check_file(path) == []
