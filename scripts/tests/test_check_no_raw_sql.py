@@ -655,8 +655,12 @@ def test_deeply_nested_expression_does_not_abort_the_run(tmp_path: Path) -> None
         "q = " + " + ".join(['"x"'] * 3000) + "\ncursor.execute(q)\n", encoding="utf-8"
     )
     hits = check_paths([tmp_path])
-    assert any("aaa_violation.py" in hit and "DELETE" not in hit for hit in hits)
-    assert any("deep.py" in hit for hit in hits)
+    violations = [hit for hit in hits if "aaa_violation.py" in hit]
+    unanalysable = [hit for hit in hits if "deep.py" in hit]
+    assert len(violations) == 1
+    assert "cursor.execute() with a SQL string" in violations[0]
+    assert len(unanalysable) == 1
+    assert "could not be analysed" in unanalysable[0]
 
 
 def test_long_concatenated_sql_is_still_read(tmp_path: Path) -> None:
@@ -688,3 +692,30 @@ def test_shell_globs_opening_with_a_verb_stay_clean(tmp_path: Path) -> None:
         'runner.execute("update*")\n',
     )
     assert check_file(path) == []
+
+
+def test_undecodable_file_does_not_hide_other_findings(tmp_path: Path) -> None:
+    """A stray byte must not end the run; UnicodeDecodeError is not an OSError."""
+    (tmp_path / "aaa_ok.py").write_text('cursor.execute("DROP TABLE t")\n', encoding="utf-8")
+    (tmp_path / "latin.py").write_bytes(b'x = "\xff\xfe"\ncursor.execute("DELETE FROM users")\n')
+    hits = check_paths([tmp_path])
+    assert any("aaa_ok.py" in hit for hit in hits)
+    assert any("latin.py" in hit for hit in hits)
+
+
+def test_unanalysable_file_can_be_waived(tmp_path: Path) -> None:
+    """A file-level finding has no call node, so it needs a file-level marker."""
+    (tmp_path / "deep.py").write_text(
+        "# raw-sql: allow-file\nq = " + " + ".join(['"x"'] * 3000) + "\n", encoding="utf-8"
+    )
+    (tmp_path / "real.py").write_text('cursor.execute("DROP TABLE t")\n', encoding="utf-8")
+    hits = check_paths([tmp_path])
+    assert not any("deep.py" in hit for hit in hits)
+    assert any("real.py" in hit for hit in hits)
+
+
+def test_unanalysable_finding_names_the_waiver(tmp_path: Path) -> None:
+    (tmp_path / "deep.py").write_text("q = " + " + ".join(['"x"'] * 3000) + "\n", encoding="utf-8")
+    hits = check_paths([tmp_path])
+    assert len(hits) == 1
+    assert "raw-sql: allow-file" in hits[0]

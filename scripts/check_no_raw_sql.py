@@ -20,6 +20,7 @@ from __future__ import annotations
 import ast
 import re
 import sys
+from collections import deque
 from pathlib import Path
 
 # Raw SQL regardless of what is passed - there is no ORM form of these.
@@ -29,6 +30,8 @@ ARG_SENSITIVE_METHODS = {"execute", "executemany"}
 # SQLAlchemy's raw-SQL constructor, bare or qualified (`sa.text`, `sqlalchemy.text`).
 SQL_TEXT_FUNCTIONS = {"text"}
 ALLOW_MARKER = "raw-sql: allow"
+# For a file this checker cannot analyse at all, where no call node exists to mark.
+ALLOW_FILE_MARKER = "raw-sql: allow-file"
 
 # A string is only SQL if it reads as a statement. Without this, `runner.execute("ls -la")`
 # and `task.execute("nightly-report")` are reported, which is a guardrail blocking
@@ -108,24 +111,24 @@ def _literal_chunks(node: ast.expr | None) -> list[str]:
     here blew the stack on generated files, which aborted the whole scan.
     """
     chunks: list[str] = []
-    stack: list[ast.expr | None] = [node]
+    stack: deque[ast.expr | None] = deque([node])
     while stack:
-        current = stack.pop(0)
+        current = stack.popleft()
         if isinstance(current, ast.Constant):
             if isinstance(current.value, str):
                 chunks.append(current.value)
         elif isinstance(current, ast.JoinedStr):  # f-string
-            stack[:0] = current.values
+            stack.extendleft(reversed(current.values))
         elif isinstance(current, ast.FormattedValue):
             continue
         elif isinstance(current, ast.BinOp):  # "SELECT " + table, "SELECT %s" % args
-            stack[:0] = [current.left, current.right]
+            stack.extendleft([current.right, current.left])
         elif isinstance(current, ast.NamedExpr):  # execute(sql := "DROP TABLE x")
-            stack.insert(0, current.value)
+            stack.appendleft(current.value)
         elif isinstance(current, ast.IfExp):  # "SELECT 1" if flag else select(User)
-            stack[:0] = [current.body, current.orelse]
+            stack.extendleft([current.orelse, current.body])
         elif isinstance(current, ast.BoolOp):  # override or "SELECT 1"
-            stack[:0] = current.values
+            stack.extendleft(reversed(current.values))
     return chunks
 
 
@@ -408,9 +411,17 @@ def _allowed(node: ast.Call, lines: list[str]) -> bool:
     return any(ALLOW_MARKER in line for line in lines[node.lineno - 1 : last])
 
 
+def _read_source(path: Path) -> str:
+    """Never fail on encoding: a stray byte must not stop the whole scan."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return path.read_text(encoding="utf-8", errors="replace")
+
+
 def check_file(path: Path) -> list[str]:
     """Return one message per raw-SQL usage found in `path`."""
-    source = path.read_text(encoding="utf-8")
+    source = _read_source(path)
     try:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError as exc:
@@ -442,6 +453,14 @@ def check_file(path: Path) -> list[str]:
     return [message for _, message in sorted(hits)]
 
 
+def _file_waived(path: Path) -> bool:
+    """True if the file carries the file-level allow marker."""
+    try:
+        return ALLOW_FILE_MARKER in path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+
+
 def check_paths(dirs: list[Path]) -> list[str]:
     """Check every file, reporting one that cannot be analysed rather than
     letting it abort the run and discard the violations already found."""
@@ -450,10 +469,14 @@ def check_paths(dirs: list[Path]) -> list[str]:
         for path in sorted(directory.rglob("*.py")):
             try:
                 hits.extend(check_file(path))
-            except RecursionError:
-                hits.append(f"{path}:0: could not be analysed (nested too deeply)")
-            except OSError as exc:
-                hits.append(f"{path}:0: could not be read ({exc.strerror})")
+            except Exception as exc:  # noqa: BLE001 - one bad file must not end the run
+                if _file_waived(path):
+                    continue
+                kind = type(exc).__name__
+                hits.append(
+                    f"{path}:0: could not be analysed ({kind}); "
+                    f"mark the file `# {ALLOW_FILE_MARKER}` if this is expected"
+                )
     return hits
 
 
