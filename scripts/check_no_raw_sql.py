@@ -4,6 +4,23 @@
 Database access must go through the ORM only. This parses each file with `ast`
 so calls that span several lines are caught just like single-line ones.
 
+This is one of three overlapping checks, and deliberately the narrowest. Every
+route to raw SQL reachable through an import is banned by ruff's TID251 instead
+(`sqlalchemy.text` and its aliases, and the DBAPI drivers), which needs no SQL
+recognition and so cannot be defeated by formatting or dialect; ruff's S608
+catches queries built by interpolation. What is left for this checker is the
+residue that has no import to ban, because the call is a method on an object
+obtained at runtime:
+
+    conn.execute("SELECT ...")      a Connection from a session or engine
+    cursor.execute(sql)             a cursor from raw_connection()
+    conn.exec_driver_sql(...)       no importable name of its own
+    op.execute(...)                 `op` is legitimate for the rest of Alembic
+
+Recognising SQL in a string is unavoidable for that residue - `runner.execute(
+"ls -la")` must stay clean - and is the fragile part. Keep new detection in the
+import bans where possible; only add here what genuinely has no import.
+
 Rules are evaluated most-specific first. Some methods are raw SQL whatever they
 are handed (`op.execute`, `exec_driver_sql`); others depend on the argument
 (`execute("SELECT ...")` is SQL, `execute(select(User))` is the ORM).

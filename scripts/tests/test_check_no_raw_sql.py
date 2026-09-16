@@ -725,3 +725,16 @@ def test_per_call_marker_still_waives_one_call(tmp_path: Path) -> None:
     hits = check_file(path)
     assert len(hits) == 1
     assert ":2:" in hits[0]
+
+
+def test_non_sql_strings_are_why_recognition_cannot_be_dropped(tmp_path: Path) -> None:
+    """Pins the Track 3 result: flagging any string literal breaks valid code.
+
+    If this ever becomes acceptable, the keyword recognition in
+    `looks_like_sql` can go and the checker gets much simpler.
+    """
+    path = write(
+        tmp_path,
+        'runner.execute("ls -la")\ntask.execute("nightly-report")\n',
+    )
+    assert check_file(path) == []

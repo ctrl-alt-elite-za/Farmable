@@ -46,8 +46,10 @@ and `#4` add code.
 - **Database access only through the SQLAlchemy ORM — never hand-written
   SQL.** No `text()`, no SQL strings passed to `execute()`, no Alembic
   `op.execute()`, no raw cursors. Three checks enforce this, deliberately
-  overlapping: ruff's `TID251` bans importing `sqlalchemy.text` at all, which
-  needs no SQL recognition and cannot be defeated by formatting or dialect;
+  overlapping: ruff's `TID251` bans every route reachable through an import —
+  `sqlalchemy.text` and its aliases, and the DBAPI drivers (`sqlite3`,
+  `psycopg`, `psycopg2`) — which needs no SQL recognition and so cannot be
+  defeated by formatting or dialect;
   ruff's `S608` catches query strings built by interpolation; and
   `make check-no-raw-sql` parses the AST for what neither can see — methods
   called on a runtime object, such as `cursor.execute("SELECT ...")`. A single
