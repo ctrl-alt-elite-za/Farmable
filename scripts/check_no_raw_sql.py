@@ -32,11 +32,31 @@ ALLOW_MARKER = "raw-sql: allow"
 
 # A string is only SQL if it reads as a statement. Without this, `runner.execute("ls -la")`
 # and `task.execute("nightly-report")` are reported, which is a guardrail blocking
-# correct code.
-SQL_STATEMENT = re.compile(
-    r"^\s*(?:--[^\n]*\n\s*)*"
-    r"(select|insert|update|delete|create|drop|alter|truncate|with|grant|revoke|merge|replace)\b",
-    re.IGNORECASE,
+# correct code. No dialect is pinned in this repo, so this covers ANSI plus the
+# PostgreSQL commands Alembic and SQLAlchemy emit.
+_LEADING = r"^\s*(?:--[^\n]*\n\s*)*"
+# Unambiguous: these words do not start an ordinary English sentence handed to a
+# non-SQL `.execute()`, so the keyword alone is enough.
+_STRONG = (
+    "select|insert|update|delete|merge|upsert|truncate|vacuum|reindex|analyze|analyse|"
+    "explain|cluster|checkpoint|rollback|savepoint|deallocate|listen|unlisten|notify|"
+    "grant|revoke|pragma|refresh|create|drop|alter"
+)
+# Ambiguous in prose ("set up the run", "copy the file"), so these need a second
+# SQL token before the string counts as a statement.
+_WEAK = (
+    "set|show|copy|call|do|use|lock|declare|fetch|close|prepare|reset|comment|rename|"
+    "begin|commit|end|start|table|values|with|replace|attach|detach|release"
+)
+_CLAUSE = (
+    r"\b(to|from|where|into|values|table|index|schema|view|transaction|work|isolation|"
+    r"database|role|user|session|search_path|constraint|column|trigger|function|"
+    r"sequence|extension|as|on|set)\b|[=;]"
+)
+SQL_STATEMENT = re.compile(rf"{_LEADING}({_STRONG})\b", re.IGNORECASE)
+SQL_STATEMENT_WEAK = re.compile(
+    rf"{_LEADING}({_WEAK})\b(\s*$|\s*;|(?=.*(?:{_CLAUSE})))",
+    re.IGNORECASE | re.DOTALL,
 )
 
 SCOPE_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef, ast.Module)
@@ -81,9 +101,32 @@ def _literal_chunks(node: ast.expr | None) -> list[str]:
     return []
 
 
+def _is_sql_text(chunk: str) -> bool:
+    return bool(SQL_STATEMENT.match(chunk) or SQL_STATEMENT_WEAK.match(chunk))
+
+
 def looks_like_sql(node: ast.expr | None) -> bool:
     """True if a literal in this expression reads as a SQL statement."""
-    return any(SQL_STATEMENT.match(chunk) for chunk in _literal_chunks(node))
+    return any(_is_sql_text(chunk) for chunk in _literal_chunks(node))
+
+
+# Where a binding sits in the branch structure: one (statement, branch) pair per
+# enclosing conditional. A binding on the path to a call definitely ran; one in a
+# sibling branch only might have.
+BranchPath = tuple[tuple[int, int], ...]
+
+
+class Binding:
+    __slots__ = ("lineno", "is_sql", "path")
+
+    def __init__(self, lineno: int, is_sql: bool, path: BranchPath) -> None:
+        self.lineno = lineno
+        self.is_sql = is_sql
+        self.path = path
+
+    def definitely_reaches(self, path: BranchPath) -> bool:
+        """True if this binding runs on every path to a call at `path`."""
+        return path[: len(self.path)] == self.path
 
 
 class Scope:
@@ -91,21 +134,43 @@ class Scope:
 
     def __init__(self, parent: Scope | None) -> None:
         self.parent = parent
-        self.bindings: dict[str, list[tuple[int, bool]]] = {}
+        self.bindings: dict[str, list[Binding]] = {}
 
-    def bind(self, name: str, lineno: int, is_sql: bool) -> None:
-        self.bindings.setdefault(name, []).append((lineno, is_sql))
+    def bind(self, name: str, lineno: int, is_sql: bool, path: BranchPath = ()) -> None:
+        self.bindings.setdefault(name, []).append(Binding(lineno, is_sql, path))
 
-    def holds_sql(self, name: str, lineno: int) -> bool:
-        """Does the binding reaching `lineno` hold a SQL string?
+    def holds_sql(self, name: str, lineno: int, path: BranchPath = ()) -> bool:
+        """Does a binding that could reach this call hold SQL?
+
+        Branches are merged conservatively: the last binding that definitely ran
+        sets the base state, and any conditional binding since then can override
+        it towards SQL. So `if x: q = "SELECT 1"` / `else: q = select(User)` is
+        reported however the branches are ordered, while a plain reassignment in
+        straight-line code is not.
 
         A name bound anywhere in this scope belongs to it, so lookup stops here
         rather than falling through to an enclosing scope that reuses the name.
         """
-        if name in self.bindings:
-            earlier = [(line, sql) for line, sql in self.bindings[name] if line <= lineno]
-            return earlier[-1][1] if earlier else False
-        return self.parent.holds_sql(name, lineno) if self.parent else False
+        if name not in self.bindings:
+            # Enclosing scopes: a call's position within them is not knowable
+            # here, so any SQL binding of the name counts.
+            if self.parent is None:
+                return False
+            return any(b.is_sql for b in self.parent._all(name))
+
+        reachable = [b for b in self.bindings[name] if b.lineno <= lineno]
+        definite = [b for b in reachable if b.definitely_reaches(path)]
+        base = definite[-1] if definite else None
+        if base is not None and base.is_sql:
+            return True
+        floor = base.lineno if base is not None else 0
+        return any(b.is_sql for b in reachable if b.lineno > floor and b is not base)
+
+    def _all(self, name: str) -> list[Binding]:
+        found = self.bindings.get(name, [])
+        if found or self.parent is None:
+            return found
+        return self.parent._all(name)
 
 
 def _bound_names(target: ast.expr) -> list[str]:
@@ -121,12 +186,39 @@ class _Collector(ast.NodeVisitor):
 
     def __init__(self) -> None:
         self.scope = Scope(None)
-        self.calls: list[tuple[ast.Call, Scope]] = []
+        self.path: BranchPath = ()
+        self.calls: list[tuple[ast.Call, Scope, BranchPath]] = []
 
     def _in_new_scope(self, node: ast.AST) -> None:
         outer, self.scope = self.scope, Scope(self.scope)
+        outer_path, self.path = self.path, ()
         self.generic_visit(node)
-        self.scope = outer
+        self.scope, self.path = outer, outer_path
+
+    def _branch(self, node: ast.stmt, index: int, body: list[ast.stmt]) -> None:
+        """Visit one arm of a conditional, recording that it may not run."""
+        outer, self.path = self.path, (*self.path, (id(node), index))
+        for statement in body:
+            self.visit(statement)
+        self.path = outer
+
+    def visit_If(self, node: ast.If) -> None:
+        self.visit(node.test)
+        self._branch(node, 0, node.body)
+        self._branch(node, 1, node.orelse)
+
+    def visit_While(self, node: ast.While) -> None:
+        self.visit(node.test)
+        self._branch(node, 0, node.body)
+        self._branch(node, 1, node.orelse)
+
+    def visit_Try(self, node: ast.Try) -> None:
+        self._branch(node, 0, node.body)
+        for index, handler in enumerate(node.handlers, start=1):
+            self._branch(node, index, handler.body)
+        self._branch(node, len(node.handlers) + 1, node.orelse)
+        for statement in node.finalbody:  # always runs
+            self.visit(statement)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._visit_function(node)
@@ -138,10 +230,10 @@ class _Collector(ast.NodeVisitor):
         outer, self.scope = self.scope, Scope(self.scope)
         args = node.args
         for arg in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
-            self.scope.bind(arg.arg, node.lineno, False)
+            self.scope.bind(arg.arg, node.lineno, False, self.path)
         for maybe in (args.vararg, args.kwarg):
             if maybe is not None:
-                self.scope.bind(maybe.arg, node.lineno, False)
+                self.scope.bind(maybe.arg, node.lineno, False, self.path)
         self.generic_visit(node)
         self.scope = outer
 
@@ -152,16 +244,16 @@ class _Collector(ast.NodeVisitor):
         self._in_new_scope(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        is_sql = looks_like_sql(node.value)
+        is_sql = looks_like_sql(node.value) or _is_text_call(node.value)
         for target in node.targets:
             for name in _bound_names(target):
-                self.scope.bind(name, node.lineno, is_sql)
+                self.scope.bind(name, node.lineno, is_sql, self.path)
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if node.value is not None:
             for name in _bound_names(node.target):
-                self.scope.bind(name, node.lineno, looks_like_sql(node.value))
+                self.scope.bind(name, node.lineno, looks_like_sql(node.value), self.path)
         self.generic_visit(node)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
@@ -170,21 +262,23 @@ class _Collector(ast.NodeVisitor):
         appended = looks_like_sql(node.value)
         for name in _bound_names(node.target):
             already = self.scope.holds_sql(name, node.lineno)
-            self.scope.bind(name, node.lineno, already or appended)
+            self.scope.bind(name, node.lineno, already or appended, self.path)
         self.generic_visit(node)
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         for name in _bound_names(node.target):
-            self.scope.bind(name, node.lineno, looks_like_sql(node.value))
+            self.scope.bind(name, node.lineno, looks_like_sql(node.value), self.path)
         self.generic_visit(node)
 
     def visit_For(self, node: ast.For) -> None:
         for name in _bound_names(node.target):
-            self.scope.bind(name, node.lineno, False)
-        self.generic_visit(node)
+            self.scope.bind(name, node.lineno, False, self.path)
+        self.visit(node.iter)
+        self._branch(node, 0, node.body)  # the body may never run
+        self._branch(node, 1, node.orelse)
 
     def visit_Call(self, node: ast.Call) -> None:
-        self.calls.append((node, self.scope))
+        self.calls.append((node, self.scope, self.path))
         self.generic_visit(node)
 
 
@@ -196,15 +290,15 @@ def _is_text_call(node: ast.expr | None) -> bool:
     return name in SQL_TEXT_FUNCTIONS
 
 
-def _is_sql_argument(node: ast.expr | None, scope: Scope, lineno: int) -> bool:
+def _is_sql_argument(node: ast.expr | None, scope: Scope, lineno: int, path: BranchPath) -> bool:
     if looks_like_sql(node):
         return True
-    if isinstance(node, ast.Name) and scope.holds_sql(node.id, lineno):
+    if isinstance(node, ast.Name) and scope.holds_sql(node.id, lineno, path):
         return True
     return _is_text_call(node)
 
 
-def _describe(node: ast.Call, scope: Scope) -> str | None:
+def _describe(node: ast.Call, scope: Scope, path: BranchPath) -> str | None:
     owner, name = _callee(node.func)
     first_arg = node.args[0] if node.args else None
     label = f"{owner}.{name}" if owner else name
@@ -217,12 +311,14 @@ def _describe(node: ast.Call, scope: Scope) -> str | None:
         return f"{label}() - always raw SQL"
 
     if name in ARG_SENSITIVE_METHODS and isinstance(node.func, ast.Attribute):
-        if _is_sql_argument(first_arg, scope, node.lineno):
+        if _is_sql_argument(first_arg, scope, node.lineno, path):
             return f"{label}() with a SQL string"
         return None
 
-    if name in SQL_TEXT_FUNCTIONS and _is_sql_argument(first_arg, scope, node.lineno):
-        return f"{label}() with a SQL string"
+    if name in SQL_TEXT_FUNCTIONS:
+        # The repository rule forbids hand-written SQL, not merely recognised
+        # statements, and text() exists only to carry it.
+        return f"{label}() - always raw SQL"
 
     if name == "cursor" and not node.args:
         return f"{label}()"
@@ -267,13 +363,13 @@ def check_file(path: Path) -> list[str]:
     # Outermost call first, so skipping calls nested inside a reported one keeps
     # `op.execute(text(...))` to a single message without collapsing unrelated
     # calls that merely share a line.
-    def position(pair: tuple[ast.Call, Scope]) -> tuple[int, int]:
-        return pair[0].lineno, pair[0].col_offset
+    def position(entry: tuple[ast.Call, Scope, BranchPath]) -> tuple[int, int]:
+        return entry[0].lineno, entry[0].col_offset
 
-    for node, scope in sorted(collector.calls, key=position):
+    for node, scope, branch in sorted(collector.calls, key=position):
         if _enclosed_by(node, parents, reported):
             continue
-        what = _describe(node, scope)
+        what = _describe(node, scope, branch)
         if what and not _allowed(node, lines):
             reported.add(id(node))
             hits.append((node.lineno, f"{path}:{node.lineno}: {what}"))

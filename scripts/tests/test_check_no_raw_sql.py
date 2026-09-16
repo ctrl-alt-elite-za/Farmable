@@ -330,3 +330,123 @@ def test_appending_to_a_non_sql_string_stays_clean(tmp_path: Path) -> None:
         "def f(runner):\n" '    cmd = "ls"\n' '    cmd += " -la"\n' "    runner.execute(cmd)\n",
     )
     assert check_file(path) == []
+
+
+# Review round 4: control flow, and text() regardless of contents.
+
+
+def test_sql_in_the_first_branch_is_detected(tmp_path: Path) -> None:
+    """Line order is not control flow: the later else must not mask the if."""
+    path = write(
+        tmp_path,
+        "def f(session, use_raw_sql):\n"
+        "    if use_raw_sql:\n"
+        '        query = "SELECT * FROM users"\n'
+        "    else:\n"
+        "        query = select(User)\n"
+        "\n"
+        "    session.execute(query)\n",
+    )
+    hits = check_file(path)
+    assert len(hits) == 1
+    assert ":7:" in hits[0]
+
+
+def test_sql_in_a_later_branch_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(session, flag):\n"
+        "    if flag:\n"
+        "        query = select(User)\n"
+        "    else:\n"
+        '        query = "SELECT * FROM users"\n'
+        "    session.execute(query)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_sql_in_an_elif_chain_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(session, mode):\n"
+        "    if mode == 1:\n"
+        '        query = "SELECT * FROM users"\n'
+        "    elif mode == 2:\n"
+        "        query = select(User)\n"
+        "    else:\n"
+        "        query = select(Farm)\n"
+        "    session.execute(query)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_sql_in_a_try_block_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(session):\n"
+        "    try:\n"
+        '        query = "DELETE FROM users"\n'
+        "    except KeyError:\n"
+        "        query = select(User)\n"
+        "    session.execute(query)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_sql_assigned_in_a_loop_body_is_detected(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(session, rows):\n"
+        "    query = select(User)\n"
+        "    for row in rows:\n"
+        '        query = "SELECT 1"\n'
+        "    session.execute(query)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+def test_unconditional_rebind_after_a_branch_clears_it(tmp_path: Path) -> None:
+    """A binding that definitely runs supersedes the conditional ones before it."""
+    path = write(
+        tmp_path,
+        "def f(session, flag):\n"
+        "    if flag:\n"
+        '        query = "SELECT * FROM users"\n'
+        "    query = select(User)\n"
+        "    session.execute(query)\n",
+    )
+    assert check_file(path) == []
+
+
+def test_vacuum_is_recognised_as_sql(tmp_path: Path) -> None:
+    path = write(tmp_path, 'conn.execute("VACUUM")\n')
+    assert len(check_file(path)) == 1
+
+
+def test_set_statement_is_recognised_as_sql(tmp_path: Path) -> None:
+    path = write(tmp_path, 'conn.execute("SET search_path TO public")\n')
+    assert len(check_file(path)) == 1
+
+
+def test_text_is_raw_sql_whatever_it_contains(tmp_path: Path) -> None:
+    """The rule forbids hand-written SQL, not only recognised statements."""
+    path = write(
+        tmp_path,
+        'stmt = text("SET search_path TO public")\nsession.execute(stmt)\n',
+    )
+    hits = check_file(path)
+    assert len(hits) == 2
+    assert "text() - always raw SQL" in hits[0]
+
+
+def test_text_with_an_unrecognised_body_is_still_raw_sql(tmp_path: Path) -> None:
+    path = write(tmp_path, "session.execute(sa.text(build_fragment()))\n")
+    assert len(check_file(path)) == 1
+
+
+def test_prose_starting_with_an_ambiguous_keyword_stays_clean(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        'runner.execute("set up the environment")\nrunner.execute("show me the report")\n',
+    )
+    assert check_file(path) == []
