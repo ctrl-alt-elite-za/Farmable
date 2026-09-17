@@ -35,6 +35,7 @@ env:
 jobs:
   native-changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       native: ${{ steps.detect.outputs.native }}
     steps:
@@ -63,6 +64,7 @@ jobs:
 
   mobile-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       EXPO_PUBLIC_API_URL: https://api.invalid
     steps:
@@ -99,6 +101,7 @@ jobs:
     # Expo SDK 57 ships SwiftPM manifests requiring Swift tools 6.2.
     # macos-15's Xcode 16.4 only provides Swift 6.1.
     runs-on: macos-26
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -169,6 +172,7 @@ jobs:
     needs: native-changes
     if: needs.native-changes.outputs.native == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

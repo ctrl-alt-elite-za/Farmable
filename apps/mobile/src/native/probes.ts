@@ -43,7 +43,7 @@ export async function probeMicRecord(
     await wait(3000);
     await recorder.stop();
     if (!recorder.uri) {
-      return { id: 'mic_record', status: 'fail', note: 'the recording produced no file' };
+      return { id: 'mic_record', status: 'fail', note: 'the recording produced no file (#4)' };
     }
     await audio.setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
     player = audio.createAudioPlayer(recorder.uri);
@@ -55,7 +55,7 @@ export async function probeMicRecord(
       return {
         id: 'mic_record',
         status: 'fail',
-        note: 'the recording could not be loaded for playback',
+        note: 'the recording could not be loaded for playback (#4)',
       };
     }
     player.play();
@@ -64,13 +64,13 @@ export async function probeMicRecord(
       return {
         id: 'mic_record',
         status: 'fail',
-        note: 'the recording did not start playing',
+        note: 'the recording did not start playing (#4)',
       };
     }
     await wait(2500);
     return { id: 'mic_record', status: 'pass' };
   } catch (error) {
-    return { id: 'mic_record', status: 'fail', note: reason(error) };
+    return { id: 'mic_record', status: 'fail', note: `${reason(error)} (#4)` };
   } finally {
     try {
       player?.remove();

@@ -30,7 +30,13 @@ async function within<T>(operation: Promise<T>, disposeLate?: (value: T) => void
   let expired = false;
   void operation.then(
     (value) => {
-      if (expired) disposeLate?.(value);
+      if (expired) {
+        try {
+          disposeLate?.(value);
+        } catch {
+          /* Do not create an unhandled rejection during teardown. */
+        }
+      }
     },
     () => undefined,
   );
