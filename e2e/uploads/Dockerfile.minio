@@ -1,0 +1,10 @@
+# Local test fixture ONLY; the official patched release is source-only.
+# Do not use this archived upstream as a production deployment recommendation.
+FROM golang:1.26.7-bookworm AS build
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local
+RUN go install github.com/minio/minio@RELEASE.2025-10-15T17-29-55Z
+
+FROM python:3.12.14-slim
+COPY --from=build /go/bin/minio /usr/local/bin/minio
+USER 1000:1000
+ENTRYPOINT ["minio"]

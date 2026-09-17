@@ -1,10 +1,16 @@
 import * as Device from 'expo-device';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { APP_VERSION, BUILD_SHA } from '../config';
 import { measureDetectorMs, runDeviceProbes } from '../native/probes';
-import { buildSelfTestReport, CHECK_IDS, type SelfTestReport } from '../selftest/report';
+import { NativeChecks } from '../native/NativeChecks';
+import {
+  buildSelfTestReport,
+  CHECK_IDS,
+  type CheckResult,
+  type SelfTestReport,
+} from '../selftest/report';
 import { uploadSelfTestReport, type UploadResult } from '../selftest/upload';
 
 type Phase = 'idle' | 'running' | 'done';
@@ -13,14 +19,25 @@ export function SelfTestScreen() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [report, setReport] = useState<SelfTestReport | null>(null);
   const [upload, setUpload] = useState<UploadResult | null>(null);
+  const [nativeRunning, setNativeRunning] = useState(false);
+  const startedAt = useRef('');
 
   async function run(): Promise<void> {
     setPhase('running');
     setReport(null);
     setUpload(null);
 
-    const startedAt = new Date().toISOString();
-    const results = await runDeviceProbes();
+    startedAt.current = new Date().toISOString();
+    setNativeRunning(true);
+  }
+
+  const nativeComplete = useCallback((checks: CheckResult[]) => {
+    setNativeRunning(false);
+    void finish(checks);
+  }, []);
+
+  async function finish(checks: CheckResult[]): Promise<void> {
+    const results = await runDeviceProbes(checks);
     const detector = await measureDetectorMs();
     const next = buildSelfTestReport(results, {
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
@@ -29,7 +46,7 @@ export function SelfTestScreen() {
       deviceModel: Device.modelName ?? 'unknown',
       detectorMs: detector.ms,
       detectorNote: detector.note,
-      startedAt,
+      startedAt: startedAt.current,
       scanOverlayNote: 'not measured: live detector and mounted-overlay benchmark pending (#18)',
     });
 
@@ -55,6 +72,8 @@ export function SelfTestScreen() {
           {phase === 'running' ? 'Running...' : 'Run self-test'}
         </Text>
       </TouchableOpacity>
+
+      {nativeRunning ? <NativeChecks onComplete={nativeComplete} /> : null}
 
       {report ? (
         <View style={styles.results}>

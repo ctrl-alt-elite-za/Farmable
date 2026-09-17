@@ -35,5 +35,11 @@ if [ "$mode" = e2e-degradation ]; then
   "${compose[@]}" run --rm --no-deps tests pytest e2e/degradation -m integration -q -k database_down -p no:cacheprovider
 elif [ "$mode" = mobile ]; then
   adb install -r "${APK:?Set APK to the test-mode Android build}"
-  maestro test e2e/mobile
+  # Prove connectivity, then stop ONLY this invocation's API for offline proof.
+  maestro test e2e/mobile/online_launch.yaml
+  if [ -f e2e/mobile/scan_pan_test_mode.yaml ]; then
+    maestro test e2e/mobile/scan_pan_test_mode.yaml
+  fi
+  "${compose[@]}" stop api
+  maestro test e2e/mobile/offline_launch.yaml
 fi

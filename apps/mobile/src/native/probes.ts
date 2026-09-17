@@ -1,12 +1,9 @@
 /**
- * The only file that touches the native camera, AR, audio and detector libraries.
- *
- * Nothing here is unit tested, and that is the point of issue #4: these APIs exist
- * only on a real phone. Every probe catches its own errors and reports a failure
- * rather than throwing, so one missing capability can never stop the other checks
- * from running.
+ * Audio/detector checks. Camera/depth/AR observations come from NativeChecks,
+ * which mounts actual native views and serializes their camera ownership.
  */
 import type { CheckResult } from '../selftest/report';
+import { Platform } from 'react-native';
 
 function reason(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -16,165 +13,85 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-interface VisionCameraLike {
-  getAllCameraDevices: () => CameraDeviceLike[];
-}
-
-interface CameraDeviceLike {
-  type?: string;
-  physicalDevices?: CameraDeviceLike[];
-}
-
-interface ViroLike {
-  isARSupportedOnDevice?: (notSupported: (message: string) => void, supported: () => void) => void;
-}
-
-interface ExpoAudioLike {
-  AudioModule?: { requestRecordingPermissionsAsync?: () => Promise<{ granted: boolean }> };
-  RecordingPresets?: { HIGH_QUALITY?: unknown };
-  AudioRecorder?: new (options: unknown) => {
-    prepareToRecordAsync: () => Promise<void>;
-    record: () => void;
-    stop: () => Promise<void>;
-    uri: string | null;
-  };
-  createAudioPlayer?: (source: string) => AudioPlayerLike;
-}
-
-interface AudioPlayerLike {
-  isLoaded: boolean;
-  playing: boolean;
-  currentTime: number;
-  play: () => void;
-  remove: () => void;
-}
+type AudioSDK = typeof import('expo-audio');
 
 interface FastTfliteLike {
   loadTensorflowModel?: (source: unknown) => Promise<unknown>;
 }
 
-export async function probeCameraPreview(): Promise<CheckResult> {
-  try {
-    const vision = (await import('react-native-vision-camera')) as unknown as VisionCameraLike;
-    const devices = vision.getAllCameraDevices();
-    return devices.length > 0
-      ? { id: 'camera_preview', status: 'pass' }
-      : { id: 'camera_preview', status: 'fail', note: 'the phone reported no camera device' };
-  } catch (error) {
-    return { id: 'camera_preview', status: 'fail', note: reason(error) };
-  }
-}
-
-export async function probeLidarDepth(): Promise<CheckResult> {
-  try {
-    const vision = (await import('react-native-vision-camera')) as unknown as VisionCameraLike;
-    const hasLidar = vision
-      .getAllCameraDevices()
-      .some(
-        (device) =>
-          device.type === 'lidar-depth' ||
-          (device.physicalDevices ?? []).some(
-            (physicalDevice) => physicalDevice.type === 'lidar-depth',
-          ),
-      );
-    return hasLidar
-      ? { id: 'lidar_depth', status: 'pass' }
-      : {
-          id: 'lidar_depth',
-          status: 'unsupported',
-          note: 'this phone has no LiDAR depth camera - expected on Android (#4)',
-        };
-  } catch (error) {
-    return { id: 'lidar_depth', status: 'fail', note: reason(error) };
-  }
-}
-
-export async function probeArPlane(): Promise<CheckResult> {
-  try {
-    const viro = (await import('@reactvision/react-viro')) as unknown as ViroLike;
-    if (typeof viro.isARSupportedOnDevice !== 'function') {
-      return {
-        id: 'ar_plane',
-        status: 'fail',
-        note: 'Viro did not expose isARSupportedOnDevice in this build (#4)',
-      };
-    }
-    const supported = await new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => resolve(false), 5000);
-      viro.isARSupportedOnDevice?.(
-        () => {
-          clearTimeout(timer);
-          resolve(false);
-        },
-        () => {
-          clearTimeout(timer);
-          resolve(true);
-        },
-      );
-    });
-    return supported
-      ? { id: 'ar_plane', status: 'pass' }
-      : {
-          id: 'ar_plane',
-          status: 'unsupported',
-          note: 'AR is not available on this phone - run scripts/check-arcore-device.sh (#4)',
-        };
-  } catch (error) {
-    return { id: 'ar_plane', status: 'fail', note: reason(error) };
-  }
-}
-
 /** Records for three seconds and plays the recording back, as issue #4 asks. */
-export async function probeMicRecord(): Promise<CheckResult> {
+export async function probeMicRecord(
+  loadAudio: () => Promise<AudioSDK> = () => import('expo-audio'),
+): Promise<CheckResult> {
+  let audio: AudioSDK | undefined;
+  let recorder: import('expo-audio').AudioRecorder | undefined;
+  let player: import('expo-audio').AudioPlayer | undefined;
   try {
-    const audio = (await import('expo-audio')) as unknown as ExpoAudioLike;
-    const permission = await audio.AudioModule?.requestRecordingPermissionsAsync?.();
-    if (permission && !permission.granted) {
-      return { id: 'mic_record', status: 'fail', note: 'microphone permission was refused' };
-    }
-    if (!audio.AudioRecorder || !audio.createAudioPlayer) {
-      return {
-        id: 'mic_record',
-        status: 'fail',
-        note: "expo-audio's recorder API is not the shape this build expects (#4)",
-      };
-    }
-    const recorder = new audio.AudioRecorder(audio.RecordingPresets?.HIGH_QUALITY ?? {});
-    await recorder.prepareToRecordAsync();
+    audio = await loadAudio();
+    const permission = await audio.requestRecordingPermissionsAsync();
+    if (!permission.granted)
+      return { id: 'mic_record', status: 'fail', note: 'microphone permission refused (#4)' };
+    await audio.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    const preset = audio.RecordingPresets.HIGH_QUALITY;
+    // The native constructor expects flattened platform options, as Expo's hook does.
+    recorder = new audio.AudioModule.AudioRecorder({
+      ...preset,
+      ...(Platform.OS === 'ios' ? preset.ios : preset.android),
+    });
+    await recorder.prepareToRecordAsync(preset);
     recorder.record();
     await wait(3000);
     await recorder.stop();
     if (!recorder.uri) {
-      return { id: 'mic_record', status: 'fail', note: 'the recording produced no file' };
+      return { id: 'mic_record', status: 'fail', note: 'the recording produced no file (#4)' };
     }
-    const player = audio.createAudioPlayer(recorder.uri);
+    await audio.setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    player = audio.createAudioPlayer(recorder.uri);
     const loadDeadline = Date.now() + 5000;
     while (!player.isLoaded && Date.now() < loadDeadline) {
       await wait(250);
     }
     if (!player.isLoaded) {
-      player.remove();
       return {
         id: 'mic_record',
         status: 'fail',
-        note: 'the recording could not be loaded for playback',
+        note: 'the recording could not be loaded for playback (#4)',
       };
     }
     player.play();
     await wait(500);
     if (!player.playing && player.currentTime <= 0) {
-      player.remove();
       return {
         id: 'mic_record',
         status: 'fail',
-        note: 'the recording did not start playing',
+        note: 'the recording did not start playing (#4)',
       };
     }
     await wait(2500);
-    player.remove();
     return { id: 'mic_record', status: 'pass' };
   } catch (error) {
-    return { id: 'mic_record', status: 'fail', note: reason(error) };
+    return { id: 'mic_record', status: 'fail', note: `${reason(error)} (#4)` };
+  } finally {
+    try {
+      player?.remove();
+    } catch {
+      /* Preserve the check result if native teardown fails. */
+    }
+    try {
+      if (recorder?.isRecording) await recorder.stop();
+    } catch {
+      /* Best-effort stop before releasing. */
+    }
+    try {
+      recorder?.release();
+    } catch {
+      /* Missing/disposed native resource. */
+    }
+    try {
+      await audio?.setAudioModeAsync({ allowsRecording: false });
+    } catch {
+      /* Best-effort audio session reset. */
+    }
   }
 }
 
@@ -200,10 +117,8 @@ export async function measureDetectorMs(): Promise<DetectorTiming> {
 }
 
 /**
- * Runs the four device checks concurrently - they touch independent native modules
- * (camera, AR, microphone), so running them one after another would add their
- * latencies together, including the 6+ seconds probeMicRecord blocks on.
+ * NativeChecks must finish and unmount its camera/AR views before audio starts.
  */
-export async function runDeviceProbes(): Promise<CheckResult[]> {
-  return Promise.all([probeCameraPreview(), probeLidarDepth(), probeArPlane(), probeMicRecord()]);
+export async function runDeviceProbes(observedChecks: CheckResult[]): Promise<CheckResult[]> {
+  return [...observedChecks, await probeMicRecord()];
 }

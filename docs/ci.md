@@ -65,6 +65,10 @@ This change cannot honestly close #5 yet:
   a passing flow. When the app/config/flows land, it builds with test mode,
   installs the APK, runs Maestro against the isolated API, and retries emulator
   boot once only if tests never started. Android API URLs use `10.0.2.2:8000`.
+  PR #31 supplies a standalone release test APK (no Metro server required),
+  enables HTTP only in test-mode builds, verifies Online against that isolated
+  API, then stops only its own API to verify the Offline flow. Emulator tests
+  do not prove native camera, LiDAR, microphone, or AR behavior on real phones.
 - **#7's service fault flags** join the degradation suite when those services
   exist. Today database/worker stops exercise real dependency failure/recovery;
   there is no claim that unimplemented external-service flags were tested.

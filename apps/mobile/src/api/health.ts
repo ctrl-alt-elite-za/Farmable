@@ -23,7 +23,7 @@ export async function fetchApiHealth(options: FetchApiHealthOptions = {}): Promi
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(`${apiUrl}/healthz`, { signal: controller.signal });
+    const response = await fetchImpl(`${apiUrl}/health/live`, { signal: controller.signal });
     return response.ok ? 'online' : 'offline';
   } catch {
     return 'offline';

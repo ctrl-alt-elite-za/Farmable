@@ -309,12 +309,47 @@ def test_every_remote_action_is_sha_pinned_and_jobs_are_bounded():
                     assert re.fullmatch(r"[^@]+@[0-9a-f]{40}", action), (path, action)
 
 
+def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
+    repo = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
+    steps = workflow["jobs"]["e2e-mobile"]["steps"]
+    java = next(step for step in steps if step.get("uses", "").startswith("actions/setup-java@"))
+    assert (repo / java["with"]["cache-dependency-path"]).is_file()
+    build = (repo / "scripts/ci-mobile.sh").read_text()
+    assert "assembleRelease" in build and "assembleDebug" not in build
+    assert "-PreactNativeArchitectures=x86_64" in build
+    device_workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
+    device_steps = device_workflow["jobs"]["android-build"]["steps"]
+    device_build = next(step for step in device_steps if step.get("name") == "Build the APK")
+    assert "-PreactNativeArchitectures=arm64-v8a" in device_build["run"]
+    assert device_workflow["jobs"]["android-build"]["timeout-minutes"] == 30
+    for step in steps:
+        if "APK=" in step.get("with", {}).get("script", ""):
+            assert "apk/release/app-release.apk" in step["with"]["script"]
+    stack = (repo / "scripts/ci-stack.sh").read_text()
+    online = stack.index("maestro test e2e/mobile/online_launch.yaml")
+    stop = stack.index('"${compose[@]}" stop api')
+    offline = stack.index("maestro test e2e/mobile/offline_launch.yaml")
+    assert online < stop < offline
+
+
 def test_privileged_reporter_never_checks_out_pr_code():
     repo = Path(__file__).resolve().parents[2]
     data = yaml.safe_load((repo / ".github/workflows/ci-report.yml").read_text())
     checkout = data["jobs"]["comment"]["steps"][0]
     assert checkout["with"]["ref"] == "${{ github.event.repository.default_branch }}"
     assert checkout["with"]["persist-credentials"] is False
+
+
+def test_live_scan_maestro_flow_is_included_in_mobile_e2e():
+    repo = Path(__file__).resolve().parents[2]
+    assert (repo / "e2e/mobile/scan_pan_test_mode.yaml").is_file()
+    stack = (repo / "scripts/ci-stack.sh").read_text()
+    assert (
+        stack.index("maestro test e2e/mobile/online_launch.yaml")
+        < stack.index("maestro test e2e/mobile/scan_pan_test_mode.yaml")
+        < stack.index('"${compose[@]}" stop api')
+    )
 
 
 def test_status_check_activation_defaults_to_read_only(monkeypatch, capsys):

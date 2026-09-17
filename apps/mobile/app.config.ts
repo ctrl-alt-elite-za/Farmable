@@ -45,7 +45,13 @@ const config: ExpoConfig = {
       'expo-build-properties',
       {
         ios: { deploymentTarget: '16.4' },
-        android: { minSdkVersion: 26, compileSdkVersion: 36, targetSdkVersion: 36 },
+        android: {
+          minSdkVersion: 26,
+          compileSdkVersion: 36,
+          targetSdkVersion: 36,
+          // Only isolated emulator test builds may use the runner's HTTP API.
+          usesCleartextTraffic: process.env.EXPO_PUBLIC_TEST_MODE === '1',
+        },
       },
     ],
     ['expo-location', { locationWhenInUsePermission: LOCATION_REASON }],

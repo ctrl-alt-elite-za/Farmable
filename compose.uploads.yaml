@@ -1,0 +1,39 @@
+# Disposable upload-storage tests; no developer DB, public ports, or cloud keys.
+services:
+  minio:
+    build:
+      context: .
+      dockerfile: e2e/uploads/Dockerfile.minio
+    command: ['server', '/tmp/uploads', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${UPLOAD_TEST_USER:?run scripts/test-upload-storage.sh}
+      MINIO_ROOT_PASSWORD: ${UPLOAD_TEST_PASSWORD:?run scripts/test-upload-storage.sh}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:9000/minio/health/ready', timeout=2).close()"
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  upload-tests:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: testing
+    environment:
+      UPLOAD_TEST_ENDPOINT: http://minio:9000
+      UPLOAD_TEST_USER: ${UPLOAD_TEST_USER:?run scripts/test-upload-storage.sh}
+      UPLOAD_TEST_PASSWORD: ${UPLOAD_TEST_PASSWORD:?run scripts/test-upload-storage.sh}
+    command:
+      - pytest
+      - apps/backend/tests/integration/test_minio_photo_storage.py
+      - -m
+      - integration
+      - -q
+      - -p
+      - no:cacheprovider
+networks:
+  default:
+    internal: true

@@ -1,0 +1,10 @@
+# The isolated CI API must be running before this flow starts.
+appId: za.co.ctrlaltelite.farmable
+name: App launches and reaches the isolated API
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'Farmable'
+- assertVisible:
+    id: 'api-status'
+- assertVisible: 'Online'
