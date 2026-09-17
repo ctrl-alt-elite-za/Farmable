@@ -11,8 +11,8 @@ from farmable_backend.tasks import create_task_app
 from pydantic import SecretStr, ValidationError
 
 
-def test_models_have_no_feature_tables():
-    assert not Base.metadata.tables
+def test_only_vision_registry_tables_are_registered():
+    assert set(Base.metadata.tables) == {"detector_models", "weight_formulas"}
 
 
 def test_query_timeout(settings):
