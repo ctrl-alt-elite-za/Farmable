@@ -78,6 +78,14 @@ jobs:
           path: .ci-reports/${{ matrix.check }}.json
           if-no-files-found: ignore
           retention-days: 7
+      - name: Upload geometry coverage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always() && matrix.check == 'unit-tests'
+        with:
+          name: geo-coverage
+          path: packages/geo/coverage/
+          if-no-files-found: error
+          retention-days: 7
 
   assistant-evals:
     needs: scopes
