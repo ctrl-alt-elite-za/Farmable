@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 try:
     from .check_split import count_crop_images, split_sessions, validate_labels
 except ImportError:  # Running this file directly from the vision directory.
@@ -29,8 +31,10 @@ def metric_value(values: Any, index: int) -> float | None:
         return None
 
 
-def class_result(box: Any, index: int) -> dict[str, float | None]:
+def class_result(box: Any, class_id: int) -> dict[str, float | None]:
     try:
+        # Metric arrays contain only classes present in the evaluation split.
+        index = list(box.ap_class_index).index(class_id)
         precision, recall, map50, _ = box.class_result(index)
     except (AttributeError, IndexError, TypeError, ValueError):
         return {"precision": None, "recall": None, "map50": None}
@@ -39,6 +43,39 @@ def class_result(box: Any, index: int) -> dict[str, float | None]:
         "recall": metric_value([recall], 0),
         "map50": metric_value([map50], 0),
     }
+
+
+def validated_data(data_file: Path, train_images: Path, test_images: Path) -> dict[str, Any]:
+    """Bind a local YOLO YAML to the audited directories, without SDK path fallbacks."""
+    data = yaml.safe_load(data_file.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("data YAML must contain a mapping")
+    names = data.get("names")
+    if names not in (CLASSES, dict(enumerate(CLASSES))) or data.get("nc", 3) != 3:
+        raise ValueError("data YAML names must match the three ordered Farmable classes")
+    root_value = data.get("path", ".")
+    if not isinstance(root_value, str):
+        raise ValueError("data YAML path must be a directory string")
+    # Relative dataset roots are explicitly relative to the source YAML file.
+    root = (data_file.resolve().parent / root_value).resolve()
+    expected = {"train": train_images.resolve(), "test": test_images.resolve()}
+    if "val" not in data and "validation" in data:
+        data["val"] = data.pop("validation")
+    for split in ("train", "val", "test"):
+        value = data.get(split)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"data YAML {split} must name one local image directory")
+        directory = (root / value).resolve()
+        if not directory.is_dir():
+            raise ValueError(f"data YAML {split} must name an existing local image directory")
+        if split in expected and directory != expected[split]:
+            raise ValueError(f"data YAML {split} does not match --{split}-images")
+        data[split] = str(directory)
+    data["path"] = str(root)
+    data["names"] = CLASSES.copy()
+    # All directories already exist; the audited snapshot must not run downloads.
+    data.pop("download", None)
+    return data
 
 
 def report_for(
@@ -71,7 +108,12 @@ def report_for(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", required=True)
-    parser.add_argument("--data", type=Path, required=True, help="Ultralytics data YAML")
+    parser.add_argument(
+        "--data",
+        type=Path,
+        required=True,
+        help="local YOLO YAML; relative dataset paths are resolved beside this file",
+    )
     parser.add_argument("--model", default="yolo11n.pt", help="pretrained detector checkpoint")
     parser.add_argument("--report-dir", type=Path, default=Path("apps/ml-service/vision/reports"))
     parser.add_argument("--runs-dir", type=Path, default=Path("apps/ml-service/vision/runs"))
@@ -84,13 +126,14 @@ def main() -> int:
     parser.add_argument("--export", action="store_true", help="export the trained model to TFLite")
     args = parser.parse_args()
     try:
+        data = validated_data(args.data, args.train_images, args.test_images)
         train_sessions, test_sessions = split_sessions(
             args.train_images, args.test_images, args.manifest
         )
         train_counts = validate_labels(args.train_images)
         test_counts = validate_labels(args.test_images)
         crop_counts = count_crop_images(args.train_images, args.test_images, args.manifest)
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, yaml.YAMLError) as error:
         parser.error(str(error))
     if not train_sessions or not test_sessions:
         parser.error("train and test must contain at least one filming session")
@@ -105,16 +148,19 @@ def main() -> int:
         from ultralytics import YOLO
     except ImportError:
         parser.error("install the pinned training dependencies (ultralytics) before training")
+    args.runs_dir.mkdir(parents=True, exist_ok=True)
+    audited_data = (args.runs_dir / f"{args.version}.data.yaml").resolve()
+    audited_data.write_text(yaml.safe_dump(data), encoding="utf-8")
     model = YOLO(args.model)
     result = model.train(
-        data=str(args.data),
+        data=str(audited_data),
         epochs=args.epochs,
         seed=args.seed,
         imgsz=args.imgsz,
         project=str(args.runs_dir),
         name=args.version,
     )
-    validation = model.val(data=str(args.data), imgsz=args.imgsz, split="test")
+    validation = model.val(data=str(audited_data), imgsz=args.imgsz, split="test")
     box = getattr(validation, "box", None)
     class_metrics = {
         class_name: class_result(box, index) for index, class_name in enumerate(CLASSES)

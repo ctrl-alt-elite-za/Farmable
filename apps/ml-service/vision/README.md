@@ -37,6 +37,17 @@ and image counts rather than trusting a separate claims file. It does not
 download data in CI. Install the exact versions in
 `requirements-colab.txt`.
 
+The `--data` YAML must name the same single local image directories as
+`--train-images` and `--test-images`, and list the ordered class names
+`plant`, `crop_head_or_fruit`, `check_suggested`. A relative `path` is resolved
+beside the YAML file; split paths are relative to that dataset root. Include
+`val` (or `validation`) as a local image directory; image-list files, archives
+and downloads are not supported by this audited training entry point.
+Training and evaluation use the same absolute-path snapshot saved as
+`runs/<version>.data.yaml` (gitignored); the source YAML is not modified.
+Reports map metrics through actual class IDs and retain null metrics for
+classes absent from the test split.
+
 Record real cabbage and tomato measurements in `weights/cabbage.csv` and
 `weights/tomato.csv` with `diameter_cm,weight_g,date`, then run
 `python apps/ml-service/vision/eval_weights.py apps/ml-service/vision/weights/cabbage.csv apps/ml-service/vision/weights/tomato.csv`.
