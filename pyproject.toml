@@ -1,0 +1,61 @@
+[project]
+name = "farmable"
+version = "0.0.0"
+description = "Farmable monorepo tooling (root project; apps/backend/ and apps/ml-service/ have their own manifests once they exist)"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0,<0.9.0",
+    "mypy>=1.13.0,<1.14.0",
+    "pre-commit>=4.0.0,<4.1.0",
+    "pytest>=8.3.0,<9.0.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["apps/ml-service/data"]
+
+[tool.ruff.lint]
+# S = flake8-bandit, extra layer alongside scripts/check-no-raw-sql.sh.
+# TID251 bans the raw-SQL API by import, which needs no SQL-string recognition
+# and so cannot be defeated by formatting or dialect. S608 catches the
+# injection-shaped subset. scripts/check_no_raw_sql.py covers what neither can
+# see: methods called on a runtime object, such as cursor.execute("SELECT ...").
+select = ["E", "F", "I", "UP", "B", "S", "TID251"]
+
+# Every route to raw SQL that is reachable through an import, so it is caught
+# deterministically rather than by recognising SQL in a string. What remains -
+# methods on a runtime object, such as cursor.execute("SELECT ...") and
+# op.execute(...) - is what scripts/check_no_raw_sql.py exists for.
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"sqlalchemy.text".msg = "Hand-written SQL is forbidden - use the ORM (see AGENTS.md)."
+"sqlalchemy.sql.text".msg = "Hand-written SQL is forbidden - use the ORM (see AGENTS.md)."
+"sqlalchemy.sql.expression.text".msg = "Hand-written SQL is forbidden - use the ORM (see AGENTS.md)."
+"sqlite3".msg = "Raw DBAPI access is forbidden - go through the ORM (see AGENTS.md)."
+"psycopg".msg = "Raw DBAPI access is forbidden - go through the ORM (see AGENTS.md)."
+"psycopg2".msg = "Raw DBAPI access is forbidden - go through the ORM (see AGENTS.md)."
+
+[tool.ruff.lint.per-file-ignores]
+# Tests are allowed to use `assert` (S101 is flake8-bandit's production rule).
+"**/test_*.py" = ["S101"]
+"**/*_test.py" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+exclude = ["apps/ml-service/data"]
+
+[tool.check-no-raw-sql]
+# Files scripts/check-no-raw-sql.sh cannot analyse (a generated file whose
+# expressions defeat the parser, say). Listed here rather than waived by a
+# comment inside the file, so excluding code from the guardrail is visible in
+# review. Patterns are matched against the repo-relative path (wildcards span
+# "/", so "*.generated.py" reaches a nested file). A pattern that matches
+# nothing is an error, so a stale entry cannot sit here doing nothing.
+exclude = []
+
+[tool.uv]
+package = false

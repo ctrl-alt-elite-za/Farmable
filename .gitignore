@@ -1,0 +1,52 @@
+# Secrets and credentials
+.env*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+credentials.json
+*serviceAccount*.json
+
+# Datasets (raw data is fetched/documented, not committed)
+apps/ml-service/data/raw/
+*.csv.gz
+*.parquet
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Node / JS / TS
+node_modules/
+.pnpm-store/
+dist/
+build/
+.expo/
+*.ipa
+*.apk
+.next/
+coverage/
+
+# ML artifacts (model weights/checkpoints, notebooks, MLflow — see #20)
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.onnx
+checkpoints/
+.ipynb_checkpoints/
+mlruns/
+
+# Editors / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.log

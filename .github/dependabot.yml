@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: 'pip'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+    open-pull-requests-limit: 0 # security updates only, no routine version bumps
+    labels: ['dependencies', 'security']
+
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+    open-pull-requests-limit: 0
+    labels: ['dependencies', 'security']
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+    open-pull-requests-limit: 0
+    labels: ['dependencies', 'security']

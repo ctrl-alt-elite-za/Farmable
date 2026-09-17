@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Runs pre-commit, then re-stages files a hook autofixed — but only files
+# that were fully staged beforehand, so partial commits stay partial.
+set -euo pipefail
+
+export PATH="$HOME/.local/bin:$PATH"
+
+# Files staged with no unstaged changes of their own — safe to re-add.
+fully_staged_files() {
+  comm -23 \
+    <(git diff --cached --name-only --diff-filter=ACM | sort) \
+    <(git diff --name-only | sort)
+}
+
+before="$(fully_staged_files)"
+
+if uv run pre-commit run --hook-stage pre-commit; then
+  exit 0
+fi
+
+changed="$(git diff --name-only || true)"
+
+if [ -z "$changed" ]; then
+  echo "pre-commit failed (not an autofix situation) — see output above." >&2
+  exit 1
+fi
+
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  if ! grep -qxF -- "$f" <<<"$before"; then
+    echo "pre-commit modified '$f', which was not fully staged before the" >&2
+    echo "commit — refusing to auto-stage partial changes. Review and" >&2
+    echo "'git add' it yourself, then commit again." >&2
+    exit 1
+  fi
+done <<<"$changed"
+
+git diff --name-only -z | xargs -0 -r git add --
+
+if uv run pre-commit run --hook-stage pre-commit; then
+  exit 0
+fi
+
+echo "pre-commit still failing after autofix + re-stage — see output above." >&2
+exit 1

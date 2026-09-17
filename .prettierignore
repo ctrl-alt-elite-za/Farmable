@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+uv.lock
+apps/ml-service/data/
+**/dist/
+**/build/
+**/.expo/
+.venv/
+node_modules/
