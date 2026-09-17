@@ -374,6 +374,17 @@ export function alignArToGps(ar: readonly ArPoint[], gps: readonly GpsPoint[]): 
 
 export function applyAlignment(point: ArPoint, alignment: Alignment): Result<GpsPoint> {
   if (!validAr(point)) return fail('INVALID_COORDINATE', 'AR coordinates must be finite.');
+  if (
+    alignment === null ||
+    typeof alignment !== 'object' ||
+    Array.isArray(alignment) ||
+    !('origin' in alignment) ||
+    !('rotationRadians' in alignment) ||
+    !('offset' in alignment) ||
+    !('fitErrorMetres' in alignment)
+  ) {
+    return fail('INVALID_ALIGNMENT', 'Alignment must be an object containing all required fields.');
+  }
   const error = gpsError(alignment.origin);
   if (error) return { ok: false, error };
   if (

@@ -45,6 +45,31 @@ const alignment: Alignment = {
   fitErrorMetres: 0,
 };
 
+const malformedAlignments = [
+  ...malformedPoints.map(({ label, point }) => ({ label, candidate: point })),
+  { label: 'array with alignment fields', candidate: Object.assign([], alignment) },
+  {
+    label: 'function with alignment fields',
+    candidate: Object.assign(() => undefined, alignment),
+  },
+  {
+    label: 'missing origin',
+    candidate: { rotationRadians: 0, offset: alignment.offset, fitErrorMetres: 0 },
+  },
+  {
+    label: 'missing rotation',
+    candidate: { origin: alignment.origin, offset: alignment.offset, fitErrorMetres: 0 },
+  },
+  {
+    label: 'missing offset',
+    candidate: { origin: alignment.origin, rotationRadians: 0, fitErrorMetres: 0 },
+  },
+  {
+    label: 'missing fit error',
+    candidate: { origin: alignment.origin, rotationRadians: 0, offset: alignment.offset },
+  },
+];
+
 function invalidCoordinate(result: Result<unknown>): void {
   expect(result.ok).toBe(false);
   if (!result.ok) expect(result.error.code).toBe('INVALID_COORDINATE');
@@ -102,5 +127,13 @@ describe('runtime point validation', () => {
     points[2] = gpsSquare[2];
     points[3] = gpsSquare[3];
     checkGpsPoints(points);
+  });
+});
+
+describe('runtime alignment validation', () => {
+  it.each(malformedAlignments)('returns a typed alignment error for $label', ({ candidate }) => {
+    const result = applyAlignment(square20m[0], candidate as unknown as Alignment);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('INVALID_ALIGNMENT');
   });
 });

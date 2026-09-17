@@ -23,6 +23,8 @@ available. Accuracy above 20 m, invalid bounds and nonfinite coordinates are rej
 Runtime point entries are checked before property access: null, missing fields,
 nonnumeric coordinates, array-shaped points and sparse holes return typed errors
 instead of throwing. The public TypeScript point interfaces remain unchanged.
+Null, nonobject, array-shaped or incomplete alignment objects return
+`INVALID_ALIGNMENT` before any alignment fields are read.
 
 - `closeShape` / `closeGpsShape`: remove consecutive and closing duplicates, reject
   crossings, self-touching, backtracking and zero area, and return a closed ring.
