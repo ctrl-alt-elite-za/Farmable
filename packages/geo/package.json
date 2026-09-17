@@ -1,0 +1,22 @@
+{
+  "name": "@farmable/geo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@turf/area": "7.4.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "5.0.1",
+    "eslint": "^9.15.0",
+    "typescript": "^5.7.2",
+    "vitest": "5.0.1"
+  }
+}

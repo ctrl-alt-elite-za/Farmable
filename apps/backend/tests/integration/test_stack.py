@@ -9,9 +9,12 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from farmable_backend.config import Settings
-from farmable_backend.database import QueueJob, make_engine
+from farmable_backend.database import Database, QueueJob, make_engine
+from farmable_backend.models import DetectorModel, WeightFormula
+from farmable_backend.scripts.detector_model_exists import exists
 from farmable_backend.tasks import create_task_app
 from sqlalchemy import func, inspect, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.integration
@@ -81,6 +84,45 @@ def test_models_match_migrations(tmp_path):
         assert len(functions[name]) == 1 and isinstance(functions[name][0], ast.Pass), ast.unparse(
             module
         )
+
+
+SHA256 = "0" * 64
+
+
+def _detector(version, sha256=SHA256):
+    return DetectorModel(
+        version=version, artifact_uri="gs://private/models", artifact_sha256=sha256, metrics={}
+    )
+
+
+def test_vision_registry_rejects_duplicate_versions_and_unweighed_crops():
+    engine = make_engine(Settings())
+    rejected = [
+        [_detector("dup"), _detector("dup")],
+        [_detector("bad-sha", sha256="not-a-sha")],
+        [WeightFormula(crop="cabbage", version="dup", formula={}) for _ in range(2)],
+        [WeightFormula(crop="spinach", version="v1", formula={})],
+    ]
+    try:
+        for rows in rejected:
+            with Session(engine) as session:
+                session.add_all(rows)
+                with pytest.raises(IntegrityError):
+                    session.flush()
+        with Session(engine) as session:
+            session.add(_detector("registered"))
+            session.commit()
+        database = Database(Settings())
+        try:
+            assert exists("registered", database)
+            assert not exists("never-registered", database)
+        finally:
+            database.close()
+        with Session(engine) as session:
+            session.delete(session.scalars(select(DetectorModel)).one())
+            session.commit()
+    finally:
+        engine.dispose()
 
 
 def test_worker_down():

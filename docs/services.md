@@ -5,6 +5,33 @@ implemented; real-account acceptance is **not complete**. No accounts, keys,
 quotas, Android restrictions, or Fraud Guard settings have been provisioned or
 verified by this change. Do not close #7 on unit-test results alone.
 
+## PR #36 scope and acceptance handoff
+
+PR #36 is a **partial adapter foundation**, not completion of issue #7. Its
+deliverables are the provider boundary, isolated synthetic fakes, bounded calls,
+retry/circuit/fault controls, and an explicitly authorized staging-smoke command.
+The startup-cleanup and stream-memory review findings have regression tests.
+Merging this foundation does not establish that real accounts work or that
+feature consumers degrade correctly. Issue #7 must remain open.
+
+The remaining review requirements are tracked separately from automated checks:
+
+| Requirement                              | Current evidence                                         | Needed for acceptance                                                           |
+| ---------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Real staging smoke for every provider    | Not run; live calls are forbidden in CI                  | Configured staging accounts and explicitly authorized paid/SMS smoke output     |
+| Fake vs recorded real-response contracts | Documentation-derived synthetic fixtures only            | Sanitized account-response recordings and comparison tests                      |
+| Twilio account/security settings         | Not verified                                             | Account-owner confirmation of Fraud Guard, trial recipients, quotas and billing |
+| Maps Android key restrictions            | Not verified                                             | Account-owner verification of package name and signing-certificate restrictions |
+| Cabbage/spinach crop diagnoses           | Coverage not established                                 | Owner-approved provider or scope decision, followed by real-photo evidence      |
+| SoilGrids availability                   | No live availability evidence                            | Restored service or an owner-approved replacement, then live smoke              |
+| Azure 15-second initial-silence behavior | REST request timeout only; SDK semantics not implemented | Speech SDK implementation and silence-behavior verification                     |
+| Consumer-level degradation E2E           | Adapter/application-boundary tests only                  | Feature E2E scenarios using isolated fakes once consumers exist                 |
+
+Do not replace missing recordings with synthetic fixtures or label the REST
+request budget as a silence timeout. An all-green smoke run proves only the
+tested calls; the manual restrictions, recorded contracts, SDK semantics, and
+consumer tests above remain separate acceptance requirements.
+
 ## Configuration and ownership
 
 `apps/backend/src/farmable_backend/integrations/` is the sole provider boundary.
