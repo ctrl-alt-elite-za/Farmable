@@ -21,10 +21,7 @@ interface VisionCameraLike {
 }
 
 interface ViroLike {
-  isARSupportedOnDevice?: (
-    notSupported: (message: string) => void,
-    supported: () => void,
-  ) => void;
+  isARSupportedOnDevice?: (notSupported: (message: string) => void, supported: () => void) => void;
 }
 
 interface ExpoAudioLike {

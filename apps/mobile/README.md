@@ -7,14 +7,14 @@ LiDAR and live detection cannot run there, or on an emulator (issue #4).
 
 Run these from the repository root.
 
-| Command                                | Does                                           |
-| --------------------------------------- | ----------------------------------------------- |
-| `pnpm -C apps/mobile test`             | Jest + React Native Testing Library unit tests |
-| `pnpm -C apps/mobile run typecheck`    | `tsc --noEmit`                                 |
-| `pnpm -C apps/mobile run prebuild`     | Regenerates `ios/` and `android/` from config  |
-| `pnpm -C apps/mobile run ios`          | Builds and runs on a connected iPhone (macOS)  |
-| `pnpm -C apps/mobile run android`      | Builds and runs on a connected Android phone   |
-| `pnpm -C apps/mobile start`            | Metro, for a dev build already on a phone      |
+| Command                             | Does                                           |
+| ----------------------------------- | ---------------------------------------------- |
+| `pnpm -C apps/mobile test`          | Jest + React Native Testing Library unit tests |
+| `pnpm -C apps/mobile run typecheck` | `tsc --noEmit`                                 |
+| `pnpm -C apps/mobile run prebuild`  | Regenerates `ios/` and `android/` from config  |
+| `pnpm -C apps/mobile run ios`       | Builds and runs on a connected iPhone (macOS)  |
+| `pnpm -C apps/mobile run android`   | Builds and runs on a connected Android phone   |
+| `pnpm -C apps/mobile start`         | Metro, for a dev build already on a phone      |
 
 `ios/` and `android/` are generated, gitignored build output - change
 `app.config.ts`, never the native projects.

@@ -23,7 +23,9 @@ export default function App() {
           style={styles.tab}
           onPress={() => setTab('selftest')}
         >
-          <Text style={tab === 'selftest' ? styles.tabLabelActive : styles.tabLabel}>Self-test</Text>
+          <Text style={tab === 'selftest' ? styles.tabLabelActive : styles.tabLabel}>
+            Self-test
+          </Text>
         </TouchableOpacity>
       </View>
       {tab === 'health' ? <HealthScreen /> : <SelfTestScreen />}
@@ -35,7 +37,13 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   title: { fontSize: 28, fontWeight: '700', paddingHorizontal: 24, paddingTop: 16 },
   tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingVertical: 12 },
-  tab: { borderColor: '#1f6f43', borderRadius: 8, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
+  tab: {
+    borderColor: '#1f6f43',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
   tabLabel: { color: '#1f6f43', fontSize: 15 },
   tabLabelActive: { color: '#1f6f43', fontSize: 15, fontWeight: '700' },
 });

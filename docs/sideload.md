@@ -28,7 +28,7 @@ fine - do not use one with two-factor prompts you cannot answer).
 3. Open Sideloadly, drag `Farmable-unsigned.ipa` onto it, enter your Apple ID, and
    press **Start**. Sideloadly re-signs the app with your Apple ID and installs it.
 4. On the phone: **Settings > General > VPN & Device Management**, tap your Apple ID
-   under *Developer App*, then **Trust**.
+   under _Developer App_, then **Trust**.
 
 ### Developer Mode (iOS 16 and later)
 
