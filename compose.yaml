@@ -2,6 +2,7 @@ x-backend: &backend
   build:
     context: .
     dockerfile: apps/backend/Dockerfile
+    target: runtime
   environment: &backend-env
     DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL using the database hostname and percent-encoded credentials}
     COMMIT_SHA: ${COMMIT_SHA:-unknown}
@@ -17,7 +18,7 @@ services:
     volumes:
       - database-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 2s
       timeout: 5s
       retries: 30
@@ -50,6 +51,10 @@ services:
         condition: service_healthy
   tests:
     <<: *backend
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: testing
     profiles: ['tests']
     environment:
       <<: *backend-env

@@ -17,3 +17,5 @@ credentials.json
 **/data
 **/dist
 **/build
+.ci-reports
+.ci-tmp
