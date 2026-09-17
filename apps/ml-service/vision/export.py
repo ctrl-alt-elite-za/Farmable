@@ -60,13 +60,9 @@ def main() -> int:
     args = parser.parse_args()
     if args.int8 and not args.data:
         parser.error("--int8 needs --data with crop calibration images (default is COCO)")
-    destinations = {
-        fmt: args.output_dir / f"{args.version}{SUFFIXES[fmt]}" for fmt in args.formats
-    }
+    destinations = {fmt: args.output_dir / f"{args.version}{SUFFIXES[fmt]}" for fmt in args.formats}
     version_manifest = args.output_dir / f"{args.version}.json"
-    existing = [
-        str(path) for path in (*destinations.values(), version_manifest) if path.exists()
-    ]
+    existing = [str(path) for path in (*destinations.values(), version_manifest) if path.exists()]
     if existing:
         parser.error(f"version {args.version!r} already exported: {', '.join(existing)}")
     try:
