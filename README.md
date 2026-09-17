@@ -86,3 +86,7 @@ See [AGENTS.md](AGENTS.md) for repository conventions, secret handling, and the
 definition of done. Notably: **all database access goes through the SQLAlchemy
 ORM — never hand-written SQL.** `make check-no-raw-sql` parses the Python AST to
 enforce this and runs automatically on `git push`.
+
+Pull-request workflows, local reproduction commands, migration approvals,
+safe failure reports and remaining activation dependencies are documented in
+[docs/ci.md](docs/ci.md).

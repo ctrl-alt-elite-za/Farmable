@@ -1,0 +1,23 @@
+name: Farmable tooling
+description: Pinned Python, uv, Node and pnpm with lockfile-keyed dependency caches
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      with:
+        version: '0.12.15'
+        python-version-file: .python-version
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version-file: .nvmrc
+    - shell: bash
+      run: corepack enable && corepack prepare pnpm@9.15.9 --activate
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+        cache-dependency-path: pnpm-lock.yaml
+    - shell: bash
+      run: uv sync --locked && pnpm install --frozen-lockfile

@@ -1,0 +1,172 @@
+name: Farmable PR checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: farmable-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scopes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      backend: ${{ steps.paths.outputs.backend }}
+      mobile: ${{ steps.paths.outputs.mobile }}
+      any: ${{ steps.paths.outputs.any }}
+      assistant: ${{ steps.paths.outputs.assistant }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: paths
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+        run: python scripts/ci_scopes.py --base "$BASE"
+
+  checks:
+    name: ${{ matrix.check }}
+    needs: scopes
+    if: needs.scopes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { check: lint, backend: false }
+          - { check: typecheck, backend: false }
+          - { check: unit-tests, backend: false }
+          - { check: security-audit, backend: false }
+          - { check: no-raw-sql, backend: true }
+          - { check: client-up-to-date, backend: true }
+          - { check: integration-tests, backend: true }
+          - { check: migration-safety, backend: true }
+          - { check: deployability, backend: true }
+          - { check: e2e-api, backend: true }
+          - { check: e2e-degradation, backend: true }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup tooling
+        uses: ./.github/actions/setup
+        if: ${{ !matrix.backend || needs.scopes.outputs.backend == 'true' }}
+      - name: Run ${{ matrix.check }}
+        if: ${{ !matrix.backend || needs.scopes.outputs.backend == 'true' }}
+        env:
+          CHECK: ${{ matrix.check }}
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+          CI_MIGRATION_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'migration-approved') }}
+        run: uv run python scripts/ci_run.py "$CHECK"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: ci-result-${{ matrix.check }}
+          path: .ci-reports/${{ matrix.check }}.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  assistant-evals:
+    needs: scopes
+    if: needs.scopes.outputs.assistant == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Run assistant-evals
+        # #23 supplies the command; no paid service keys are ever supplied to PR code.
+        run: uv run python scripts/ci_run.py assistant-evals
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: ci-result-assistant-evals
+          path: .ci-reports/assistant-evals.json
+          retention-days: 7
+
+  e2e-mobile:
+    needs: scopes
+    if: needs.scopes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: 'Detect #4 prerequisite'
+        id: app
+        run: python scripts/ci_mobile_ready.py
+      - uses: ./.github/actions/setup
+        if: steps.app.outputs.ready == 'true'
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        if: steps.app.outputs.ready == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: apps/mobile/android/*.gradle*
+      - name: Build test-mode APK
+        if: steps.app.outputs.ready == 'true'
+        run: make mobile-test-build
+      - name: Install pinned Maestro
+        if: steps.app.outputs.ready == 'true'
+        run: |
+          curl --fail --location --retry 2 https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.10.0/maestro.zip --output "$RUNNER_TEMP/maestro.zip"
+          unzip -q "$RUNNER_TEMP/maestro.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/maestro/bin" >> "$GITHUB_PATH"
+      - name: Enable emulator KVM
+        if: steps.app.outputs.ready == 'true'
+        run: |
+          sudo chmod 666 /dev/kvm
+      - name: Run e2e-mobile
+        id: emulator
+        if: steps.app.outputs.ready == 'true'
+        continue-on-error: true
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 35
+          arch: x86_64
+          emulator-boot-timeout: 300
+          disable-animations: true
+          script: |
+            touch "$RUNNER_TEMP/farmable-emulator-booted"
+            APK=apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk uv run python scripts/ci_run.py e2e-mobile
+      - name: Detect boot failure (not test failure)
+        id: boot
+        if: steps.app.outputs.ready == 'true' && steps.emulator.outcome == 'failure'
+        run: |
+          if [ -f "$RUNNER_TEMP/farmable-emulator-booted" ]; then echo 'retry=false' >> "$GITHUB_OUTPUT"; else echo 'retry=true' >> "$GITHUB_OUTPUT"; fi
+      - name: Retry emulator boot once
+        id: retry
+        if: steps.boot.outputs.retry == 'true'
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 35
+          arch: x86_64
+          emulator-boot-timeout: 300
+          disable-animations: true
+          script: APK=apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk uv run python scripts/ci_run.py e2e-mobile
+      - name: Preserve test or second boot failure
+        if: always() && steps.app.outputs.ready == 'true' && steps.emulator.outcome == 'failure' && steps.retry.outcome != 'success'
+        run: exit 1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: ci-result-e2e-mobile
+          path: .ci-reports/e2e-mobile.json
+          if-no-files-found: ignore
+          retention-days: 7

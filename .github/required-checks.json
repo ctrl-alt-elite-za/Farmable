@@ -1,0 +1,17 @@
+[
+  "lint",
+  "typecheck",
+  "unit-tests",
+  "integration-tests",
+  "client-up-to-date",
+  "security-audit",
+  "gitleaks",
+  "codeql",
+  "deployability",
+  "migration-safety",
+  "no-raw-sql",
+  "e2e-api",
+  "e2e-mobile",
+  "e2e-degradation",
+  "assistant-evals"
+]
