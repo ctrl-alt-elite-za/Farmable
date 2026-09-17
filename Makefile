@@ -1,14 +1,14 @@
 SHELL := /bin/bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 
-PY_DIRS := apps/backend apps/ml-service scripts
+PY_DIRS := apps/backend apps/ml-service scripts migrations
 PY_FILES := $(shell scripts/has-py-files.sh $(PY_DIRS))
 # mypy errors on a directory with no .py files, so pass only populated ones.
 MYPY_DIRS := $(shell for d in $(PY_DIRS); do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
 PY_TEST_FILES := $(shell find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
 SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
 
-.PHONY: setup lint format typecheck test hooks check-no-raw-sql client
+.PHONY: setup lint format typecheck test test-integration hooks check-no-raw-sql client db-migrate queue-schema
 
 setup:
 	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
@@ -63,4 +63,13 @@ check-no-raw-sql:
 	@scripts/check-no-raw-sql.sh
 
 client:
-	@echo "make client is implemented in #3 once apps/backend's OpenAPI schema exists."
+	uv run python scripts/generate_client.py
+
+test-integration:
+	@bash scripts/test-integration.sh
+
+db-migrate:
+	uv run alembic upgrade head
+
+queue-schema:
+	uv run python -m farmable_backend.manage queue-schema

@@ -23,6 +23,7 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 .mypy_cache/
+.uv-cache/
 
 # Node / JS / TS
 node_modules/
