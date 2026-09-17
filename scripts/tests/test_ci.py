@@ -333,6 +333,16 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     assert online < stop < offline
 
 
+def test_mobile_maestro_flows_wait_for_release_app_startup():
+    repo = Path(__file__).resolve().parents[2]
+    for name, expected in (("online_launch.yaml", "Online"), ("offline_launch.yaml", "Offline")):
+        flow = (repo / "e2e/mobile" / name).read_text()
+        assert "extendedWaitUntil:" in flow
+        assert "visible: 'Farmable'" in flow
+        assert "timeout: 30000" in flow
+        assert f"visible: '{expected}'" in flow
+
+
 def test_privileged_reporter_never_checks_out_pr_code():
     repo = Path(__file__).resolve().parents[2]
     data = yaml.safe_load((repo / ".github/workflows/ci-report.yml").read_text())

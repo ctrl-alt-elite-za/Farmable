@@ -4,7 +4,11 @@ name: App launches and reaches the isolated API
 ---
 - launchApp:
     clearState: true
-- assertVisible: 'Farmable'
+- extendedWaitUntil:
+    visible: 'Farmable'
+    timeout: 30000
 - assertVisible:
     id: 'api-status'
-- assertVisible: 'Online'
+- extendedWaitUntil:
+    visible: 'Online'
+    timeout: 30000
