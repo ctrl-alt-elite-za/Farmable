@@ -39,6 +39,16 @@ apps/mobile/ios/
 coverage/
 
 # ML artifacts (model weights/checkpoints, notebooks, MLflow — see #20)
+apps/ml-service/vision/data/*
+!apps/ml-service/vision/data/.gitkeep
+apps/ml-service/vision/models/*
+!apps/ml-service/vision/models/.gitkeep
+# Training runs hold batch mosaics of private field photos; only report JSON is committed.
+apps/ml-service/vision/runs/
+apps/ml-service/vision/reports/*
+!apps/ml-service/vision/reports/.gitkeep
+!apps/ml-service/vision/reports/README.md
+!apps/ml-service/vision/reports/*.json
 *.ckpt
 *.pt
 *.pth

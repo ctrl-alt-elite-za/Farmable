@@ -3,6 +3,7 @@ uv.lock
 apps/ml-service/data/
 **/dist/
 **/build/
+**/coverage/
 **/.expo/
 .venv/
 node_modules/
