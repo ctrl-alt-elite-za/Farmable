@@ -88,3 +88,5 @@ checks. It preserves other protection rules and existing checks, binds new
 checks to their reporting app, and refuses to activate missing checks or to
 silently create/overwrite the entire branch-protection object. No branch
 rules are changed while this foundation is still awaiting dependencies.
+Both `codeql` (workflow execution) and `CodeQL` (Advanced Security findings)
+are required; a scanner executing successfully does not override its findings.

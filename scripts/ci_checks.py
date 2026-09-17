@@ -45,3 +45,6 @@ DIAGNOSTICS = {
     "prerequisite": "A prerequisite is unavailable; see the dependency issue.",
     "timeout": "The command exceeded its time limit.",
 }
+
+# The workflow execution and GitHub Advanced Security findings are different checks.
+CHECKS["CodeQL"] = CHECKS["codeql"]

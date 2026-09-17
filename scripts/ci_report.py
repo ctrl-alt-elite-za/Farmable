@@ -190,6 +190,14 @@ def main() -> None:
             selected.setdefault(run["name"], run)
     results: list[dict] = []
     failures: list[dict] = []
+    scans = all_pages(prefix + "/commits/" + source["head_sha"] + "/check-runs", "check_runs")
+    failures.extend(
+        scan
+        for scan in scans
+        if scan["name"] == "CodeQL"
+        and scan["app"]["slug"] == "github-advanced-security"
+        and scan.get("conclusion") in {"failure", "timed_out", "action_required"}
+    )
     for run in selected.values():
         jobs = all_pages(prefix + f"/actions/runs/{run['id']}/jobs", "jobs")
         failures.extend(

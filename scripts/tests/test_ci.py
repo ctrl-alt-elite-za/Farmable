@@ -133,6 +133,12 @@ def test_secret_findings_include_rotation_guidance():
     assert "rotate" in comment and "history" in comment
 
 
+def test_code_scanning_findings_are_not_hidden_by_successful_workflow():
+    result = safe_result({"check": "codeql", "failed": False, "diagnostics": []})
+    comment = render([result], [{"name": "CodeQL", "conclusion": "failure"}], 0)
+    assert "### CodeQL" in comment and "code-scanning finding" in comment
+
+
 def test_audit_report_explains_dependabot_status():
     failed = [{"name": "security-audit", "conclusion": "failure"}]
     assert "No open Dependabot" in render([], failed, 0)
