@@ -412,6 +412,98 @@ def test_sql_assigned_in_a_loop_body_is_detected(tmp_path: Path) -> None:
     assert len(check_file(path)) == 1
 
 
+@pytest.mark.parametrize("header", ["try:", "for row in rows:", "while flag:"])
+def test_sql_from_the_body_reaches_the_else(tmp_path: Path, header: str) -> None:
+    handler = "    except KeyError:\n        pass\n" if header == "try:" else ""
+    path = write(
+        tmp_path,
+        "def f(session, rows, flag):\n"
+        "    query = select(User)\n"
+        f"    {header}\n"
+        '        query = "SELECT 1"\n'
+        f"{handler}"
+        "    else:\n"
+        "        session.execute(query)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+@pytest.mark.parametrize("header", ["for row in rows:", "while flag:"])
+def test_loop_else_preserves_sql_when_the_body_never_runs(tmp_path: Path, header: str) -> None:
+    path = write(
+        tmp_path,
+        "def f(session, rows, flag):\n"
+        '    query = "SELECT 1"\n'
+        f"    {header}\n"
+        "        query = select(User)\n"
+        "    else:\n"
+        "        session.execute(query)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+@pytest.mark.parametrize("header", ["for row in rows:", "while flag:"])
+def test_loop_else_rebind_does_not_clear_a_break_path(tmp_path: Path, header: str) -> None:
+    path = write(
+        tmp_path,
+        "def f(session, rows, flag):\n"
+        "    query = select(User)\n"
+        f"    {header}\n"
+        '        query = "SELECT 1"\n'
+        "        break\n"
+        "    else:\n"
+        "        query = select(User)\n"
+        "    session.execute(query)\n",
+    )
+    assert len(check_file(path)) == 1
+
+
+@pytest.mark.parametrize("header", ["try:", "for row in rows:", "while flag:"])
+def test_rebind_in_the_else_clears_sql_before_its_call(tmp_path: Path, header: str) -> None:
+    handler = "    except KeyError:\n        pass\n" if header == "try:" else ""
+    path = write(
+        tmp_path,
+        "def f(session, rows, flag):\n"
+        f"    {header}\n"
+        '        query = "SELECT 1"\n'
+        f"{handler}"
+        "    else:\n"
+        "        query = select(User)\n"
+        "        session.execute(query)\n",
+    )
+    assert check_file(path) == []
+
+
+def test_successful_try_rebind_clears_sql_before_the_else(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(session):\n"
+        '    query = "SELECT 1"\n'
+        "    try:\n"
+        "        query = select(User)\n"
+        "    except KeyError:\n"
+        "        pass\n"
+        "    else:\n"
+        "        session.execute(query)\n",
+    )
+    assert check_file(path) == []
+
+
+def test_exception_handler_sql_does_not_reach_the_try_else(tmp_path: Path) -> None:
+    path = write(
+        tmp_path,
+        "def f(session):\n"
+        "    query = select(User)\n"
+        "    try:\n"
+        "        load()\n"
+        "    except KeyError:\n"
+        '        query = "SELECT 1"\n'
+        "    else:\n"
+        "        session.execute(query)\n",
+    )
+    assert check_file(path) == []
+
+
 def test_unconditional_rebind_after_a_branch_clears_it(tmp_path: Path) -> None:
     """A binding that definitely runs supersedes the conditional ones before it."""
     path = write(

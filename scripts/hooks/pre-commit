@@ -27,7 +27,7 @@ fi
 
 while IFS= read -r f; do
   [ -n "$f" ] || continue
-  if ! grep -qxF "$f" <<<"$before"; then
+  if ! grep -qxF -- "$f" <<<"$before"; then
     echo "pre-commit modified '$f', which was not fully staged before the" >&2
     echo "commit — refusing to auto-stage partial changes. Review and" >&2
     echo "'git add' it yourself, then commit again." >&2

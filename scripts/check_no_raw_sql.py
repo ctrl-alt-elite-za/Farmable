@@ -65,16 +65,11 @@ _STRONG = (
     "explain|cluster|checkpoint|rollback|savepoint|deallocate|listen|unlisten|notify|"
     "grant|revoke|pragma|refresh|create|drop|alter"
 )
-# Ambiguous in prose ("set up the run", "copy the file"), so these need a second
-# SQL token before the string counts as a statement.
+# Ambiguous in prose ("set up the run", "copy the file"), so these need an
+# uppercase opener or a terminated statement; CTEs have their own shape below.
 _WEAK = (
     "set|show|copy|call|do|use|lock|declare|fetch|close|prepare|reset|comment|rename|"
     "begin|commit|end|start|table|values|with|replace|attach|detach|release"
-)
-_CLAUSE = (
-    r"\b(to|from|where|into|values|table|index|schema|view|transaction|work|isolation|"
-    r"database|role|user|session|search_path|constraint|column|trigger|function|"
-    r"sequence|extension|as|on|set)\b|[=;]"
 )
 # `.match()` anchors at position 0, so re.MULTILINE would never reach a later
 # line; leading whitespace is what actually lets a formatted block through.
@@ -264,8 +259,8 @@ class _Collector(ast.NodeVisitor):
         self.generic_visit(node)
         self.scope, self.path = outer, outer_path
 
-    def _branch(self, node: ast.stmt, index: int, body: list[ast.stmt]) -> None:
-        """Visit one arm of a conditional, recording that it may not run."""
+    def _branch(self, node: ast.stmt | list[ast.stmt], index: int, body: list[ast.stmt]) -> None:
+        """Visit an optional block; share a node only for mutually exclusive arms."""
         outer, self.path = self.path, (*self.path, (id(node), index))
         for statement in body:
             self.visit(statement)
@@ -279,13 +274,16 @@ class _Collector(ast.NodeVisitor):
     def visit_While(self, node: ast.While) -> None:
         self.visit(node.test)
         self._branch(node, 0, node.body)
-        self._branch(node, 1, node.orelse)
+        # The else can follow the body, or run with zero iterations. It is
+        # optional (a break skips it), but not exclusive with the body.
+        self._branch(node.orelse, 0, node.orelse)
 
     def visit_Try(self, node: ast.Try) -> None:
-        self._branch(node, 0, node.body)
+        # Reaching else means the body completed successfully. Its bindings
+        # therefore reach else, unlike bindings from an exception handler.
+        self._branch(node, 0, [*node.body, *node.orelse])
         for index, handler in enumerate(node.handlers, start=1):
             self._branch(node, index, handler.body)
-        self._branch(node, len(node.handlers) + 1, node.orelse)
         for statement in node.finalbody:  # always runs
             self.visit(statement)
 
@@ -352,7 +350,7 @@ class _Collector(ast.NodeVisitor):
             self.scope.bind(name, node.lineno, False, self.path)
         self.visit(node.iter)
         self._branch(node, 0, node.body)  # the body may never run
-        self._branch(node, 1, node.orelse)
+        self._branch(node.orelse, 0, node.orelse)  # follows the body unless a break skips it
 
     def visit_Call(self, node: ast.Call) -> None:
         self.calls.append((node, self.scope, self.path))

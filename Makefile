@@ -27,8 +27,9 @@ setup:
 	@set -e; \
 	(uv sync) & uv_pid=$$!; \
 	(pnpm install --frozen-lockfile || pnpm install) & pnpm_pid=$$!; \
-	wait $$uv_pid; uv_status=$$?; \
-	wait $$pnpm_pid; pnpm_status=$$?; \
+	uv_status=0; pnpm_status=0; \
+	wait $$uv_pid || uv_status=$$?; \
+	wait $$pnpm_pid || pnpm_status=$$?; \
 	[ $$uv_status -eq 0 ] || { echo "uv sync failed" >&2; exit $$uv_status; }; \
 	[ $$pnpm_status -eq 0 ] || { echo "pnpm install failed" >&2; exit $$pnpm_status; }
 	$(MAKE) hooks

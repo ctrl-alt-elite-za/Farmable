@@ -24,10 +24,11 @@ if [ -z "$changed_dirs" ]; then
 fi
 
 status=0
+sql_check_needed=0
 for dir in $changed_dirs; do
   case "$dir" in
     apps/backend)
-      scripts/check-no-raw-sql.sh || status=1
+      sql_check_needed=1
       if [ -n "$(scripts/has-py-files.sh apps/backend)" ]; then
         uv run ruff check --fix apps/backend || status=1
         uv run mypy apps/backend || status=1
@@ -41,7 +42,7 @@ for dir in $changed_dirs; do
       fi
       ;;
     migrations)
-      scripts/check-no-raw-sql.sh || status=1
+      sql_check_needed=1
       ;;
     scripts)
       if [ -n "$(scripts/has-py-files.sh scripts)" ]; then
@@ -52,6 +53,11 @@ for dir in $changed_dirs; do
       ;;
   esac
 done
+
+# The wrapper scans both SQL scopes, so run it only once even if both changed.
+if [ "$sql_check_needed" -eq 1 ]; then
+  scripts/check-no-raw-sql.sh || status=1
+fi
 
 # JS/TS packages: pnpm's git-diff-aware filter resolves which changed.
 pnpm --filter "...[$base]" --if-present run lint -- --fix || status=1
