@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
-import json
 import random
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+try:
+    from .check_split import count_crop_images, split_sessions, validate_labels
+except ImportError:  # Running this file directly from the vision directory.
+    from check_split import count_crop_images, split_sessions, validate_labels  # type: ignore[no-redef]
 
 CLASSES = ["plant", "crop_head_or_fruit", "check_suggested"]
 CROPS = ["cabbage", "tomato", "spinach"]
@@ -69,23 +73,28 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--imgsz", type=int, default=640)
-    parser.add_argument("--train-sessions", type=Path, required=True)
-    parser.add_argument("--test-sessions", type=Path, required=True)
-    parser.add_argument("--crop-counts", type=Path, required=True, help="JSON crop-to-image counts")
+    parser.add_argument("--train-images", type=Path, required=True)
+    parser.add_argument("--test-images", type=Path, required=True)
+    parser.add_argument("--manifest", type=Path, required=True, help="image,session_id,crop CSV")
     parser.add_argument("--export", action="store_true", help="export the trained model to TFLite")
     args = parser.parse_args()
-    train_sessions = args.train_sessions.read_text(encoding="utf-8").splitlines()
-    test_sessions = args.test_sessions.read_text(encoding="utf-8").splitlines()
-    if not train_sessions or not test_sessions:
-        parser.error("train and test session lists must not be empty")
-    if set(train_sessions) & set(test_sessions):
-        parser.error("train and test session lists overlap")
     try:
-        crop_counts = json.loads(args.crop_counts.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        parser.error(f"invalid crop counts file: {error}")
-    if any(crop not in crop_counts or crop_counts[crop] < 300 for crop in CROPS):
-        parser.error("crop counts must contain at least 300 labelled images per crop")
+        train_sessions, test_sessions = split_sessions(
+            args.train_images, args.test_images, args.manifest
+        )
+        train_counts = validate_labels(args.train_images)
+        test_counts = validate_labels(args.test_images)
+        crop_counts = count_crop_images(args.train_images, args.test_images, args.manifest)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    if not train_sessions or not test_sessions:
+        parser.error("train and test must contain at least one filming session")
+    if train_sessions & test_sessions:
+        parser.error("train and test session lists overlap")
+    if any(count < 300 for count in crop_counts.values()):
+        parser.error("the dataset must contain at least 300 images per crop")
+    if any(train_counts[class_id] + test_counts[class_id] == 0 for class_id in range(3)):
+        parser.error("the dataset must contain at least one labelled image for each class")
     random.seed(args.seed)
     try:
         from ultralytics import YOLO
@@ -112,8 +121,8 @@ def main() -> int:
         args.seed,
         args.epochs,
         getattr(validation, "results_dict", getattr(result, "results_dict", {})),
-        train_sessions,
-        test_sessions,
+        sorted(train_sessions),
+        sorted(test_sessions),
         class_metrics,
         crop_counts,
     )

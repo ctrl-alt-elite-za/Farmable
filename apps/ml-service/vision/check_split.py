@@ -8,6 +8,7 @@ from pathlib import Path
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 CLASS_COUNT = 3
+CROPS = {"cabbage", "tomato", "spinach"}
 
 
 def read_sessions(path: Path) -> dict[str, str]:
@@ -24,6 +25,52 @@ def read_sessions(path: Path) -> dict[str, str]:
                 raise ValueError(f"image {image!r} has multiple sessions")
             result[image] = session
         return result
+
+
+def read_crop_manifest(path: Path) -> dict[str, tuple[str, str]]:
+    """Read image sessions plus the crop represented by each image."""
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = csv.DictReader(handle)
+        required = {"image", "session_id", "crop"}
+        if not rows.fieldnames or not required <= set(rows.fieldnames):
+            raise ValueError("manifest must contain image, session_id, and crop columns")
+        result: dict[str, tuple[str, str]] = {}
+        for row in rows:
+            image = row["image"].strip().replace("\\", "/")
+            session = row["session_id"].strip()
+            crop = row["crop"].strip().lower()
+            if not image or not session or not crop:
+                raise ValueError("manifest rows require non-empty image, session_id, and crop")
+            if crop not in CROPS:
+                raise ValueError(f"unsupported crop {crop!r}; expected cabbage, tomato, or spinach")
+            record = (session, crop)
+            if image in result and result[image] != record:
+                raise ValueError(f"image {image!r} has conflicting manifest entries")
+            result[image] = record
+        return result
+
+
+def count_crop_images(train: Path, test: Path, manifest: Path) -> dict[str, int]:
+    """Count real images per crop, requiring every image to be in the manifest."""
+    records = read_crop_manifest(manifest)
+    by_stem: dict[str, list[str]] = {}
+    for key in records:
+        by_stem.setdefault(Path(key).stem, []).append(key)
+    counts = {crop: 0 for crop in CROPS}
+    for image, root in [
+        (p, train) for p in train.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES
+    ] + [
+        (p, test) for p in test.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES
+    ]:
+        relative = image.relative_to(root).as_posix()
+        matches = [key for key in (relative, image.name) if key in records]
+        if not matches and len(by_stem.get(image.stem, [])) == 1:
+            matches = by_stem[image.stem]
+        matches = list(dict.fromkeys(matches))
+        if len(matches) != 1:
+            raise ValueError(f"image {image.name!r} must map to exactly one crop manifest entry")
+        counts[records[matches[0]][1]] += 1
+    return counts
 
 
 def split_sessions(train: Path, test: Path, manifest: Path) -> tuple[set[str], set[str]]:

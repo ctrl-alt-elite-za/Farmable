@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -13,15 +14,24 @@ def main() -> int:
     parser.add_argument("--platform", choices=["ios", "android"], required=True)
     parser.add_argument("--device", required=True)
     parser.add_argument("--model", required=True)
-    parser.add_argument("--detector-ms", type=float, required=True)
+    parser.add_argument("--detector-ms", type=float, required=True, help="measured median latency")
+    parser.add_argument(
+        "--measurement-source",
+        choices=["physical_device"],
+        required=True,
+        help="benchmark must be measured on the named physical device",
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if not math.isfinite(args.detector_ms) or args.detector_ms <= 0:
+        parser.error("--detector-ms must be a finite measured value greater than zero")
     report = {
         "created_at": datetime.now(UTC).isoformat(),
         "platform": args.platform,
         "device": args.device,
         "model": args.model,
         "detector_ms": args.detector_ms,
+        "measurement_source": args.measurement_source,
         "passes_target": args.platform != "ios" or args.detector_ms <= 20,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

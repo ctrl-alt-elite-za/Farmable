@@ -21,10 +21,11 @@ Measure the complete camera path on physical devices and record it with:
 
 ```bash
 python apps/ml-service/vision/benchmark.py --platform ios \
-  --device "iPhone 12 Pro" --model v1.mlpackage --detector-ms 0 \
+  --device "iPhone 12 Pro" --model v1.mlpackage --detector-ms 12.4 \
+  --measurement-source physical_device \
   --output apps/ml-service/vision/reports/v1-ios.json
 ```
 
-Replace `0` with the median steady-state detector time measured on the device.
+Replace `12.4` with the median steady-state detector time measured on the device.
 The command fails when the iPhone result exceeds 20 ms. Android results are
 recorded by device because Android performance varies by chipset.

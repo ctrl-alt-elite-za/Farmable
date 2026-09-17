@@ -22,7 +22,7 @@ contract. Treat detections as provisional until a Farmable-labelled model is
 trained and evaluated.
 
 Organise the private dataset as `data/<version>/{train,test}/images` with an
-`image_sessions.csv` manifest containing `image,session_id` columns. Validate
+`image_sessions.csv` manifest containing `image,session_id,crop` columns. Validate
 the session split before training:
 
 ```bash
@@ -31,10 +31,10 @@ python apps/ml-service/vision/check_split.py --train data/v1/train/images --test
 
 `train.py` uses a fixed seed and requires a separately managed, pinned
 Ultralytics/TFLite training environment (for example Colab). It writes a
-versioned report and can export TFLite; provide newline-delimited
-`--train-sessions` and `--test-sessions` files. It rejects overlapping session
-lists and a JSON `--crop-counts` file proving at least 300 labelled images for
-each crop. It does not download data in CI. Install the exact versions in
+versioned report and can export TFLite; provide the actual train/test image
+directories and the CSV manifest. It validates the real session split, labels,
+and image counts rather than trusting a separate claims file. It does not
+download data in CI. Install the exact versions in
 `requirements-colab.txt`.
 
 Record real cabbage and tomato measurements in `weights/cabbage.csv` and

@@ -7,15 +7,22 @@ import csv
 import json
 import math
 import random
+from datetime import date
 from pathlib import Path
 
 
 def load_measurements(path: Path) -> list[tuple[float, float]]:
     with path.open(newline="", encoding="utf-8") as handle:
         rows = csv.DictReader(handle)
-        if not rows.fieldnames or not {"diameter_cm", "weight_g"} <= set(rows.fieldnames):
-            raise ValueError("measurements must contain diameter_cm and weight_g columns")
-        values = [(float(r["diameter_cm"]), float(r["weight_g"])) for r in rows]
+        if not rows.fieldnames or not {"diameter_cm", "weight_g", "date"} <= set(rows.fieldnames):
+            raise ValueError("measurements must contain diameter_cm, weight_g, and date columns")
+        values = []
+        for row in rows:
+            try:
+                date.fromisoformat(row["date"].strip())
+                values.append((float(row["diameter_cm"]), float(row["weight_g"])))
+            except (TypeError, ValueError):
+                raise ValueError("measurements must contain ISO dates and numeric values") from None
     if any(not math.isfinite(x) or not math.isfinite(y) or x <= 0 or y <= 0 for x, y in values):
         raise ValueError("measurements must contain finite positive diameter and weight values")
     if len(values) < 20:
