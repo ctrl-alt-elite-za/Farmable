@@ -67,3 +67,6 @@ mlruns/
 .ci-reports/
 .ci-mobile-debug/
 .ci-tmp/
+
+# Private local prototype state (never the production database).
+.farmable-demo/
