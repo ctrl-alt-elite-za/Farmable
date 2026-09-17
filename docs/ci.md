@@ -47,6 +47,8 @@ revision edits/deletions fail. Dangerous new operations require a maintainer
 to add `migration-approved`; scanner failures cannot be label-bypassed.
 Deployability is independent: a destructive but runnable upgrade can deploy
 successfully while migration safety still blocks its merge.
+The post-merge main push carries approval only from its exact merged PR and
+base commit range; an unrelated approved PR cannot authorize its migration.
 
 pip-audit scans exported, pinned Python dependencies; pnpm audit scans the
 workspace lockfile. CVSS/OSV severity gates high/critical findings. Unknown

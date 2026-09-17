@@ -320,3 +320,52 @@ def test_status_check_activation_defaults_to_read_only(monkeypatch, capsys):
     required_checks.main()
     assert "Plan only" in capsys.readouterr().out
     api.assert_not_called()
+
+
+@pytest.mark.parametrize("approved", [False, True])
+def test_main_migration_approval_comes_from_exact_merged_pr(monkeypatch, approved):
+    import migration_safety
+
+    monkeypatch.setenv("CI_MIGRATION_APPROVED", "false")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
+    monkeypatch.setenv("GITHUB_SHA", "merged-sha")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "example/repo")
+    monkeypatch.setenv("CI_BASE", "base-sha")
+    monkeypatch.setenv("GH_TOKEN", "synthetic-read-only-token")
+    api = Mock(
+        return_value=[
+            {
+                "merged_at": "now",
+                "merge_commit_sha": "merged-sha",
+                "base": {"sha": "base-sha"},
+                "labels": [{"name": "migration-approved"}] if approved else [],
+            }
+        ]
+    )
+    monkeypatch.setattr(migration_safety, "request_json", api)
+    assert migration_safety.migration_approved() is approved
+    api.assert_called_once_with("/repos/example/repo/commits/merged-sha/pulls")
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("merge_commit_sha", "other-commit"), ("base", {"sha": "other-base"}), ("merged_at", None)],
+)
+def test_unrelated_pr_cannot_approve_main_migrations(monkeypatch, field, value):
+    import migration_safety
+
+    monkeypatch.setenv("CI_MIGRATION_APPROVED", "false")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
+    monkeypatch.setenv("GITHUB_SHA", "merged-sha")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "example/repo")
+    monkeypatch.setenv("CI_BASE", "base-sha")
+    monkeypatch.setenv("GH_TOKEN", "synthetic-read-only-token")
+    pr = {
+        "merged_at": "now",
+        "merge_commit_sha": "merged-sha",
+        "base": {"sha": "base-sha"},
+        "labels": [{"name": "migration-approved"}],
+        field: value,
+    }
+    monkeypatch.setattr(migration_safety, "request_json", Mock(return_value=[pr]))
+    assert not migration_safety.migration_approved()

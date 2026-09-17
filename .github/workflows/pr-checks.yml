@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: farmable-checks-${{ github.event.pull_request.number || github.ref }}
@@ -66,6 +67,7 @@ jobs:
         if: ${{ !matrix.backend || needs.scopes.outputs.backend == 'true' }}
         env:
           CHECK: ${{ matrix.check }}
+          GH_TOKEN: ${{ github.token }}
           CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
           CI_MIGRATION_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'migration-approved') }}
         run: uv run python scripts/ci_run.py "$CHECK"

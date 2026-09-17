@@ -11,6 +11,25 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from ci_report import request_json
+
+
+def migration_approved() -> bool:
+    if os.environ.get("CI_MIGRATION_APPROVED") == "true":
+        return True
+    # A main push has no PR-label payload. Carry approval only from its exact merged PR/range.
+    if os.environ.get("GITHUB_EVENT_NAME") != "push" or not os.environ.get("GH_TOKEN"):
+        return False
+    sha = os.environ["GITHUB_SHA"]
+    repo = os.environ["GITHUB_REPOSITORY"]
+    prs = request_json(f"/repos/{repo}/commits/{sha}/pulls")
+    return any(
+        pr.get("merged_at")
+        and pr.get("merge_commit_sha") == sha
+        and pr.get("base", {}).get("sha") == os.environ.get("CI_BASE")
+        and any(label["name"] == "migration-approved" for label in pr.get("labels", []))
+        for pr in prs
+    )
 
 
 def git(*args: str) -> str:
@@ -100,7 +119,7 @@ def main() -> int:
         print("migration-danger: SQL parser/report failure cannot be label-bypassed")
         return 1
     print("migration-danger: " + result.stdout)
-    if os.environ.get("CI_MIGRATION_APPROVED") == "true":
+    if migration_approved():
         print("Dangerous migration explicitly approved by maintainer label")
         return 0
     print("Require the migration-approved label before merging")
