@@ -82,4 +82,17 @@ describe('buildSelfTestReport', () => {
     expect(report.notes).toContain('detector_ms: 21 ms is over the 20 ms budget');
     expect(report.overall).toBe('fail');
   });
+
+  it('reports the detector note instead of the budget message when it could not be measured', () => {
+    const report = buildSelfTestReport(allPassing, {
+      ...meta,
+      detectorMs: 9999,
+      detectorNote: 'no detector model is bundled yet - #16 produces it',
+    });
+
+    expect(report.notes).toContain(
+      'detector_ms: no detector model is bundled yet - #16 produces it',
+    );
+    expect(report.overall).toBe('fail');
+  });
 });

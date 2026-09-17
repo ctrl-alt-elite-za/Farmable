@@ -159,12 +159,11 @@ export async function measureDetectorMs(): Promise<DetectorTiming> {
   }
 }
 
-/** Runs the four device checks in the order the Self-test screen shows them. */
+/**
+ * Runs the four device checks concurrently - they touch independent native modules
+ * (camera, AR, microphone), so running them one after another would add their
+ * latencies together, including the 6+ seconds probeMicRecord blocks on.
+ */
 export async function runDeviceProbes(): Promise<CheckResult[]> {
-  return [
-    await probeCameraPreview(),
-    await probeLidarDepth(),
-    await probeArPlane(),
-    await probeMicRecord(),
-  ];
+  return Promise.all([probeCameraPreview(), probeLidarDepth(), probeArPlane(), probeMicRecord()]);
 }

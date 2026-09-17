@@ -28,6 +28,8 @@ export interface SelfTestMeta {
   buildSha: string;
   deviceModel: string;
   detectorMs: number;
+  /** Why the detector could not be measured, if it could not be (issue #16 note). */
+  detectorNote?: string;
   startedAt: string;
 }
 
@@ -68,7 +70,9 @@ export function buildSelfTestReport(results: CheckResult[], meta: SelfTestMeta):
     }
   }
 
-  if (meta.detectorMs > DETECTOR_MS_BUDGET) {
+  if (meta.detectorNote) {
+    notes.push(`detector_ms: ${meta.detectorNote}`);
+  } else if (meta.detectorMs > DETECTOR_MS_BUDGET) {
     notes.push(`detector_ms: ${meta.detectorMs} ms is over the ${DETECTOR_MS_BUDGET} ms budget`);
   }
 

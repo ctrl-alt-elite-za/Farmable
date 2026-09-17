@@ -28,13 +28,9 @@ export function SelfTestScreen() {
       buildSha: BUILD_SHA,
       deviceModel: Device.modelName ?? 'unknown',
       detectorMs: detector.ms,
+      detectorNote: detector.note,
       startedAt,
     });
-    // The detector note explains a timing the report can only see as a number.
-    if (detector.note) {
-      next.notes.push(`detector_ms: ${detector.note}`);
-      next.overall = 'fail';
-    }
 
     setReport(next);
     setUpload(await uploadSelfTestReport(next));
