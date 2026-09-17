@@ -7,8 +7,8 @@
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testMatch: [
-    '<rootDir>/src/**/__tests__/**/*.test.ts',
-    '<rootDir>/src/**/__tests__/**/*.test.tsx',
-  ],
+  // Relative globs, not <rootDir>-prefixed ones: on Windows, <rootDir> resolves with
+  // backslashes and jest's micromatch-based testMatch cannot match a mixed-separator
+  // pattern, so every test silently fails to be discovered.
+  testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
 };
