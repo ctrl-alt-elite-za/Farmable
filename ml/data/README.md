@@ -14,10 +14,15 @@ organized them by source under `ml/data/<source>/`:
 - `rainfall/` — Open-Meteo daily rainfall for the growing regions
 
 **Why FAOSTAT alongside Joburg data:** the Joburg scrape only covers 41 days so far — not
-enough history for a monthly-range forecast. FAOSTAT gives 15 years of monthly data for
-7 of the 8 crops, but it's farm-gate producer price, not Joburg wholesale; treat it as a
-substitute with that difference documented, not a like-for-like source, until either the
-scraper accumulates enough months or the two are reconciled.
+enough history for a monthly-range forecast. FAOSTAT gives 15 years of monthly data
+covering all 8 of issue #20's crops, but it's farm-gate producer price, not Joburg
+wholesale; treat it as a substitute with that difference documented, not a like-for-like
+source, until either the scraper accumulates enough months or the two are reconciled.
+
+**Data-quality warning — pumpkin/butternut:** FAOSTAT's pumpkin/butternut series is
+broken — 7 year-over-year jumps over 3x and a 10x spike in March 2019. Do not feed it
+into the gross-margin backtest without cleaning it first; every other crop's series does
+not have this problem.
 
 **Not covered here, still needed:** Elsenburg cost-per-hectare budgets (all 8 crops) and
 the CPI file (`ml/data/cpi_za_monthly.csv`) — neither exists in the scraped data.
