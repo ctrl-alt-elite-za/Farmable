@@ -12,7 +12,11 @@ from typing import Any
 try:
     from .check_split import count_crop_images, split_sessions, validate_labels
 except ImportError:  # Running this file directly from the vision directory.
-    from check_split import count_crop_images, split_sessions, validate_labels  # type: ignore[no-redef]
+    from check_split import (  # type: ignore[no-redef]
+        count_crop_images,
+        split_sessions,
+        validate_labels,
+    )
 
 CLASSES = ["plant", "crop_head_or_fruit", "check_suggested"]
 CROPS = ["cabbage", "tomato", "spinach"]

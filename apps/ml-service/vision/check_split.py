@@ -59,9 +59,7 @@ def count_crop_images(train: Path, test: Path, manifest: Path) -> dict[str, int]
     counts = {crop: 0 for crop in CROPS}
     for image, root in [
         (p, train) for p in train.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES
-    ] + [
-        (p, test) for p in test.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES
-    ]:
+    ] + [(p, test) for p in test.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES]:
         relative = image.relative_to(root).as_posix()
         matches = [key for key in (relative, image.name) if key in records]
         if not matches and len(by_stem.get(image.stem, [])) == 1:
