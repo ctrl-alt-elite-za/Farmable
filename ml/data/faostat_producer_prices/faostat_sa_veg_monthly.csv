@@ -1,0 +1,1382 @@
+crop,item_faostat,year,month_num,month_name,price_lcu_per_tonne,flag
+cabbage,Cabbages,2010,1,January,1262,A
+cabbage,Cabbages,2011,1,January,1450,A
+cabbage,Cabbages,2012,1,January,1354,A
+cabbage,Cabbages,2013,1,January,1675,A
+cabbage,Cabbages,2014,1,January,2224,A
+cabbage,Cabbages,2015,1,January,1888,A
+cabbage,Cabbages,2016,1,January,3966,A
+cabbage,Cabbages,2017,1,January,2912,A
+cabbage,Cabbages,2018,1,January,1847,A
+cabbage,Cabbages,2019,1,January,2748,A
+cabbage,Cabbages,2020,1,January,2702.9,A
+cabbage,Cabbages,2021,1,January,1777.5,A
+cabbage,Cabbages,2022,1,January,1857.2,A
+cabbage,Cabbages,2023,1,January,3080,A
+cabbage,Cabbages,2024,1,January,2314.4,A
+cabbage,Cabbages,2025,1,January,3183.3,A
+cabbage,Cabbages,2010,2,February,1355,A
+cabbage,Cabbages,2011,2,February,1288,A
+cabbage,Cabbages,2012,2,February,1676,A
+cabbage,Cabbages,2013,2,February,1982,A
+cabbage,Cabbages,2014,2,February,2455,A
+cabbage,Cabbages,2015,2,February,2041,A
+cabbage,Cabbages,2016,2,February,3865,A
+cabbage,Cabbages,2017,2,February,2821,A
+cabbage,Cabbages,2018,2,February,1889,A
+cabbage,Cabbages,2019,2,February,2620,A
+cabbage,Cabbages,2020,2,February,3817.3,A
+cabbage,Cabbages,2021,2,February,2312.7,A
+cabbage,Cabbages,2022,2,February,2487,A
+cabbage,Cabbages,2023,2,February,4171,A
+cabbage,Cabbages,2024,2,February,2605.9,A
+cabbage,Cabbages,2010,3,March,1449,A
+cabbage,Cabbages,2011,3,March,1513,A
+cabbage,Cabbages,2012,3,March,2599,A
+cabbage,Cabbages,2013,3,March,2481,A
+cabbage,Cabbages,2014,3,March,2109,A
+cabbage,Cabbages,2015,3,March,2348,A
+cabbage,Cabbages,2016,3,March,3799,A
+cabbage,Cabbages,2017,3,March,3372,A
+cabbage,Cabbages,2018,3,March,1919,A
+cabbage,Cabbages,2019,3,March,3099,A
+cabbage,Cabbages,2020,3,March,3151.1,A
+cabbage,Cabbages,2021,3,March,3494.7,A
+cabbage,Cabbages,2022,3,March,2552.1,A
+cabbage,Cabbages,2023,3,March,3935,A
+cabbage,Cabbages,2024,3,March,3667.7,A
+cabbage,Cabbages,2010,4,April,1493,A
+cabbage,Cabbages,2011,4,April,1445,A
+cabbage,Cabbages,2012,4,April,2317,A
+cabbage,Cabbages,2013,4,April,2752,A
+cabbage,Cabbages,2014,4,April,2660,A
+cabbage,Cabbages,2015,4,April,1978,A
+cabbage,Cabbages,2016,4,April,3412,A
+cabbage,Cabbages,2017,4,April,3794,A
+cabbage,Cabbages,2018,4,April,1742,A
+cabbage,Cabbages,2019,4,April,3245,A
+cabbage,Cabbages,2020,4,April,3543.7,A
+cabbage,Cabbages,2021,4,April,3589.7,A
+cabbage,Cabbages,2022,4,April,2594.2,A
+cabbage,Cabbages,2023,4,April,3758,A
+cabbage,Cabbages,2024,4,April,3885.7,A
+cabbage,Cabbages,2010,5,May,1269,A
+cabbage,Cabbages,2011,5,May,1374,A
+cabbage,Cabbages,2012,5,May,1773,A
+cabbage,Cabbages,2013,5,May,2389,A
+cabbage,Cabbages,2014,5,May,2487,A
+cabbage,Cabbages,2015,5,May,1852,A
+cabbage,Cabbages,2016,5,May,2288,A
+cabbage,Cabbages,2017,5,May,2486,A
+cabbage,Cabbages,2018,5,May,2093,A
+cabbage,Cabbages,2019,5,May,2241,A
+cabbage,Cabbages,2020,5,May,2879.1,A
+cabbage,Cabbages,2021,5,May,3061,A
+cabbage,Cabbages,2022,5,May,2705.5,A
+cabbage,Cabbages,2023,5,May,3638,A
+cabbage,Cabbages,2024,5,May,3804.5,A
+cabbage,Cabbages,2010,6,June,1322,A
+cabbage,Cabbages,2011,6,June,1510,A
+cabbage,Cabbages,2012,6,June,1733,A
+cabbage,Cabbages,2013,6,June,2222,A
+cabbage,Cabbages,2014,6,June,2217,A
+cabbage,Cabbages,2015,6,June,1698,A
+cabbage,Cabbages,2016,6,June,1968,A
+cabbage,Cabbages,2017,6,June,2386,A
+cabbage,Cabbages,2018,6,June,2278,A
+cabbage,Cabbages,2019,6,June,2123,A
+cabbage,Cabbages,2020,6,June,2733.2,A
+cabbage,Cabbages,2021,6,June,2209.5,A
+cabbage,Cabbages,2022,6,June,2761.5,A
+cabbage,Cabbages,2023,6,June,2512,A
+cabbage,Cabbages,2024,6,June,3052.6,A
+cabbage,Cabbages,2010,7,July,1440,A
+cabbage,Cabbages,2011,7,July,1700,A
+cabbage,Cabbages,2012,7,July,1472,A
+cabbage,Cabbages,2013,7,July,2365,A
+cabbage,Cabbages,2014,7,July,2625,A
+cabbage,Cabbages,2015,7,July,1471,A
+cabbage,Cabbages,2016,7,July,1678,A
+cabbage,Cabbages,2017,7,July,2074,A
+cabbage,Cabbages,2018,7,July,2365,A
+cabbage,Cabbages,2019,7,July,2100,A
+cabbage,Cabbages,2020,7,July,3277.8,A
+cabbage,Cabbages,2021,7,July,1942.8,A
+cabbage,Cabbages,2022,7,July,3053.4,A
+cabbage,Cabbages,2023,7,July,2399,A
+cabbage,Cabbages,2024,7,July,3227.6,A
+cabbage,Cabbages,2010,8,August,1435,A
+cabbage,Cabbages,2011,8,August,1746,A
+cabbage,Cabbages,2012,8,August,1533,A
+cabbage,Cabbages,2013,8,August,1833,A
+cabbage,Cabbages,2014,8,August,2237,A
+cabbage,Cabbages,2015,8,August,1371,A
+cabbage,Cabbages,2016,8,August,1671,A
+cabbage,Cabbages,2017,8,August,2074,A
+cabbage,Cabbages,2018,8,August,2220,A
+cabbage,Cabbages,2019,8,August,2193,A
+cabbage,Cabbages,2020,8,August,3264.8,A
+cabbage,Cabbages,2021,8,August,1937.6,A
+cabbage,Cabbages,2022,8,August,2809,A
+cabbage,Cabbages,2023,8,August,2115,A
+cabbage,Cabbages,2024,8,August,3954.5,A
+cabbage,Cabbages,2010,9,September,1316,A
+cabbage,Cabbages,2011,9,September,1468,A
+cabbage,Cabbages,2012,9,September,1396,A
+cabbage,Cabbages,2013,9,September,1706,A
+cabbage,Cabbages,2014,9,September,1900,A
+cabbage,Cabbages,2015,9,September,1250,A
+cabbage,Cabbages,2016,9,September,1368,A
+cabbage,Cabbages,2017,9,September,2056,A
+cabbage,Cabbages,2018,9,September,2038,A
+cabbage,Cabbages,2019,9,September,1749,A
+cabbage,Cabbages,2020,9,September,2736,A
+cabbage,Cabbages,2021,9,September,1633.7,A
+cabbage,Cabbages,2022,9,September,2655.9,A
+cabbage,Cabbages,2023,9,September,1978,A
+cabbage,Cabbages,2024,9,September,3026.9,A
+cabbage,Cabbages,2010,10,October,1591,A
+cabbage,Cabbages,2011,10,October,1496,A
+cabbage,Cabbages,2012,10,October,1612,A
+cabbage,Cabbages,2013,10,October,1762,A
+cabbage,Cabbages,2014,10,October,2423,A
+cabbage,Cabbages,2015,10,October,1850,A
+cabbage,Cabbages,2016,10,October,1607,A
+cabbage,Cabbages,2017,10,October,2066,A
+cabbage,Cabbages,2018,10,October,2380,A
+cabbage,Cabbages,2019,10,October,2055,A
+cabbage,Cabbages,2020,10,October,2394.3,A
+cabbage,Cabbages,2021,10,October,1898.5,A
+cabbage,Cabbages,2022,10,October,2392.5,A
+cabbage,Cabbages,2023,10,October,2041,A
+cabbage,Cabbages,2024,10,October,3071.4,A
+cabbage,Cabbages,2010,11,November,1341,A
+cabbage,Cabbages,2011,11,November,1394,A
+cabbage,Cabbages,2012,11,November,1844,A
+cabbage,Cabbages,2013,11,November,1965,A
+cabbage,Cabbages,2014,11,November,2404,A
+cabbage,Cabbages,2015,11,November,2625,A
+cabbage,Cabbages,2016,11,November,1744,A
+cabbage,Cabbages,2017,11,November,2107,A
+cabbage,Cabbages,2018,11,November,2780,A
+cabbage,Cabbages,2019,11,November,2604,A
+cabbage,Cabbages,2020,11,November,2253.5,A
+cabbage,Cabbages,2021,11,November,2546.7,A
+cabbage,Cabbages,2022,11,November,2270.9,A
+cabbage,Cabbages,2023,11,November,2373,A
+cabbage,Cabbages,2024,11,November,2875.2,A
+cabbage,Cabbages,2010,12,December,1205,A
+cabbage,Cabbages,2011,12,December,1259,A
+cabbage,Cabbages,2012,12,December,1779,A
+cabbage,Cabbages,2013,12,December,1911,A
+cabbage,Cabbages,2014,12,December,1997,A
+cabbage,Cabbages,2015,12,December,3376,A
+cabbage,Cabbages,2016,12,December,1854,A
+cabbage,Cabbages,2017,12,December,1958,A
+cabbage,Cabbages,2018,12,December,3070,A
+cabbage,Cabbages,2019,12,December,2772,A
+cabbage,Cabbages,2020,12,December,1703,A
+cabbage,Cabbages,2021,12,December,1988.1,A
+cabbage,Cabbages,2022,12,December,2547.1,A
+cabbage,Cabbages,2023,12,December,2311,A
+cabbage,Cabbages,2024,12,December,2768,A
+carrots,Carrots and turnips,2010,1,January,2592,A
+carrots,Carrots and turnips,2011,1,January,2251,A
+carrots,Carrots and turnips,2012,1,January,2229,A
+carrots,Carrots and turnips,2013,1,January,3194,A
+carrots,Carrots and turnips,2014,1,January,5091,A
+carrots,Carrots and turnips,2015,1,January,2513,A
+carrots,Carrots and turnips,2016,1,January,3746,A
+carrots,Carrots and turnips,2017,1,January,3254,A
+carrots,Carrots and turnips,2018,1,January,2645,A
+carrots,Carrots and turnips,2019,1,January,4070,A
+carrots,Carrots and turnips,2020,1,January,3514,A
+carrots,Carrots and turnips,2021,1,January,3939.3,A
+carrots,Carrots and turnips,2022,1,January,2807.2,A
+carrots,Carrots and turnips,2023,1,January,5224,A
+carrots,Carrots and turnips,2024,1,January,5428.9,A
+carrots,Carrots and turnips,2025,1,January,5688.4,A
+carrots,Carrots and turnips,2010,2,February,2880,A
+carrots,Carrots and turnips,2011,2,February,2132,A
+carrots,Carrots and turnips,2012,2,February,2406,A
+carrots,Carrots and turnips,2013,2,February,2653,A
+carrots,Carrots and turnips,2014,2,February,4828,A
+carrots,Carrots and turnips,2015,2,February,2722,A
+carrots,Carrots and turnips,2016,2,February,4401,A
+carrots,Carrots and turnips,2017,2,February,4065,A
+carrots,Carrots and turnips,2018,2,February,3412,A
+carrots,Carrots and turnips,2019,2,February,4019,A
+carrots,Carrots and turnips,2020,2,February,4534.1,A
+carrots,Carrots and turnips,2021,2,February,4680.4,A
+carrots,Carrots and turnips,2022,2,February,3148,A
+carrots,Carrots and turnips,2023,2,February,6204,A
+carrots,Carrots and turnips,2024,2,February,4781.9,A
+carrots,Carrots and turnips,2010,3,March,3775,A
+carrots,Carrots and turnips,2011,3,March,3120,A
+carrots,Carrots and turnips,2012,3,March,2804,A
+carrots,Carrots and turnips,2013,3,March,3901,A
+carrots,Carrots and turnips,2014,3,March,5648,A
+carrots,Carrots and turnips,2015,3,March,2869,A
+carrots,Carrots and turnips,2016,3,March,6038,A
+carrots,Carrots and turnips,2017,3,March,4967,A
+carrots,Carrots and turnips,2018,3,March,4609,A
+carrots,Carrots and turnips,2019,3,March,4361,A
+carrots,Carrots and turnips,2020,3,March,5310.7,A
+carrots,Carrots and turnips,2021,3,March,6436.6,A
+carrots,Carrots and turnips,2022,3,March,4335.8,A
+carrots,Carrots and turnips,2023,3,March,6950,A
+carrots,Carrots and turnips,2024,3,March,6126.1,A
+carrots,Carrots and turnips,2010,4,April,5056,A
+carrots,Carrots and turnips,2011,4,April,3430,A
+carrots,Carrots and turnips,2012,4,April,3060,A
+carrots,Carrots and turnips,2013,4,April,4591,A
+carrots,Carrots and turnips,2014,4,April,5829,A
+carrots,Carrots and turnips,2015,4,April,4363,A
+carrots,Carrots and turnips,2016,4,April,6259,A
+carrots,Carrots and turnips,2017,4,April,5624,A
+carrots,Carrots and turnips,2018,4,April,4156,A
+carrots,Carrots and turnips,2019,4,April,4512,A
+carrots,Carrots and turnips,2020,4,April,7149.8,A
+carrots,Carrots and turnips,2021,4,April,5608.2,A
+carrots,Carrots and turnips,2022,4,April,5280.9,A
+carrots,Carrots and turnips,2023,4,April,7523,A
+carrots,Carrots and turnips,2024,4,April,8693.5,A
+carrots,Carrots and turnips,2010,5,May,4344,A
+carrots,Carrots and turnips,2011,5,May,3493,A
+carrots,Carrots and turnips,2012,5,May,2571,A
+carrots,Carrots and turnips,2013,5,May,3380,A
+carrots,Carrots and turnips,2014,5,May,4452,A
+carrots,Carrots and turnips,2015,5,May,3312,A
+carrots,Carrots and turnips,2016,5,May,5449,A
+carrots,Carrots and turnips,2017,5,May,5340,A
+carrots,Carrots and turnips,2018,5,May,4638,A
+carrots,Carrots and turnips,2019,5,May,4268,A
+carrots,Carrots and turnips,2020,5,May,5438.4,A
+carrots,Carrots and turnips,2021,5,May,4632,A
+carrots,Carrots and turnips,2022,5,May,4495.2,A
+carrots,Carrots and turnips,2023,5,May,6848,A
+carrots,Carrots and turnips,2024,5,May,6298.3,A
+carrots,Carrots and turnips,2010,6,June,3044,A
+carrots,Carrots and turnips,2011,6,June,3148,A
+carrots,Carrots and turnips,2012,6,June,2144,A
+carrots,Carrots and turnips,2013,6,June,2547,A
+carrots,Carrots and turnips,2014,6,June,2936,A
+carrots,Carrots and turnips,2015,6,June,2400,A
+carrots,Carrots and turnips,2016,6,June,3636,A
+carrots,Carrots and turnips,2017,6,June,3588,A
+carrots,Carrots and turnips,2018,6,June,3757,A
+carrots,Carrots and turnips,2019,6,June,2906,A
+carrots,Carrots and turnips,2020,6,June,4243.2,A
+carrots,Carrots and turnips,2021,6,June,3741.8,A
+carrots,Carrots and turnips,2022,6,June,4152,A
+carrots,Carrots and turnips,2023,6,June,4006,A
+carrots,Carrots and turnips,2024,6,June,4932.3,A
+carrots,Carrots and turnips,2010,7,July,3418,A
+carrots,Carrots and turnips,2011,7,July,2703,A
+carrots,Carrots and turnips,2012,7,July,2057,A
+carrots,Carrots and turnips,2013,7,July,2638,A
+carrots,Carrots and turnips,2014,7,July,2990,A
+carrots,Carrots and turnips,2015,7,July,2231,A
+carrots,Carrots and turnips,2016,7,July,2517,A
+carrots,Carrots and turnips,2017,7,July,3148,A
+carrots,Carrots and turnips,2018,7,July,3280,A
+carrots,Carrots and turnips,2019,7,July,2796,A
+carrots,Carrots and turnips,2020,7,July,3963.9,A
+carrots,Carrots and turnips,2021,7,July,3505.7,A
+carrots,Carrots and turnips,2022,7,July,3798.8,A
+carrots,Carrots and turnips,2023,7,July,4009,A
+carrots,Carrots and turnips,2024,7,July,4183.3,A
+carrots,Carrots and turnips,2010,8,August,3666,A
+carrots,Carrots and turnips,2011,8,August,2777,A
+carrots,Carrots and turnips,2012,8,August,2506,A
+carrots,Carrots and turnips,2013,8,August,2490,A
+carrots,Carrots and turnips,2014,8,August,3064,A
+carrots,Carrots and turnips,2015,8,August,2265,A
+carrots,Carrots and turnips,2016,8,August,2630,A
+carrots,Carrots and turnips,2017,8,August,3228,A
+carrots,Carrots and turnips,2018,8,August,3525,A
+carrots,Carrots and turnips,2019,8,August,2804,A
+carrots,Carrots and turnips,2020,8,August,3462.1,A
+carrots,Carrots and turnips,2021,8,August,2769.2,A
+carrots,Carrots and turnips,2022,8,August,3756.6,A
+carrots,Carrots and turnips,2023,8,August,5237,A
+carrots,Carrots and turnips,2024,8,August,4781.6,A
+carrots,Carrots and turnips,2010,9,September,3365,A
+carrots,Carrots and turnips,2011,9,September,2853,A
+carrots,Carrots and turnips,2012,9,September,2534,A
+carrots,Carrots and turnips,2013,9,September,2329,A
+carrots,Carrots and turnips,2014,9,September,2726,A
+carrots,Carrots and turnips,2015,9,September,2471,A
+carrots,Carrots and turnips,2016,9,September,2246,A
+carrots,Carrots and turnips,2017,9,September,2515,A
+carrots,Carrots and turnips,2018,9,September,3912,A
+carrots,Carrots and turnips,2019,9,September,2916,A
+carrots,Carrots and turnips,2020,9,September,3667.8,A
+carrots,Carrots and turnips,2021,9,September,2604.6,A
+carrots,Carrots and turnips,2022,9,September,3979.7,A
+carrots,Carrots and turnips,2023,9,September,4184,A
+carrots,Carrots and turnips,2024,9,September,5472.2,A
+carrots,Carrots and turnips,2010,10,October,3027,A
+carrots,Carrots and turnips,2011,10,October,3145,A
+carrots,Carrots and turnips,2012,10,October,3016,A
+carrots,Carrots and turnips,2013,10,October,2852,A
+carrots,Carrots and turnips,2014,10,October,2594,A
+carrots,Carrots and turnips,2015,10,October,2821,A
+carrots,Carrots and turnips,2016,10,October,2546,A
+carrots,Carrots and turnips,2017,10,October,2540,A
+carrots,Carrots and turnips,2018,10,October,3372,A
+carrots,Carrots and turnips,2019,10,October,3140,A
+carrots,Carrots and turnips,2020,10,October,3539.8,A
+carrots,Carrots and turnips,2021,10,October,2401.2,A
+carrots,Carrots and turnips,2022,10,October,5171.5,A
+carrots,Carrots and turnips,2023,10,October,4371,A
+carrots,Carrots and turnips,2024,10,October,6829.9,A
+carrots,Carrots and turnips,2010,11,November,2352,A
+carrots,Carrots and turnips,2011,11,November,2483,A
+carrots,Carrots and turnips,2012,11,November,2680,A
+carrots,Carrots and turnips,2013,11,November,3096,A
+carrots,Carrots and turnips,2014,11,November,2373,A
+carrots,Carrots and turnips,2015,11,November,3014,A
+carrots,Carrots and turnips,2016,11,November,2924,A
+carrots,Carrots and turnips,2017,11,November,2362,A
+carrots,Carrots and turnips,2018,11,November,3102,A
+carrots,Carrots and turnips,2019,11,November,3115,A
+carrots,Carrots and turnips,2020,11,November,3385.8,A
+carrots,Carrots and turnips,2021,11,November,2754,A
+carrots,Carrots and turnips,2022,11,November,4373.3,A
+carrots,Carrots and turnips,2023,11,November,5046,A
+carrots,Carrots and turnips,2024,11,November,4640.3,A
+carrots,Carrots and turnips,2010,12,December,2512,A
+carrots,Carrots and turnips,2011,12,December,2457,A
+carrots,Carrots and turnips,2012,12,December,3547,A
+carrots,Carrots and turnips,2013,12,December,4921,A
+carrots,Carrots and turnips,2014,12,December,3028,A
+carrots,Carrots and turnips,2015,12,December,3906,A
+carrots,Carrots and turnips,2016,12,December,3811,A
+carrots,Carrots and turnips,2017,12,December,3688,A
+carrots,Carrots and turnips,2018,12,December,5330,A
+carrots,Carrots and turnips,2019,12,December,4747,A
+carrots,Carrots and turnips,2020,12,December,4228.8,A
+carrots,Carrots and turnips,2021,12,December,3753.5,A
+carrots,Carrots and turnips,2022,12,December,6014,A
+carrots,Carrots and turnips,2023,12,December,5588,A
+carrots,Carrots and turnips,2024,12,December,5925,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,1,January,1927,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,1,January,1875,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,1,January,1997,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,1,January,3060,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,1,January,3012,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,1,January,2683,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,1,January,4189,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,1,January,2561,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,1,January,5352,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,1,January,2990,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,1,January,4298.9,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,1,January,3948.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,1,January,4079.7,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,1,January,8291,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,1,January,4005.3,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2025,1,January,4152.9,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,2,February,2168,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,2,February,2032,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,2,February,1859,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,2,February,2572,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,2,February,4041,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,2,February,2526,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,2,February,4435,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,2,February,2498,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,2,February,5317,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,2,February,2904,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,2,February,3712.7,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,2,February,3272.9,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,2,February,3642.2,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,2,February,6178,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,2,February,4178.4,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,3,March,2625,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,3,March,2281,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,3,March,2300,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,3,March,3349,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,3,March,4057,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,3,March,3297,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,3,March,4746,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,3,March,2830,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,3,March,4756,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,3,March,3488,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,3,March,4370.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,3,March,3646.7,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,3,March,4203.4,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,3,March,8638,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,3,March,7801.8,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,4,April,3115,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,4,April,2801,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,4,April,2308,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,4,April,4497,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,4,April,4271,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,4,April,3180,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,4,April,5755,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,4,April,3088,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,4,April,4577,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,4,April,4141,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,4,April,5955.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,4,April,4085.8,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,4,April,5002.7,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,4,April,11621,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,4,April,9192.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,5,May,3488,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,5,May,3001,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,5,May,2775,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,5,May,4852,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,5,May,4893,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,5,May,3378,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,5,May,5293,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,5,May,3544,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,5,May,4039,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,5,May,4505,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,5,May,6616.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,5,May,3931.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,5,May,5290.1,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,5,May,14067,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,5,May,8345,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,6,June,3934,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,6,June,2661,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,6,June,2998,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,6,June,4920,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,6,June,4562,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,6,June,3251,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,6,June,6522,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,6,June,3144,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,6,June,4153,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,6,June,5079,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,6,June,5005.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,6,June,4388.3,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,6,June,5582.6,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,6,June,10874,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,6,June,9298.7,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,7,July,3887,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,7,July,2798,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,7,July,2743,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,7,July,4620,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,7,July,3671,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,7,July,2796,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,7,July,6209,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,7,July,2997,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,7,July,4485,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,7,July,5028,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,7,July,5113.3,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,7,July,3952,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,7,July,5712.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,7,July,8568,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,7,July,7479.8,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,8,August,2931,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,8,August,2307,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,8,August,2119,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,8,August,3111,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,8,August,2774,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,8,August,2198,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,8,August,5575,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,8,August,2386,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,8,August,4454,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,8,August,3724,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,8,August,4691.9,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,8,August,3442,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,8,August,5732.9,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,8,August,8533,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,8,August,5775.7,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,9,September,1815,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,9,September,1686,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,9,September,2156,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,9,September,2244,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,9,September,2697,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,9,September,2182,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,9,September,3433,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,9,September,2652,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,9,September,3844,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,9,September,3575,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,9,September,3914.6,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,9,September,2857.1,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,9,September,8571.9,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,9,September,6468,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,9,September,4929.6,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,10,October,1848,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,10,October,1561,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,10,October,3230,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,10,October,2469,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,10,October,2537,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,10,October,2297,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,10,October,3322,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,10,October,4833,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,10,October,3398,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,10,October,3877,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,10,October,4231.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,10,October,2640.2,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,10,October,9726.8,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,10,October,4751,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,10,October,4856.1,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,11,November,1819,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,11,November,1735,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,11,November,3367,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,11,November,2661,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,11,November,2000,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,11,November,2662,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,11,November,2703,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,11,November,3788,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,11,November,3552,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,11,November,3385,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,11,November,3875.2,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,11,November,3081.4,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,11,November,10378.2,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,11,November,3836,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,11,November,4635.8,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,12,December,1807,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,12,December,1855,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,12,December,3255,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,12,December,2719,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,12,December,2330,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,12,December,3079,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,12,December,2298,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,12,December,4828,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,12,December,2942,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,12,December,3409,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,12,December,3753.8,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,12,December,3717.5,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,12,December,8588.3,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,12,December,4226,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,12,December,3963.5,A
+green_beans,"Other beans, green",2010,1,January,5870,A
+green_beans,"Other beans, green",2011,1,January,4104,A
+green_beans,"Other beans, green",2012,1,January,5087,A
+green_beans,"Other beans, green",2013,1,January,6196,A
+green_beans,"Other beans, green",2014,1,January,5913,A
+green_beans,"Other beans, green",2015,1,January,7331,A
+green_beans,"Other beans, green",2016,1,January,11188,A
+green_beans,"Other beans, green",2017,1,January,7299,A
+green_beans,"Other beans, green",2018,1,January,7418,A
+green_beans,"Other beans, green",2019,1,January,11240,A
+green_beans,"Other beans, green",2020,1,January,9742.7,A
+green_beans,"Other beans, green",2021,1,January,7529,A
+green_beans,"Other beans, green",2022,1,January,6745.7,A
+green_beans,"Other beans, green",2023,1,January,10159,A
+green_beans,"Other beans, green",2024,1,January,9562.2,A
+green_beans,"Other beans, green",2025,1,January,14297.9,A
+green_beans,"Other beans, green",2010,2,February,5736,A
+green_beans,"Other beans, green",2011,2,February,4334,A
+green_beans,"Other beans, green",2012,2,February,6384,A
+green_beans,"Other beans, green",2013,2,February,7889,A
+green_beans,"Other beans, green",2014,2,February,8323,A
+green_beans,"Other beans, green",2015,2,February,7746,A
+green_beans,"Other beans, green",2016,2,February,10450,A
+green_beans,"Other beans, green",2017,2,February,7420,A
+green_beans,"Other beans, green",2018,2,February,6538,A
+green_beans,"Other beans, green",2020,2,February,8290.3,A
+green_beans,"Other beans, green",2021,2,February,12145.8,A
+green_beans,"Other beans, green",2022,2,February,10777.5,A
+green_beans,"Other beans, green",2023,2,February,17161,A
+green_beans,"Other beans, green",2024,2,February,14403.4,A
+green_beans,"Other beans, green",2010,3,March,5891,A
+green_beans,"Other beans, green",2011,3,March,5762,A
+green_beans,"Other beans, green",2012,3,March,6605,A
+green_beans,"Other beans, green",2013,3,March,5731,A
+green_beans,"Other beans, green",2014,3,March,10994,A
+green_beans,"Other beans, green",2015,3,March,8149,A
+green_beans,"Other beans, green",2016,3,March,10946,A
+green_beans,"Other beans, green",2017,3,March,9733,A
+green_beans,"Other beans, green",2018,3,March,7076,A
+green_beans,"Other beans, green",2020,3,March,8466.3,A
+green_beans,"Other beans, green",2021,3,March,10570.8,A
+green_beans,"Other beans, green",2022,3,March,14230.3,A
+green_beans,"Other beans, green",2023,3,March,13573,A
+green_beans,"Other beans, green",2024,3,March,19337.1,A
+green_beans,"Other beans, green",2010,4,April,4994,A
+green_beans,"Other beans, green",2011,4,April,4962,A
+green_beans,"Other beans, green",2012,4,April,6324,A
+green_beans,"Other beans, green",2013,4,April,6386,A
+green_beans,"Other beans, green",2014,4,April,9519,A
+green_beans,"Other beans, green",2015,4,April,6150,A
+green_beans,"Other beans, green",2016,4,April,7163,A
+green_beans,"Other beans, green",2017,4,April,9344,A
+green_beans,"Other beans, green",2018,4,April,8001,A
+green_beans,"Other beans, green",2020,4,April,6771.1,A
+green_beans,"Other beans, green",2021,4,April,9825.2,A
+green_beans,"Other beans, green",2022,4,April,9479.4,A
+green_beans,"Other beans, green",2023,4,April,15108,A
+green_beans,"Other beans, green",2024,4,April,14244.3,A
+green_beans,"Other beans, green",2010,5,May,4684,A
+green_beans,"Other beans, green",2011,5,May,4768,A
+green_beans,"Other beans, green",2012,5,May,5100,A
+green_beans,"Other beans, green",2013,5,May,6641,A
+green_beans,"Other beans, green",2014,5,May,9830,A
+green_beans,"Other beans, green",2015,5,May,5107,A
+green_beans,"Other beans, green",2016,5,May,6459,A
+green_beans,"Other beans, green",2017,5,May,10194,A
+green_beans,"Other beans, green",2018,5,May,8476,A
+green_beans,"Other beans, green",2020,5,May,7504.5,A
+green_beans,"Other beans, green",2021,5,May,9738.7,A
+green_beans,"Other beans, green",2022,5,May,9966,A
+green_beans,"Other beans, green",2023,5,May,9630,A
+green_beans,"Other beans, green",2024,5,May,8435.7,A
+green_beans,"Other beans, green",2010,6,June,6379,A
+green_beans,"Other beans, green",2011,6,June,7315,A
+green_beans,"Other beans, green",2012,6,June,6803,A
+green_beans,"Other beans, green",2013,6,June,8347,A
+green_beans,"Other beans, green",2014,6,June,11728,A
+green_beans,"Other beans, green",2015,6,June,6540,A
+green_beans,"Other beans, green",2016,6,June,7384,A
+green_beans,"Other beans, green",2017,6,June,8233,A
+green_beans,"Other beans, green",2018,6,June,9334,A
+green_beans,"Other beans, green",2020,6,June,13043.8,A
+green_beans,"Other beans, green",2021,6,June,10563.3,A
+green_beans,"Other beans, green",2022,6,June,10746.4,A
+green_beans,"Other beans, green",2023,6,June,11490,A
+green_beans,"Other beans, green",2024,6,June,13382.6,A
+green_beans,"Other beans, green",2010,7,July,5204,A
+green_beans,"Other beans, green",2011,7,July,10408,A
+green_beans,"Other beans, green",2012,7,July,5347,A
+green_beans,"Other beans, green",2013,7,July,7508,A
+green_beans,"Other beans, green",2014,7,July,9679,A
+green_beans,"Other beans, green",2015,7,July,10091,A
+green_beans,"Other beans, green",2016,7,July,8062,A
+green_beans,"Other beans, green",2017,7,July,11885,A
+green_beans,"Other beans, green",2018,7,July,17270,A
+green_beans,"Other beans, green",2020,7,July,18935.4,A
+green_beans,"Other beans, green",2021,7,July,11333.4,A
+green_beans,"Other beans, green",2022,7,July,14404.6,A
+green_beans,"Other beans, green",2023,7,July,17363,A
+green_beans,"Other beans, green",2024,7,July,18000.6,A
+green_beans,"Other beans, green",2010,8,August,6967,A
+green_beans,"Other beans, green",2011,8,August,9809,A
+green_beans,"Other beans, green",2012,8,August,7437,A
+green_beans,"Other beans, green",2013,8,August,6652,A
+green_beans,"Other beans, green",2014,8,August,8104,A
+green_beans,"Other beans, green",2015,8,August,10046,A
+green_beans,"Other beans, green",2016,8,August,12148,A
+green_beans,"Other beans, green",2017,8,August,9076,A
+green_beans,"Other beans, green",2018,8,August,16231,A
+green_beans,"Other beans, green",2020,8,August,15944.8,A
+green_beans,"Other beans, green",2021,8,August,12126.1,A
+green_beans,"Other beans, green",2022,8,August,10124.2,A
+green_beans,"Other beans, green",2023,8,August,20434,A
+green_beans,"Other beans, green",2024,8,August,23580.9,A
+green_beans,"Other beans, green",2010,9,September,5201,A
+green_beans,"Other beans, green",2011,9,September,7883,A
+green_beans,"Other beans, green",2012,9,September,11664,A
+green_beans,"Other beans, green",2013,9,September,7389,A
+green_beans,"Other beans, green",2014,9,September,7809,A
+green_beans,"Other beans, green",2015,9,September,7523,A
+green_beans,"Other beans, green",2016,9,September,12952,A
+green_beans,"Other beans, green",2017,9,September,1039,A
+green_beans,"Other beans, green",2018,9,September,13670,A
+green_beans,"Other beans, green",2020,9,September,9611.3,A
+green_beans,"Other beans, green",2021,9,September,12535.7,A
+green_beans,"Other beans, green",2022,9,September,14427.3,A
+green_beans,"Other beans, green",2023,9,September,13464,A
+green_beans,"Other beans, green",2024,9,September,16208.5,A
+green_beans,"Other beans, green",2010,10,October,6453,A
+green_beans,"Other beans, green",2011,10,October,7128,A
+green_beans,"Other beans, green",2012,10,October,8885,A
+green_beans,"Other beans, green",2013,10,October,9659,A
+green_beans,"Other beans, green",2014,10,October,7923,A
+green_beans,"Other beans, green",2015,10,October,8870,A
+green_beans,"Other beans, green",2016,10,October,9214,A
+green_beans,"Other beans, green",2017,10,October,9627,A
+green_beans,"Other beans, green",2018,10,October,11237,A
+green_beans,"Other beans, green",2020,10,October,6816.9,A
+green_beans,"Other beans, green",2021,10,October,11158.4,A
+green_beans,"Other beans, green",2022,10,October,8878,A
+green_beans,"Other beans, green",2023,10,October,11067,A
+green_beans,"Other beans, green",2024,10,October,12155.6,A
+green_beans,"Other beans, green",2010,11,November,5268,A
+green_beans,"Other beans, green",2011,11,November,7482,A
+green_beans,"Other beans, green",2012,11,November,6862,A
+green_beans,"Other beans, green",2013,11,November,6809,A
+green_beans,"Other beans, green",2014,11,November,6388,A
+green_beans,"Other beans, green",2015,11,November,8988,A
+green_beans,"Other beans, green",2016,11,November,7691,A
+green_beans,"Other beans, green",2017,11,November,7021,A
+green_beans,"Other beans, green",2018,11,November,7234,A
+green_beans,"Other beans, green",2020,11,November,8732.4,A
+green_beans,"Other beans, green",2021,11,November,12638.7,A
+green_beans,"Other beans, green",2022,11,November,7465.9,A
+green_beans,"Other beans, green",2023,11,November,10509,A
+green_beans,"Other beans, green",2024,11,November,15568.2,A
+green_beans,"Other beans, green",2010,12,December,5510,A
+green_beans,"Other beans, green",2011,12,December,5799,A
+green_beans,"Other beans, green",2012,12,December,6701,A
+green_beans,"Other beans, green",2013,12,December,9010,A
+green_beans,"Other beans, green",2014,12,December,6647,A
+green_beans,"Other beans, green",2015,12,December,11516,A
+green_beans,"Other beans, green",2016,12,December,8774,A
+green_beans,"Other beans, green",2017,12,December,10014,A
+green_beans,"Other beans, green",2018,12,December,7463,A
+green_beans,"Other beans, green",2020,12,December,8730.6,A
+green_beans,"Other beans, green",2021,12,December,9076.9,A
+green_beans,"Other beans, green",2022,12,December,6796.1,A
+green_beans,"Other beans, green",2023,12,December,16133,A
+green_beans,"Other beans, green",2024,12,December,16302.7,A
+potatoes,Potatoes,2010,1,January,2620,A
+potatoes,Potatoes,2011,1,January,2012,A
+potatoes,Potatoes,2012,1,January,2304,A
+potatoes,Potatoes,2013,1,January,3363,A
+potatoes,Potatoes,2014,1,January,3409,A
+potatoes,Potatoes,2015,1,January,2649,A
+potatoes,Potatoes,2016,1,January,5233,A
+potatoes,Potatoes,2017,1,January,4513,A
+potatoes,Potatoes,2018,1,January,3993,A
+potatoes,Potatoes,2019,1,January,4649,A
+potatoes,Potatoes,2020,1,January,4181.7,A
+potatoes,Potatoes,2021,1,January,3522.4,A
+potatoes,Potatoes,2022,1,January,3430,A
+potatoes,Potatoes,2023,1,January,5442,A
+potatoes,Potatoes,2024,1,January,7240.6,A
+potatoes,Potatoes,2025,1,January,7352.1,A
+potatoes,Potatoes,2010,2,February,2384,A
+potatoes,Potatoes,2011,2,February,1946,A
+potatoes,Potatoes,2012,2,February,2609,A
+potatoes,Potatoes,2013,2,February,2929,A
+potatoes,Potatoes,2014,2,February,3318,A
+potatoes,Potatoes,2016,2,February,5940,A
+potatoes,Potatoes,2017,2,February,3720,A
+potatoes,Potatoes,2018,2,February,3616,A
+potatoes,Potatoes,2019,2,February,4258,A
+potatoes,Potatoes,2020,2,February,3416.1,A
+potatoes,Potatoes,2021,2,February,3512.9,A
+potatoes,Potatoes,2022,2,February,3758,A
+potatoes,Potatoes,2023,2,February,6491,A
+potatoes,Potatoes,2024,2,February,6928,A
+potatoes,Potatoes,2010,3,March,2205,A
+potatoes,Potatoes,2011,3,March,2012,A
+potatoes,Potatoes,2012,3,March,2256,A
+potatoes,Potatoes,2013,3,March,2701,A
+potatoes,Potatoes,2014,3,March,3351,A
+potatoes,Potatoes,2016,3,March,6275,A
+potatoes,Potatoes,2017,3,March,2934,A
+potatoes,Potatoes,2018,3,March,3603,A
+potatoes,Potatoes,2019,3,March,3577,A
+potatoes,Potatoes,2020,3,March,3582.7,A
+potatoes,Potatoes,2021,3,March,3498.1,A
+potatoes,Potatoes,2022,3,March,4139.7,A
+potatoes,Potatoes,2023,3,March,5571,A
+potatoes,Potatoes,2024,3,March,5211.3,A
+potatoes,Potatoes,2010,4,April,2556,A
+potatoes,Potatoes,2011,4,April,2197,A
+potatoes,Potatoes,2012,4,April,2482,A
+potatoes,Potatoes,2013,4,April,2973,A
+potatoes,Potatoes,2014,4,April,2811,A
+potatoes,Potatoes,2016,4,April,4939,A
+potatoes,Potatoes,2017,4,April,2658,A
+potatoes,Potatoes,2018,4,April,3833,A
+potatoes,Potatoes,2019,4,April,3767,A
+potatoes,Potatoes,2020,4,April,3342.3,A
+potatoes,Potatoes,2021,4,April,4138.9,A
+potatoes,Potatoes,2022,4,April,4711.2,A
+potatoes,Potatoes,2023,4,April,5503,A
+potatoes,Potatoes,2024,4,April,5657.5,A
+potatoes,Potatoes,2010,5,May,2499,A
+potatoes,Potatoes,2011,5,May,2574,A
+potatoes,Potatoes,2012,5,May,2468,A
+potatoes,Potatoes,2013,5,May,3062,A
+potatoes,Potatoes,2014,5,May,3187,A
+potatoes,Potatoes,2016,5,May,4375,A
+potatoes,Potatoes,2017,5,May,2977,A
+potatoes,Potatoes,2018,5,May,3630,A
+potatoes,Potatoes,2019,5,May,3501,A
+potatoes,Potatoes,2020,5,May,3226.7,A
+potatoes,Potatoes,2021,5,May,4338.7,A
+potatoes,Potatoes,2022,5,May,4420.5,A
+potatoes,Potatoes,2023,5,May,6188,A
+potatoes,Potatoes,2024,5,May,5354,A
+potatoes,Potatoes,2010,6,June,2715,A
+potatoes,Potatoes,2011,6,June,2635,A
+potatoes,Potatoes,2012,6,June,2364,A
+potatoes,Potatoes,2013,6,June,3073,A
+potatoes,Potatoes,2014,6,June,3100,A
+potatoes,Potatoes,2016,6,June,4461,A
+potatoes,Potatoes,2017,6,June,2747,A
+potatoes,Potatoes,2018,6,June,3074,A
+potatoes,Potatoes,2019,6,June,3095,A
+potatoes,Potatoes,2020,6,June,3333.2,A
+potatoes,Potatoes,2021,6,June,5623.7,A
+potatoes,Potatoes,2022,6,June,4565.1,A
+potatoes,Potatoes,2023,6,June,7281,A
+potatoes,Potatoes,2024,6,June,5968.2,A
+potatoes,Potatoes,2010,7,July,2063,A
+potatoes,Potatoes,2011,7,July,2439,A
+potatoes,Potatoes,2012,7,July,2262,A
+potatoes,Potatoes,2013,7,July,3142,A
+potatoes,Potatoes,2014,7,July,3192,A
+potatoes,Potatoes,2016,7,July,4224,A
+potatoes,Potatoes,2017,7,July,2761,A
+potatoes,Potatoes,2018,7,July,2990,A
+potatoes,Potatoes,2019,7,July,3236,A
+potatoes,Potatoes,2020,7,July,4405.5,A
+potatoes,Potatoes,2021,7,July,5583.7,A
+potatoes,Potatoes,2022,7,July,4531.4,A
+potatoes,Potatoes,2023,7,July,7940,A
+potatoes,Potatoes,2024,7,July,6414.1,A
+potatoes,Potatoes,2010,8,August,3495,A
+potatoes,Potatoes,2011,8,August,2761,A
+potatoes,Potatoes,2012,8,August,2361,A
+potatoes,Potatoes,2013,8,August,3161,A
+potatoes,Potatoes,2014,8,August,3620,A
+potatoes,Potatoes,2016,8,August,4090,A
+potatoes,Potatoes,2017,8,August,3098,A
+potatoes,Potatoes,2018,8,August,2932,A
+potatoes,Potatoes,2019,8,August,3614,A
+potatoes,Potatoes,2020,8,August,5653.7,A
+potatoes,Potatoes,2021,8,August,5405.9,A
+potatoes,Potatoes,2022,8,August,4136.6,A
+potatoes,Potatoes,2023,8,August,7502,A
+potatoes,Potatoes,2024,8,August,7908.1,A
+potatoes,Potatoes,2010,9,September,3217,A
+potatoes,Potatoes,2011,9,September,3150,A
+potatoes,Potatoes,2012,9,September,2653,A
+potatoes,Potatoes,2013,9,September,3983,A
+potatoes,Potatoes,2014,9,September,4290,A
+potatoes,Potatoes,2016,9,September,4248,A
+potatoes,Potatoes,2017,9,September,3733,A
+potatoes,Potatoes,2018,9,September,3158,A
+potatoes,Potatoes,2019,9,September,4506,A
+potatoes,Potatoes,2020,9,September,6613.4,A
+potatoes,Potatoes,2021,9,September,8156.8,A
+potatoes,Potatoes,2022,9,September,3855,A
+potatoes,Potatoes,2023,9,September,9991,A
+potatoes,Potatoes,2024,9,September,10451.6,A
+potatoes,Potatoes,2010,10,October,2442,A
+potatoes,Potatoes,2011,10,October,3513,A
+potatoes,Potatoes,2012,10,October,3563,A
+potatoes,Potatoes,2013,10,October,4038,A
+potatoes,Potatoes,2014,10,October,4076,A
+potatoes,Potatoes,2016,10,October,4760,A
+potatoes,Potatoes,2017,10,October,4341,A
+potatoes,Potatoes,2018,10,October,4136,A
+potatoes,Potatoes,2019,10,October,4418,A
+potatoes,Potatoes,2020,10,October,7366.2,A
+potatoes,Potatoes,2021,10,October,6912.7,A
+potatoes,Potatoes,2022,10,October,3418.3,A
+potatoes,Potatoes,2023,10,October,10549,A
+potatoes,Potatoes,2024,10,October,8477.5,A
+potatoes,Potatoes,2010,11,November,2147,A
+potatoes,Potatoes,2011,11,November,3028,A
+potatoes,Potatoes,2012,11,November,3100,A
+potatoes,Potatoes,2013,11,November,4109,A
+potatoes,Potatoes,2014,11,November,3529,A
+potatoes,Potatoes,2016,11,November,4359,A
+potatoes,Potatoes,2017,11,November,3844,A
+potatoes,Potatoes,2018,11,November,4787,A
+potatoes,Potatoes,2019,11,November,4358,A
+potatoes,Potatoes,2020,11,November,5534.7,A
+potatoes,Potatoes,2021,11,November,3980.3,A
+potatoes,Potatoes,2022,11,November,4451.1,A
+potatoes,Potatoes,2023,11,November,7840,A
+potatoes,Potatoes,2024,11,November,6813.3,A
+potatoes,Potatoes,2010,12,December,2138,A
+potatoes,Potatoes,2011,12,December,2801,A
+potatoes,Potatoes,2012,12,December,3378,A
+potatoes,Potatoes,2013,12,December,4054,A
+potatoes,Potatoes,2014,12,December,3299,A
+potatoes,Potatoes,2016,12,December,4283,A
+potatoes,Potatoes,2017,12,December,4498,A
+potatoes,Potatoes,2018,12,December,5125,A
+potatoes,Potatoes,2019,12,December,4701,A
+potatoes,Potatoes,2020,12,December,4895.9,A
+potatoes,Potatoes,2021,12,December,4189.3,A
+potatoes,Potatoes,2022,12,December,5638,A
+potatoes,Potatoes,2023,12,December,7862,A
+potatoes,Potatoes,2024,12,December,6560.3,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,1,January,1457,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,1,January,5484,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,1,January,7054,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,1,January,1661,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2014,1,January,2330,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,1,January,11067,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,1,January,13609,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2018,1,January,17015,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,1,January,2097,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,1,January,2069.6,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,1,January,31037.3,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,1,January,40549,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,1,January,2633,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,1,January,14087.2,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2025,1,January,13966.3,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,2,February,1320,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,2,February,5341,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,2,February,6058,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,2,February,1675,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,2,February,12955,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,2,February,11723,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,2,February,2531,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,2,February,2273.5,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,2,February,43078.3,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,2,February,41728.6,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,2,February,2525,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,2,February,14263.4,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,3,March,1588,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,3,March,5643,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,3,March,5148,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,3,March,1610,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,3,March,8390,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,3,March,12411,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,3,March,23262,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,3,March,2897.1,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,3,March,43452.9,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,3,March,39041.3,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,3,March,2635,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,3,March,13334.2,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,4,April,1779,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,4,April,5599,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,4,April,5614,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,4,April,1717,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,4,April,6375,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,4,April,17956,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,4,April,2094,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,4,April,2758.2,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,4,April,36730,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,4,April,44566.8,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,4,April,2945,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,4,April,17152.9,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,5,May,2268,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,5,May,5046,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,5,May,4745,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,5,May,1756,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,5,May,5856,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,5,May,18483,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,5,May,1854,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,5,May,2068.5,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,5,May,30595.4,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,5,May,70409.5,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,5,May,3275,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,5,May,20126.5,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,6,June,2398,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,6,June,5341,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,6,June,8056,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,6,June,1897,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,6,June,6954,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,6,June,11333,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,6,June,1874,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,6,June,2364.6,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,6,June,32518.7,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,6,June,65698.1,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,6,June,4017,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,6,June,17366.2,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,7,July,3446,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,7,July,7740,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,7,July,7853,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,7,July,2317,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,7,July,7373,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,7,July,11755,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,7,July,3093,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,7,July,3256,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,7,July,38510.7,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,7,July,38164.8,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,7,July,4851,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,7,July,20188.9,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,8,August,4116,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,8,August,11899,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,8,August,6914,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,8,August,3103,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,8,August,11294,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,8,August,14944,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,8,August,2314,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,8,August,4469.5,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,8,August,58778.4,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,8,August,37199.8,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,8,August,7602,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,8,August,28800.1,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,9,September,3203,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,9,September,13258,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,9,September,7151,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,9,September,3133,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,9,September,9526,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,9,September,19311,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,9,September,3114,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,9,September,7158.8,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,9,September,49806.6,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,9,September,47231.5,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,9,September,9339,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,9,September,20333.5,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,10,October,2304,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,10,October,12468,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,10,October,12060,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,10,October,2485,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,10,October,12664,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,10,October,28666,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,10,October,2729,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,10,October,7385.4,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,10,October,38450.6,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,10,October,39194.3,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,10,October,9425,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,10,October,14998.3,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,11,November,1609,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,11,November,5985,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,11,November,8214,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,11,November,1937,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,11,November,11567,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,11,November,19051,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,11,November,1939,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,11,November,2452.7,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,11,November,30758.1,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,11,November,26951.2,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,11,November,3598,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,11,November,12178.7,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,12,December,2057,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,12,December,5782,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,12,December,5425,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,12,December,2282,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,12,December,10291,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,12,December,13803,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,12,December,1643,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,12,December,1773.9,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,12,December,41595.5,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,12,December,36091.3,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,12,December,3570,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,12,December,12714.2,A
+spinach,Spinach,2010,1,January,3699,A
+spinach,Spinach,2011,1,January,3651,A
+spinach,Spinach,2012,1,January,4438,A
+spinach,Spinach,2013,1,January,3787,A
+spinach,Spinach,2014,1,January,3926,A
+spinach,Spinach,2015,1,January,5530,A
+spinach,Spinach,2016,1,January,5292,A
+spinach,Spinach,2017,1,January,3784,A
+spinach,Spinach,2018,1,January,4203,A
+spinach,Spinach,2019,1,January,3114,A
+spinach,Spinach,2020,1,January,4071.9,A
+spinach,Spinach,2021,1,January,3341.4,A
+spinach,Spinach,2022,1,January,3047.1,A
+spinach,Spinach,2023,1,January,5849,A
+spinach,Spinach,2024,1,January,4543.9,A
+spinach,Spinach,2025,1,January,4348.7,A
+spinach,Spinach,2010,2,February,5472,A
+spinach,Spinach,2011,2,February,5254,A
+spinach,Spinach,2012,2,February,5332,A
+spinach,Spinach,2013,2,February,5145,A
+spinach,Spinach,2014,2,February,4310,A
+spinach,Spinach,2015,2,February,5796,A
+spinach,Spinach,2016,2,February,5362,A
+spinach,Spinach,2017,2,February,6907,A
+spinach,Spinach,2018,2,February,4002,A
+spinach,Spinach,2020,2,February,5299.6,A
+spinach,Spinach,2021,2,February,4116.2,A
+spinach,Spinach,2022,2,February,3860.5,A
+spinach,Spinach,2023,2,February,6050,A
+spinach,Spinach,2024,2,February,4865.3,A
+spinach,Spinach,2010,3,March,4467,A
+spinach,Spinach,2011,3,March,4500,A
+spinach,Spinach,2012,3,March,4469,A
+spinach,Spinach,2013,3,March,4886,A
+spinach,Spinach,2014,3,March,5787,A
+spinach,Spinach,2015,3,March,5527,A
+spinach,Spinach,2016,3,March,6719,A
+spinach,Spinach,2017,3,March,8481,A
+spinach,Spinach,2018,3,March,4820,A
+spinach,Spinach,2020,3,March,4666.2,A
+spinach,Spinach,2021,3,March,2917.6,A
+spinach,Spinach,2022,3,March,4972.5,A
+spinach,Spinach,2023,3,March,6182,A
+spinach,Spinach,2024,3,March,5350.4,A
+spinach,Spinach,2010,4,April,4445,A
+spinach,Spinach,2011,4,April,4790,A
+spinach,Spinach,2012,4,April,3555,A
+spinach,Spinach,2013,4,April,3513,A
+spinach,Spinach,2014,4,April,6998,A
+spinach,Spinach,2015,4,April,4711,A
+spinach,Spinach,2016,4,April,5991,A
+spinach,Spinach,2017,4,April,5635,A
+spinach,Spinach,2018,4,April,5010,A
+spinach,Spinach,2020,4,April,4841.3,A
+spinach,Spinach,2021,4,April,2917,A
+spinach,Spinach,2022,4,April,4580.6,A
+spinach,Spinach,2023,4,April,4917,A
+spinach,Spinach,2024,4,April,4538.7,A
+spinach,Spinach,2010,5,May,4278,A
+spinach,Spinach,2011,5,May,4589,A
+spinach,Spinach,2012,5,May,3163,A
+spinach,Spinach,2013,5,May,2960,A
+spinach,Spinach,2014,5,May,4478,A
+spinach,Spinach,2015,5,May,3933,A
+spinach,Spinach,2016,5,May,3852,A
+spinach,Spinach,2017,5,May,5013,A
+spinach,Spinach,2018,5,May,5477,A
+spinach,Spinach,2020,5,May,4809.1,A
+spinach,Spinach,2021,5,May,2645.3,A
+spinach,Spinach,2022,5,May,4599.8,A
+spinach,Spinach,2023,5,May,4007,A
+spinach,Spinach,2024,5,May,5060.9,A
+spinach,Spinach,2010,6,June,4132,A
+spinach,Spinach,2011,6,June,4366,A
+spinach,Spinach,2012,6,June,3268,A
+spinach,Spinach,2013,6,June,2575,A
+spinach,Spinach,2014,6,June,4258,A
+spinach,Spinach,2015,6,June,4182,A
+spinach,Spinach,2016,6,June,3753,A
+spinach,Spinach,2017,6,June,4443,A
+spinach,Spinach,2018,6,June,3680,A
+spinach,Spinach,2020,6,June,3784.8,A
+spinach,Spinach,2021,6,June,2909.3,A
+spinach,Spinach,2022,6,June,4934.1,A
+spinach,Spinach,2023,6,June,4610,A
+spinach,Spinach,2024,6,June,5217.5,A
+spinach,Spinach,2010,7,July,4309,A
+spinach,Spinach,2011,7,July,5476,A
+spinach,Spinach,2012,7,July,3485,A
+spinach,Spinach,2013,7,July,3062,A
+spinach,Spinach,2014,7,July,5011,A
+spinach,Spinach,2015,7,July,4622,A
+spinach,Spinach,2016,7,July,4236,A
+spinach,Spinach,2017,7,July,4075,A
+spinach,Spinach,2018,7,July,4958,A
+spinach,Spinach,2020,7,July,4439.7,A
+spinach,Spinach,2021,7,July,3441.5,A
+spinach,Spinach,2022,7,July,4787.5,A
+spinach,Spinach,2023,7,July,5221,A
+spinach,Spinach,2024,7,July,5226.7,A
+spinach,Spinach,2010,8,August,3374,A
+spinach,Spinach,2011,8,August,5092,A
+spinach,Spinach,2012,8,August,4311,A
+spinach,Spinach,2013,8,August,2958,A
+spinach,Spinach,2014,8,August,4155,A
+spinach,Spinach,2015,8,August,4424,A
+spinach,Spinach,2016,8,August,4551,A
+spinach,Spinach,2017,8,August,3553,A
+spinach,Spinach,2018,8,August,3753,A
+spinach,Spinach,2020,8,August,4096.2,A
+spinach,Spinach,2021,8,August,4273.7,A
+spinach,Spinach,2022,8,August,3300.2,A
+spinach,Spinach,2023,8,August,3633,A
+spinach,Spinach,2024,8,August,4839.6,A
+spinach,Spinach,2010,9,September,2348,A
+spinach,Spinach,2011,9,September,2745,A
+spinach,Spinach,2012,9,September,2766,A
+spinach,Spinach,2013,9,September,2723,A
+spinach,Spinach,2014,9,September,3129,A
+spinach,Spinach,2015,9,September,3312,A
+spinach,Spinach,2016,9,September,2776,A
+spinach,Spinach,2017,9,September,2784,A
+spinach,Spinach,2018,9,September,2424,A
+spinach,Spinach,2020,9,September,2698.5,A
+spinach,Spinach,2021,9,September,2451.4,A
+spinach,Spinach,2022,9,September,2555.4,A
+spinach,Spinach,2023,9,September,2364,A
+spinach,Spinach,2024,9,September,3466.5,A
+spinach,Spinach,2010,10,October,2298,A
+spinach,Spinach,2011,10,October,2401,A
+spinach,Spinach,2012,10,October,2603,A
+spinach,Spinach,2013,10,October,2484,A
+spinach,Spinach,2014,10,October,2509,A
+spinach,Spinach,2015,10,October,3315,A
+spinach,Spinach,2016,10,October,2107,A
+spinach,Spinach,2017,10,October,2496,A
+spinach,Spinach,2018,10,October,1293,A
+spinach,Spinach,2020,10,October,1815.6,A
+spinach,Spinach,2021,10,October,1881.4,A
+spinach,Spinach,2022,10,October,2204.9,A
+spinach,Spinach,2023,10,October,2646,A
+spinach,Spinach,2024,10,October,2780.4,A
+spinach,Spinach,2010,11,November,2260,A
+spinach,Spinach,2011,11,November,2510,A
+spinach,Spinach,2012,11,November,3169,A
+spinach,Spinach,2013,11,November,3047,A
+spinach,Spinach,2014,11,November,2721,A
+spinach,Spinach,2015,11,November,4714,A
+spinach,Spinach,2016,11,November,2611,A
+spinach,Spinach,2017,11,November,2745,A
+spinach,Spinach,2018,11,November,2217,A
+spinach,Spinach,2020,11,November,1941.4,A
+spinach,Spinach,2021,11,November,2314.3,A
+spinach,Spinach,2022,11,November,2076.5,A
+spinach,Spinach,2023,11,November,3289,A
+spinach,Spinach,2024,11,November,2984.7,A
+spinach,Spinach,2010,12,December,2495,A
+spinach,Spinach,2011,12,December,2968,A
+spinach,Spinach,2012,12,December,3457,A
+spinach,Spinach,2013,12,December,3304,A
+spinach,Spinach,2014,12,December,3136,A
+spinach,Spinach,2015,12,December,4772,A
+spinach,Spinach,2016,12,December,3314,A
+spinach,Spinach,2017,12,December,2616,A
+spinach,Spinach,2018,12,December,2280,A
+spinach,Spinach,2020,12,December,2766.8,A
+spinach,Spinach,2021,12,December,2329.3,A
+spinach,Spinach,2022,12,December,3595.1,A
+spinach,Spinach,2023,12,December,3897,A
+spinach,Spinach,2024,12,December,4179.5,A
+tomatoes,Tomatoes,2010,1,January,4118,A
+tomatoes,Tomatoes,2011,1,January,3346,A
+tomatoes,Tomatoes,2012,1,January,3357,A
+tomatoes,Tomatoes,2013,1,January,6311,A
+tomatoes,Tomatoes,2014,1,January,4672,A
+tomatoes,Tomatoes,2015,1,January,3624,A
+tomatoes,Tomatoes,2016,1,January,7256,A
+tomatoes,Tomatoes,2017,1,January,6689,A
+tomatoes,Tomatoes,2018,1,January,4414,A
+tomatoes,Tomatoes,2019,1,January,6208,A
+tomatoes,Tomatoes,2020,1,January,5917.9,A
+tomatoes,Tomatoes,2021,1,January,5240.4,A
+tomatoes,Tomatoes,2022,1,January,11815.3,A
+tomatoes,Tomatoes,2023,1,January,9282,A
+tomatoes,Tomatoes,2024,1,January,9394,A
+tomatoes,Tomatoes,2025,1,January,10317.4,A
+tomatoes,Tomatoes,2010,2,February,3592,A
+tomatoes,Tomatoes,2011,2,February,3748,A
+tomatoes,Tomatoes,2012,2,February,3222,A
+tomatoes,Tomatoes,2013,2,February,5352,A
+tomatoes,Tomatoes,2014,2,February,6321,A
+tomatoes,Tomatoes,2015,2,February,5864,A
+tomatoes,Tomatoes,2016,2,February,6061,A
+tomatoes,Tomatoes,2017,2,February,6757,A
+tomatoes,Tomatoes,2018,2,February,6142,A
+tomatoes,Tomatoes,2019,2,February,7489,A
+tomatoes,Tomatoes,2020,2,February,7735.8,A
+tomatoes,Tomatoes,2021,2,February,9333.9,A
+tomatoes,Tomatoes,2022,2,February,10631.9,A
+tomatoes,Tomatoes,2023,2,February,13190,A
+tomatoes,Tomatoes,2024,2,February,9317.5,A
+tomatoes,Tomatoes,2010,3,March,2950,A
+tomatoes,Tomatoes,2011,3,March,3820,A
+tomatoes,Tomatoes,2012,3,March,4265,A
+tomatoes,Tomatoes,2013,3,March,5490,A
+tomatoes,Tomatoes,2014,3,March,6093,A
+tomatoes,Tomatoes,2015,3,March,6729,A
+tomatoes,Tomatoes,2016,3,March,6264,A
+tomatoes,Tomatoes,2017,3,March,6910,A
+tomatoes,Tomatoes,2018,3,March,6559,A
+tomatoes,Tomatoes,2019,3,March,9569,A
+tomatoes,Tomatoes,2020,3,March,6617.6,A
+tomatoes,Tomatoes,2021,3,March,14300.2,A
+tomatoes,Tomatoes,2022,3,March,8498,A
+tomatoes,Tomatoes,2023,3,March,11528,A
+tomatoes,Tomatoes,2024,3,March,13086.6,A
+tomatoes,Tomatoes,2010,4,April,3909,A
+tomatoes,Tomatoes,2011,4,April,3689,A
+tomatoes,Tomatoes,2012,4,April,5617,A
+tomatoes,Tomatoes,2013,4,April,6248,A
+tomatoes,Tomatoes,2014,4,April,6341,A
+tomatoes,Tomatoes,2015,4,April,7597,A
+tomatoes,Tomatoes,2016,4,April,8081,A
+tomatoes,Tomatoes,2017,4,April,6882,A
+tomatoes,Tomatoes,2018,4,April,7411,A
+tomatoes,Tomatoes,2019,4,April,10890,A
+tomatoes,Tomatoes,2020,4,April,7935.2,A
+tomatoes,Tomatoes,2021,4,April,15438.7,A
+tomatoes,Tomatoes,2022,4,April,9032.5,A
+tomatoes,Tomatoes,2023,4,April,13858,A
+tomatoes,Tomatoes,2024,4,April,18331,A
+tomatoes,Tomatoes,2010,5,May,4537,A
+tomatoes,Tomatoes,2011,5,May,5304,A
+tomatoes,Tomatoes,2012,5,May,3508,A
+tomatoes,Tomatoes,2013,5,May,4255,A
+tomatoes,Tomatoes,2014,5,May,7489,A
+tomatoes,Tomatoes,2015,5,May,6080,A
+tomatoes,Tomatoes,2016,5,May,6120,A
+tomatoes,Tomatoes,2017,5,May,6717,A
+tomatoes,Tomatoes,2018,5,May,9918,A
+tomatoes,Tomatoes,2019,5,May,6892,A
+tomatoes,Tomatoes,2020,5,May,7140.4,A
+tomatoes,Tomatoes,2021,5,May,9168.5,A
+tomatoes,Tomatoes,2022,5,May,7819.1,A
+tomatoes,Tomatoes,2023,5,May,9062,A
+tomatoes,Tomatoes,2024,5,May,11979,A
+tomatoes,Tomatoes,2010,6,June,7764,A
+tomatoes,Tomatoes,2011,6,June,5931,A
+tomatoes,Tomatoes,2012,6,June,3787,A
+tomatoes,Tomatoes,2013,6,June,4023,A
+tomatoes,Tomatoes,2014,6,June,6412,A
+tomatoes,Tomatoes,2015,6,June,5296,A
+tomatoes,Tomatoes,2016,6,June,5427,A
+tomatoes,Tomatoes,2017,6,June,5336,A
+tomatoes,Tomatoes,2018,6,June,6909,A
+tomatoes,Tomatoes,2019,6,June,6778,A
+tomatoes,Tomatoes,2020,6,June,6890.4,A
+tomatoes,Tomatoes,2021,6,June,7359.5,A
+tomatoes,Tomatoes,2022,6,June,11111.3,A
+tomatoes,Tomatoes,2023,6,June,7454,A
+tomatoes,Tomatoes,2024,6,June,8362.9,A
+tomatoes,Tomatoes,2010,7,July,6481,A
+tomatoes,Tomatoes,2011,7,July,4408,A
+tomatoes,Tomatoes,2012,7,July,3364,A
+tomatoes,Tomatoes,2013,7,July,4085,A
+tomatoes,Tomatoes,2014,7,July,7300,A
+tomatoes,Tomatoes,2015,7,July,4846,A
+tomatoes,Tomatoes,2016,7,July,4465,A
+tomatoes,Tomatoes,2017,7,July,4731,A
+tomatoes,Tomatoes,2018,7,July,6650,A
+tomatoes,Tomatoes,2019,7,July,5225,A
+tomatoes,Tomatoes,2020,7,July,7574.8,A
+tomatoes,Tomatoes,2021,7,July,5929.7,A
+tomatoes,Tomatoes,2022,7,July,9548.7,A
+tomatoes,Tomatoes,2023,7,July,8845,A
+tomatoes,Tomatoes,2024,7,July,9684.3,A
+tomatoes,Tomatoes,2010,8,August,5275,A
+tomatoes,Tomatoes,2011,8,August,3691,A
+tomatoes,Tomatoes,2012,8,August,3146,A
+tomatoes,Tomatoes,2013,8,August,3321,A
+tomatoes,Tomatoes,2014,8,August,5468,A
+tomatoes,Tomatoes,2015,8,August,5888,A
+tomatoes,Tomatoes,2016,8,August,3508,A
+tomatoes,Tomatoes,2017,8,August,5112,A
+tomatoes,Tomatoes,2018,8,August,4760,A
+tomatoes,Tomatoes,2019,8,August,4499,A
+tomatoes,Tomatoes,2020,8,August,6803.4,A
+tomatoes,Tomatoes,2021,8,August,5328.5,A
+tomatoes,Tomatoes,2022,8,August,12864,A
+tomatoes,Tomatoes,2023,8,August,6032,A
+tomatoes,Tomatoes,2024,8,August,11071.9,A
+tomatoes,Tomatoes,2010,9,September,4462,A
+tomatoes,Tomatoes,2011,9,September,4500,A
+tomatoes,Tomatoes,2012,9,September,4551,A
+tomatoes,Tomatoes,2013,9,September,3993,A
+tomatoes,Tomatoes,2014,9,September,5797,A
+tomatoes,Tomatoes,2015,9,September,7034,A
+tomatoes,Tomatoes,2016,9,September,5994,A
+tomatoes,Tomatoes,2017,9,September,5376,A
+tomatoes,Tomatoes,2018,9,September,6142,A
+tomatoes,Tomatoes,2019,9,September,6560,A
+tomatoes,Tomatoes,2020,9,September,8289.9,A
+tomatoes,Tomatoes,2021,9,September,6803.9,A
+tomatoes,Tomatoes,2022,9,September,9585.3,A
+tomatoes,Tomatoes,2023,9,September,7500,A
+tomatoes,Tomatoes,2024,9,September,12060.5,A
+tomatoes,Tomatoes,2010,10,October,3480,A
+tomatoes,Tomatoes,2011,10,October,5478,A
+tomatoes,Tomatoes,2012,10,October,6766,A
+tomatoes,Tomatoes,2013,10,October,5694,A
+tomatoes,Tomatoes,2014,10,October,4849,A
+tomatoes,Tomatoes,2015,10,October,6655,A
+tomatoes,Tomatoes,2016,10,October,6683,A
+tomatoes,Tomatoes,2017,10,October,7259,A
+tomatoes,Tomatoes,2018,10,October,7541,A
+tomatoes,Tomatoes,2019,10,October,6105,A
+tomatoes,Tomatoes,2020,10,October,10329.4,A
+tomatoes,Tomatoes,2021,10,October,8487,A
+tomatoes,Tomatoes,2022,10,October,7322.1,A
+tomatoes,Tomatoes,2023,10,October,11597,A
+tomatoes,Tomatoes,2024,10,October,10227.8,A
+tomatoes,Tomatoes,2010,11,November,2963,A
+tomatoes,Tomatoes,2011,11,November,3414,A
+tomatoes,Tomatoes,2012,11,November,5779,A
+tomatoes,Tomatoes,2013,11,November,4910,A
+tomatoes,Tomatoes,2014,11,November,4532,A
+tomatoes,Tomatoes,2015,11,November,8760,A
+tomatoes,Tomatoes,2016,11,November,5919,A
+tomatoes,Tomatoes,2017,11,November,6145,A
+tomatoes,Tomatoes,2018,11,November,6481,A
+tomatoes,Tomatoes,2019,11,November,6871,A
+tomatoes,Tomatoes,2020,11,November,7179.2,A
+tomatoes,Tomatoes,2021,11,November,6215.7,A
+tomatoes,Tomatoes,2022,11,November,8680.2,A
+tomatoes,Tomatoes,2023,11,November,10077,A
+tomatoes,Tomatoes,2024,11,November,11652.5,A
+tomatoes,Tomatoes,2010,12,December,3651,A
+tomatoes,Tomatoes,2011,12,December,5441,A
+tomatoes,Tomatoes,2012,12,December,6781,A
+tomatoes,Tomatoes,2013,12,December,5860,A
+tomatoes,Tomatoes,2014,12,December,4728,A
+tomatoes,Tomatoes,2015,12,December,7940,A
+tomatoes,Tomatoes,2016,12,December,7569,A
+tomatoes,Tomatoes,2017,12,December,7105,A
+tomatoes,Tomatoes,2018,12,December,6094,A
+tomatoes,Tomatoes,2019,12,December,9586,A
+tomatoes,Tomatoes,2020,12,December,7129.7,A
+tomatoes,Tomatoes,2021,12,December,11857.8,A
+tomatoes,Tomatoes,2022,12,December,9405.7,A
+tomatoes,Tomatoes,2023,12,December,10558,A
+tomatoes,Tomatoes,2024,12,December,11617.8,A

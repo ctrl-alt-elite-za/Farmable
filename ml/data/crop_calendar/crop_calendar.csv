@@ -1,0 +1,11 @@
+crop,planting_months,sow_to_transplant_days_min,sow_to_transplant_days_max,plant_to_harvest_days_min,plant_to_harvest_days_max,yield_t_ha_min,yield_t_ha_max,source,source_page
+tomatoes,8;9;10;11,30,60,60,90,50,75,GDARD Vegetable Production Guidelines,1
+pumpkins,9;10;11,,,110,170,20,25,GDARD Vegetable Production Guidelines,1
+butternut,9;10;11,,,110,170,20,25,GDARD Vegetable Production Guidelines,1
+cabbage,11;12;1;2;3;4;5,21,42,60,120,50,100,GDARD Vegetable Production Guidelines,2-3
+spinach,8;9;10;11;12;1;2;3;4,,,60,90,15,25,GDARD Vegetable Production Guidelines,2-3
+carrots,8;9;10;1;2;3,,,90,105,40,60,GDARD Vegetable Production Guidelines,4
+beetroot,8;9;10;1;2;3,,,110,120,30,40,GDARD Vegetable Production Guidelines,4
+onions,2;3,60,65,180,240,35,50,GDARD Vegetable Production Guidelines,4
+potatoes,7;8;9;10;1;2,,,105,150,30,60,GDARD Vegetable Production Guidelines,4
+green_beans,9;10;11;12;1,,,60,90,10,10,ARC Growing Green Beans,2-3

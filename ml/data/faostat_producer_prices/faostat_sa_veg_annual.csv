@@ -1,0 +1,266 @@
+crop,item_faostat,year,price_lcu_per_tonne,flag
+cabbage,Cabbages,1991,227,A
+cabbage,Cabbages,1992,240,A
+cabbage,Cabbages,1993,209,A
+cabbage,Cabbages,1994,296,A
+cabbage,Cabbages,1995,241,A
+cabbage,Cabbages,1996,332,A
+cabbage,Cabbages,1997,326,A
+cabbage,Cabbages,1998,432,A
+cabbage,Cabbages,1999,340,A
+cabbage,Cabbages,2000,415,A
+cabbage,Cabbages,2001,422,A
+cabbage,Cabbages,2002,526,A
+cabbage,Cabbages,2003,636,A
+cabbage,Cabbages,2004,479,A
+cabbage,Cabbages,2005,597,A
+cabbage,Cabbages,2006,708,A
+cabbage,Cabbages,2007,1090,A
+cabbage,Cabbages,2008,924,A
+cabbage,Cabbages,2009,1383,A
+cabbage,Cabbages,2010,1181,A
+cabbage,Cabbages,2011,1276,A
+cabbage,Cabbages,2012,1490,A
+cabbage,Cabbages,2013,1960,A
+cabbage,Cabbages,2014,2002,A
+cabbage,Cabbages,2015,1660,A
+cabbage,Cabbages,2016,1958,A
+cabbage,Cabbages,2017,2098,A
+cabbage,Cabbages,2018,1912,A
+cabbage,Cabbages,2019,2085,A
+cabbage,Cabbages,2020,2427,A
+cabbage,Cabbages,2021,1992,A
+cabbage,Cabbages,2022,2216,A
+cabbage,Cabbages,2023,2737,A
+cabbage,Cabbages,2024,3194,A
+carrots,Carrots and turnips,1991,441,A
+carrots,Carrots and turnips,1992,454,A
+carrots,Carrots and turnips,1993,420,A
+carrots,Carrots and turnips,1994,584,A
+carrots,Carrots and turnips,1995,501,A
+carrots,Carrots and turnips,1996,613,A
+carrots,Carrots and turnips,1997,664,A
+carrots,Carrots and turnips,1998,766,A
+carrots,Carrots and turnips,1999,760,A
+carrots,Carrots and turnips,2000,900,A
+carrots,Carrots and turnips,2001,998,A
+carrots,Carrots and turnips,2002,1141,A
+carrots,Carrots and turnips,2003,1144,A
+carrots,Carrots and turnips,2004,1035,A
+carrots,Carrots and turnips,2005,1258,A
+carrots,Carrots and turnips,2006,1470,A
+carrots,Carrots and turnips,2007,1744,A
+carrots,Carrots and turnips,2008,1677,A
+carrots,Carrots and turnips,2009,2298,A
+carrots,Carrots and turnips,2010,2640,A
+carrots,Carrots and turnips,2011,2306,A
+carrots,Carrots and turnips,2012,2219,A
+carrots,Carrots and turnips,2013,2631,A
+carrots,Carrots and turnips,2014,3054,A
+carrots,Carrots and turnips,2015,2516,A
+carrots,Carrots and turnips,2016,3163,A
+carrots,Carrots and turnips,2017,3125,A
+carrots,Carrots and turnips,2018,3358,A
+carrots,Carrots and turnips,2019,3235,A
+carrots,Carrots and turnips,2020,3628,A
+carrots,Carrots and turnips,2021,3353,A
+carrots,Carrots and turnips,2022,3684,A
+carrots,Carrots and turnips,2023,5343,A
+carrots,Carrots and turnips,2024,5606,A
+onions,"Onions and shallots, dry (excluding dehydrated)",1991,531,A
+onions,"Onions and shallots, dry (excluding dehydrated)",1992,677,A
+onions,"Onions and shallots, dry (excluding dehydrated)",1993,564,A
+onions,"Onions and shallots, dry (excluding dehydrated)",1994,860,A
+onions,"Onions and shallots, dry (excluding dehydrated)",1995,537,A
+onions,"Onions and shallots, dry (excluding dehydrated)",1996,902,A
+onions,"Onions and shallots, dry (excluding dehydrated)",1997,886,A
+onions,"Onions and shallots, dry (excluding dehydrated)",1998,787,A
+onions,"Onions and shallots, dry (excluding dehydrated)",1999,606,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2000,1432,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2001,1032,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2002,1417,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2003,1439,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2004,1098,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2005,1170,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2006,1304,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2007,2379,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2008,1807,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2009,2683,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2010,2139,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2011,1874,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2012,2162,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2013,2831,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2014,2854,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2015,2371,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2016,3836,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2017,3049,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2018,3549,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2019,3272,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2020,3819,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2021,3095,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2022,4193,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2023,7809,A
+onions,"Onions and shallots, dry (excluding dehydrated)",2024,6143,A
+green_beans,"Other beans, green",1991,1166,A
+green_beans,"Other beans, green",1992,1436,A
+green_beans,"Other beans, green",1993,992,A
+green_beans,"Other beans, green",1994,1137,A
+green_beans,"Other beans, green",1995,1407,A
+green_beans,"Other beans, green",1996,1398,A
+green_beans,"Other beans, green",1997,1521,A
+green_beans,"Other beans, green",1998,1438,A
+green_beans,"Other beans, green",1999,1537,A
+green_beans,"Other beans, green",2000,1964,A
+green_beans,"Other beans, green",2001,2366,A
+green_beans,"Other beans, green",2002,2862,A
+green_beans,"Other beans, green",2003,3243,A
+green_beans,"Other beans, green",2004,3279,A
+green_beans,"Other beans, green",2005,3330,A
+green_beans,"Other beans, green",2006,3123,A
+green_beans,"Other beans, green",2007,3724,A
+green_beans,"Other beans, green",2008,4116,A
+green_beans,"Other beans, green",2009,4148,A
+green_beans,"Other beans, green",2010,4267,A
+green_beans,"Other beans, green",2011,4742,A
+green_beans,"Other beans, green",2012,4816,A
+green_beans,"Other beans, green",2013,5209,A
+green_beans,"Other beans, green",2014,6206,A
+green_beans,"Other beans, green",2015,6038,A
+green_beans,"Other beans, green",2016,6478,A
+green_beans,"Other beans, green",2017,6381,A
+green_beans,"Other beans, green",2018,6484,A
+green_beans,"Other beans, green",2019,7793,A
+green_beans,"Other beans, green",2020,7185,A
+green_beans,"Other beans, green",2021,7737,A
+green_beans,"Other beans, green",2022,7570,A
+green_beans,"Other beans, green",2023,13470,A
+green_beans,"Other beans, green",2024,14553,A
+potatoes,Potatoes,1991,489,A
+potatoes,Potatoes,1992,968,A
+potatoes,Potatoes,1993,596,A
+potatoes,Potatoes,1994,720,A
+potatoes,Potatoes,1995,916,A
+potatoes,Potatoes,1996,815,A
+potatoes,Potatoes,1997,870,A
+potatoes,Potatoes,1998,1060,A
+potatoes,Potatoes,1999,919,A
+potatoes,Potatoes,2000,1205,A
+potatoes,Potatoes,2001,1077,A
+potatoes,Potatoes,2002,1705,A
+potatoes,Potatoes,2003,1780,A
+potatoes,Potatoes,2004,1453,A
+potatoes,Potatoes,2005,1631,A
+potatoes,Potatoes,2006,1589,A
+potatoes,Potatoes,2007,1776,A
+potatoes,Potatoes,2008,1775,A
+potatoes,Potatoes,2009,2795,A
+potatoes,Potatoes,2010,2282,A
+potatoes,Potatoes,2011,2314,A
+potatoes,Potatoes,2012,2346,A
+potatoes,Potatoes,2013,2836,A
+potatoes,Potatoes,2014,2836,A
+potatoes,Potatoes,2015,2540,A
+potatoes,Potatoes,2016,3738,A
+potatoes,Potatoes,2017,2902,A
+potatoes,Potatoes,2018,3145,A
+potatoes,Potatoes,2019,3197,A
+potatoes,Potatoes,2020,3650,A
+potatoes,Potatoes,2021,3792,A
+potatoes,Potatoes,2022,3880,A
+potatoes,Potatoes,2023,7288,A
+potatoes,Potatoes,2024,6824,A
+pumpkin_butternut,"Pumpkins, squash and gourds",1991,295,A
+pumpkin_butternut,"Pumpkins, squash and gourds",1992,363,A
+pumpkin_butternut,"Pumpkins, squash and gourds",1993,310,A
+pumpkin_butternut,"Pumpkins, squash and gourds",1994,421,A
+pumpkin_butternut,"Pumpkins, squash and gourds",1995,443,A
+pumpkin_butternut,"Pumpkins, squash and gourds",1996,469,A
+pumpkin_butternut,"Pumpkins, squash and gourds",1997,480,A
+pumpkin_butternut,"Pumpkins, squash and gourds",1998,566,A
+pumpkin_butternut,"Pumpkins, squash and gourds",1999,544,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2000,727,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2001,732,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2002,934,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2003,847,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2004,830,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2005,823,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2006,1066,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2007,2330,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2008,2657,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2009,3218,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2010,3343,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2011,3565,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2012,3482,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2013,4305,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2014,4628,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2015,3885,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2016,5421,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2017,5213,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2018,4693,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2019,4899,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2020,6221,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2021,5934,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2022,6922,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2023,20894,A
+pumpkin_butternut,"Pumpkins, squash and gourds",2024,16152,A
+spinach,Spinach,1996,1068,A
+spinach,Spinach,1997,1262,A
+spinach,Spinach,1998,1228,A
+spinach,Spinach,1999,1245,A
+spinach,Spinach,2000,1513,A
+spinach,Spinach,2001,1494,A
+spinach,Spinach,2002,1738,A
+spinach,Spinach,2003,1831,A
+spinach,Spinach,2004,1955,A
+spinach,Spinach,2005,1957,A
+spinach,Spinach,2006,2099,A
+spinach,Spinach,2007,2400,A
+spinach,Spinach,2008,2690,A
+spinach,Spinach,2009,3057,A
+spinach,Spinach,2010,3363,A
+spinach,Spinach,2011,3676,A
+spinach,Spinach,2012,3490,A
+spinach,Spinach,2013,3193,A
+spinach,Spinach,2014,3910,A
+spinach,Spinach,2015,4140,A
+spinach,Spinach,2016,4261,A
+spinach,Spinach,2017,4649,A
+spinach,Spinach,2018,4664,A
+spinach,Spinach,2019,3398,A
+spinach,Spinach,2020,15563.5,A
+spinach,Spinach,2023,3992,A
+spinach,Spinach,2024,4277,A
+tomatoes,Tomatoes,1991,894,A
+tomatoes,Tomatoes,1992,1005,A
+tomatoes,Tomatoes,1993,722,A
+tomatoes,Tomatoes,1994,904,A
+tomatoes,Tomatoes,1995,883,A
+tomatoes,Tomatoes,1996,973,A
+tomatoes,Tomatoes,1997,1032,A
+tomatoes,Tomatoes,1998,1166,A
+tomatoes,Tomatoes,1999,1116,A
+tomatoes,Tomatoes,2000,1295,A
+tomatoes,Tomatoes,2001,1247,A
+tomatoes,Tomatoes,2002,1371,A
+tomatoes,Tomatoes,2003,1762,A
+tomatoes,Tomatoes,2004,1624,A
+tomatoes,Tomatoes,2005,1665,A
+tomatoes,Tomatoes,2006,1921,A
+tomatoes,Tomatoes,2007,2358,A
+tomatoes,Tomatoes,2008,2388,A
+tomatoes,Tomatoes,2009,2896,A
+tomatoes,Tomatoes,2010,2873,A
+tomatoes,Tomatoes,2011,3046,A
+tomatoes,Tomatoes,2012,3047,A
+tomatoes,Tomatoes,2013,3430,A
+tomatoes,Tomatoes,2014,4126,A
+tomatoes,Tomatoes,2015,4094,A
+tomatoes,Tomatoes,2016,3885,A
+tomatoes,Tomatoes,2017,3868,A
+tomatoes,Tomatoes,2018,4704,A
+tomatoes,Tomatoes,2019,4938,A
+tomatoes,Tomatoes,2020,5224,A
+tomatoes,Tomatoes,2021,5711,A
+tomatoes,Tomatoes,2022,6479,A
+tomatoes,Tomatoes,2023,9551,A
+tomatoes,Tomatoes,2024,11174,A
