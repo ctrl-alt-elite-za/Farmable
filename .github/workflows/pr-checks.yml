@@ -119,8 +119,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
-          cache-dependency-path: apps/mobile/android/*.gradle*
       - name: Build test-mode APK
         if: steps.app.outputs.ready == 'true'
         run: make mobile-test-build

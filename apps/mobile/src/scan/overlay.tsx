@@ -1,14 +1,15 @@
 import { Canvas, Rect } from '@shopify/react-native-skia';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Track } from './types';
 
 interface Props {
   tracks: readonly Track[];
   width: number;
   height: number;
+  onTrackPress?: (track: Track) => void;
 }
 
-export function CropOverlay({ tracks, width, height }: Props) {
+export function CropOverlay({ tracks, width, height, onTrackPress }: Props) {
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill} testID="crop-overlay">
       <Canvas style={StyleSheet.absoluteFill}>
@@ -31,16 +32,18 @@ export function CropOverlay({ tracks, width, height }: Props) {
       {tracks
         .filter((track) => track.label === 'check_suggested')
         .map((track) => (
-          <View
+          <Pressable
             key={`warning-${track.id}`}
             testID="check-suggested-warning"
+            hitSlop={24}
+            onPress={() => onTrackPress?.(track)}
             style={[
               styles.warning,
               { left: track.box.x * width - 12, top: track.box.y * height - 12 },
             ]}
           >
             <Text style={styles.warningText}>⚠</Text>
-          </View>
+          </Pressable>
         ))}
     </View>
   );

@@ -6,6 +6,7 @@ import { APP_VERSION, BUILD_SHA } from '../config';
 import { measureDetectorMs, runDeviceProbes } from '../native/probes';
 import { buildSelfTestReport, CHECK_IDS, type SelfTestReport } from '../selftest/report';
 import { uploadSelfTestReport, type UploadResult } from '../selftest/upload';
+import { measureOverlayFps } from '../scan/performance';
 
 type Phase = 'idle' | 'running' | 'done';
 
@@ -30,6 +31,7 @@ export function SelfTestScreen() {
       detectorMs: detector.ms,
       detectorNote: detector.note,
       startedAt,
+      scanOverlayFps: await measureOverlayFps(),
     });
 
     setReport(next);
