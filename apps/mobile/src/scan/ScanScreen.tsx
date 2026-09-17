@@ -7,6 +7,7 @@ import { CropTracker } from './tracker';
 import type { Track } from './types';
 import { createCropDetector } from './models';
 import { LiveCamera } from './LiveCamera';
+import { FrameSampler } from './framePolicy';
 
 export function ScanScreen() {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -17,25 +18,34 @@ export function ScanScreen() {
   useEffect(() => {
     if (!TEST_MODE) return;
     const frames = loadSimulatedFrames();
-    let frame = 0;
+    const sampler = new FrameSampler();
+    let recordedFrame = 0;
     const timer = setInterval(() => {
       // A real frame processor applies the same sampling policy on-device.
-      if (frame % 2 === 0) {
-        setTracks(tracker.update(detector.detect(frames[frame % frames.length].detections)));
+      if (sampler.shouldProcess()) {
+        setTracks(
+          tracker.update(detector.detect(frames[recordedFrame % frames.length].detections)),
+        );
+        recordedFrame += 1;
       }
-      frame += 1;
     }, 33);
     return () => clearInterval(timer);
   }, [detector, tracker]);
 
   return (
-    <View style={styles.screen} onLayout={(event) => setViewport(event.nativeEvent.layout)}>
-      <View style={styles.camera} testID="scan-camera">
+    <View style={styles.screen}>
+      <View
+        style={styles.camera}
+        testID="scan-camera"
+        onLayout={(event) => setViewport(event.nativeEvent.layout)}
+      >
         {!TEST_MODE && <LiveCamera />}
         {TEST_MODE ? (
           <Text style={styles.mode}>Test scan</Text>
         ) : (
-          <Text style={styles.mode}>Camera scan</Text>
+          <Text style={styles.mode}>
+            Live detection unavailable: detector model and adapter pending (#16/#18).
+          </Text>
         )}
         <CropOverlay tracks={tracks} width={viewport.width} height={viewport.height} />
       </View>

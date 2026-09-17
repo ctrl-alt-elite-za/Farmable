@@ -51,7 +51,8 @@ export class CropTracker {
       let bestIndex = -1,
         bestIou = this.matchIou;
       detections.forEach((detection, index) => {
-        if (used.has(index) || detection.label !== track.label) return;
+        // A plant's predicted warning class may change; that does not create a new plant.
+        if (used.has(index)) return;
         const iou = intersectionOverUnion(track.box, detection.box);
         if (iou > bestIou) {
           bestIou = iou;

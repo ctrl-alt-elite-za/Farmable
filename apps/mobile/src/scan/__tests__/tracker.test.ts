@@ -1,9 +1,23 @@
 import { CropTracker, intersectionOverUnion, nonMaxSuppression } from '../tracker';
 import type { Detection } from '../types';
+import { decodeDetections } from '../decoder';
+import { loadSimulatedFrames } from '../../testmode/source';
 const detection = (x: number, y: number, label = 'plant'): Detection => ({
   label,
   confidence: 0.9,
   box: { x, y, width: 0.08, height: 0.08 },
+});
+
+test('recorded ten_plants_slow_pan preserves identities when warning classes change', () => {
+  const tracker = new CropTracker();
+  const identities = new Set<number>();
+  const frames = loadSimulatedFrames();
+  for (let frame = 0; frame < 8; frame += 1) {
+    const tracks = tracker.update(decodeDetections(frames[frame % frames.length].detections));
+    expect(tracks).toHaveLength(10);
+    tracks.forEach((track) => identities.add(track.id));
+  }
+  expect(identities.size).toBe(10);
 });
 test('NMS removes duplicate boxes but keeps different labels', () => {
   expect(

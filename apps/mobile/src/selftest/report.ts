@@ -32,6 +32,7 @@ export interface SelfTestMeta {
   detectorNote?: string;
   startedAt: string;
   scanOverlayFps?: number;
+  scanOverlayNote?: string;
 }
 
 /** Field names are snake_case because this object is the request body the server stores. */
@@ -78,6 +79,15 @@ export function buildSelfTestReport(results: CheckResult[], meta: SelfTestMeta):
     notes.push(`detector_ms: ${meta.detectorMs} ms is over the ${DETECTOR_MS_BUDGET} ms budget`);
   }
 
+  if (meta.scanOverlayNote) {
+    notes.push(`scan_overlay_fps: ${meta.scanOverlayNote}`);
+  } else if (
+    meta.scanOverlayFps !== undefined &&
+    (!Number.isFinite(meta.scanOverlayFps) || meta.scanOverlayFps < 20)
+  ) {
+    notes.push('scan_overlay_fps: invalid or below the 20 fps budget (#18)');
+  }
+
   const report: SelfTestReport = {
     platform: meta.platform,
     app_version: meta.appVersion,
@@ -92,6 +102,12 @@ export function buildSelfTestReport(results: CheckResult[], meta: SelfTestMeta):
     notes,
     overall: notes.length === 0 ? 'pass' : 'fail',
   };
-  if (meta.scanOverlayFps !== undefined) report.scan_overlay_fps = meta.scanOverlayFps;
+  if (
+    meta.scanOverlayFps !== undefined &&
+    Number.isFinite(meta.scanOverlayFps) &&
+    meta.scanOverlayFps >= 0 &&
+    !meta.scanOverlayNote
+  )
+    report.scan_overlay_fps = meta.scanOverlayFps;
   return report;
 }
