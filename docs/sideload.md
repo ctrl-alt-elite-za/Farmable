@@ -10,10 +10,21 @@ your own machine, with a free Apple ID.
 
 ## 1. Get the build
 
+Set the repository **variable** `MOBILE_API_URL` to your phone-reachable HTTPS
+API base URL, or supply `api_url` when manually dispatching the mobile workflow.
+It is public configuration, never a secret: do not include credentials, query
+tokens, or fragments. Loopback and Android-emulator addresses are rejected.
+Validation checks URL shape, not server availability; verify health on the phone.
+Without a configured URL, CI still checks compilation but produces artifacts
+ending in `-compile-only`, bundled with `https://api.invalid`. These intentionally
+stay offline and cannot satisfy device/upload acceptance. Use `-device` artifacts
+for the steps below. Local emulator development can explicitly set its separate
+`EXPO_PUBLIC_API_URL`; do not use that URL for physical-device builds.
+
 1. Open the repository's **Actions** tab and pick the most recent green **mobile** run.
 2. Download the artifact for the phone you are installing on:
-   - iPhone 12 Pro: `farmable-ios-unsigned` (contains `Farmable-unsigned.ipa`)
-   - Android: `farmable-android-apk` (contains `app-release.apk`)
+   - iPhone 12 Pro: `farmable-ios-unsigned-device` (contains `Farmable-unsigned.ipa`)
+   - Android: `farmable-android-apk-device` (contains `app-release.apk`)
 
 Both come from `.github/workflows/mobile.yml`.
 
@@ -72,6 +83,15 @@ expected, not a defect.
 3. It checks camera preview, LiDAR depth, AR planes and a 3-second microphone
    recording with playback, times the detector, and uploads the result to
    `POST /devices/self-test` (see [`api/devices-self-test.md`](api/devices-self-test.md)).
+
+Camera passes only after a preview frame callback. LiDAR passes only after a
+single captured photo returns a nonempty, valid depth buffer from a back LiDAR
+video/depth device. The camera must report stopped and unmount before AR starts.
+Move the phone slowly over a textured flat surface: AR passes only on a detected
+plane anchor, not support detection. Permission refusal, native errors, and
+observation timeouts fail explicitly. Mock tests cover this control flow, not
+hardware correctness. Real-phone verification, the #16 detector model, and the
+backend self-test endpoint remain separate acceptance work; do not close #4.
 
 Read the result back from the server with:
 

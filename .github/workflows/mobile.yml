@@ -6,6 +6,8 @@ on:
       - 'apps/mobile/**'
       - 'scripts/check-test-mode.sh'
       - 'scripts/check-arcore-device.sh'
+      - 'scripts/mobile-api.mjs'
+      - 'scripts/tests/mobile-api.test.mjs'
       - '.github/workflows/mobile.yml'
       - '.npmrc'
       - 'package.json'
@@ -13,6 +15,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Non-secret, phone-reachable HTTPS API URL (overrides MOBILE_API_URL repository variable)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -22,9 +29,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # The app's only setting. Never add a secret here: EXPO_PUBLIC_* values are
-  # inlined into the JavaScript bundle and readable by anyone holding the app.
-  EXPO_PUBLIC_API_URL: http://localhost:8000
+  # Device API URLs are non-secret and validated per build. No localhost release.
   EXPO_PUBLIC_BUILD_SHA: ${{ github.sha }}
 
 jobs:
@@ -50,7 +55,7 @@ jobs:
           # Fail if the diff cannot be read; consume all output under pipefail.
           changed_files=$(git diff --name-only "$BASE_SHA...$GITHUB_SHA")
           if printf '%s\n' "$changed_files" | grep -E \
-            '^(apps/mobile/(app\.config\.ts|package\.json|with-viro-monorepo\.js|ios/|android/)|package\.json$|pnpm-lock\.yaml$|\.npmrc$|\.github/workflows/mobile\.yml$)' > /dev/null; then
+            '^(apps/mobile/|scripts/mobile-api\.mjs$|package\.json$|pnpm-lock\.yaml$|\.npmrc$|\.github/workflows/mobile\.yml$)' > /dev/null; then
             echo "native=true" >> "$GITHUB_OUTPUT"
           else
             echo "native=false" >> "$GITHUB_OUTPUT"
@@ -58,6 +63,8 @@ jobs:
 
   mobile-test:
     runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_API_URL: https://api.invalid
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -65,6 +72,8 @@ jobs:
           node-version-file: .nvmrc
       # Enable pnpm before any cache step tries to locate its store.
       - run: corepack enable
+      - name: Check physical-device API configuration policy
+        run: node --test scripts/tests/mobile-api.test.mjs
       - name: Locate pnpm store
         id: pnpm-store
         shell: bash
@@ -95,6 +104,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
+      - name: Configure device API URL or label compile-only artifact
+        run: node scripts/mobile-api.mjs
+        env:
+          MOBILE_API_URL: ${{ inputs.api_url || vars.MOBILE_API_URL }}
       # Enable pnpm before any cache step tries to locate its store.
       - run: corepack enable
       - name: Locate pnpm store
@@ -148,7 +161,7 @@ jobs:
           cd payload && zip -qry ../Farmable-unsigned.ipa Payload
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: farmable-ios-unsigned
+          name: farmable-ios-unsigned-${{ env.MOBILE_ARTIFACT_KIND }}
           path: apps/mobile/ios/Farmable-unsigned.ipa
           if-no-files-found: error
 
@@ -161,6 +174,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
+      - name: Configure device API URL or label compile-only artifact
+        run: node scripts/mobile-api.mjs
+        env:
+          MOBILE_API_URL: ${{ inputs.api_url || vars.MOBILE_API_URL }}
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
@@ -199,7 +216,7 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon --build-cache --parallel
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: farmable-android-apk
+          name: farmable-android-apk-${{ env.MOBILE_ARTIFACT_KIND }}
           path: apps/mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
       - name: Check the Android test phone supports ARCore

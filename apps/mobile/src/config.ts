@@ -5,7 +5,8 @@
  * setting (issue #4, security criteria). EXPO_PUBLIC_* values are inlined into the
  * JavaScript bundle at build time, so anyone holding the app can read them.
  */
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+// Missing configuration stays explicitly offline, never phone-local localhost.
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.invalid';
 
 /** Test mode replaces live camera input with recorded frames (emulators, CI). */
 export const TEST_MODE = process.env.EXPO_PUBLIC_TEST_MODE === '1';
