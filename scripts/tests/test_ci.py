@@ -367,6 +367,8 @@ def test_mobile_launch_failure_keeps_diagnostics_before_emulator_shutdown():
     )
     assert diagnostic["if"] == "failure() && steps.app.outputs.ready == 'true'"
     assert diagnostic["with"]["name"] == "mobile-e2e-debug"
+    assert diagnostic["with"]["include-hidden-files"] is True
+    assert diagnostic["with"]["path"].splitlines() == [".ci-mobile-debug/", "~/.maestro/tests/"]
 
 
 def test_status_check_activation_defaults_to_read_only(monkeypatch, capsys):
