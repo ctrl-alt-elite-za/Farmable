@@ -55,6 +55,54 @@ def test_free_text_sensitive_values(value):
     assert mask_text(value) != value
 
 
+@pytest.mark.parametrize("phone", ["27821234567", "+27821234567", "0821234567"])
+def test_phone_numbers_are_masked_in_messages_and_string_fields(phone):
+    record = logging.LogRecord("test", logging.INFO, __file__, 1, "Contact %s", (phone,), None)
+    record.fields = {"msisdn": phone, "phone": phone, "route": f"/contact/{phone}"}
+    encoded = JsonFormatter().format(record)
+    assert phone not in encoded
+    assert json.loads(encoded)["fields"]["msisdn"] == "[redacted]"
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"lat": -26.2041, "lng": 28.0473},
+        {"mobile": 27821234567},
+        {"point": [-26.2041, 28.0473]},
+        {"future_field": "short-private-value"},
+        {"nested": {"status": 500, "mobile": 27821234567}},
+        {"items": [{"lat": -26.2041}, {"lng": 28.0473}]},
+        {"": 27821234567},
+    ],
+)
+def test_unlisted_structured_fields_are_redacted_by_default(fields):
+    record = logging.LogRecord("test", logging.INFO, __file__, 1, "Safe event", (), None)
+    record.fields = fields
+    encoded = JsonFormatter().format(record)
+    assert json.loads(encoded)["fields"] == dict.fromkeys(fields, "[redacted]")
+    for secret in ["26.2041", "28.0473", "27821234567", "short-private-value"]:
+        assert secret not in encoded
+
+
+def test_allowlisted_operational_fields_remain_useful():
+    fields = {"status": 500, "method": "GET", "route": "/health/ready", "duration_ms": 12.5}
+    record = logging.LogRecord("test", logging.INFO, __file__, 1, "Request completed", (), None)
+    record.fields = fields
+    assert json.loads(JsonFormatter().format(record))["fields"] == fields
+
+
+@pytest.mark.parametrize("field", ["status", "method", "route", "duration_ms", "phone"])
+def test_allowlisted_fields_do_not_allow_nested_payloads(field):
+    assert mask({field: {"point": [-26.2041, 28.0473]}}) == {field: "[redacted]"}
+    assert mask({field: [-26.2041, 28.0473, 27821234567]}) == {field: "[redacted]"}
+
+
+def test_unkeyed_numeric_values_are_redacted():
+    assert mask([-26.2041, 28.0473, 27821234567]) == ["[redacted]"] * 3
+    assert mask(27821234567) == "[redacted]"
+
+
 def test_exception_details_are_not_serialized():
     try:
         raise RuntimeError("private detail")

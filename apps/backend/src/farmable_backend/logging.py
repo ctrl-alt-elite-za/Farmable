@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 request_id: ContextVar[str] = ContextVar("request_id", default="system")
-_PHONE = re.compile(r"(?<!\w)(?:\+\d[\d ()-]{8,}\d|0\d{9})(?!\w)")
+_PHONE = re.compile(r"(?<!\w)(?:\+\d[\d ()-]{8,}\d|0\d{9}|\d{10,15})(?!\w)")
 _EMAIL = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
 _CREDENTIAL = re.compile(
     r"(?i)\b(bearer\s+|(?:token|password|secret|api[_-]?key|otp|code)\s*[=:]\s*)" r"[^\s,;\"']+"
@@ -16,10 +16,7 @@ _URL_PASSWORD = re.compile(r"(://[^\s:/]+:)[^@\s]+(@)")
 _TOKEN = re.compile(r"\b[A-Za-z0-9_-]{24,}(?:\.[A-Za-z0-9_-]+)*\b")
 _COORDINATE = re.compile(r"(?<!\w)-?\d{1,3}\.\d{3,}(?!\w)")
 _CODE = re.compile(r"(?<!\w)\d{4,8}(?!\w)")
-_SENSITIVE = re.compile(
-    r"(?i)(phone|email|token|password|secret|authorization|cookie|api.?key|code|otp|"
-    r"latitude|longitude|coordinates|location|geometry|args|kwargs|body|headers)"
-)
+_FIELD_ALLOWLIST = frozenset({"status", "method", "route", "duration_ms"})
 
 
 def correlation_id(value: str | None) -> str:
@@ -46,20 +43,25 @@ def mask_text(value: str) -> str:
     return _CODE.sub("[code]", value)
 
 
-def mask(value: Any, key: str = "") -> Any:
-    if "phone" in key.lower() and isinstance(value, str):
-        return mask_text(value) if _PHONE.search(value) else "[redacted]"
-    if _SENSITIVE.search(key):
+def mask(value: Any, key: str | None = None) -> Any:
+    if key is not None:
+        # The phone field is a separately masked exception, never a raw allowlist entry.
+        if key == "phone" and isinstance(value, str):
+            phone = _PHONE.fullmatch(value)
+            return mask_phone(phone) if phone else "[redacted]"
+        if key not in _FIELD_ALLOWLIST:
+            return "[redacted]"
+        if isinstance(value, str):
+            return mask_text(value)
+        if value is None or isinstance(value, bool | int | float):
+            return value
+        # Even allowlisted names must not carry nested payloads or arbitrary objects.
         return "[redacted]"
     if isinstance(value, dict):
         return {mask_text(str(k)): mask(v, str(k)) for k, v in value.items()}
     if isinstance(value, list | tuple):
         return [mask(v) for v in value]
-    if isinstance(value, str):
-        return mask_text(value)
-    if value is None or isinstance(value, bool | int | float):
-        return value
-    return "[redacted]"  # Never serialize arbitrary objects or their repr.
+    return "[redacted]"  # Unkeyed values are not trusted operational metadata.
 
 
 class JsonFormatter(logging.Formatter):
