@@ -5,7 +5,7 @@ describe('fetchApiHealth', () => {
     const fetchImpl = jest.fn().mockResolvedValue({ ok: true });
 
     await expect(fetchApiHealth({ apiUrl: 'http://api.test', fetchImpl })).resolves.toBe('online');
-    expect(fetchImpl).toHaveBeenCalledWith('http://api.test/healthz', expect.anything());
+    expect(fetchImpl).toHaveBeenCalledWith('http://api.test/health/live', expect.anything());
   });
 
   it('reports offline when the API cannot be reached', async () => {
