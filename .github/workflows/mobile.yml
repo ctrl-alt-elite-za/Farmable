@@ -47,8 +47,10 @@ jobs:
             exit 0
           fi
 
-          if git diff --name-only "$BASE_SHA...$GITHUB_SHA" | grep -Eq \
-            '^(apps/mobile/(app\.config\.ts|package\.json|with-viro-monorepo\.js|ios/|android/)|package\.json$|pnpm-lock\.yaml$|\.npmrc$|\.github/workflows/mobile\.yml$)'; then
+          # Fail if the diff cannot be read; consume all output under pipefail.
+          changed_files=$(git diff --name-only "$BASE_SHA...$GITHUB_SHA")
+          if printf '%s\n' "$changed_files" | grep -E \
+            '^(apps/mobile/(app\.config\.ts|package\.json|with-viro-monorepo\.js|ios/|android/)|package\.json$|pnpm-lock\.yaml$|\.npmrc$|\.github/workflows/mobile\.yml$)' > /dev/null; then
             echo "native=true" >> "$GITHUB_OUTPUT"
           else
             echo "native=false" >> "$GITHUB_OUTPUT"
@@ -61,9 +63,21 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+      # Enable pnpm before any cache step tries to locate its store.
       - run: corepack enable
+      - name: Locate pnpm store
+        id: pnpm-store
+        shell: bash
+        run: |
+          store_path=$(pnpm store path --silent)
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+      - name: Restore pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('.nvmrc', 'package.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-
       - run: pnpm install --frozen-lockfile
       - name: Test mode and demo mode must not both be set
         run: bash scripts/check-test-mode.sh
@@ -81,14 +95,26 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+      # Enable pnpm before any cache step tries to locate its store.
       - run: corepack enable
+      - name: Locate pnpm store
+        id: pnpm-store
+        shell: bash
+        run: |
+          store_path=$(pnpm store path --silent)
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+      - name: Restore pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('.nvmrc', 'package.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-
       - run: pnpm install --frozen-lockfile
       - name: Generate the iOS project
         run: pnpm -C apps/mobile exec expo prebuild --platform ios --no-install --clean
       - name: Restore iOS build caches
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/Library/Caches/CocoaPods
@@ -135,18 +161,30 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
           java-version: '17'
+      # Enable pnpm before any cache step tries to locate its store.
       - run: corepack enable
+      - name: Locate pnpm store
+        id: pnpm-store
+        shell: bash
+        run: |
+          store_path=$(pnpm store path --silent)
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+      - name: Restore pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('.nvmrc', 'package.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-
       - run: pnpm install --frozen-lockfile
       - name: Generate the Android project
         run: pnpm -C apps/mobile exec expo prebuild --platform android --no-install --clean
       - name: Restore Android build caches
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.gradle/caches

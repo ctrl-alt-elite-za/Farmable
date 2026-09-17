@@ -32,6 +32,15 @@ export default tseslint.config(
     },
   },
   {
+    // Expo loads this config plugin through Node's CommonJS loader.
+    files: ['apps/mobile/with-viro-monorepo.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { process: 'readonly' },
+    },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
     files: ['apps/mobile/jest.setup.js'],
     languageOptions: { globals: { process: 'readonly' } },
   },
