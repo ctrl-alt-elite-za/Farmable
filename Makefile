@@ -2,10 +2,11 @@ SHELL := /bin/bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 
 PY_DIRS := apps/backend apps/ml-service scripts migrations e2e conftest.py
+MYPY_ML_DIR := apps/ml-service
 PY_FILES := $(shell scripts/has-py-files.sh $(PY_DIRS))
 # mypy errors on a directory with no .py files, so pass only populated ones.
-MYPY_DIRS := $(shell for d in apps/backend scripts; do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
-MYPY_ML_DIR := apps/ml-service
+# apps/ml-service is not a valid package name; it gets its own mypy run below.
+MYPY_DIRS := $(shell for d in $(filter-out $(MYPY_ML_DIR),$(PY_DIRS)); do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
 PY_TEST_FILES := $(shell find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
 SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
 

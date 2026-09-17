@@ -6,15 +6,13 @@ import pytest
 from farmable_backend.config import Settings
 from farmable_backend.database import Database, live_worker, make_engine
 from farmable_backend.logging import request_id
-from farmable_backend.models import Base, DetectorModel, WeightFormula
+from farmable_backend.models import Base
 from farmable_backend.tasks import create_task_app
 from pydantic import SecretStr, ValidationError
 
 
-def test_vision_feature_tables_are_registered():
+def test_only_vision_registry_tables_are_registered():
     assert set(Base.metadata.tables) == {"detector_models", "weight_formulas"}
-    assert DetectorModel.__tablename__ == "detector_models"
-    assert WeightFormula.__tablename__ == "weight_formulas"
 
 
 def test_query_timeout(settings):

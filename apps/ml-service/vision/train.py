@@ -65,6 +65,7 @@ def main() -> int:
     parser.add_argument("--data", type=Path, required=True, help="Ultralytics data YAML")
     parser.add_argument("--model", default="yolo11n.pt", help="pretrained detector checkpoint")
     parser.add_argument("--report-dir", type=Path, default=Path("apps/ml-service/vision/reports"))
+    parser.add_argument("--runs-dir", type=Path, default=Path("apps/ml-service/vision/runs"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--imgsz", type=int, default=640)
@@ -96,7 +97,7 @@ def main() -> int:
         epochs=args.epochs,
         seed=args.seed,
         imgsz=args.imgsz,
-        project=str(args.report_dir),
+        project=str(args.runs_dir),
         name=args.version,
     )
     validation = model.val(data=str(args.data), imgsz=args.imgsz, split="test")

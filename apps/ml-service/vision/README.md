@@ -1,5 +1,26 @@
 # Vision pipeline
 
+## Pretrained mobile demo
+
+The quickest working path uses the pretrained YOLOE-26n segmentation model;
+no private training dataset is required. Ultralytics downloads
+`yoloe-26n-seg.pt` on first use, and the exporter bakes the crop prompts into
+offline mobile artifacts:
+
+```bash
+python apps/ml-service/vision/export.py --version demo1 \
+  --formats coreml tflite
+```
+
+This produces `demo1.mlpackage` for iOS and `demo1.tflite` for Android. The
+phone app still needs its Core ML or LiteRT camera adapter and must bundle the
+matching manifest. The pretrained model is a demo shortcut: it has not been
+trained or measured on Farmable field images, does not prove the issue's
+per-class accuracy or 300-images-per-crop requirement, and its prompt labels
+are not the custom `plant`, `crop_head_or_fruit`, and `check_suggested` label
+contract. Treat detections as provisional until a Farmable-labelled model is
+trained and evaluated.
+
 Organise the private dataset as `data/<version>/{train,test}/images` with an
 `image_sessions.csv` manifest containing `image,session_id` columns. Validate
 the session split before training:
