@@ -20,6 +20,9 @@ Every operation returns `Result<T>`, never an area for an invalid shape. Inputs 
 not mutated. AR points are metres (`x` right, `z` forward; `y` ignored). GPS points
 are WGS84 `{ latitude, longitude, accuracyMetres? }`; supply sensor accuracy when
 available. Accuracy above 20 m, invalid bounds and nonfinite coordinates are rejected.
+Runtime point entries are checked before property access: null, missing fields,
+nonnumeric coordinates, array-shaped points and sparse holes return typed errors
+instead of throwing. The public TypeScript point interfaces remain unchanged.
 
 - `closeShape` / `closeGpsShape`: remove consecutive and closing duplicates, reject
   crossings, self-touching, backtracking and zero area, and return a closed ring.

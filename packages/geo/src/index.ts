@@ -45,11 +45,20 @@ function same(a: ArPoint, b: ArPoint): boolean {
 }
 
 function validAr(point: ArPoint): boolean {
-  return Number.isFinite(point.x) && Number.isFinite(point.z);
+  return (
+    point !== null &&
+    typeof point === 'object' &&
+    !Array.isArray(point) &&
+    Number.isFinite(point.x) &&
+    Number.isFinite(point.z)
+  );
 }
 
 function gpsError(point: GpsPoint): GeometryError | undefined {
   if (
+    point === null ||
+    typeof point !== 'object' ||
+    Array.isArray(point) ||
     !Number.isFinite(point.latitude) ||
     !Number.isFinite(point.longitude) ||
     Math.abs(point.latitude) > 90 ||
@@ -110,8 +119,9 @@ function signedArea(points: readonly ArPoint[]): number {
 }
 
 function ring<T>(points: readonly T[], projected: readonly ArPoint[]): Result<T[]> {
-  if (projected.some((point) => !validAr(point))) {
-    return fail('INVALID_COORDINATE', 'Coordinates must be finite.');
+  // Array.some skips holes; iteration must validate missing runtime samples too.
+  for (const point of projected) {
+    if (!validAr(point)) return fail('INVALID_COORDINATE', 'Coordinates must be finite.');
   }
   const indices: number[] = [];
   for (let i = 0; i < points.length; i++) {
@@ -314,8 +324,8 @@ export function alignArToGps(ar: readonly ArPoint[], gps: readonly GpsPoint[]): 
   if (ar.length < 2 || ar.length !== gps.length) {
     return fail('INVALID_ALIGNMENT', 'Supply at least two corresponding AR/GPS anchors.');
   }
-  if (ar.some((point) => !validAr(point))) {
-    return fail('INVALID_COORDINATE', 'AR anchors must be finite.');
+  for (const point of ar) {
+    if (!validAr(point)) return fail('INVALID_COORDINATE', 'AR anchors must be finite.');
   }
   for (const point of gps) {
     const error = gpsError(point);
