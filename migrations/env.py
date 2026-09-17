@@ -20,7 +20,16 @@ def include_name(name, type_, parent_names):
 
 def run_migrations() -> None:
     if context.is_offline_mode():
-        raise RuntimeError("Use online migrations; offline SQL scripts are not supported")
+        # Read-only generated SQL for CI linting, never executed by application code.
+        context.configure(
+            dialect_name="postgresql",
+            target_metadata=Base.metadata,
+            literal_binds=True,
+            dialect_opts={"paramstyle": "named"},
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+        return
     engine = make_engine(Settings())
     try:
         with engine.connect() as connection:

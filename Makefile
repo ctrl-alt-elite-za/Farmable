@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 
-PY_DIRS := apps/backend apps/ml-service scripts migrations
+PY_DIRS := apps/backend apps/ml-service scripts migrations e2e conftest.py
 PY_FILES := $(shell scripts/has-py-files.sh $(PY_DIRS))
 # mypy errors on a directory with no .py files, so pass only populated ones.
 MYPY_DIRS := $(shell for d in apps/backend scripts; do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
@@ -10,6 +10,7 @@ PY_TEST_FILES := $(shell find apps/backend -name 'test_*.py' -o -name '*_test.py
 SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
 
 .PHONY: setup lint format typecheck test test-integration hooks check-no-raw-sql client db-migrate queue-schema
+.PHONY: client-check security-audit migration-safety deployability e2e-api e2e-degradation e2e-mobile mobile-test-build
 
 setup:
 	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
@@ -66,6 +67,24 @@ check-no-raw-sql:
 
 client:
 	uv run python scripts/generate_client.py
+
+client-check: client
+	@git diff --exit-code -- packages/api-client || { echo 'client-stale: run make client and commit its output'; exit 1; }
+
+security-audit:
+	uv run python scripts/audit_dependencies.py
+
+migration-safety:
+	uv run python scripts/migration_safety.py
+
+deployability e2e-api e2e-degradation:
+	@bash scripts/ci-stack.sh $@
+
+mobile-test-build:
+	@bash scripts/ci-mobile.sh build
+
+e2e-mobile:
+	@APK="$(APK)" bash scripts/ci-mobile.sh test
 
 test-integration:
 	@bash scripts/test-integration.sh

@@ -1,0 +1,33 @@
+name: Farmable check explanations
+on:
+  workflow_run:
+    workflows: [Farmable PR checks, gitleaks, autofix.ci, CodeQL]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: farmable-report-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  comment:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Explicit trusted branch: never workflow_run.head_sha or a PR artifact's ref.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Update one safe failure/warning comment
+        run: python scripts/ci_report.py
+        env:
+          GH_TOKEN: ${{ github.token }}

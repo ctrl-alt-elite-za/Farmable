@@ -33,6 +33,12 @@ clone. Tool versions are pinned in `.python-version`, `.nvmrc`,
 | `make test-integration` | Exercises API + worker + PostGIS in an isolated disposable Compose project    |
 | `make db-migrate`       | Applies Alembic migrations explicitly; never run migrations on API startup    |
 | `make queue-schema`     | Installs Procrastinate's vendor schema once on a new database                 |
+| `make client-check`     | Regenerates the API client and rejects an uncommitted contract diff           |
+| `make security-audit`   | Audits locked Python/Node dependencies; blocks high/critical and unknowns     |
+| `make migration-safety` | Lints pending Alembic-generated SQL without executing it                      |
+| `make deployability`    | Builds production images, migrates a fresh DB, and smoke-tests readiness      |
+| `make e2e-api`          | Runs public API E2E tests against an isolated production stack                |
+| `make e2e-degradation`  | Exercises worker and database failure/recovery                                |
 
 Each command is a no-op (and exits 0) for a language that has no source
 files yet, so they all pass on the empty skeleton and keep working as `#3`
@@ -93,3 +99,6 @@ and `#4` add code.
 - New backend behavior has tests; new endpoints follow the safe defaults
   in #3 (error format, request IDs, log masking, rate limits, strict
   request validation).
+- See `docs/ci.md` before changing CI privileges or activating required checks.
+  A quarantined test must link an issue; it is skipped with a visible warning,
+  never retried until it passes.

@@ -11,7 +11,16 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize("failure", ["none", "tests", "build", "credentials", "engine"])
-def test_integration_runner_isolated_cleanup(tmp_path: Path, failure: str) -> None:
+@pytest.mark.parametrize(
+    "runner,project,argument",
+    [
+        ("scripts/test-integration.sh", "farmable-test", ""),
+        ("scripts/ci-stack.sh", "farmable-ci", "e2e-degradation"),
+    ],
+)
+def test_integration_runner_isolated_cleanup(
+    tmp_path: Path, failure: str, runner: str, project: str, argument: str
+) -> None:
     bash = os.environ.get("FARMABLE_TEST_BASH") or shutil.which("bash")
     if bash is None:
         pytest.skip("Bash is required")
@@ -41,12 +50,18 @@ uv() {
 }
 git() { printf 'test-sha\n'; }
 export -f docker uv git
-bash "$1"
+bash "$1" "$2"
 """,
             "test",
-            (REPO / "scripts/test-integration.sh").as_posix(),
+            (REPO / runner).as_posix(),
+            argument,
         ],
-        env={**os.environ, "TASK_FAILURE": failure, "TASK_LOG": log.as_posix()},
+        env={
+            **os.environ,
+            "TASK_FAILURE": failure,
+            "TASK_LOG": log.as_posix(),
+            "GITHUB_ACTIONS": "false",
+        },
         capture_output=True,
         text=True,
         check=False,
@@ -58,7 +73,7 @@ bash "$1"
         assert calls == []
     else:
         assert calls[-1].endswith("down --volumes --remove-orphans")
-        assert all("-p farmable-test-unique-test-id -f compose.yaml" in call for call in calls)
+        assert all(f"-p {project}-unique-test-id -f compose.yaml" in call for call in calls)
     if failure == "none":
         assert any("stop worker" in call for call in calls)
         assert any("stop database" in call for call in calls)
