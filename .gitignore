@@ -37,6 +37,8 @@ build/
 coverage/
 
 # ML artifacts (model weights/checkpoints, notebooks, MLflow — see #20)
+ml/vision/data/*
+!ml/vision/data/.gitkeep
 *.ckpt
 *.pt
 *.pth
