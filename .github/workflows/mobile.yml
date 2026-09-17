@@ -28,6 +28,32 @@ env:
   EXPO_PUBLIC_BUILD_SHA: ${{ github.sha }}
 
 jobs:
+  native-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.detect.outputs.native }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Detect native build changes
+        id: detect
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "native=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git diff --name-only "$BASE_SHA...$GITHUB_SHA" | grep -Eq \
+            '^(apps/mobile/(app\.config\.ts|package\.json|with-viro-monorepo\.js|ios/|android/)|package\.json$|pnpm-lock\.yaml$|\.npmrc$|\.github/workflows/mobile\.yml$)'; then
+            echo "native=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "native=false" >> "$GITHUB_OUTPUT"
+          fi
+
   mobile-test:
     runs-on: ubuntu-latest
     steps:
@@ -35,6 +61,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - name: Test mode and demo mode must not both be set
@@ -43,6 +71,8 @@ jobs:
       - run: pnpm -C apps/mobile test
 
   ios-unsigned-build:
+    needs: native-changes
+    if: needs.native-changes.outputs.native == 'true'
     # Expo SDK 57 ships SwiftPM manifests requiring Swift tools 6.2.
     # macos-15's Xcode 16.4 only provides Swift 6.1.
     runs-on: macos-26
@@ -51,10 +81,22 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - name: Generate the iOS project
         run: pnpm -C apps/mobile exec expo prebuild --platform ios --no-install --clean
+      - name: Restore iOS build caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            apps/mobile/ios/Pods
+            apps/mobile/ios/build
+          key: ${{ runner.os }}-ios-${{ hashFiles('pnpm-lock.yaml', 'apps/mobile/app.config.ts', 'apps/mobile/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-ios-
       - name: Install CocoaPods
         working-directory: apps/mobile/ios
         run: pod install
@@ -85,12 +127,16 @@ jobs:
           if-no-files-found: error
 
   android-build:
+    needs: native-changes
+    if: needs.native-changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
@@ -99,9 +145,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Generate the Android project
         run: pnpm -C apps/mobile exec expo prebuild --platform android --no-install --clean
+      - name: Restore Android build caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            apps/mobile/android/.gradle
+            apps/mobile/android/app/build
+          key: ${{ runner.os }}-android-${{ hashFiles('pnpm-lock.yaml', 'apps/mobile/app.config.ts', 'apps/mobile/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-android-
       - name: Build the APK
         working-directory: apps/mobile/android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon --build-cache --parallel
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: farmable-android-apk
