@@ -15,9 +15,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", required=True)
     parser.add_argument("--data", type=Path, required=True, help="Ultralytics data YAML")
-    parser.add_argument(
-        "--report-dir", type=Path, default=Path("apps/ml-service/vision/reports")
-    )
+    parser.add_argument("--report-dir", type=Path, default=Path("apps/ml-service/vision/reports"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--export", action="store_true", help="export the trained model to TFLite")
