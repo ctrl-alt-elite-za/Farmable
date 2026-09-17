@@ -6,6 +6,7 @@ mode="${1:?Choose deployability, e2e-api, e2e-degradation or mobile}"
 case "$mode" in deployability|e2e-api|e2e-degradation|mobile) ;; *) exit 2 ;; esac
 docker info >/dev/null
 export POSTGRES_USER=farmable_ci POSTGRES_DB=farmable_ci
+export ENVIRONMENT=ci INTEGRATIONS_MODE=fake
 POSTGRES_PASSWORD="$(uv run python -c 'import secrets; print(secrets.token_hex(24))')"
 export POSTGRES_PASSWORD
 DATABASE_URL="$(uv run python -c 'import os; from sqlalchemy import URL; print(URL.create("postgresql+psycopg", username=os.environ["POSTGRES_USER"], password=os.environ["POSTGRES_PASSWORD"], host="database", database=os.environ["POSTGRES_DB"]).render_as_string(hide_password=False))')"

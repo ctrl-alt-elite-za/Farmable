@@ -2,11 +2,13 @@ import asyncio
 import sys
 
 from farmable_backend.config import Settings
+from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
 from farmable_backend.tasks import create_task_app
 
 
 async def run() -> None:
+    ServiceSettings()  # Refuse unsafe fault/fake flags before connecting to the queue.
     settings = Settings()
     configure_logging(settings.log_level)
     app = create_task_app(settings)

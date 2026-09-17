@@ -12,6 +12,10 @@ SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
 
 .PHONY: setup lint format typecheck test test-integration hooks check-no-raw-sql client db-migrate queue-schema
 .PHONY: client-check security-audit migration-safety deployability e2e-api e2e-degradation e2e-mobile mobile-test-build
+.PHONY: smoke
+
+smoke:
+	uv run python -m farmable_backend.integrations.smoke $(SMOKE_ARGS)
 
 setup:
 	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
