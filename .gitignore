@@ -65,4 +65,5 @@ mlruns/
 *.log
 # Disposable CI output, generated SQL and scanner data must never be committed.
 .ci-reports/
+.ci-mobile-debug/
 .ci-tmp/

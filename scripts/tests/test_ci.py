@@ -341,6 +341,23 @@ def test_privileged_reporter_never_checks_out_pr_code():
     assert checkout["with"]["persist-credentials"] is False
 
 
+def test_mobile_launch_failure_keeps_diagnostics_before_emulator_shutdown():
+    repo = Path(__file__).resolve().parents[2]
+    stack = (repo / "scripts/ci-stack.sh").read_text()
+    assert 'if [ "$mode" = mobile ] && [ "$status" -ne 0 ]' in stack
+    assert "AndroidRuntime:E ReactNativeJS:E" in stack
+    assert "adb exec-out screencap -p" in stack
+    assert "uiautomator dump" in stack
+    workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
+    diagnostic = next(
+        step
+        for step in workflow["jobs"]["e2e-mobile"]["steps"]
+        if step.get("name") == "Preserve mobile launch diagnostics"
+    )
+    assert diagnostic["if"] == "failure() && steps.app.outputs.ready == 'true'"
+    assert diagnostic["with"]["name"] == "mobile-e2e-debug"
+
+
 def test_status_check_activation_defaults_to_read_only(monkeypatch, capsys):
     import required_checks
 
