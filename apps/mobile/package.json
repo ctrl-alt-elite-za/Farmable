@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@farmable/api-client": "workspace:*",
     "@reactvision/react-viro": "2.58.1",
     "@shopify/react-native-skia": "2.6.2",
     "expo": "57.0.23",

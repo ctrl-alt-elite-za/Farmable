@@ -1,0 +1,60 @@
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: apps/backend/Dockerfile
+  environment: &backend-env
+    DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL using the database hostname and percent-encoded credentials}
+    COMMIT_SHA: ${COMMIT_SHA:-unknown}
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+
+services:
+  database:
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  migrate:
+    <<: *backend
+    command: ['alembic', 'upgrade', 'head']
+    profiles: ['tools']
+    depends_on:
+      database:
+        condition: service_healthy
+  queue-schema:
+    <<: *backend
+    command: ['python', '-m', 'farmable_backend.manage', 'queue-schema']
+    profiles: ['tools']
+    depends_on:
+      database:
+        condition: service_healthy
+  worker:
+    <<: *backend
+    command: ['python', '-m', 'farmable_backend.worker']
+    depends_on:
+      database:
+        condition: service_healthy
+  api:
+    <<: *backend
+    ports:
+      - '127.0.0.1:${API_PORT:-8000}:8000'
+    depends_on:
+      database:
+        condition: service_healthy
+  tests:
+    <<: *backend
+    profiles: ['tests']
+    environment:
+      <<: *backend-env
+      API_URL: http://api:8000
+    command: ['pytest', 'apps/backend/tests/integration', '-m', 'integration', '-q']
+
+volumes:
+  database-data:

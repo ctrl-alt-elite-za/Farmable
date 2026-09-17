@@ -6,3 +6,7 @@ apps/ml-service/data/
 **/.expo/
 .venv/
 node_modules/
+/.uv-cache/
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
