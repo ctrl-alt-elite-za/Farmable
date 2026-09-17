@@ -30,9 +30,7 @@ def split_sessions(train: Path, test: Path, manifest: Path) -> tuple[set[str], s
     train_images = [
         p for p in train.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES
     ]
-    test_images = [
-        p for p in test.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES
-    ]
+    test_images = [p for p in test.rglob("*") if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES]
     missing = [p.stem for p in train_images + test_images if p.stem not in sessions]
     if missing:
         raise ValueError(f"manifest has no session for {missing[0]!r}")

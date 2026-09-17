@@ -4,11 +4,11 @@ This guide defines the labels used by the all-crop detector. Label only plots ow
 
 ## Classes
 
-| Class | Label when | Do not label |
-| --- | --- | --- |
-| `plant` | The visible plant or plant canopy | Soil, weeds, tools, or an empty row |
-| `crop_head_or_fruit` | A cabbage head or a visible tomato fruit | Leaves, stems, flowers, or spinach leaves |
-| `check_suggested` | A visible hole, yellowing, or spot that should be checked | Shadows, glare, dust, or an uncertain occlusion |
+| Class                | Label when                                                | Do not label                                    |
+| -------------------- | --------------------------------------------------------- | ----------------------------------------------- |
+| `plant`              | The visible plant or plant canopy                         | Soil, weeds, tools, or an empty row             |
+| `crop_head_or_fruit` | A cabbage head or a visible tomato fruit                  | Leaves, stems, flowers, or spinach leaves       |
+| `check_suggested`    | A visible hole, yellowing, or spot that should be checked | Shadows, glare, dust, or an uncertain occlusion |
 
 Use one tight bounding box per visible instance. Include the whole visible cabbage head, tomato fruit, or plant canopy, but do not guess hidden parts. For `check_suggested`, draw the box around the visible symptom, not the whole plant.
 

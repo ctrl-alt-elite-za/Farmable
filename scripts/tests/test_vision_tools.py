@@ -16,9 +16,7 @@ def test_split_check_rejects_shared_filming_session(tmp_path: Path) -> None:
     (train / "morning_1.jpg").touch()
     (test / "morning_2.jpg").touch()
     manifest = tmp_path / "sessions.csv"
-    manifest.write_text(
-        "image,session_id\nmorning_1.jpg,s1\nmorning_2.jpg,s1\n", encoding="utf-8"
-    )
+    manifest.write_text("image,session_id\nmorning_1.jpg,s1\nmorning_2.jpg,s1\n", encoding="utf-8")
     train_sessions, test_sessions = split_sessions(train, test, manifest)
     assert train_sessions & test_sessions == {"s1"}
 

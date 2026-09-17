@@ -35,8 +35,7 @@ def fit_range(values: list[tuple[float, float]], holdout: int = 5) -> dict[str, 
     lower = [intercept + slope * x - 1.282 * residual for x, _ in test]
     upper = [intercept + slope * x + 1.282 * residual for x, _ in test]
     inside = sum(
-        lo <= y <= hi
-        for (lo, hi), (_, y) in zip(zip(lower, upper, strict=True), test, strict=True)
+        lo <= y <= hi for (lo, hi), (_, y) in zip(zip(lower, upper, strict=True), test, strict=True)
     )
     return {
         "slope_g_per_cm": slope,
