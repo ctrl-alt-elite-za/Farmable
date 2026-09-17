@@ -45,9 +45,15 @@ def test_label_validator_rejects_missing_label(tmp_path: Path) -> None:
 
 
 def test_training_report_has_per_class_and_session_contract() -> None:
-    report = report_for("v1", 42, 10, {}, ["train-a"], ["test-a"], crop_counts={
-        "cabbage": 300, "tomato": 300, "spinach": 300
-    })
+    report = report_for(
+        "v1",
+        42,
+        10,
+        {},
+        ["train-a"],
+        ["test-a"],
+        crop_counts={"cabbage": 300, "tomato": 300, "spinach": 300},
+    )
     assert set(report["classes"]) == {"plant", "crop_head_or_fruit", "check_suggested"}
     assert set(report["classes"]["plant"]) == {"precision", "recall", "map50"}
     assert report["train_sessions"] == ["train-a"]

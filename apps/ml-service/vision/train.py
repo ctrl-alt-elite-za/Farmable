@@ -44,8 +44,7 @@ def report_for(
 ) -> dict[str, Any]:
     """Return the stable report contract consumed by the mobile/backend work."""
     per_class = class_metrics or {
-        class_name: {"precision": None, "recall": None, "map50": None}
-        for class_name in CLASSES
+        class_name: {"precision": None, "recall": None, "map50": None} for class_name in CLASSES
     }
     return {
         "version": version,
@@ -54,9 +53,7 @@ def report_for(
         "epochs": epochs,
         "metrics": metrics,
         "classes": per_class,
-        "crops": {
-            crop: {"images": (crop_counts or {}).get(crop, 0)} for crop in CROPS
-        },
+        "crops": {crop: {"images": (crop_counts or {}).get(crop, 0)} for crop in CROPS},
         "train_sessions": sorted(train_sessions),
         "test_sessions": sorted(test_sessions),
     }
@@ -105,8 +102,7 @@ def main() -> int:
     validation = model.val(data=str(args.data), imgsz=args.imgsz, split="test")
     box = getattr(validation, "box", None)
     class_metrics = {
-        class_name: class_result(box, index)
-        for index, class_name in enumerate(CLASSES)
+        class_name: class_result(box, index) for index, class_name in enumerate(CLASSES)
     }
     if args.export:
         model.export(format="tflite")
