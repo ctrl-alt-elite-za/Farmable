@@ -1,3 +1,4 @@
+import hashlib
 import json
 import shutil
 import subprocess
@@ -78,6 +79,8 @@ def test_export_manifest_marks_demo_artifacts_unmeasured_with_hashes(
     assert all(len(item["sha256"]) == 64 for item in manifest["artifacts"].values())
     assert Path("out/demo1.mlpackage/Manifest.json").is_file()
     assert Path("out/demo1.tflite").is_file()
+    expected = hashlib.sha256(b"tflite").hexdigest()
+    assert manifest["artifacts"]["tflite"]["sha256"] == expected
 
 
 def test_int8_export_requires_crop_calibration_data(

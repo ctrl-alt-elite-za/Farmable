@@ -20,8 +20,17 @@ IMAGE_SIZE = 640
 
 
 def sha256(path: Path) -> str:
+    """Return a byte SHA-256 for files and a stable tree digest for packages."""
     digest = hashlib.sha256()
-    files = [path] if path.is_file() else sorted(p for p in path.rglob("*") if p.is_file())
+    if path.is_file():
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+        return digest.hexdigest()
+
+    # Core ML exports are directory packages. Include relative names so the
+    # manifest detects both changed files and changed package layout.
+    files = sorted(p for p in path.rglob("*") if p.is_file())
     for file in files:
         digest.update(file.relative_to(path.parent).as_posix().encode())
         with file.open("rb") as handle:
