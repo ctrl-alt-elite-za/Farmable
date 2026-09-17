@@ -47,6 +47,7 @@ export function SelfTestScreen() {
       detectorMs: detector.ms,
       detectorNote: detector.note,
       startedAt: startedAt.current,
+      scanOverlayNote: 'not measured: live detector and mounted-overlay benchmark pending (#18)',
     });
 
     setReport(next);

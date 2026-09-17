@@ -17,6 +17,26 @@ const allPassing: CheckResult[] = [
 ];
 
 describe('buildSelfTestReport', () => {
+  it('does not publish an FPS result when no mounted-overlay benchmark was measured', () => {
+    const report = buildSelfTestReport(allPassing, {
+      ...meta,
+      scanOverlayNote: 'not measured (#18)',
+    });
+    expect(report.scan_overlay_fps).toBeUndefined();
+    expect(report.overall).toBe('fail');
+    expect(report.notes).toContain('scan_overlay_fps: not measured (#18)');
+  });
+
+  it.each([NaN, Infinity, -1, 19])('fails invalid or slow FPS: %p', (scanOverlayFps) => {
+    expect(buildSelfTestReport(allPassing, { ...meta, scanOverlayFps }).overall).toBe('fail');
+  });
+
+  it('keeps an observed passing FPS result', () => {
+    const report = buildSelfTestReport(allPassing, { ...meta, scanOverlayFps: 20 });
+    expect(report.scan_overlay_fps).toBe(20);
+    expect(report.overall).toBe('pass');
+  });
+
   it('passes overall when all four checks pass inside the detector budget', () => {
     const report = buildSelfTestReport(allPassing, meta);
 

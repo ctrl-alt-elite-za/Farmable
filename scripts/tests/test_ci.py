@@ -352,6 +352,19 @@ def test_privileged_reporter_never_checks_out_pr_code():
     assert checkout["with"]["persist-credentials"] is False
 
 
+def test_live_scan_maestro_flow_is_included_in_mobile_e2e():
+    repo = Path(__file__).resolve().parents[2]
+    assert (repo / "e2e/mobile/scan_pan_test_mode.yaml").is_file()
+    flow = (repo / "e2e/mobile/scan_pan_test_mode.yaml").read_text()
+    assert "extendedWaitUntil:" in flow and "visible: 'Farmable'" in flow
+    stack = (repo / "scripts/ci-stack.sh").read_text()
+    assert (
+        stack.index("maestro test e2e/mobile/online_launch.yaml")
+        < stack.index("maestro test e2e/mobile/scan_pan_test_mode.yaml")
+        < stack.index('"${compose[@]}" stop api')
+    )
+
+
 def test_mobile_launch_failure_keeps_diagnostics_before_emulator_shutdown():
     repo = Path(__file__).resolve().parents[2]
     stack = (repo / "scripts/ci-stack.sh").read_text()

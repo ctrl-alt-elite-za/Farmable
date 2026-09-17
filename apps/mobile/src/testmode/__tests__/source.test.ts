@@ -28,6 +28,6 @@ describe('loadSimulatedFrames', () => {
     const frames = loadSimulatedFrames();
 
     expect(frames.length).toBeGreaterThan(0);
-    expect(frames[0].detections[0].label).toBe('tomato');
+    expect(frames[0].detections[0].label).toBe('check_suggested');
   });
 });

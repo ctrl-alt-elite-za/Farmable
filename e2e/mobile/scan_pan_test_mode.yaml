@@ -1,0 +1,15 @@
+appId: za.co.ctrlaltelite.farmable
+name: Test-mode scan tracks plants while panning
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: 'Farmable'
+    timeout: 30000
+- tapOn:
+    id: tab-scan
+- assertVisible: 'Test scan'
+- assertVisible:
+    id: check-suggested-warning
+- assertNotVisible: 'Hold still'
+- assertNotVisible: 'Slow down'

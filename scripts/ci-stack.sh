@@ -50,6 +50,9 @@ elif [ "$mode" = mobile ]; then
   adb install -r "${APK:?Set APK to the test-mode Android build}"
   # Prove connectivity, then stop ONLY this invocation's API for offline proof.
   maestro test e2e/mobile/online_launch.yaml
+  if [ -f e2e/mobile/scan_pan_test_mode.yaml ]; then
+    maestro test e2e/mobile/scan_pan_test_mode.yaml
+  fi
   "${compose[@]}" stop api
   maestro test e2e/mobile/offline_launch.yaml
 fi
