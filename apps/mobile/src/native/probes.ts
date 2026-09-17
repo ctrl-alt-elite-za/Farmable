@@ -17,7 +17,12 @@ function wait(ms: number): Promise<void> {
 }
 
 interface VisionCameraLike {
-  Camera: { getAvailableCameraDevices: () => { physicalDevices?: string[] }[] };
+  getAllCameraDevices: () => CameraDeviceLike[];
+}
+
+interface CameraDeviceLike {
+  type?: string;
+  physicalDevices?: CameraDeviceLike[];
 }
 
 interface ViroLike {
@@ -33,7 +38,15 @@ interface ExpoAudioLike {
     stop: () => Promise<void>;
     uri: string | null;
   };
-  createAudioPlayer?: (source: string) => { play: () => void; remove: () => void };
+  createAudioPlayer?: (source: string) => AudioPlayerLike;
+}
+
+interface AudioPlayerLike {
+  isLoaded: boolean;
+  playing: boolean;
+  currentTime: number;
+  play: () => void;
+  remove: () => void;
 }
 
 interface FastTfliteLike {
@@ -43,7 +56,7 @@ interface FastTfliteLike {
 export async function probeCameraPreview(): Promise<CheckResult> {
   try {
     const vision = (await import('react-native-vision-camera')) as unknown as VisionCameraLike;
-    const devices = vision.Camera.getAvailableCameraDevices();
+    const devices = vision.getAllCameraDevices();
     return devices.length > 0
       ? { id: 'camera_preview', status: 'pass' }
       : { id: 'camera_preview', status: 'fail', note: 'the phone reported no camera device' };
@@ -55,8 +68,12 @@ export async function probeCameraPreview(): Promise<CheckResult> {
 export async function probeLidarDepth(): Promise<CheckResult> {
   try {
     const vision = (await import('react-native-vision-camera')) as unknown as VisionCameraLike;
-    const hasLidar = vision.Camera.getAvailableCameraDevices().some((device) =>
-      (device.physicalDevices ?? []).includes('builtin-lidar-depth-camera'),
+    const hasLidar = vision.getAllCameraDevices().some(
+      (device) =>
+        device.type === 'lidar-depth' ||
+        (device.physicalDevices ?? []).some(
+          (physicalDevice) => physicalDevice.type === 'lidar-depth',
+        ),
     );
     return hasLidar
       ? { id: 'lidar_depth', status: 'pass' }
@@ -129,8 +146,29 @@ export async function probeMicRecord(): Promise<CheckResult> {
       return { id: 'mic_record', status: 'fail', note: 'the recording produced no file' };
     }
     const player = audio.createAudioPlayer(recorder.uri);
+    const loadDeadline = Date.now() + 5000;
+    while (!player.isLoaded && Date.now() < loadDeadline) {
+      await wait(250);
+    }
+    if (!player.isLoaded) {
+      player.remove();
+      return {
+        id: 'mic_record',
+        status: 'fail',
+        note: 'the recording could not be loaded for playback',
+      };
+    }
     player.play();
-    await wait(3000);
+    await wait(500);
+    if (!player.playing && player.currentTime <= 0) {
+      player.remove();
+      return {
+        id: 'mic_record',
+        status: 'fail',
+        note: 'the recording did not start playing',
+      };
+    }
+    await wait(2500);
     player.remove();
     return { id: 'mic_record', status: 'pass' };
   } catch (error) {

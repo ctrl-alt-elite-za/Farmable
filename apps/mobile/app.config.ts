@@ -44,16 +44,8 @@ const config: ExpoConfig = {
     [
       'expo-build-properties',
       {
-        ios: { deploymentTarget: '15.1' },
+        ios: { deploymentTarget: '16.4' },
         android: { minSdkVersion: 26, compileSdkVersion: 36, targetSdkVersion: 36 },
-      },
-    ],
-    [
-      'react-native-vision-camera',
-      {
-        cameraPermissionText: CAMERA_REASON,
-        enableMicrophonePermission: true,
-        microphonePermissionText: MICROPHONE_REASON,
       },
     ],
     ['expo-location', { locationWhenInUsePermission: LOCATION_REASON }],
