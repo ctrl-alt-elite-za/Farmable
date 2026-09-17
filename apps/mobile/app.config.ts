@@ -50,6 +50,7 @@ const config: ExpoConfig = {
     ],
     ['expo-location', { locationWhenInUsePermission: LOCATION_REASON }],
     ['expo-audio', { microphonePermissionText: MICROPHONE_REASON }],
+    './with-viro-monorepo',
     '@reactvision/react-viro',
   ],
 };

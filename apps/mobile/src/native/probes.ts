@@ -68,13 +68,15 @@ export async function probeCameraPreview(): Promise<CheckResult> {
 export async function probeLidarDepth(): Promise<CheckResult> {
   try {
     const vision = (await import('react-native-vision-camera')) as unknown as VisionCameraLike;
-    const hasLidar = vision.getAllCameraDevices().some(
-      (device) =>
-        device.type === 'lidar-depth' ||
-        (device.physicalDevices ?? []).some(
-          (physicalDevice) => physicalDevice.type === 'lidar-depth',
-        ),
-    );
+    const hasLidar = vision
+      .getAllCameraDevices()
+      .some(
+        (device) =>
+          device.type === 'lidar-depth' ||
+          (device.physicalDevices ?? []).some(
+            (physicalDevice) => physicalDevice.type === 'lidar-depth',
+          ),
+      );
     return hasLidar
       ? { id: 'lidar_depth', status: 'pass' }
       : {
