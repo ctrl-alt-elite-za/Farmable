@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 import secrets
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -12,6 +13,34 @@ import httpx
 from pydantic import SecretStr
 
 from .settings import TIMEOUTS, ServiceSettings
+
+SSE_MAX_BYTES = 2 * 1024 * 1024
+SSE_MAX_EVENT_BYTES = 1024 * 1024
+SSE_MAX_EVENTS = 256
+
+
+async def bounded_sse_lines(response: httpx.Response) -> AsyncGenerator[str, None]:
+    """Bound decoded bytes before buffering even an unterminated line/comment."""
+    buffer = b""
+    total = 0
+    async for chunk in response.aiter_bytes():
+        total += len(chunk)
+        if total > SSE_MAX_BYTES:
+            raise ProviderFailure("invalid_response")
+        buffer += chunk
+        while match := re.search(rb"[\r\n]", buffer):
+            end = match.start()
+            if buffer[end:] == b"\r":
+                break  # CRLF can straddle transport chunks.
+            width = 2 if buffer[end : end + 2] == b"\r\n" else 1
+            if end > SSE_MAX_EVENT_BYTES:
+                raise ProviderFailure("invalid_response")
+            line, buffer = buffer[:end], buffer[end + width :]
+            yield line.decode("utf-8")
+        if len(buffer) > SSE_MAX_EVENT_BYTES:
+            raise ProviderFailure("invalid_response")
+    if buffer:
+        yield buffer.removesuffix(b"\r").decode("utf-8")
 
 
 @dataclass(frozen=True)
@@ -161,22 +190,28 @@ class Adapter:
             self.check_status(response)
             lines: list[str] = []
             size = 0
-            async for line in response.aiter_lines():
+            events = 0
+            async for line in bounded_sse_lines(response):
                 if line.startswith("data:"):
                     part = line[5:].lstrip()
-                    size += len(part)
-                    if size > 1024 * 1024:
+                    size += len(part.encode("utf-8")) + bool(lines)
+                    if size > SSE_MAX_EVENT_BYTES:
                         raise ProviderFailure("invalid_response")
                     lines.append(part)
                 elif not line and lines:
                     payload = json.loads("\n".join(lines))
                     if not isinstance(payload, dict):
                         raise ProviderFailure("invalid_response")
+                    events += 1
+                    if events > SSE_MAX_EVENTS:
+                        raise ProviderFailure("invalid_response")
                     yield payload
                     lines, size = [], 0
             if lines:
                 payload = json.loads("\n".join(lines))
                 if not isinstance(payload, dict):
+                    raise ProviderFailure("invalid_response")
+                if events >= SSE_MAX_EVENTS:
                     raise ProviderFailure("invalid_response")
                 yield payload
         finally:

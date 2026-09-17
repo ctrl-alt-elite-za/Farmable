@@ -80,6 +80,11 @@ events do not satisfy the first-text deadline. No retry occurs after any event
 has been delivered, avoiding duplicated streams. Stream cancellation closes
 the response and releases the circuit probe. Total streaming deadlines include
 retries/backoff. Nonstreaming Gemini requests have a 60 s per-attempt bound.
+Each SSE response is limited to 2 MiB of decoded UTF-8 bytes (including comments
+and framing), 256 JSON events, and 1 MiB per event/line. Limits are enforced
+before buffering unterminated lines, and violations close the response with
+`invalid_response`, without retrying. The smoke checker retains only summary
+flags, not the sequence of provider payloads.
 
 Azure short-audio REST accepts valid PCM WAV (mono, 16 kHz, 16-bit; at most
 60 s). Its 15 s request budget is **not** the issue's SDK-level 15 s silence

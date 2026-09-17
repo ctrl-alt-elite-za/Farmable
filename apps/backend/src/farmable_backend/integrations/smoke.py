@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import base64
 import os
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +67,18 @@ def report(service: str, ok: bool, reason: str = "contract") -> bool:
     return ok
 
 
+async def stream_summary(events: AsyncIterator[ServiceResult]) -> tuple[bool, str]:
+    """Keep only flags, not an ever-growing list of provider payloads."""
+    visible = False
+    terminal_ok = False
+    reason = "contract"
+    async for event in events:
+        visible = visible or has_visible_text(event.data or {})
+        terminal_ok = event.ok and event.done
+        reason = event.error or "contract"
+    return visible and terminal_ok, reason
+
+
 async def check_services(
     registry: ServiceRegistry, *, allow_sms: bool, crop_paths: dict[str, Path | None]
 ) -> bool:
@@ -100,9 +113,8 @@ async def check_services(
     else:
         passed.append(report("azure_stt", False, "audio_unavailable"))
 
-    events = [
-        event
-        async for event in registry.gemini.generate_stream(
+    gemini_ok, gemini_reason = await stream_summary(
+        registry.gemini.generate_stream(
             {
                 "contents": [
                     {"role": "user", "parts": [{"text": "Reply with: Farmable smoke test."}]}
@@ -110,16 +122,8 @@ async def check_services(
                 "generationConfig": {"maxOutputTokens": 128},
             }
         )
-    ]
-    gemini_ok = bool(
-        events
-        and events[-1].ok
-        and events[-1].done
-        and any(has_visible_text(event.data or {}) for event in events)
     )
-    passed.append(
-        report("gemini", gemini_ok, events[-1].error or "contract" if events else "contract")
-    )
+    passed.append(report("gemini", gemini_ok, gemini_reason))
 
     crop_checks = []
     for crop, path in crop_paths.items():
