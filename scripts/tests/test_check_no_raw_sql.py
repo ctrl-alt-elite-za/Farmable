@@ -868,7 +868,10 @@ def test_absolute_and_escaping_patterns_are_rejected(tmp_path: Path) -> None:
     """A pattern that can never match must not sit there doing nothing."""
     (tmp_path / "a.py").write_text('cursor.execute("DROP TABLE x")\n', encoding="utf-8")
     assert main(["--exclude", f"{tmp_path}/a.py", str(tmp_path)]) == 2
+    assert main(["--exclude", "/absolute/a.py", str(tmp_path)]) == 2
+    assert main(["--exclude", "C:/tmp/a.py", str(tmp_path)]) == 2
     assert main(["--exclude", "../a.py", str(tmp_path)]) == 2
+    assert main(["--exclude", "..\\a.py", str(tmp_path)]) == 2
     assert main(["--exclude", "", str(tmp_path)]) == 2
 
 
@@ -880,4 +883,5 @@ def test_overlapping_directories_count_a_file_once(tmp_path: Path) -> None:
     result = check_paths([tmp_path, nested], root=tmp_path)
     assert result.seen == 1
     assert len(result.hits) == 1
+    assert result.hits[0].startswith("apps/backend/a.py:1:")
     assert result.unexamined == 0

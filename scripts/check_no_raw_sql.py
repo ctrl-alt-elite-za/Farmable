@@ -43,7 +43,7 @@ import sys
 import tomllib
 from collections import deque
 from fnmatch import fnmatch
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 # Raw SQL regardless of what is passed - there is no ORM form of these.
 UNCONDITIONAL_METHODS = {"exec_driver_sql", "executescript"}
@@ -472,7 +472,7 @@ def check_file(path: Path, display: str | None = None) -> list[str]:
         what = _describe(node, scope, branch)
         if what and not _allowed(node, lines):
             reported.add(id(node))
-            hits.append((node.lineno, f"{path}:{node.lineno}: {what}"))
+            hits.append((node.lineno, f"{shown}:{node.lineno}: {what}"))
 
     return [message for _, message in sorted(hits)]
 
@@ -620,9 +620,11 @@ def validate_pattern(pattern: str) -> str:
     """
     if not pattern:
         raise ValueError("exclude pattern is empty")
-    if pattern.startswith("/"):
+    posix = PurePosixPath(pattern)
+    windows = PureWindowsPath(pattern)
+    if posix.is_absolute() or windows.is_absolute():
         raise ValueError(f"exclude pattern must be repo-relative, not absolute: {pattern!r}")
-    if ".." in Path(pattern).parts:
+    if ".." in posix.parts or ".." in windows.parts:
         raise ValueError(f"exclude pattern must stay inside the repo: {pattern!r}")
     return pattern
 
