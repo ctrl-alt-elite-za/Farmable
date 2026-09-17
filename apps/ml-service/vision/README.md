@@ -12,7 +12,8 @@ python apps/ml-service/vision/check_split.py --train data/v1/train/images --test
 Ultralytics/TFLite training environment (for example Colab). It writes a
 versioned report and can export TFLite; provide newline-delimited
 `--train-sessions` and `--test-sessions` files. It rejects overlapping session
-lists and does not download data in CI. Install the exact versions in
+lists and a JSON `--crop-counts` file proving at least 300 labelled images for
+each crop. It does not download data in CI. Install the exact versions in
 `requirements-colab.txt`.
 
 Record real cabbage and tomato measurements in `weights/cabbage.csv` and
@@ -20,3 +21,6 @@ Record real cabbage and tomato measurements in `weights/cabbage.csv` and
 `python apps/ml-service/vision/eval_weights.py apps/ml-service/vision/weights/cabbage.csv apps/ml-service/vision/weights/tomato.csv`.
 Spinach is sold by bunch or kilogram and has no per-plant formula. Do not add
 synthetic measurements to satisfy the minimum sample count.
+
+After migration and artifact upload, register the model and verify it from the
+backend environment with `python -m app.scripts.detector_model_exists <version>`.

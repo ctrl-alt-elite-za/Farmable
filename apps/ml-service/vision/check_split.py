@@ -63,7 +63,7 @@ def validate_labels(image_root: Path) -> dict[int, int]:
     for image in image_root.rglob("*"):
         if not image.is_file() or image.suffix.lower() not in IMAGE_SUFFIXES:
             continue
-        label = label_root / f"{image.stem}.txt"
+        label = label_root / image.relative_to(image_root).with_suffix(".txt")
         if not label.is_file():
             raise ValueError(f"missing label for {image.name!r}")
         seen: set[int] = set()
