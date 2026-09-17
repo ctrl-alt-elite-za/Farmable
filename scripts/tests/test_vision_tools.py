@@ -11,10 +11,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps/ml-service"))
 
-from vision import export
-from vision.check_split import split_sessions, validate_labels
-from vision.eval_weights import fit_range, load_measurements
-from vision.train import report_for
+from vision import export  # noqa: E402
+from vision.check_split import split_sessions, validate_labels  # noqa: E402
+from vision.eval_weights import fit_range, load_measurements  # noqa: E402
+from vision.train import report_for  # noqa: E402
 
 # Keys accepted by ultralytics==8.4.0 cfg/default.yaml; anything else raises SyntaxError at export.
 ULTRALYTICS_EXPORT_KEYS = {"format", "imgsz", "half", "int8", "data", "nms", "batch", "dynamic"}
