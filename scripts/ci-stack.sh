@@ -18,7 +18,20 @@ export COMMIT_SHA API_PORT=0
 if [ "$mode" = mobile ]; then export API_PORT=8000; fi
 project="farmable-ci-$(uv run python -c 'import uuid; print(uuid.uuid4().hex)')"
 compose=(docker compose -p "$project" -f compose.yaml)
-cleanup() { "${compose[@]}" down --volumes --remove-orphans; }
+cleanup() {
+  local status=$?
+  if [ "$mode" = mobile ] && [ "$status" -ne 0 ]; then
+    # Capture while the owned emulator is still running; the runner stops it next.
+    # Only app/platform error tags, never environment or backend/provider logs.
+    mkdir -p .ci-mobile-debug
+    adb logcat -d -s AndroidRuntime:E ReactNativeJS:E > .ci-mobile-debug/android-errors.log 2>&1 || true
+    adb exec-out screencap -p > .ci-mobile-debug/screen.png 2>/dev/null || true
+    adb shell uiautomator dump /sdcard/farmable-ci-ui.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/farmable-ci-ui.xml .ci-mobile-debug/ui.xml >/dev/null 2>&1 || true
+  fi
+  "${compose[@]}" down --volumes --remove-orphans
+  return "$status"
+}
 trap cleanup EXIT
 "${compose[@]}" build api worker
 "${compose[@]}" up -d --wait database

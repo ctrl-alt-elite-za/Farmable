@@ -3,6 +3,9 @@ name: Test-mode scan tracks plants while panning
 ---
 - launchApp:
     clearState: true
+- extendedWaitUntil:
+    visible: 'Farmable'
+    timeout: 30000
 - tapOn:
     id: tab-scan
 - assertVisible: 'Test scan'

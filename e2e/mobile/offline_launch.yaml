@@ -7,7 +7,11 @@ name: App launches and reports Offline when the API is unreachable
 ---
 - launchApp:
     clearState: true
-- assertVisible: 'Farmable'
+- extendedWaitUntil:
+    visible: 'Farmable'
+    timeout: 30000
 - assertVisible:
     id: 'api-status'
-- assertVisible: 'Offline'
+- extendedWaitUntil:
+    visible: 'Offline'
+    timeout: 30000

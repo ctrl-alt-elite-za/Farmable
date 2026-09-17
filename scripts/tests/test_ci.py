@@ -333,6 +333,16 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     assert online < stop < offline
 
 
+def test_mobile_maestro_flows_wait_for_release_app_startup():
+    repo = Path(__file__).resolve().parents[2]
+    for name, expected in (("online_launch.yaml", "Online"), ("offline_launch.yaml", "Offline")):
+        flow = (repo / "e2e/mobile" / name).read_text()
+        assert "extendedWaitUntil:" in flow
+        assert "visible: 'Farmable'" in flow
+        assert "timeout: 30000" in flow
+        assert f"visible: '{expected}'" in flow
+
+
 def test_privileged_reporter_never_checks_out_pr_code():
     repo = Path(__file__).resolve().parents[2]
     data = yaml.safe_load((repo / ".github/workflows/ci-report.yml").read_text())
@@ -344,12 +354,31 @@ def test_privileged_reporter_never_checks_out_pr_code():
 def test_live_scan_maestro_flow_is_included_in_mobile_e2e():
     repo = Path(__file__).resolve().parents[2]
     assert (repo / "e2e/mobile/scan_pan_test_mode.yaml").is_file()
+    flow = (repo / "e2e/mobile/scan_pan_test_mode.yaml").read_text()
+    assert "extendedWaitUntil:" in flow and "visible: 'Farmable'" in flow
     stack = (repo / "scripts/ci-stack.sh").read_text()
     assert (
         stack.index("maestro test e2e/mobile/online_launch.yaml")
         < stack.index("maestro test e2e/mobile/scan_pan_test_mode.yaml")
         < stack.index('"${compose[@]}" stop api')
     )
+
+
+def test_mobile_launch_failure_keeps_diagnostics_before_emulator_shutdown():
+    repo = Path(__file__).resolve().parents[2]
+    stack = (repo / "scripts/ci-stack.sh").read_text()
+    assert 'if [ "$mode" = mobile ] && [ "$status" -ne 0 ]' in stack
+    assert "AndroidRuntime:E ReactNativeJS:E" in stack
+    assert "adb exec-out screencap -p" in stack
+    assert "uiautomator dump" in stack
+    workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
+    diagnostic = next(
+        step
+        for step in workflow["jobs"]["e2e-mobile"]["steps"]
+        if step.get("name") == "Preserve mobile launch diagnostics"
+    )
+    assert diagnostic["if"] == "failure() && steps.app.outputs.ready == 'true'"
+    assert diagnostic["with"]["name"] == "mobile-e2e-debug"
 
 
 def test_status_check_activation_defaults_to_read_only(monkeypatch, capsys):

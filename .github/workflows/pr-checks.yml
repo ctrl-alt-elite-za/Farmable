@@ -181,3 +181,13 @@ jobs:
           path: .ci-reports/e2e-mobile.json
           if-no-files-found: ignore
           retention-days: 7
+      - name: Preserve mobile launch diagnostics
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: failure() && steps.app.outputs.ready == 'true'
+        with:
+          name: mobile-e2e-debug
+          path: |
+            .ci-mobile-debug/
+            ~/.maestro/tests/
+          if-no-files-found: ignore
+          retention-days: 7
