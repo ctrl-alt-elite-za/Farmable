@@ -186,6 +186,8 @@ jobs:
         if: failure() && steps.app.outputs.ready == 'true'
         with:
           name: mobile-e2e-debug
+          # Only the two scoped diagnostic directories below, never .env.
+          include-hidden-files: true
           path: |
             .ci-mobile-debug/
             ~/.maestro/tests/
