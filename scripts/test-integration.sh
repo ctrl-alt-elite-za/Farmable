@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Every run owns a unique Compose project and disposable volume; never touches the dev DB.
 set -euo pipefail
+export ENVIRONMENT=ci INTEGRATIONS_MODE=fake
 cd "$(dirname "$0")/.."
 command -v docker >/dev/null || { echo "Docker is required" >&2; exit 1; }
 docker info >/dev/null || { echo "Start Docker Desktop/the Docker engine first" >&2; exit 1; }

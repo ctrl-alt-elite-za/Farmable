@@ -65,9 +65,11 @@ This change cannot honestly close #5 yet:
   a passing flow. When the app/config/flows land, it builds with test mode,
   installs the APK, runs Maestro against the isolated API, and retries emulator
   boot once only if tests never started. Android API URLs use `10.0.2.2:8000`.
-- **#7's service fault flags** join the degradation suite when those services
-  exist. Today database/worker stops exercise real dependency failure/recovery;
-  there is no claim that unimplemented external-service flags were tested.
+- **#7's service fault flags** are tested at the adapter/application boundary
+  using isolated fakes. CI Compose stacks explicitly use `ci`/`fake`; real paid
+  providers are forbidden in CI. Database/worker stops still exercise real
+  dependency failure/recovery. Feature-level provider degradation E2E proof is
+  due when feature consumers land; adapter tests do not claim that UI coverage.
 - **#23** supplies `make eval-assistant SET=dev`. Both the issue's legacy
   `backend/app/assistant/**` path and the real package's assistant directory
   trigger the required job. No paid API secrets are exposed to fork PR code;

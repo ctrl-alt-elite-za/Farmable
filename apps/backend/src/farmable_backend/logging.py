@@ -87,6 +87,12 @@ def configure_logging(level: str = "info") -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
     logging.basicConfig(level=level.upper(), handlers=[handler], force=True)
+    # Wire logs contain provider URLs, location queries, and potentially credentials.
+    for name in ("httpx", "httpcore"):
+        logger = logging.getLogger(name)
+        logger.handlers.clear()
+        logger.propagate = True
+        logger.setLevel(logging.WARNING)
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "procrastinate", "sqlalchemy"):
         logger = logging.getLogger(name)
         logger.handlers.clear()
