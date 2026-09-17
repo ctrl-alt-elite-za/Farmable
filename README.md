@@ -42,19 +42,23 @@ Tool versions are pinned in `.python-version`, `.nvmrc`, `package.json`'s
 
 ## Commands
 
-| Command                 | Does                                                                                 |
-| ----------------------- | ------------------------------------------------------------------------------------ |
-| `make setup`            | One-time (and repeatable) environment setup                                          |
-| `make lint`             | Ruff, ESLint                                                                         |
-| `make format`           | Ruff format, Prettier — applies fixes                                                |
-| `make typecheck`        | mypy, TypeScript project references                                                  |
-| `make test`             | pytest (`scripts/tests`, `apps/backend`), workspace test scripts                     |
-| `make hooks`            | (Re-)installs the pre-commit and pre-push git hooks                                  |
-| `make check-no-raw-sql` | Fails if `apps/backend/`/`migrations/` contain hand-written SQL                      |
-| `make client`           | Regenerates `packages/api-client` from `apps/backend`'s OpenAPI schema (added in #3) |
+| Command                 | Does                                                                    |
+| ----------------------- | ----------------------------------------------------------------------- |
+| `make setup`            | One-time (and repeatable) environment setup                             |
+| `make lint`             | Ruff, ESLint                                                            |
+| `make format`           | Ruff format, Prettier — applies fixes                                   |
+| `make typecheck`        | mypy, TypeScript project references                                     |
+| `make test`             | pytest (`scripts/tests`, `apps/backend`), workspace test scripts        |
+| `make hooks`            | (Re-)installs the pre-commit and pre-push git hooks                     |
+| `make check-no-raw-sql` | Fails if `apps/backend/`/`migrations/` contain hand-written SQL         |
+| `make client`           | Regenerates the typed API client from FastAPI's OpenAPI schema          |
+| `make test-integration` | Tests API + worker + PostGIS in an isolated, disposable Compose project |
+| `make db-migrate`       | Explicitly applies Alembic migrations using environment credentials     |
+| `make queue-schema`     | Installs Procrastinate's vendor schema once on a new database           |
 
-Each command is a no-op (and exits 0) for a language that has no source files
-yet, so they all pass on the current skeleton.
+See [the backend guide](apps/backend/README.md) for local services, safe defaults,
+migrations, and integration tests. Unit tests do not require Docker. Commands for
+languages with no source files yet remain no-ops.
 
 ## Troubleshooting
 

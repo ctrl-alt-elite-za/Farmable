@@ -11,11 +11,16 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Run gitleaks scan
         run: |
-          python -m pip install --disable-pip-version-check pre-commit
-          pre-commit run gitleaks --all-files
+          # v8.21.2, pinned by digest. The pre-commit hook scans only the index;
+          # CI must also detect secrets committed and then removed from HEAD.
+          docker run --rm --volume "$PWD:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks@sha256:0e99e8821643ea5b235718642b93bb32486af9c8162c8b8731f7cbdc951a7f46 \
+            git /repo --config /repo/.gitleaks.toml --redact --log-opts="--all"
