@@ -30,6 +30,12 @@ an `EXPO_PUBLIC_*` variable: those are inlined into the bundle.
 that sets it together with `EXPO_PUBLIC_DEMO_MODE=1` is refused by
 `scripts/check-test-mode.sh` and by `src/testmode/source.ts`.
 
+Android test-mode builds do not register Viro's native AR package: the pinned
+SDK ships an ARM renderer but no x86_64 renderer, and otherwise crashes during
+emulator startup. This is not an AR test or a passing AR capability result.
+Physical builds still register Viro; iOS configuration is unchanged. Regenerate
+the Android project with `--clean` when switching between test and device builds.
+
 ## Installing on the test phones
 
 See [`docs/sideload.md`](../../docs/sideload.md). The **Self-test** tab runs the checks

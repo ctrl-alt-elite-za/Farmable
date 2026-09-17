@@ -57,7 +57,17 @@ const config: ExpoConfig = {
     ['expo-location', { locationWhenInUsePermission: LOCATION_REASON }],
     ['expo-audio', { microphonePermissionText: MICROPHONE_REASON }],
     './with-viro-monorepo',
-    '@reactvision/react-viro',
+    [
+      '@reactvision/react-viro',
+      {
+        android: {
+          // Viro 2.58.1 has no x86_64 renderer. Its package eagerly loads that
+          // renderer at startup, even if AR is never opened. Recorded-frame
+          // emulator builds must not register it; physical builds keep real AR.
+          xRMode: process.env.EXPO_PUBLIC_TEST_MODE === '1' ? [] : ['AR', 'GVR'],
+        },
+      },
+    ],
   ],
 };
 

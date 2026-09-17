@@ -318,6 +318,7 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     build = (repo / "scripts/ci-mobile.sh").read_text()
     assert "assembleRelease" in build and "assembleDebug" not in build
     assert "-PreactNativeArchitectures=x86_64" in build
+    assert "expo prebuild --platform android --no-install --clean" in build
     device_workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
     device_steps = device_workflow["jobs"]["android-build"]["steps"]
     device_build = next(step for step in device_steps if step.get("name") == "Build the APK")
