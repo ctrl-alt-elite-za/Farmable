@@ -1,6 +1,6 @@
 # Crop labelling guide
 
-This guide defines the labels used by the all-crop detector. Label only plots owned by, or made available to, the team. Do not upload the dataset to this repository: `ml/vision/data/` is ignored and the source bucket must be private.
+This guide defines the labels used by the all-crop detector. Label only plots owned by, or made available to, the team. Do not upload the dataset to this repository: `apps/ml-service/vision/data/` is ignored and the source bucket must be private.
 
 ## Classes
 
@@ -16,7 +16,7 @@ Use one tight bounding box per visible instance. Include the whole visible cabba
 
 Capture at least 300 images of each of cabbage, tomato, and spinach across morning, midday, and overcast light, from 0.3–1.5 m. Record a stable `session_id` for each filming session. Review class names, box edges, and blurred faces/number plates before export.
 
-Export YOLO labels as normalized `class_id x_center y_center width height` values. Keep source images and labels in the private bucket. Split by `session_id`, never by individual image; run `python ml/vision/check_split.py` before training.
+Export YOLO labels as normalized `class_id x_center y_center width height` values. Keep source images and labels in the private bucket. Split by `session_id`, never by individual image; run `python apps/ml-service/vision/check_split.py` before training.
 
 ## Examples
 

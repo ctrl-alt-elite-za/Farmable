@@ -4,7 +4,8 @@ export PATH := $(HOME)/.local/bin:$(PATH)
 PY_DIRS := apps/backend apps/ml-service scripts migrations
 PY_FILES := $(shell scripts/has-py-files.sh $(PY_DIRS))
 # mypy errors on a directory with no .py files, so pass only populated ones.
-MYPY_DIRS := $(shell for d in $(PY_DIRS); do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
+MYPY_DIRS := $(shell for d in apps/backend scripts; do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
+MYPY_ML_DIR := apps/ml-service
 PY_TEST_FILES := $(shell find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
 SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
 
@@ -52,6 +53,7 @@ format:
 
 typecheck:
 	@if [ -n "$(PY_FILES)" ]; then uv run mypy $(MYPY_DIRS); else echo "no Python files yet, skipping mypy"; fi
+	@if [ -n "$(shell scripts/has-py-files.sh $(MYPY_ML_DIR))" ]; then (cd $(MYPY_ML_DIR) && uv run mypy --explicit-package-bases --ignore-missing-imports vision); fi
 	pnpm -r --if-present run typecheck
 
 test:

@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps/ml-service"))
 
-from ml.vision.check_split import split_sessions
-from ml.vision.eval_weights import fit_range, load_measurements
+from vision.check_split import split_sessions
+from vision.eval_weights import fit_range, load_measurements
 
 
 def test_split_check_rejects_shared_filming_session(tmp_path: Path) -> None:
