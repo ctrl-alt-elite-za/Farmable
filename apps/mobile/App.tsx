@@ -4,8 +4,9 @@ import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 
 import { HealthScreen } from './src/screens/HealthScreen';
 import { SelfTestScreen } from './src/screens/SelfTestScreen';
+import { ScanScreen } from './src/scan/ScanScreen';
 
-type Tab = 'health' | 'selftest';
+type Tab = 'health' | 'scan' | 'selftest';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('health');
@@ -15,6 +16,9 @@ export default function App() {
       <StatusBar style="auto" />
       <Text style={styles.title}>Farmable</Text>
       <View style={styles.tabs}>
+        <TouchableOpacity testID="tab-scan" style={styles.tab} onPress={() => setTab('scan')}>
+          <Text style={tab === 'scan' ? styles.tabLabelActive : styles.tabLabel}>Scan</Text>
+        </TouchableOpacity>
         <TouchableOpacity testID="tab-health" style={styles.tab} onPress={() => setTab('health')}>
           <Text style={tab === 'health' ? styles.tabLabelActive : styles.tabLabel}>Health</Text>
         </TouchableOpacity>
@@ -28,7 +32,7 @@ export default function App() {
           </Text>
         </TouchableOpacity>
       </View>
-      {tab === 'health' ? <HealthScreen /> : <SelfTestScreen />}
+      {tab === 'health' ? <HealthScreen /> : tab === 'scan' ? <ScanScreen /> : <SelfTestScreen />}
     </SafeAreaView>
   );
 }

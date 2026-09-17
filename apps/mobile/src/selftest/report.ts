@@ -31,6 +31,7 @@ export interface SelfTestMeta {
   /** Why the detector could not be measured, if it could not be (issue #16 note). */
   detectorNote?: string;
   startedAt: string;
+  scanOverlayFps?: number;
 }
 
 /** Field names are snake_case because this object is the request body the server stores. */
@@ -47,6 +48,7 @@ export interface SelfTestReport {
   mic_record: CheckStatus;
   notes: string[];
   overall: 'pass' | 'fail';
+  scan_overlay_fps?: number;
 }
 
 /**
@@ -76,7 +78,7 @@ export function buildSelfTestReport(results: CheckResult[], meta: SelfTestMeta):
     notes.push(`detector_ms: ${meta.detectorMs} ms is over the ${DETECTOR_MS_BUDGET} ms budget`);
   }
 
-  return {
+  const report: SelfTestReport = {
     platform: meta.platform,
     app_version: meta.appVersion,
     build_sha: meta.buildSha,
@@ -90,4 +92,6 @@ export function buildSelfTestReport(results: CheckResult[], meta: SelfTestMeta):
     notes,
     overall: notes.length === 0 ? 'pass' : 'fail',
   };
+  if (meta.scanOverlayFps !== undefined) report.scan_overlay_fps = meta.scanOverlayFps;
+  return report;
 }
