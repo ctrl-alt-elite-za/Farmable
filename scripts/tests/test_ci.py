@@ -309,12 +309,66 @@ def test_every_remote_action_is_sha_pinned_and_jobs_are_bounded():
                     assert re.fullmatch(r"[^@]+@[0-9a-f]{40}", action), (path, action)
 
 
+def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
+    repo = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
+    steps = workflow["jobs"]["e2e-mobile"]["steps"]
+    java = next(step for step in steps if step.get("uses", "").startswith("actions/setup-java@"))
+    assert (repo / java["with"]["cache-dependency-path"]).is_file()
+    build = (repo / "scripts/ci-mobile.sh").read_text()
+    assert "assembleRelease" in build and "assembleDebug" not in build
+    assert "-PreactNativeArchitectures=x86_64" in build
+    assert "expo prebuild --platform android --no-install --clean" in build
+    device_workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
+    device_steps = device_workflow["jobs"]["android-build"]["steps"]
+    device_build = next(step for step in device_steps if step.get("name") == "Build the APK")
+    assert "-PreactNativeArchitectures=arm64-v8a" in device_build["run"]
+    assert device_workflow["jobs"]["android-build"]["timeout-minutes"] == 30
+    for step in steps:
+        if "APK=" in step.get("with", {}).get("script", ""):
+            assert "apk/release/app-release.apk" in step["with"]["script"]
+    stack = (repo / "scripts/ci-stack.sh").read_text()
+    online = stack.index("maestro test e2e/mobile/online_launch.yaml")
+    stop = stack.index('"${compose[@]}" stop api')
+    offline = stack.index("maestro test e2e/mobile/offline_launch.yaml")
+    assert online < stop < offline
+
+
+def test_mobile_maestro_flows_wait_for_release_app_startup():
+    repo = Path(__file__).resolve().parents[2]
+    for name, expected in (("online_launch.yaml", "Online"), ("offline_launch.yaml", "Offline")):
+        flow = (repo / "e2e/mobile" / name).read_text()
+        assert "extendedWaitUntil:" in flow
+        assert "visible: 'Farmable'" in flow
+        assert "timeout: 30000" in flow
+        assert f"visible: '{expected}'" in flow
+
+
 def test_privileged_reporter_never_checks_out_pr_code():
     repo = Path(__file__).resolve().parents[2]
     data = yaml.safe_load((repo / ".github/workflows/ci-report.yml").read_text())
     checkout = data["jobs"]["comment"]["steps"][0]
     assert checkout["with"]["ref"] == "${{ github.event.repository.default_branch }}"
     assert checkout["with"]["persist-credentials"] is False
+
+
+def test_mobile_launch_failure_keeps_diagnostics_before_emulator_shutdown():
+    repo = Path(__file__).resolve().parents[2]
+    stack = (repo / "scripts/ci-stack.sh").read_text()
+    assert 'if [ "$mode" = mobile ] && [ "$status" -ne 0 ]' in stack
+    assert "AndroidRuntime:E ReactNativeJS:E" in stack
+    assert "adb exec-out screencap -p" in stack
+    assert "uiautomator dump" in stack
+    workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
+    diagnostic = next(
+        step
+        for step in workflow["jobs"]["e2e-mobile"]["steps"]
+        if step.get("name") == "Preserve mobile launch diagnostics"
+    )
+    assert diagnostic["if"] == "failure() && steps.app.outputs.ready == 'true'"
+    assert diagnostic["with"]["name"] == "mobile-e2e-debug"
+    assert diagnostic["with"]["include-hidden-files"] is True
+    assert diagnostic["with"]["path"].splitlines() == [".ci-mobile-debug/", "~/.maestro/tests/"]
 
 
 def test_status_check_activation_defaults_to_read_only(monkeypatch, capsys):
