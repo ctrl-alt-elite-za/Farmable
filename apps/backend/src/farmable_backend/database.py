@@ -5,6 +5,10 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sess
 
 from farmable_backend.config import Settings
 
+# The image's Tiger geocoder adds vendor schemas to the database search path.
+# Keep ORM resolution/reflection in public without executing a SQL SET statement.
+CONNECTION_OPTIONS = "-c statement_timeout=5000 -c search_path=public"
+
 
 class ExternalBase(DeclarativeBase):
     """Read-only mappings, never included in our Alembic metadata."""
@@ -34,7 +38,7 @@ class QueueJob(ExternalBase):
 def make_engine(settings: Settings):
     return create_engine(
         settings.database_url.get_secret_value(),
-        connect_args={"connect_timeout": 5, "options": "-c statement_timeout=5000"},
+        connect_args={"connect_timeout": 5, "options": CONNECTION_OPTIONS},
         pool_timeout=5,
         pool_pre_ping=True,
         hide_parameters=True,

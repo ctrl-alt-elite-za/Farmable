@@ -58,7 +58,10 @@ docker compose exec worker python -m farmable_backend.manage example-job
   credentials. Vendor job messages are replaced with a generic queue event because
   Procrastinate embeds arbitrary task arguments in them. Exceptions are not serialized.
 - PostgreSQL connections impose a 5-second statement timeout, including worker
-  connections. All application queries use ORM expressions, never SQL strings.
+  connections. They also pin `search_path=public`: the image's Tiger geocoder
+  adds vendor schemas to the database default, which must not enter Alembic's
+  application diff. Both settings use connection startup options, not SQL statements.
+  All application queries use ORM expressions, never SQL strings.
   Procrastinate owns its schema and internal queries; PostGIS is initialized by
   the Docker image. Their tables are excluded from application autogeneration,
   not from the raw-SQL scanner.

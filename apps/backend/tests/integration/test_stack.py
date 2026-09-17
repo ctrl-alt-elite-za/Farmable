@@ -57,6 +57,9 @@ def test_healthy_services_and_example_job():
         assert "spatial_ref_sys" in inspect(engine).get_table_names()
         with Session(engine) as session:
             assert session.scalar(select(func.current_setting("statement_timeout"))) == "5s"
+            assert session.scalar(select(func.current_setting("search_path"))) == "public"
+        # These vendor tables remain present, but must not appear in our migration diff.
+        assert inspect(engine).get_table_names(schema="tiger")
     finally:
         engine.dispose()
 
@@ -66,14 +69,18 @@ def test_models_match_migrations(tmp_path):
     # Keep generated files in the disposable test container, not the source tree.
     versions = tmp_path / "versions"
     versions.mkdir()
-    config.set_main_option("version_locations", str(versions) + " migrations/versions")
+    config.set_main_option(
+        "version_locations", os.pathsep.join([str(versions), "migrations/versions"])
+    )
     revision = command.revision(
         config, message="unchanged", autogenerate=True, version_path=str(versions)
     )
     module = ast.parse(Path(revision.path).read_text(encoding="utf-8"))
     functions = {node.name: node.body for node in module.body if isinstance(node, ast.FunctionDef)}
     for name in ("upgrade", "downgrade"):
-        assert len(functions[name]) == 1 and isinstance(functions[name][0], ast.Pass)
+        assert len(functions[name]) == 1 and isinstance(functions[name][0], ast.Pass), ast.unparse(
+            module
+        )
 
 
 def test_worker_down():

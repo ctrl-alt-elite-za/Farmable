@@ -20,7 +20,7 @@ def test_query_timeout(settings):
         make_engine(settings)
     assert create.call_args.kwargs["connect_args"] == {
         "connect_timeout": 5,
-        "options": "-c statement_timeout=5000",
+        "options": "-c statement_timeout=5000 -c search_path=public",
     }
     assert create.call_args.kwargs["hide_parameters"] is True
 
@@ -63,6 +63,10 @@ def test_worker_shares_example_task(settings):
     app = create_task_app(settings)
     assert "example_job" in app.tasks
     assert app.tasks["example_job"].queue == "default"
+    assert app.connector._pool_args["kwargs"] == {
+        "connect_timeout": 5,
+        "options": "-c statement_timeout=5000 -c search_path=public",
+    }
 
 
 def test_example_job_preserves_request_context(settings):
