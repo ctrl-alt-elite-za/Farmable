@@ -3,7 +3,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ "${1:-}" = build ]; then
   export EXPO_PUBLIC_TEST_MODE=1 EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
-  pnpm -C apps/mobile exec expo prebuild --platform android --no-install
+  # Regenerate rather than retaining a physical build's Viro registration.
+  pnpm -C apps/mobile exec expo prebuild --platform android --no-install --clean
   # A standalone JS bundle is required: debug/dev-client builds need Metro.
   # The CI emulator is x86_64; compiling the other three ABIs wastes its budget.
   (cd apps/mobile/android && ./gradlew assembleRelease --no-daemon --build-cache -PreactNativeArchitectures=x86_64)
