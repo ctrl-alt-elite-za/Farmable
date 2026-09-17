@@ -5,8 +5,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps/ml-service"))
 
-from vision.check_split import split_sessions
+from vision.check_split import split_sessions, validate_labels
 from vision.eval_weights import fit_range, load_measurements
+from vision.train import report_for
 
 
 def test_split_check_rejects_shared_filming_session(tmp_path: Path) -> None:
@@ -33,3 +34,19 @@ def test_weight_fit_reports_holdout_coverage() -> None:
     result = fit_range(values)
     assert result["held_out"] == 5
     assert result["coverage"] == 1.0
+
+
+def test_label_validator_rejects_missing_label(tmp_path: Path) -> None:
+    images = tmp_path / "train" / "images"
+    images.mkdir(parents=True)
+    (images / "frame.jpg").touch()
+    with pytest.raises(ValueError, match="missing label"):
+        validate_labels(images)
+
+
+def test_training_report_has_per_class_and_session_contract() -> None:
+    report = report_for("v1", 42, 10, {}, ["train-a"], ["test-a"])
+    assert set(report["classes"]) == {"plant", "crop_head_or_fruit", "check_suggested"}
+    assert set(report["classes"]["plant"]) == {"precision", "recall", "map50"}
+    assert report["train_sessions"] == ["train-a"]
+    assert report["test_sessions"] == ["test-a"]

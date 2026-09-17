@@ -7,8 +7,34 @@ import json
 import random
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 CLASSES = ["plant", "crop_head_or_fruit", "check_suggested"]
+
+
+def report_for(
+    version: str,
+    seed: int,
+    epochs: int,
+    metrics: dict[str, object],
+    train_sessions: list[str],
+    test_sessions: list[str],
+) -> dict[str, Any]:
+    """Return the stable report contract consumed by the mobile/backend work."""
+    per_class = {
+        class_name: {"precision": None, "recall": None, "map50": None}
+        for class_name in CLASSES
+    }
+    return {
+        "version": version,
+        "created_at": datetime.now(UTC).isoformat(),
+        "seed": seed,
+        "epochs": epochs,
+        "metrics": metrics,
+        "classes": per_class,
+        "train_sessions": sorted(train_sessions),
+        "test_sessions": sorted(test_sessions),
+    }
 
 
 def main() -> int:
@@ -18,8 +44,16 @@ def main() -> int:
     parser.add_argument("--report-dir", type=Path, default=Path("apps/ml-service/vision/reports"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--train-sessions", type=Path, required=True)
+    parser.add_argument("--test-sessions", type=Path, required=True)
     parser.add_argument("--export", action="store_true", help="export the trained model to TFLite")
     args = parser.parse_args()
+    train_sessions = args.train_sessions.read_text(encoding="utf-8").splitlines()
+    test_sessions = args.test_sessions.read_text(encoding="utf-8").splitlines()
+    if not train_sessions or not test_sessions:
+        parser.error("train and test session lists must not be empty")
+    if set(train_sessions) & set(test_sessions):
+        parser.error("train and test session lists overlap")
     random.seed(args.seed)
     try:
         from ultralytics import YOLO
@@ -35,14 +69,14 @@ def main() -> int:
     )
     if args.export:
         model.export(format="tflite")
-    report = {
-        "version": args.version,
-        "created_at": datetime.now(UTC).isoformat(),
-        "seed": args.seed,
-        "epochs": args.epochs,
-        "metrics": getattr(result, "results_dict", {}),
-        "classes": CLASSES,
-    }
+    report = report_for(
+        args.version,
+        args.seed,
+        args.epochs,
+        getattr(result, "results_dict", {}),
+        train_sessions,
+        test_sessions,
+    )
     args.report_dir.mkdir(parents=True, exist_ok=True)
     (args.report_dir / f"{args.version}.json").write_text(
         json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8"

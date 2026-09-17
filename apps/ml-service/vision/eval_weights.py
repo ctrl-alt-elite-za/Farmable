@@ -6,6 +6,7 @@ import argparse
 import csv
 import json
 import math
+import random
 from pathlib import Path
 
 
@@ -15,15 +16,21 @@ def load_measurements(path: Path) -> list[tuple[float, float]]:
         if not rows.fieldnames or not {"diameter_cm", "weight_g"} <= set(rows.fieldnames):
             raise ValueError("measurements must contain diameter_cm and weight_g columns")
         values = [(float(r["diameter_cm"]), float(r["weight_g"])) for r in rows]
+    if any(not math.isfinite(x) or not math.isfinite(y) or x <= 0 or y <= 0 for x, y in values):
+        raise ValueError("measurements must contain finite positive diameter and weight values")
     if len(values) < 20:
         raise ValueError(f"{path} contains {len(values)} rows; at least 20 are required")
     return values
 
 
-def fit_range(values: list[tuple[float, float]], holdout: int = 5) -> dict[str, float | int]:
+def fit_range(
+    values: list[tuple[float, float]], holdout: int = 5, seed: int = 42
+) -> dict[str, float | int]:
     if len(values) <= holdout:
         raise ValueError("not enough rows for a held-out evaluation")
-    train, test = values[:-holdout], values[-holdout:]
+    shuffled = values.copy()
+    random.Random(seed).shuffle(shuffled)  # noqa: S311 - deterministic evaluation split
+    train, test = shuffled[:-holdout], shuffled[-holdout:]
     x_mean = sum(x for x, _ in train) / len(train)
     y_mean = sum(y for _, y in train) / len(train)
     denominator = sum((x - x_mean) ** 2 for x, _ in train)
@@ -50,9 +57,12 @@ def fit_range(values: list[tuple[float, float]], holdout: int = 5) -> dict[str, 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("paths", nargs="+", type=Path)
-    parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--output", type=Path, default=Path("apps/ml-service/vision/weights/weight_formulas.json")
+    )
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
-    result = {path.stem: fit_range(load_measurements(path)) for path in args.paths}
+    result = {path.stem: fit_range(load_measurements(path), seed=args.seed) for path in args.paths}
     print(json.dumps(result, indent=2, sort_keys=True))
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

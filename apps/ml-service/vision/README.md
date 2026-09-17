@@ -10,7 +10,10 @@ python apps/ml-service/vision/check_split.py --train data/v1/train/images --test
 
 `train.py` uses a fixed seed and requires a separately managed, pinned
 Ultralytics/TFLite training environment (for example Colab). It writes a
-versioned report and can export TFLite; it does not download data in CI.
+versioned report and can export TFLite; provide newline-delimited
+`--train-sessions` and `--test-sessions` files. It rejects overlapping session
+lists and does not download data in CI. Install the exact versions in
+`requirements-colab.txt`.
 
 Record real cabbage and tomato measurements in `weights/cabbage.csv` and
 `weights/tomato.csv` with `diameter_cm,weight_g,date`, then run
