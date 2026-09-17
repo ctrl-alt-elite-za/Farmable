@@ -1,0 +1,22 @@
+{
+  "devices": [
+    {
+      "name": "iPhone 12 Pro",
+      "platform": "ios",
+      "install_method": "Sideloadly with a free Apple ID",
+      "signature_valid_days": 7,
+      "warn_days_before_expiry": 2,
+      "installed_at": null,
+      "build_sha": null
+    },
+    {
+      "name": "Android test phone",
+      "platform": "android",
+      "install_method": "adb install",
+      "signature_valid_days": null,
+      "warn_days_before_expiry": null,
+      "installed_at": null,
+      "build_sha": null
+    }
+  ]
+}

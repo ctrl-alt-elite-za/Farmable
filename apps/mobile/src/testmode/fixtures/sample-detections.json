@@ -1,0 +1,25 @@
+{
+  "source": "placeholder frames - replace with a real recording when #16 produces the detector",
+  "frame_width": 1280,
+  "frame_height": 720,
+  "frames": [
+    {
+      "index": 0,
+      "timestamp_ms": 0,
+      "detections": [
+        { "label": "tomato", "confidence": 0.91, "box": [0.12, 0.2, 0.3, 0.44] },
+        { "label": "tomato", "confidence": 0.77, "box": [0.55, 0.18, 0.72, 0.4] }
+      ]
+    },
+    {
+      "index": 1,
+      "timestamp_ms": 33,
+      "detections": [{ "label": "tomato", "confidence": 0.88, "box": [0.13, 0.21, 0.31, 0.45] }]
+    },
+    {
+      "index": 2,
+      "timestamp_ms": 66,
+      "detections": []
+    }
+  ]
+}
