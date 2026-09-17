@@ -317,6 +317,12 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     assert (repo / java["with"]["cache-dependency-path"]).is_file()
     build = (repo / "scripts/ci-mobile.sh").read_text()
     assert "assembleRelease" in build and "assembleDebug" not in build
+    assert "-PreactNativeArchitectures=x86_64" in build
+    device_workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
+    device_steps = device_workflow["jobs"]["android-build"]["steps"]
+    device_build = next(step for step in device_steps if step.get("name") == "Build the APK")
+    assert "-PreactNativeArchitectures=arm64-v8a" in device_build["run"]
+    assert device_workflow["jobs"]["android-build"]["timeout-minutes"] == 30
     for step in steps:
         if "APK=" in step.get("with", {}).get("script", ""):
             assert "apk/release/app-release.apk" in step["with"]["script"]

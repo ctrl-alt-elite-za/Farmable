@@ -217,10 +217,11 @@ jobs:
             ${{ runner.os }}-android-
       - name: Build the APK
         working-directory: apps/mobile/android
-        run: ./gradlew assembleRelease --no-daemon --build-cache --parallel
+        # Physical test phones use ARM64. The E2E job builds its own x86_64 APK.
+        run: ./gradlew assembleRelease --no-daemon --build-cache --parallel -PreactNativeArchitectures=arm64-v8a
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: farmable-android-apk-${{ env.MOBILE_ARTIFACT_KIND }}
+          name: farmable-android-arm64-apk-${{ env.MOBILE_ARTIFACT_KIND }}
           path: apps/mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
       - name: Check the Android test phone supports ARCore

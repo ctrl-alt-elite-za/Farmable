@@ -24,9 +24,12 @@ for the steps below. Local emulator development can explicitly set its separate
 1. Open the repository's **Actions** tab and pick the most recent green **mobile** run.
 2. Download the artifact for the phone you are installing on:
    - iPhone 12 Pro: `farmable-ios-unsigned-device` (contains `Farmable-unsigned.ipa`)
-   - Android: `farmable-android-apk-device` (contains `app-release.apk`)
+   - ARM64 Android phone: `farmable-android-arm64-apk-device` (contains `app-release.apk`)
 
 Both come from `.github/workflows/mobile.yml`.
+The Android artifact targets ARM64 phones only. CI separately builds an x86_64
+release APK for the emulator, avoiding four-architecture native builds within
+the 30-minute job budget.
 
 ## 2. iPhone 12 Pro, with Sideloadly and a free Apple ID
 
