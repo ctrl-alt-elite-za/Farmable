@@ -51,3 +51,6 @@ mlruns/
 .vscode/*
 !.vscode/extensions.json
 *.log
+# Disposable CI output, generated SQL and scanner data must never be committed.
+.ci-reports/
+.ci-tmp/
