@@ -1,0 +1,95 @@
+name: Deploy staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: farmable-staging-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: af-south-1
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    name: Deploy ${{ github.sha }}
+    if: ${{ vars.DEPLOY_FREEZE != 'on' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+      - name: Configure AWS through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Resolve deployment resources
+        id: resources
+        shell: bash
+        run: |
+          echo "repository=$(aws ecr describe-repositories --repository-names farmable-backend --query 'repositories[0].repositoryUri' --output text)" >> "$GITHUB_OUTPUT"
+          echo "instance=$(aws ec2 describe-instances --filters Name=tag:Farmable,Values=staging Name=instance-state-name,Values=running --query 'Reservations[0].Instances[0].InstanceId' --output text)" >> "$GITHUB_OUTPUT"
+          echo "backup_bucket=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'farmable-staging-backups-')].Name | [0]" --output text)" >> "$GITHUB_OUTPUT"
+      - name: Build and push SHA image
+        env: { ECR_REGISTRY: ${{ steps.resources.outputs.repository }} }
+        run: |
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+          docker build --file apps/backend/Dockerfile --target runtime --tag "$ECR_REGISTRY:${IMAGE_TAG}" .
+          docker push "$ECR_REGISTRY:${IMAGE_TAG}"
+      - name: Back up staging database before migration
+        env: { INSTANCE_ID: ${{ steps.resources.outputs.instance }}, BACKUP_BUCKET: ${{ steps.resources.outputs.backup_bucket }} }
+        run: |
+          command_id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript --parameters commands="curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/infra/backup.sh -o /tmp/backup.sh,chmod 700 /tmp/backup.sh,DATABASE_URL=\$(aws ssm get-parameter --name /farmable/staging/database-url --with-decryption --query Parameter.Value --output text) BACKUP_BUCKET=$BACKUP_BUCKET COMMIT_SHA=${IMAGE_TAG} /tmp/backup.sh" --query Command.CommandId --output text)
+          aws ssm wait command-executed --command-id "$command_id" --instance-id "$INSTANCE_ID"
+      - name: Deploy through SSM
+        env: { INSTANCE_ID: ${{ steps.resources.outputs.instance }}, ECR_REGISTRY: ${{ steps.resources.outputs.repository }} }
+        run: |
+          command_id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript --parameters commands="curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/infra/remote-deploy.sh -o /tmp/deploy.sh,chmod 700 /tmp/deploy.sh,IMAGE_TAG=${IMAGE_TAG} ECR_REGISTRY=${ECR_REGISTRY} COMMIT_SHA=${IMAGE_TAG} /tmp/deploy.sh" --query Command.CommandId --output text)
+          aws ssm wait command-executed --command-id "$command_id" --instance-id "$INSTANCE_ID"
+      - name: Wait for readiness
+        env: { STAGING_URL: ${{ vars.STAGING_URL }} }
+        run: |
+          for attempt in {1..30}; do
+            body=$(curl --fail --silent --show-error "$STAGING_URL/health/ready" && exit 0) || true
+            echo "readiness attempt $attempt: $body"
+            sleep 10
+          done
+          exit 1
+      - name: Run staging API checks
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version-file: .python-version }
+      - run: pip install httpx pytest
+      - name: Execute public smoke tests
+        env: { API_URL: ${{ vars.STAGING_URL }}, COMMIT_SHA: ${{ github.sha }} }
+        run: pytest e2e/api -q
+      - name: Report deployment
+        if: always()
+        run: echo "staging SHA=${IMAGE_TAG}; readiness and E2E completed with status ${{ job.status }}"
+      - name: Roll back and open failure issue
+        if: failure()
+        env:
+          INSTANCE_ID: ${{ steps.resources.outputs.instance }}
+          ECR_REGISTRY: ${{ steps.resources.outputs.repository }}
+          BACKUP_KEY: staging/${{ github.sha }}.dump
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          command_id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript --parameters commands="curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/infra/rollback.sh -o /tmp/rollback.sh,chmod 700 /tmp/rollback.sh,ECR_REGISTRY=${ECR_REGISTRY} BACKUP_KEY=${BACKUP_KEY} /tmp/rollback.sh" --query Command.CommandId --output text)
+          aws ssm wait command-executed --command-id "$command_id" --instance-id "$INSTANCE_ID" || true
+          gh issue create --title "Deploy failed: ${{ github.sha }}" --body "The staging deployment for ${{ github.sha }} failed. The workflow attempted image and database rollback. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  frozen:
+    name: skipped: deploy freeze
+    if: ${{ vars.DEPLOY_FREEZE == 'on' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "skipped: deploy freeze is on; staging SHA is unchanged"

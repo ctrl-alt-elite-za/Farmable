@@ -1,0 +1,30 @@
+services:
+  migrate:
+    image: ${FARMABLE_BACKEND_IMAGE:?Set FARMABLE_BACKEND_IMAGE}
+    build: null
+  queue-schema:
+    image: ${FARMABLE_BACKEND_IMAGE:?Set FARMABLE_BACKEND_IMAGE}
+    build: null
+  api:
+    image: ${FARMABLE_BACKEND_IMAGE:?Set FARMABLE_BACKEND_IMAGE}
+    build: null
+  worker:
+    image: ${FARMABLE_BACKEND_IMAGE:?Set FARMABLE_BACKEND_IMAGE}
+    build: null
+  caddy:
+    image: caddy:2.10-alpine
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      CADDY_DOMAIN: ${CADDY_DOMAIN:?Set CADDY_DOMAIN}
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,189 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Farmable staging host and least-privilege deployment resources.
+
+Parameters:
+  GitHubRepository:
+    Type: String
+    Default: ctrl-alt-elite-za/Farmable
+  DomainName:
+    Type: String
+    Default: staging.example.com
+  AlertEmail:
+    Type: String
+    AllowedPattern: '^.+@.+\\..+$'
+
+Resources:
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption: { ServerSideEncryptionConfiguration: [{ ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 } }] }
+      PublicAccessBlockConfiguration: { BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true }
+      VersioningConfiguration: { Status: Enabled }
+  ForecastsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption: { ServerSideEncryptionConfiguration: [{ ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 } }] }
+      PublicAccessBlockConfiguration: { BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true }
+      VersioningConfiguration: { Status: Enabled }
+  BackupsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub farmable-staging-backups-${AWS::AccountId}
+      BucketEncryption: { ServerSideEncryptionConfiguration: [{ ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 } }] }
+      PublicAccessBlockConfiguration: { BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true }
+      VersioningConfiguration: { Status: Enabled }
+      LifecycleConfiguration:
+        Rules: [{ Id: Retain14Days, Status: Enabled, ExpirationInDays: 14, NoncurrentVersionExpiration: { NoncurrentDays: 14 } }]
+
+  FarmableLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: { RetentionInDays: 14 }
+  DatabaseUrl:
+    Type: AWS::SSM::Parameter
+    Properties: { Name: /farmable/staging/database-url, Type: String, Value: CHANGE_ME, Description: Replace with the staging PostgreSQL URL }
+  CaddyDomain:
+    Type: AWS::SSM::Parameter
+    Properties: { Name: /farmable/staging/caddy-domain, Type: String, Value: !Ref DomainName }
+  CurrentImageTag:
+    Type: AWS::SSM::Parameter
+    Properties: { Name: /farmable/staging/current-image-tag, Type: String, Value: unknown }
+  PreviousImageTag:
+    Type: AWS::SSM::Parameter
+    Properties: { Name: /farmable/staging/previous-image-tag, Type: String, Value: unknown }
+  BackupBucketParameter:
+    Type: AWS::SSM::Parameter
+    Properties: { Name: /farmable/staging/backup-bucket, Type: String, Value: !Ref BackupsBucket }
+  PostgresPassword:
+    Type: AWS::SSM::Parameter
+    Properties: { Name: /farmable/staging/postgres-password, Type: SecureString, Value: CHANGE_ME }
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: { Version: '2012-10-17', Statement: [{ Effect: Allow, Principal: { Service: ec2.amazonaws.com }, Action: sts:AssumeRole }] }
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore]
+      Policies:
+        - PolicyName: FarmableRuntime
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ssm:GetParameter, ssm:GetParameters, ssm:PutParameter]
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/farmable/staging/*
+              - Effect: Allow
+                Action: [ecr:GetAuthorizationToken, ecr:DescribeRepositories]
+                Resource: '*'
+              - Effect: Allow
+                Action: [ecr:BatchCheckLayerAvailability, ecr:BatchGetImage, ecr:GetDownloadUrlForLayer]
+                Resource: !GetAtt BackendRepository.Arn
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject, s3:ListBucket]
+                Resource: [!GetAtt BackupsBucket.Arn, !Sub '${BackupsBucket.Arn}/*']
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: { Roles: [!Ref InstanceRole] }
+
+  GitHubOidc:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      ThumbprintList: [6938fd4d98bab03faadb97b34396831e3780aea1]
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Federated: !Ref GitHubOidc }
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals: { token.actions.githubusercontent.com:aud: sts.amazonaws.com }
+              StringLike: { token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:ref:refs/heads/main }
+      Policies:
+        - PolicyName: FarmableDeploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ecr:GetAuthorizationToken]
+                Resource: '*'
+              - Effect: Allow
+                Action: [ecr:BatchCheckLayerAvailability, ecr:CompleteLayerUpload, ecr:InitiateLayerUpload, ecr:PutImage, ecr:UploadLayerPart]
+                Resource: !GetAtt BackendRepository.Arn
+              - Effect: Allow
+                Action: [ssm:SendCommand]
+                Resource: [!Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${FarmableInstance}, !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript]
+              - Effect: Allow
+                Action: [ec2:DescribeInstances]
+                Resource: '*'
+              - Effect: Allow
+                Action: [ssm:GetCommandInvocation]
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:*
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject]
+                Resource: !Sub '${BackupsBucket.Arn}/staging/*'
+              - Effect: Allow
+                Action: [s3:ListAllMyBuckets]
+                Resource: '*'
+
+  BackendRepository:
+    Type: AWS::ECR::Repository
+    Properties: { RepositoryName: farmable-backend, ImageScanningConfiguration: { ScanOnPush: true }, EncryptionConfiguration: { EncryptionType: AES256 }, LifecyclePolicy: { LifecyclePolicyText: '{"rules":[{"rulePriority":1,"description":"Keep last 3 images","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":3},"action":{"type":"expire"}}]}' } }
+  FarmableVpc:
+    Type: AWS::EC2::VPC
+    Properties: { CidrBlock: 10.42.0.0/16, EnableDnsHostnames: true, EnableDnsSupport: true, Tags: [{ Key: Name, Value: farmable-staging }] }
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties: { VpcId: !Ref FarmableVpc, CidrBlock: 10.42.1.0/24, AvailabilityZone: !Select [0, !GetAZs ''], MapPublicIpOnLaunch: true }
+  InternetGateway: { Type: AWS::EC2::InternetGateway }
+  VpcGatewayAttachment: { Type: AWS::EC2::VPCGatewayAttachment, Properties: { VpcId: !Ref FarmableVpc, InternetGatewayId: !Ref InternetGateway } }
+  RouteTable: { Type: AWS::EC2::RouteTable, Properties: { VpcId: !Ref FarmableVpc } }
+  DefaultRoute: { Type: AWS::EC2::Route, DependsOn: VpcGatewayAttachment, Properties: { RouteTableId: !Ref RouteTable, DestinationCidrBlock: 0.0.0.0/0, GatewayId: !Ref InternetGateway } }
+  SubnetRoute: { Type: AWS::EC2::SubnetRouteTableAssociation, Properties: { RouteTableId: !Ref RouteTable, SubnetId: !Ref PublicSubnet } }
+  FarmableSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: { GroupDescription: Farmable public HTTPS only, VpcId: !Ref FarmableVpc, SecurityGroupIngress: [{ IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }, { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }] }
+  FarmableInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: '{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}'
+      InstanceType: t3.medium
+      IamInstanceProfile: !Ref InstanceProfile
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref FarmableSecurityGroup]
+      BlockDeviceMappings: [{ DeviceName: /dev/sda1, Ebs: { VolumeSize: 40, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true } }]
+      UserData: !Base64 |
+        #!/bin/bash
+        set -eux
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-plugin awscli curl
+        systemctl enable --now docker
+        mkdir -p /opt/farmable
+      Tags: [{ Key: Name, Value: farmable-staging }, { Key: Farmable, Value: staging }]
+  FarmableEip:
+    Type: AWS::EC2::EIP
+    Properties: { Domain: vpc, Tags: [{ Key: Name, Value: farmable-staging }] }
+  FarmableEipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties: { AllocationId: !GetAtt FarmableEip.AllocationId, InstanceId: !Ref FarmableInstance }
+  DiskAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties: { AlarmDescription: Farmable staging disk usage is high, Namespace: CWAgent, MetricName: disk_used_percent, Statistic: Average, Period: 300, EvaluationPeriods: 1, Threshold: 80, ComparisonOperator: GreaterThanThreshold, TreatMissingData: notBreaching }
+  Budget:
+    Type: AWS::Budgets::Budget
+    Properties: { Budget: { BudgetName: farmable-monthly, BudgetLimit: { Amount: 50, Unit: USD }, TimeUnit: MONTHLY, BudgetType: COST }, NotificationsWithSubscribers: [{ Notification: { NotificationType: FORECASTED, ComparisonOperator: GREATER_THAN, Threshold: 40, ThresholdType: ABSOLUTE_VALUE }, Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }] }, { Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 20, ThresholdType: ABSOLUTE_VALUE }, Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }] }] }
+
+Outputs:
+  InstanceId: { Value: !Ref FarmableInstance }
+  PublicIp: { Value: !Ref FarmableEip }
+  DeployRoleArn: { Value: !GetAtt DeployRole.Arn }
+  BackendRepositoryUri: { Value: !GetAtt BackendRepository.RepositoryUri }
+  BackupBucketName: { Value: !Ref BackupsBucket }

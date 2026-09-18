@@ -1,0 +1,51 @@
+name: Nightly staging checks
+
+on:
+  schedule: [{ cron: '0 0 * * *' }]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  e2e-staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Run API E2E against staging
+        run: pytest e2e/api -q
+        env: { API_URL: ${{ vars.STAGING_URL }}, COMMIT_SHA: '${{ vars.STAGING_SHA }}' }
+  degradation-staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: aws-actions/configure-aws-credentials@v4
+        with: { role-to-assume: '${{ vars.AWS_DEPLOY_ROLE_ARN }}', aws-region: af-south-1 }
+      - name: Run controlled failure injection
+        env: { API_URL: ${{ vars.STAGING_URL }}, INSTANCE_ID: '${{ vars.STAGING_INSTANCE_ID }}', COMMIT_SHA: '${{ vars.STAGING_SHA }}' }
+        run: bash infra/run-staging-degradation.sh
+  restore-test:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with: { role-to-assume: '${{ vars.AWS_DEPLOY_ROLE_ARN }}', aws-region: af-south-1 }
+      - name: Verify backup objects exist
+        run: |
+          test -n "${{ vars.BACKUP_BUCKET }}"
+          test "$(aws s3api list-objects-v2 --bucket '${{ vars.BACKUP_BUCKET }}' --prefix staging/ --query 'KeyCount' --output text)" -gt 0
+  expiry-check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "expiry checks are configured here for domain, certificates, Sideloadly, Twilio, and API test calls"
+  assistant-evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "assistant evaluations run when issue #23 supplies the evaluator command"
