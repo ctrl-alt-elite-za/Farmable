@@ -127,7 +127,9 @@ plus impossible budget and unsupported date. It prints no tokens.
 
 **This is backend evidence only**, not a browser rehearsal, timing claim, backup
 video or `make demo-ready`. Frontend wiring, three actual browser runs, reset
-UX and a private backup still need doing. Full tables/contracts, account auth,
+UX and a private backup still need doing. A separate [browser voice MVP](demo-voice.md)
+now supplies a local rehearsal page, narrow English commands and browser speech;
+it does not implement the production voice pipeline. Full tables/contracts, account auth,
 animal sections, production deletion jobs, dashboard widgets/cache, live
 outlooks, advanced cash flow/goals, voice/interrupt cancellation and native
 #26 acceptance remain unfinished. The full issues must stay open.
