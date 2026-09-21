@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -561,13 +562,15 @@ if [[ "$*" == *"storage rm"* ]]; then exit 0; fi
 
 
 @requires_jq
+@pytest.mark.parametrize("latest_revision", ["farmable-00002", "farmable-unrelated"])
 def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     tmp_path: Path,
+    latest_revision: str,
 ) -> None:
-    """The path that actually runs on a merge -- deploy, resolve the tagged revision,
-    poll readiness, run the three smokes, then shift traffic -- had no coverage at
-    all: every other rollout test exits early. This asserts the deploy completes and
-    that 100% of traffic is moved to the revision this run created.
+    """Exercise readiness and all smokes before promoting the tagged revision.
+
+    An unrelated deployment can advance the service-wide latest revision without
+    changing our commit tag. That unrelated revision must never receive traffic.
     """
     log = tmp_path / "calls.log"
     sha = "0123456789abcdef0123456789abcdef01234567"
@@ -584,7 +587,7 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
         # First deploy: no existing service.
         + 'if [[ "$*" == *"run services list"* ]]; then exit 0; fi\n'
         'if [[ "$*" == *"latestCreatedRevisionName"* ]]; then\n'
-        "  printf '%s\\n' 'farmable-00002'; exit 0\n"
+        f"  printf '%s\\n' '{latest_revision}'; exit 0\n"
         "fi\n"
         'if [[ "$*" == *"run services describe"* ]]; then\n'
         "  cat <<'FAKEJSON'\n" + service_json + "\nFAKEJSON\n"
@@ -602,14 +605,90 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     assert "run deploy" in calls
     assert "update-traffic" in calls
     assert "farmable-00002=100" in calls
+    assert "farmable-unrelated=100" not in calls
     # A successful rollout must never touch the delete path.
     assert "services delete" not in calls
     assert f"Cloud Run deployed {sha}" in result.stdout
 
 
+@requires_jq
+@pytest.mark.parametrize(
+    "invalid_candidate",
+    [
+        "missing_tag",
+        "duplicate_tag",
+        "missing_revision",
+        "empty_revision",
+        "invalid_url",
+        "missing_url",
+    ],
+)
+def test_rollout_rejects_invalid_tag_without_promoting_a_candidate(
+    tmp_path: Path,
+    invalid_candidate: str,
+) -> None:
+    """Invalid tag metadata must restore existing traffic, not promote latest."""
+    log = tmp_path / "calls.log"
+    deployed = tmp_path / "deployed"
+    sha = _rollout_env(tmp_path)["COMMIT_SHA"]
+    candidate = {
+        "tag": f"sha-{sha}",
+        "revisionName": "farmable-00002",
+        "url": "https://candidate.farmable.run.app",
+    }
+    if invalid_candidate == "missing_tag":
+        candidate["tag"] = "some-other-tag"
+    elif invalid_candidate == "missing_revision":
+        del candidate["revisionName"]
+    elif invalid_candidate == "empty_revision":
+        candidate["revisionName"] = ""
+    elif invalid_candidate == "invalid_url":
+        candidate["url"] = "http://candidate.farmable.run.app"
+    elif invalid_candidate == "missing_url":
+        del candidate["url"]
+    traffic = [candidate, candidate] if invalid_candidate == "duplicate_tag" else [candidate]
+    payload = json.dumps({"status": {"traffic": traffic}})
+    _fake_gcloud(
+        tmp_path,
+        _log_calls(log) + _LIST_STUB + 'if [[ "$*" == *"run deploy"* ]]; then\n'
+        f'  touch "{deployed}"; exit 0\n'
+        "fi\n"
+        'if [[ "$*" == *"latestCreatedRevisionName"* ]]; then\n'
+        "  echo 'farmable-unrelated'; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"run services describe"* ]]; then\n'
+        f'  if [[ ! -f "{deployed}" ]]; then\n'
+        '    echo \'{"status":{"traffic":[{"revisionName":"farmable-00001","percent":100}]}}\'\n'
+        "  else\n"
+        "    cat <<'FAKEJSON'\n" + payload + "\nFAKEJSON\n"
+        "  fi\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    # A candidate must be rejected before any HTTP checks. Fail fast if reached.
+    curl = tmp_path / "curl"
+    curl.write_text(
+        '#!/usr/bin/env bash\nprintf "unexpected HTTP request\\n" >>"' + str(log) + '"\nexit 1\n',
+        encoding="utf-8",
+    )
+    curl.chmod(0o755)
+    sleep = tmp_path / "sleep"
+    sleep.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    sleep.chmod(0o755)
+    result = _run("infra/gcp-rollout.sh", _rollout_env(tmp_path))
+    calls = log.read_text(encoding="utf-8")
+    assert result.returncode != 0
+    assert "unexpected HTTP request" not in calls
+    traffic_updates = [line for line in calls.splitlines() if "update-traffic" in line]
+    assert len(traffic_updates) == 1
+    assert "--to-revisions=farmable-00001=100" in traffic_updates[0]
+    assert "services delete" not in calls
+
+
 # A first deploy that fails after the revision exists: the service is absent before
 # the run, `gcloud run deploy` succeeds, then resolving the tagged revision's URL
-# fails. That reaches rollback() with service_existed=false and new_revision set --
+# fails. That reaches rollback() with service_existed=false and cleanup_revision set --
 # the state that arms the only irreversible action in the script.
 _FAILED_FIRST_DEPLOY_STUB = r"""
 if [[ "$*" == *"run services list"* ]]; then exit 0; fi

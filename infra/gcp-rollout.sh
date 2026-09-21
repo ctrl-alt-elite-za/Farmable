@@ -44,7 +44,7 @@ else
   service_existed=false
   previous_revision=""
 fi
-new_revision=""
+cleanup_revision=""
 
 rollback() {
   status=$?
@@ -55,7 +55,7 @@ rollback() {
       --project="$GCP_PROJECT" --region="$GCP_REGION" \
       --to-revisions="${previous_revision}=100" --quiet >/dev/null || \
       echo "Cloud Run traffic rollback failed; operator action required" >&2
-  elif [[ "$service_existed" == false && -n "$new_revision" ]]; then
+  elif [[ "$service_existed" == false && -n "$cleanup_revision" ]]; then
     # A first Cloud Run deployment has no older revision that can receive traffic, and
     # the failed one stays reachable at its sha- tag URL, so the service is removed.
     #
@@ -69,7 +69,7 @@ rollback() {
       --project="$GCP_PROJECT" --region="$GCP_REGION" \
       --format='value(metadata.name)' 2>/dev/null)" || revisions="__probe_failed__"
     mapfile -t revision_names < <(grep -v '^[[:space:]]*$' <<<"$revisions" || true)
-    if [[ ${#revision_names[@]} -eq 1 && "${revision_names[0]}" == "$new_revision" ]]; then
+    if [[ ${#revision_names[@]} -eq 1 && "${revision_names[0]}" == "$cleanup_revision" ]]; then
       gcloud run services delete "$CLOUD_RUN_SERVICE" \
         --project="$GCP_PROJECT" --region="$GCP_REGION" --quiet >/dev/null || \
         echo "Failed first deployment could not be removed; operator action required" >&2
@@ -92,14 +92,28 @@ gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null
 
-new_revision="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+# Preserve the existing first-deployment cleanup fallback. This service-wide
+# pointer must never select the revision promoted to production traffic.
+cleanup_revision="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
   --project="$GCP_PROJECT" --region="$GCP_REGION" \
   --format='value(status.latestCreatedRevisionName)')"
-[[ -n "$new_revision" ]]
-revision_url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
-  --project="$GCP_PROJECT" --region="$GCP_REGION" --format=json |
-  jq -r --arg tag "sha-${COMMIT_SHA}" '.status.traffic[]? | select(.tag == $tag) | .url' | head -n 1)"
-[[ "$revision_url" == https://* ]]
+[[ -n "$cleanup_revision" ]]
+service_json="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+  --project="$GCP_PROJECT" --region="$GCP_REGION" --format=json)"
+# Resolve the URL and revision together: another deployment can advance
+# latestCreatedRevisionName while our commit tag still points at our candidate.
+if ! candidate="$(jq -ce --arg tag "sha-${COMMIT_SHA}" '
+  [.status.traffic[]? | select(.tag == $tag)] |
+  select(length == 1) | .[0] |
+  select(.revisionName | strings | length > 0) |
+  select(.url | strings | test("^https://[^/[:space:]]+(/[^[:space:]]*)?$"))
+' <<<"$service_json")"; then
+  echo "Expected exactly one commit-tagged revision with a name and HTTPS URL" >&2
+  false # Trigger the existing ERR rollback, including first-deployment cleanup.
+fi
+new_revision="$(jq -r '.revisionName' <<<"$candidate")"
+revision_url="$(jq -r '.url' <<<"$candidate")"
+cleanup_revision="$new_revision"
 
 ready=false
 for _ in {1..36}; do

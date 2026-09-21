@@ -78,6 +78,10 @@ runs `alembic upgrade head` and initializes the worker vendor schema as a Cloud 
 and checks the revision URL until `/health/ready` reports the same SHA with both
 database and worker healthy. It then runs live/openapi, Secret Manager reference,
 and private Storage upload/download smoke tests before assigning 100% traffic.
+The revision name and test URL come from the same uniquely matching commit-tag
+entry. Only that tested revision can receive traffic; a different revision
+becoming latest during the rollout cannot change the promotion target. Missing
+or ambiguous candidate metadata fails before promotion.
 
 Any readiness or smoke failure triggers a fail-closed rollback to the captured
 revision. A failed first deployment has no prior revision, so the newly created
