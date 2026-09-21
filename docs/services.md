@@ -53,28 +53,28 @@ continues to describe database/worker health, not paid-provider availability.
 Tests cover the adapter/application boundary; graceful degradation of future
 feature screens/endpoints must be checked when those consumers exist.
 
-Use SSM SecureString parameters (deployment injects decrypted values into the
-environment) or a git-ignored local `.env`. The following are **proposed names**,
-not proof that parameters exist. Replace `staging` with the target environment.
-Store nonsecret account/resource/model configuration alongside them as String
-parameters. Do not dump a rendered Compose environment or secret settings.
+For the Google Cloud staging deployment, put sensitive values in the Terraform-
+created Secret Manager containers and grant access only to the Cloud Run runtime
+service account. The deployment injects them as environment variables without
+printing values. The following are **proposed names**, not proof that versions
+exist. Replace `staging` with the target environment and keep nonsecret
+configuration separate. Do not dump a rendered environment or secret settings.
 
-| Environment variable        | Proposed SSM parameter                                 |
-| --------------------------- | ------------------------------------------------------ |
-| `TWILIO_ACCOUNT_SID`        | `/farmable/staging/services/twilio/account-sid`        |
-| `TWILIO_VERIFY_SERVICE_SID` | `/farmable/staging/services/twilio/verify-service-sid` |
-| `TWILIO_AUTH_TOKEN`         | `/farmable/staging/services/twilio/auth-token`         |
-| `TURNSTILE_SECRET`          | `/farmable/staging/services/turnstile/secret`          |
-| `TURNSTILE_HOSTNAME`        | `/farmable/staging/services/turnstile/hostname`        |
-| `AZURE_SPEECH_KEY`          | `/farmable/staging/services/azure-speech/key`          |
-| `AZURE_SPEECH_RESOURCE`     | `/farmable/staging/services/azure-speech/resource`     |
-| `AZURE_SPEECH_REGION`       | `/farmable/staging/services/azure-speech/region`       |
-| `GEMINI_API_KEY`            | `/farmable/staging/services/gemini/api-key`            |
-| `GEMINI_MODEL`              | `/farmable/staging/services/gemini/model`              |
-| `CROP_HEALTH_API_KEY`       | `/farmable/staging/services/crop-health/api-key`       |
-| `MAPS_SERVER_API_KEY`       | `/farmable/staging/services/maps/server-api-key`       |
+| Environment variable        | Secret Manager secret                        |
+| --------------------------- | -------------------------------------------- |
+| `TWILIO_ACCOUNT_SID`        | `farmable-staging-twilio-account-sid`        |
+| `TWILIO_VERIFY_SERVICE_SID` | `farmable-staging-twilio-verify-service-sid` |
+| `TWILIO_AUTH_TOKEN`         | `farmable-staging-twilio-auth-token`         |
+| `TURNSTILE_SECRET`          | `farmable-staging-turnstile-secret`          |
+| `TURNSTILE_HOSTNAME`        | `farmable-staging-turnstile-hostname`        |
+| `AZURE_SPEECH_KEY`          | `farmable-staging-azure-speech-key`          |
+| `AZURE_SPEECH_RESOURCE`     | `farmable-staging-azure-speech-resource`     |
+| `AZURE_SPEECH_REGION`       | `farmable-staging-azure-speech-region`       |
+| `GEMINI_API_KEY`            | `farmable-staging-gemini-api-key`            |
+| `GEMINI_MODEL`              | `farmable-staging-gemini-model`              |
+| `CROP_HEALTH_API_KEY`       | `farmable-staging-crop-health-api-key`       |
+| `MAPS_SERVER_API_KEY`       | `farmable-staging-maps-server-api-key`       |
 
-AWS region is deployment-owned (no AWS provisioning is present in this repo).
 Azure region and resource name must match the created Speech account. No Gemini
 model is guessed: set an available model explicitly, with its account quota.
 Use a separate server Maps key; the Android key must be restricted to the app's
