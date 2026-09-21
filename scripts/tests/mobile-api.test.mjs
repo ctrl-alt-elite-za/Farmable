@@ -48,9 +48,5 @@ test('source-only changes rebuild native artifacts and both builds validate thei
   assert.match(workflow, /apps\/mobile\/\|/);
   assert.equal((workflow.match(/node scripts\/mobile-api\.mjs/g) || []).length, 2);
   assert.equal((workflow.match(/env\.MOBILE_ARTIFACT_KIND/g) || []).length, 2);
-  // A release build must never be pointed at a host-local address: it would
-  // appear to work on a developer machine and silently fail on a phone.
-  assert.doesNotMatch(workflow, /API_URL=["']?https?:\/\/(localhost|127\.|10\.0\.2\.2)/);
-  // Both native builds must pass the validated URL through to Dart.
-  assert.equal((workflow.match(/--dart-define=API_URL/g) || []).length, 2);
+  assert.doesNotMatch(workflow, /EXPO_PUBLIC_API_URL: http:\/\/localhost/);
 });

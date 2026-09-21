@@ -1,11 +1,11 @@
 # The isolated CI API must be running before this flow starts.
-appId: za.co.almanac.app
+appId: za.co.ctrlaltelite.farmable
 name: App launches and reaches the isolated API
 ---
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: 'Almanac'
+    visible: 'Farmable'
     timeout: 30000
 - assertVisible:
     id: 'api-status'
