@@ -50,8 +50,53 @@ python apps/ml-service/vision/release.py \
   --output apps/ml-service/vision/models/demo1.release.json
 ```
 
-Each fixture result records `fixture_id`, `expected_crop` (`cabbage`, `tomato`,
-`spinach`, or `null` for a negative), `detected`, the configured `raw_label`,
-`confidence`, and `false_positive`. A crop marked `usable` must have at least
-one matching detected fixture; this remains qualitative demo evidence, not an
+The fixture report uses `schema_version: 1`. Its `fixture_set` records a
+unique `fixture_id`, the file's `fixture_sha256`, and `expected_crop`
+(`cabbage`, `tomato`, `spinach`, or `null` for a negative). Its `runs`
+object contains exactly `ios` and `android`; each run records the matching
+manifest `artifact_sha256` and one result for every fixture:
+
+```json
+{
+  "schema_version": 1,
+  "model_version": "demo1",
+  "fixture_set": [
+    {
+      "fixture_id": "cabbage-1",
+      "fixture_sha256": "<lowercase SHA-256>",
+      "expected_crop": "cabbage"
+    }
+  ],
+  "runs": {
+    "ios": {
+      "artifact_sha256": "<Core ML manifest SHA-256>",
+      "results": [
+        {
+          "fixture_id": "cabbage-1",
+          "detected": true,
+          "raw_label": "cabbage plant",
+          "confidence": 0.9
+        }
+      ]
+    },
+    "android": {
+      "artifact_sha256": "<TFLite manifest SHA-256>",
+      "results": [
+        {
+          "fixture_id": "cabbage-1",
+          "detected": true,
+          "raw_label": "cabbage plant",
+          "confidence": 0.9
+        }
+      ]
+    }
+  }
+}
+```
+
+The complete set must include at least two fixtures for each required crop and
+at least two negatives. Both platforms must produce at least two matching
+detections per crop at confidence 0.5 or higher. Any detection on a negative
+fixture fails the gate. For `detected: false`, both `raw_label` and
+`confidence` must be `null`. This remains qualitative demo evidence, not an
 accuracy percentage.

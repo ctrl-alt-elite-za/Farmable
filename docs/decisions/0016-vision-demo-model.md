@@ -43,9 +43,14 @@ measurement, weight estimation, or disease diagnosis.
 Fixtures are deterministic still images or clips used for qualitative crop-hit
 and false-positive checks. They are not a training dataset and do not justify
 precision, recall, mAP, field-level accuracy, or agricultural diagnosis claims.
-Each required crop needs at least two matching detections at confidence 0.5 or
-higher. Selection also fails closed unless the caller explicitly allowlists the
-manifest's exact license value. No license is accepted by default.
+The versioned fixture report hashes every input and records separate runs bound
+to the exact Core ML and TFLite artifact hashes. On both platforms, each
+required crop needs at least two matching detections at confidence 0.5 or
+higher, the set needs at least two negative fixtures, and any detection on a
+negative fixture fails selection. These outcomes are derived from raw results,
+not accepted as caller-supplied aggregate claims. Selection also fails closed
+unless the caller explicitly allowlists the manifest's exact license value. No
+license is accepted by default.
 Physical reports record cold load, first inference, warm p50/p95, memory,
 device/OS/runtime, precision, input size, and artifact identity. Desktop timing
 cannot be used as physical-device evidence. The release manifest records the

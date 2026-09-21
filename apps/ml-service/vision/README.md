@@ -17,8 +17,10 @@ phone app still needs its Core ML or LiteRT camera adapter and must bundle the
 matching manifest. The export manifest records the pinned Ultralytics source
 metadata, source checkpoint hash, exact prompt order, runtime input/output contract, artifact hashes
 and byte sizes; it remains `measured: false` until physical-device reports and
-a fixed fixture report are available. The separate evidence gate writes
-`demo1.release.json` without mutating the export manifest.
+a fixed two-platform fixture report are available. The report hashes every
+fixture and binds its iOS and Android runs to the exact exported artifact
+hashes. The separate evidence gate writes `demo1.release.json` without
+mutating the export manifest.
 
 This is a pretrained demo shortcut, not a Farmable field-data accuracy claim:
 it may miss local varieties, lighting and occlusion, and it does not diagnose

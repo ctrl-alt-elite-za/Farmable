@@ -63,6 +63,7 @@ def read_samples(path: Path) -> list[float]:
 def validate_report(report: dict[str, Any]) -> dict[str, Any]:
     """Validate the fields required for a physical-device release report."""
     required = (
+        "created_at",
         "model_version",
         "artifact_sha256",
         "platform",
@@ -82,7 +83,19 @@ def validate_report(report: dict[str, Any]) -> dict[str, Any]:
     missing = [field for field in required if field not in report]
     if missing:
         raise ValueError(f"benchmark report missing fields: {', '.join(missing)}")
-    if report["platform"] not in {"ios", "android"}:
+    created_at = report["created_at"]
+    if not isinstance(created_at, str):
+        raise ValueError("created_at must be a timezone-aware ISO 8601 timestamp")
+    try:
+        parsed_created_at = datetime.fromisoformat(created_at)
+    except ValueError as error:
+        raise ValueError("created_at must be a timezone-aware ISO 8601 timestamp") from error
+    if parsed_created_at.utcoffset() is None:
+        raise ValueError("created_at must be a timezone-aware ISO 8601 timestamp")
+    if not isinstance(report["platform"], str) or report["platform"] not in {
+        "ios",
+        "android",
+    }:
         raise ValueError("platform must be ios or android")
     if not isinstance(report["model_version"], str) or not report["model_version"].strip():
         raise ValueError("model_version must be a non-empty string")

@@ -21,9 +21,11 @@ except ModuleNotFoundError:  # Direct ``python vision/release.py`` invocation.
     from benchmark import validate_report  # type: ignore[no-redef]
 
 REQUIRED_CROPS = ("cabbage", "tomato", "spinach")
-USABLE = "usable"
+REQUIRED_PLATFORMS = ("ios", "android")
+FIXTURE_SCHEMA_VERSION = 1
 MIN_FIXTURE_CONFIDENCE = 0.5
 MIN_FIXTURES_PER_CROP = 2
+MIN_NEGATIVE_FIXTURES = 2
 RAW_LABEL_TO_CROP = {
     "cabbage plant": "cabbage",
     "cabbage head": "cabbage",
@@ -58,99 +60,123 @@ def _require_sha256(value: str | None, field: str) -> str:
     return value
 
 
-def validate_fixture_report(report: dict[str, Any]) -> dict[str, Any]:
-    """Validate the honest, qualitative fixture-result contract."""
-    required = (
-        "model_version",
-        "fixtures",
-        "required_crop_hits",
-        "negative_false_positives",
-        "results",
-    )
-    missing = [field for field in required if field not in report]
+def _require_exact_fields(
+    value: dict[str, Any], required: Collection[str], description: str
+) -> None:
+    required_fields = set(required)
+    missing = sorted(required_fields - value.keys())
+    unexpected = sorted(value.keys() - required_fields)
     if missing:
-        raise ValueError(f"fixture report missing fields: {', '.join(missing)}")
+        raise ValueError(f"{description} missing fields: {', '.join(missing)}")
+    if unexpected:
+        raise ValueError(f"{description} has unexpected fields: {', '.join(unexpected)}")
+
+
+def validate_fixture_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Validate a fixed fixture set and per-artifact result contract."""
+    if not isinstance(report, dict):
+        raise ValueError("fixture report must be an object")
+    _require_exact_fields(
+        report,
+        ("schema_version", "model_version", "fixture_set", "runs"),
+        "fixture report",
+    )
+    if (
+        not isinstance(report["schema_version"], int)
+        or isinstance(report["schema_version"], bool)
+        or report["schema_version"] != FIXTURE_SCHEMA_VERSION
+    ):
+        raise ValueError(f"fixture schema_version must be {FIXTURE_SCHEMA_VERSION}")
     if not isinstance(report["model_version"], str) or not report["model_version"].strip():
         raise ValueError("fixture model_version must be a non-empty string")
-    if (
-        not isinstance(report["fixtures"], int)
-        or isinstance(report["fixtures"], bool)
-        or report["fixtures"] <= 0
-    ):
-        raise ValueError("fixtures must be an integer greater than zero")
-    hits = report["required_crop_hits"]
-    if not isinstance(hits, dict):
-        raise ValueError("required_crop_hits must be an object")
-    missing_crops = [crop for crop in REQUIRED_CROPS if crop not in hits]
-    if missing_crops:
-        raise ValueError(f"required_crop_hits missing: {', '.join(missing_crops)}")
-    for crop in REQUIRED_CROPS:
-        if hits[crop] not in {"usable", "not_usable"}:
-            raise ValueError(f"required_crop_hits.{crop} must be usable or not_usable")
-    false_positives = report["negative_false_positives"]
-    if (
-        not isinstance(false_positives, int)
-        or isinstance(false_positives, bool)
-        or false_positives < 0
-    ):
-        raise ValueError("negative_false_positives must be a non-negative integer")
-    results = report["results"]
-    if not isinstance(results, list) or len(results) != report["fixtures"]:
-        raise ValueError("results must contain one result for every fixture")
+
+    fixtures = report["fixture_set"]
+    if not isinstance(fixtures, list) or not fixtures:
+        raise ValueError("fixture_set must be a non-empty array")
     fixture_ids: set[str] = set()
-    for result in results:
-        if not isinstance(result, dict):
-            raise ValueError("each fixture result must be an object")
-        for field in ("fixture_id", "expected_crop", "detected", "false_positive"):
-            if field not in result:
-                raise ValueError(f"fixture result missing {field}")
-        if not isinstance(result["fixture_id"], str) or not result["fixture_id"].strip():
+    fixture_hashes: set[str] = set()
+    fixture_crops: dict[str, str | None] = {}
+    for fixture in fixtures:
+        if not isinstance(fixture, dict):
+            raise ValueError("each fixture must be an object")
+        _require_exact_fields(
+            fixture,
+            ("fixture_id", "fixture_sha256", "expected_crop"),
+            "fixture",
+        )
+        fixture_id = fixture["fixture_id"]
+        if not isinstance(fixture_id, str) or not fixture_id.strip():
             raise ValueError("fixture_id must be a non-empty string")
-        if result["fixture_id"] in fixture_ids:
+        if fixture_id in fixture_ids:
             raise ValueError("fixture_id values must be unique")
-        fixture_ids.add(result["fixture_id"])
-        if not isinstance(result["detected"], bool) or not isinstance(
-            result["false_positive"], bool
-        ):
-            raise ValueError("detected and false_positive must be booleans")
-        expected_crop = result["expected_crop"]
+        fixture_ids.add(fixture_id)
+        fixture_hash = _require_sha256(
+            fixture["fixture_sha256"], f"fixture {fixture_id} fixture_sha256"
+        )
+        if fixture_hash in fixture_hashes:
+            raise ValueError("fixture_sha256 values must be unique")
+        fixture_hashes.add(fixture_hash)
+        expected_crop = fixture["expected_crop"]
         if expected_crop is not None and expected_crop not in REQUIRED_CROPS:
             raise ValueError("expected_crop must be cabbage, tomato, spinach or null")
-        label = result.get("raw_label")
-        if label is not None and label not in RAW_LABEL_TO_CROP:
-            raise ValueError("raw_label must be a configured prompt or null")
-        confidence = result.get("confidence")
-        if confidence is not None and (
-            not isinstance(confidence, int | float)
-            or isinstance(confidence, bool)
-            or not math.isfinite(float(confidence))
-            or not 0 <= float(confidence) <= 1
-        ):
-            raise ValueError("confidence must be a finite number between 0 and 1")
-        if result["detected"]:
-            if label is None or confidence is None:
-                raise ValueError("detected fixtures require raw_label and confidence")
-            if float(confidence) < MIN_FIXTURE_CONFIDENCE:
-                raise ValueError(
-                    f"detected fixture confidence must be at least {MIN_FIXTURE_CONFIDENCE}"
-                )
-        if expected_crop is not None and result["false_positive"]:
-            raise ValueError("crop fixtures cannot be marked false_positive")
-    counted_false_positives = sum(bool(result["false_positive"]) for result in results)
-    if false_positives != counted_false_positives:
-        raise ValueError("negative_false_positives must equal false_positive fixture results")
+        fixture_crops[fixture_id] = expected_crop
+
     for crop in REQUIRED_CROPS:
-        usable_evidence = sum(
-            result["expected_crop"] == crop
-            and result["detected"]
-            and RAW_LABEL_TO_CROP.get(result.get("raw_label")) == crop
-            for result in results
-        )
-        if hits[crop] == USABLE and usable_evidence < MIN_FIXTURES_PER_CROP:
-            raise ValueError(
-                f"required_crop_hits.{crop} needs at least "
-                f"{MIN_FIXTURES_PER_CROP} matching detected fixtures"
+        fixture_count = sum(expected == crop for expected in fixture_crops.values())
+        if fixture_count < MIN_FIXTURES_PER_CROP:
+            raise ValueError(f"fixture_set needs at least {MIN_FIXTURES_PER_CROP} {crop} fixtures")
+    negative_count = sum(expected is None for expected in fixture_crops.values())
+    if negative_count < MIN_NEGATIVE_FIXTURES:
+        raise ValueError(f"fixture_set needs at least {MIN_NEGATIVE_FIXTURES} negative fixtures")
+
+    runs = report["runs"]
+    if not isinstance(runs, dict) or set(runs) != set(REQUIRED_PLATFORMS):
+        raise ValueError("fixture runs must contain exactly ios and android")
+    for platform in REQUIRED_PLATFORMS:
+        run = runs[platform]
+        if not isinstance(run, dict):
+            raise ValueError(f"{platform} fixture run must be an object")
+        _require_exact_fields(run, ("artifact_sha256", "results"), f"{platform} fixture run")
+        _require_sha256(run["artifact_sha256"], f"{platform} fixture artifact_sha256")
+        results = run["results"]
+        if not isinstance(results, list) or len(results) != len(fixtures):
+            raise ValueError(f"{platform} results must contain one result per fixture")
+        result_ids: set[str] = set()
+        for result in results:
+            if not isinstance(result, dict):
+                raise ValueError(f"each {platform} fixture result must be an object")
+            _require_exact_fields(
+                result,
+                ("fixture_id", "detected", "raw_label", "confidence"),
+                f"{platform} fixture result",
             )
+            fixture_id = result["fixture_id"]
+            if not isinstance(fixture_id, str) or fixture_id not in fixture_ids:
+                raise ValueError(f"{platform} result references an unknown fixture_id")
+            if fixture_id in result_ids:
+                raise ValueError(f"{platform} fixture result ids must be unique")
+            result_ids.add(fixture_id)
+            if not isinstance(result["detected"], bool):
+                raise ValueError("detected must be a boolean")
+            label = result["raw_label"]
+            confidence = result["confidence"]
+            if result["detected"]:
+                if not isinstance(label, str) or label not in RAW_LABEL_TO_CROP:
+                    raise ValueError("detected fixtures require a configured raw_label")
+                if (
+                    not isinstance(confidence, int | float)
+                    or isinstance(confidence, bool)
+                    or not math.isfinite(float(confidence))
+                    or not MIN_FIXTURE_CONFIDENCE <= float(confidence) <= 1
+                ):
+                    raise ValueError(
+                        "detected fixture confidence must be finite and at least "
+                        f"{MIN_FIXTURE_CONFIDENCE}"
+                    )
+            elif label is not None or confidence is not None:
+                raise ValueError("undetected fixtures require null raw_label and confidence")
+        if result_ids != fixture_ids:
+            raise ValueError(f"{platform} results must cover the exact fixture set")
     return report
 
 
@@ -203,12 +229,14 @@ def select_release(
         raise ValueError("benchmark model_version must match manifest version")
     if fixture_report["model_version"] != version:
         raise ValueError("fixture model_version must match manifest version")
-    if any(fixture_report["required_crop_hits"][crop] != USABLE for crop in REQUIRED_CROPS):
-        raise ValueError("all required crop fixtures must be usable before selection")
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, dict):
         raise ValueError("manifest artifacts are required")
-    for report, artifact_name in ((ios_report, "coreml"), (android_report, "tflite")):
+    platform_evidence = (
+        ("ios", ios_report, "coreml"),
+        ("android", android_report, "tflite"),
+    )
+    for platform, report, artifact_name in platform_evidence:
         artifact = artifacts.get(artifact_name)
         if not isinstance(artifact, dict):
             raise ValueError(f"manifest artifact {artifact_name} is required")
@@ -220,6 +248,34 @@ def select_release(
             raise ValueError(f"{artifact_name} report input size does not match manifest")
         if report["precision"] != manifest.get("precision"):
             raise ValueError(f"{artifact_name} report precision does not match manifest")
+        fixture_run = fixture_report["runs"][platform]
+        if fixture_run["artifact_sha256"] != artifact["sha256"]:
+            raise ValueError(f"{platform} fixture artifact hash does not match manifest")
+
+    fixture_crops = {
+        fixture["fixture_id"]: fixture["expected_crop"] for fixture in fixture_report["fixture_set"]
+    }
+    for platform in REQUIRED_PLATFORMS:
+        results = fixture_report["runs"][platform]["results"]
+        false_positive_ids = [
+            result["fixture_id"]
+            for result in results
+            if fixture_crops[result["fixture_id"]] is None and result["detected"]
+        ]
+        if false_positive_ids:
+            raise ValueError(f"{platform} fixture run contains negative false positives")
+        for crop in REQUIRED_CROPS:
+            usable_evidence = sum(
+                fixture_crops[result["fixture_id"]] == crop
+                and result["detected"]
+                and RAW_LABEL_TO_CROP[result["raw_label"]] == crop
+                for result in results
+            )
+            if usable_evidence < MIN_FIXTURES_PER_CROP:
+                raise ValueError(
+                    f"{platform} fixture run needs at least "
+                    f"{MIN_FIXTURES_PER_CROP} matching {crop} detections"
+                )
     selected = dict(manifest)
     selected["measured"] = True
     selected["evidence_complete"] = True
@@ -236,6 +292,7 @@ def select_release(
     selected["fixture_report"] = {
         "path": fixture_report_path,
         "sha256": _require_sha256(fixture_report_sha256, "fixture_report_sha256"),
+        "schema_version": FIXTURE_SCHEMA_VERSION,
     }
     return selected
 

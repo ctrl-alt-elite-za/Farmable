@@ -12,6 +12,7 @@ import hashlib
 import json
 import re
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +60,8 @@ RUNTIME_CONTRACT = {
 
 def sha256(path: Path) -> str:
     """Return a byte SHA-256 for files and a stable tree digest for packages."""
+    if not path.exists():
+        raise ValueError(f"artifact does not exist: {path}")
     digest = hashlib.sha256()
     if path.is_file():
         with path.open("rb") as handle:
@@ -66,11 +69,19 @@ def sha256(path: Path) -> str:
                 digest.update(block)
         return digest.hexdigest()
 
-    # Core ML exports are directory packages. Include relative names so the
-    # manifest detects both changed files and changed package layout.
-    files = sorted(p for p in path.rglob("*") if p.is_file())
+    # Core ML exports are directory packages. Include unambiguous relative
+    # names and byte lengths, but not the caller-selected package directory
+    # name, so an identical package has the same content identity everywhere.
+    entries = list(path.rglob("*"))
+    symlink = next((entry for entry in entries if entry.is_symlink()), None)
+    if symlink is not None:
+        raise ValueError(f"artifact packages cannot contain symlinks: {symlink}")
+    files = sorted(entry for entry in entries if entry.is_file())
     for file in files:
-        digest.update(file.relative_to(path.parent).as_posix().encode())
+        relative_name = file.relative_to(path).as_posix().encode()
+        digest.update(len(relative_name).to_bytes(8, "big"))
+        digest.update(relative_name)
+        digest.update(file.stat().st_size.to_bytes(8, "big"))
         with file.open("rb") as handle:
             for block in iter(lambda: handle.read(1024 * 1024), b""):
                 digest.update(block)
@@ -92,6 +103,13 @@ def export_options(export_format: str, int8: bool, data: str | None) -> dict[str
     else:
         options["half"] = True
     return options
+
+
+def _remove_artifact(path: Path) -> None:
+    if path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
 
 
 def main() -> int:
@@ -143,36 +161,54 @@ def main() -> int:
     if not source_path.is_file():
         parser.error("could not locate the downloaded source checkpoint to hash it")
     model.set_classes(PROMPTS)
-    artifacts: dict[str, dict[str, str | int]] = {}
-    for export_format, destination in destinations.items():
-        data = str(args.data) if args.data is not None else None
-        exported = Path(str(model.export(**export_options(export_format, args.int8, data))))
-        if exported.is_dir():
-            shutil.copytree(exported, destination)
-        else:
-            shutil.copyfile(exported, destination)
-        artifacts[export_format] = {
-            "path": str(destination),
-            "sha256": sha256(destination),
-            "bytes": artifact_bytes(destination),
+    with tempfile.TemporaryDirectory(prefix=f".{args.version}-", dir=args.output_dir) as temporary:
+        staging_dir = Path(temporary)
+        staged_destinations = {
+            export_format: staging_dir / destination.name
+            for export_format, destination in destinations.items()
         }
-    manifest = {
-        "version": args.version,
-        "source_model": args.model,
-        "source_revision": args.source_revision,
-        "source_url": args.source_url,
-        "source_sha256": sha256(source_path),
-        "license": args.license_name,
-        "classes": PROMPTS,
-        "input_size": IMAGE_SIZE,
-        "precision": "int8" if args.int8 else "fp16",
-        "measured": False,
-        "runtime_contract": RUNTIME_CONTRACT,
-        "artifacts": artifacts,
-    }
-    (args.output_dir / f"{args.version}.json").write_text(
-        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
-    )
+        artifacts: dict[str, dict[str, str | int]] = {}
+        for export_format, destination in destinations.items():
+            data = str(args.data) if args.data is not None else None
+            exported = Path(str(model.export(**export_options(export_format, args.int8, data))))
+            staged_destination = staged_destinations[export_format]
+            if exported.is_dir():
+                shutil.copytree(exported, staged_destination)
+            else:
+                shutil.copyfile(exported, staged_destination)
+            artifacts[export_format] = {
+                "path": str(destination),
+                "sha256": sha256(staged_destination),
+                "bytes": artifact_bytes(staged_destination),
+            }
+        manifest = {
+            "version": args.version,
+            "source_model": args.model,
+            "source_revision": args.source_revision,
+            "source_url": args.source_url,
+            "source_sha256": sha256(source_path),
+            "license": args.license_name,
+            "classes": PROMPTS,
+            "input_size": IMAGE_SIZE,
+            "precision": "int8" if args.int8 else "fp16",
+            "measured": False,
+            "runtime_contract": RUNTIME_CONTRACT,
+            "artifacts": artifacts,
+        }
+        staged_manifest = staging_dir / version_manifest.name
+        staged_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+        published: list[Path] = []
+        try:
+            for export_format, destination in destinations.items():
+                staged_destinations[export_format].replace(destination)
+                published.append(destination)
+            staged_manifest.replace(version_manifest)
+            published.append(version_manifest)
+        except BaseException:
+            for path in reversed(published):
+                _remove_artifact(path)
+            raise
     return 0
 
 

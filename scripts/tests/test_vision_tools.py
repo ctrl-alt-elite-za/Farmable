@@ -85,27 +85,54 @@ def release_inputs() -> tuple[dict, dict, dict, dict]:
             peak_memory_mb=1,
         )
 
-    fixtures = {
-        "model_version": "demo1",
-        "fixtures": 6,
-        "required_crop_hits": {"cabbage": "usable", "tomato": "usable", "spinach": "usable"},
-        "negative_false_positives": 0,
-        "results": [
+    labels = {
+        "cabbage": "cabbage plant",
+        "tomato": "tomato plant",
+        "spinach": "spinach plant",
+    }
+    fixture_set: list[dict[str, object]] = [
+        {
+            "fixture_id": f"{crop}-{index}",
+            "fixture_sha256": hashlib.sha256(f"{crop}-{index}".encode()).hexdigest(),
+            "expected_crop": crop,
+        }
+        for crop in labels
+        for index in (1, 2)
+    ]
+    fixture_set.extend(
+        {
+            "fixture_id": f"negative-{index}",
+            "fixture_sha256": hashlib.sha256(f"negative-{index}".encode()).hexdigest(),
+            "expected_crop": None,
+        }
+        for index in (1, 2)
+    )
+    results: list[dict[str, object]] = []
+    for fixture in fixture_set:
+        expected_crop = fixture["expected_crop"]
+        assert expected_crop is None or isinstance(expected_crop, str)
+        results.append(
             {
-                "fixture_id": f"{crop}-{index}",
-                "expected_crop": crop,
-                "detected": True,
-                "raw_label": label,
-                "confidence": 0.9,
-                "false_positive": False,
+                "fixture_id": fixture["fixture_id"],
+                "detected": expected_crop is not None,
+                "raw_label": labels[expected_crop] if expected_crop is not None else None,
+                "confidence": 0.9 if expected_crop is not None else None,
             }
-            for crop, label in (
-                ("cabbage", "cabbage plant"),
-                ("tomato", "tomato plant"),
-                ("spinach", "spinach plant"),
-            )
-            for index in (1, 2)
-        ],
+        )
+    fixtures = {
+        "schema_version": 1,
+        "model_version": "demo1",
+        "fixture_set": fixture_set,
+        "runs": {
+            "ios": {
+                "artifact_sha256": "a" * 64,
+                "results": [dict(result) for result in results],
+            },
+            "android": {
+                "artifact_sha256": "b" * 64,
+                "results": [dict(result) for result in results],
+            },
+        },
     }
     manifest = {
         "version": "demo1",
@@ -206,93 +233,18 @@ def test_benchmark_rejects_too_few_or_non_numeric_warm_samples(tmp_path: Path) -
         read_samples(samples)
 
 
+def test_benchmark_requires_a_timezone_aware_creation_timestamp() -> None:
+    report = release_inputs()[1]
+    report.pop("created_at")
+    with pytest.raises(ValueError, match="created_at"):
+        validate_report(report)
+    report["created_at"] = "2026-09-21T12:00:00"
+    with pytest.raises(ValueError, match="timezone-aware"):
+        validate_report(report)
+
+
 def test_release_selection_requires_both_reports_and_usable_fixture_results() -> None:
-    ios = build_report(
-        model_version="demo1",
-        artifact_sha256="a" * 64,
-        platform="ios",
-        device="iPhone fixture",
-        os_version="17",
-        runtime="Core ML",
-        precision="fp16",
-        input_size=640,
-        artifact_bytes=10,
-        cold_load_ms=1,
-        first_inference_ms=1,
-        warm_sample_ms=[1, 2] * 10,
-        warmup_iterations=1,
-        peak_memory_mb=1,
-    )
-    android = build_report(
-        model_version="demo1",
-        artifact_sha256="b" * 64,
-        platform="android",
-        device="Android fixture",
-        os_version="14",
-        runtime="LiteRT",
-        precision="fp16",
-        input_size=640,
-        artifact_bytes=20,
-        cold_load_ms=1,
-        first_inference_ms=1,
-        warm_sample_ms=[2, 3] * 10,
-        warmup_iterations=1,
-        peak_memory_mb=1,
-    )
-    fixtures = {
-        "model_version": "demo1",
-        "fixtures": 3,
-        "required_crop_hits": {"cabbage": "usable", "tomato": "usable", "spinach": "usable"},
-        "negative_false_positives": 0,
-        "results": [
-            {
-                "fixture_id": "cabbage-1",
-                "expected_crop": "cabbage",
-                "detected": True,
-                "raw_label": "cabbage plant",
-                "confidence": 0.9,
-                "false_positive": False,
-            },
-            {
-                "fixture_id": "tomato-1",
-                "expected_crop": "tomato",
-                "detected": True,
-                "raw_label": "tomato plant",
-                "confidence": 0.9,
-                "false_positive": False,
-            },
-            {
-                "fixture_id": "spinach-1",
-                "expected_crop": "spinach",
-                "detected": True,
-                "raw_label": "spinach plant",
-                "confidence": 0.9,
-                "false_positive": False,
-            },
-        ],
-    }
-    manifest = {
-        "version": "demo1",
-        "measured": False,
-        "source_model": export.DEFAULT_MODEL,
-        "source_revision": export.DEFAULT_SOURCE_REVISION,
-        "source_url": export.DEFAULT_SOURCE_URL,
-        "source_sha256": "c" * 64,
-        "license": export.DEFAULT_LICENSE,
-        "classes": export.PROMPTS,
-        "input_size": 640,
-        "precision": "fp16",
-        "artifacts": {
-            "coreml": {"sha256": "a" * 64, "bytes": 10},
-            "tflite": {"sha256": "b" * 64, "bytes": 20},
-        },
-    }
-    results = fixtures["results"]
-    assert isinstance(results, list)
-    results.extend(
-        dict(result, fixture_id=f"{result['fixture_id']}-second") for result in list(results)
-    )
-    fixtures["fixtures"] = len(results)
+    manifest, ios, android, fixtures = release_inputs()
     selected = select_release(
         manifest,
         ios,
@@ -311,8 +263,9 @@ def test_release_selection_requires_both_reports_and_usable_fixture_results() ->
         "sha256": "d" * 64,
     }
     assert selected["fixture_report"]["sha256"] == "f" * 64
+    assert selected["fixture_report"]["schema_version"] == 1
     assert manifest["measured"] is False
-    assert validate_fixture_report(fixtures)["fixtures"] == 6
+    assert validate_fixture_report(fixtures)["schema_version"] == 1
 
 
 def test_release_fails_closed_without_an_explicitly_accepted_license() -> None:
@@ -323,7 +276,7 @@ def test_release_fails_closed_without_an_explicitly_accepted_license() -> None:
 
 def test_release_rejects_low_confidence_fixture_evidence() -> None:
     manifest, ios, android, fixtures = release_inputs()
-    fixtures["results"][0]["confidence"] = 0.49
+    fixtures["runs"]["ios"]["results"][0]["confidence"] = 0.49
     with pytest.raises(ValueError, match="confidence"):
         select_release(
             manifest,
@@ -334,21 +287,61 @@ def test_release_rejects_low_confidence_fixture_evidence() -> None:
         )
 
 
-def test_fixture_report_cross_checks_false_positive_count() -> None:
+def test_fixture_report_rejects_non_string_labels_cleanly() -> None:
     fixtures = release_inputs()[3]
-    fixtures["results"].append(
-        {
-            "fixture_id": "negative-1",
-            "expected_crop": None,
-            "detected": True,
-            "raw_label": "tomato fruit",
-            "confidence": 0.9,
-            "false_positive": True,
-        }
-    )
-    fixtures["fixtures"] += 1
-    with pytest.raises(ValueError, match="negative_false_positives"):
+    fixtures["runs"]["ios"]["results"][0]["raw_label"] = ["cabbage plant"]
+    with pytest.raises(ValueError, match="configured raw_label"):
         validate_fixture_report(fixtures)
+
+
+def test_release_derives_and_rejects_negative_false_positives() -> None:
+    manifest, ios, android, fixtures = release_inputs()
+    negative = next(
+        result
+        for result in fixtures["runs"]["android"]["results"]
+        if result["fixture_id"] == "negative-1"
+    )
+    negative.update(detected=True, raw_label="tomato fruit", confidence=0.9)
+    with pytest.raises(ValueError, match="negative false positives"):
+        select_release(
+            manifest,
+            ios,
+            android,
+            fixtures,
+            accepted_licenses={export.DEFAULT_LICENSE},
+        )
+
+
+def test_fixture_report_requires_hashed_positive_and_negative_fixed_set() -> None:
+    fixtures = release_inputs()[3]
+    fixtures["fixture_set"] = [
+        fixture for fixture in fixtures["fixture_set"] if fixture["expected_crop"] is not None
+    ]
+    kept_ids = {fixture["fixture_id"] for fixture in fixtures["fixture_set"]}
+    for run in fixtures["runs"].values():
+        run["results"] = [result for result in run["results"] if result["fixture_id"] in kept_ids]
+    with pytest.raises(ValueError, match="negative fixtures"):
+        validate_fixture_report(fixtures)
+
+
+def test_fixture_report_rejects_duplicate_fixture_content() -> None:
+    fixtures = release_inputs()[3]
+    fixtures["fixture_set"][1]["fixture_sha256"] = fixtures["fixture_set"][0]["fixture_sha256"]
+    with pytest.raises(ValueError, match="fixture_sha256 values must be unique"):
+        validate_fixture_report(fixtures)
+
+
+def test_release_binds_each_fixture_run_to_its_platform_artifact() -> None:
+    manifest, ios, android, fixtures = release_inputs()
+    fixtures["runs"]["android"]["artifact_sha256"] = "a" * 64
+    with pytest.raises(ValueError, match="android fixture artifact hash"):
+        select_release(
+            manifest,
+            ios,
+            android,
+            fixtures,
+            accepted_licenses={export.DEFAULT_LICENSE},
+        )
 
 
 def test_release_requires_evidence_report_digests() -> None:
@@ -422,6 +415,33 @@ def test_export_refuses_to_overwrite_an_existing_version(
         run_export(monkeypatch, "--version", "demo1", "--output-dir", "out")
     assert error.value.code == 2
     assert not fake_yoloe.instances
+
+
+def test_package_digest_is_independent_of_package_directory_name(tmp_path: Path) -> None:
+    first = tmp_path / "first.mlpackage"
+    second = tmp_path / "renamed.mlpackage"
+    for package in (first, second):
+        nested = package / "Data"
+        nested.mkdir(parents=True)
+        (package / "Manifest.json").write_text('{"version": 1}', encoding="utf-8")
+        (nested / "weights.bin").write_bytes(b"weights")
+    assert export.sha256(first) == export.sha256(second)
+
+
+def test_export_failure_leaves_no_partial_version(
+    fake_yoloe: type[FakeYOLOE], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_export = FakeYOLOE.export
+
+    def fail_android(self: FakeYOLOE, **options: object) -> str:
+        if options["format"] == "tflite":
+            raise RuntimeError("simulated TFLite exporter failure")
+        return original_export(self, **options)
+
+    monkeypatch.setattr(FakeYOLOE, "export", fail_android)
+    with pytest.raises(RuntimeError, match="simulated"):
+        run_export(monkeypatch, "--version", "demo1", "--output-dir", "out")
+    assert list(Path("out").iterdir()) == []
 
 
 @pytest.mark.parametrize(
