@@ -1,33 +1,14 @@
-# The isolated CI API is running for this flow.
-#
-# Home is served from the local database either way, so this proves the same
-# launch path works with a reachable API — nothing regressed when the network
-# came back.
-#
-#   maestro test e2e/mobile/online_launch.yaml
-appId: za.co.almanac.app
-name: App launches into Home from local storage with the API reachable
+# The isolated CI API must be running before this flow starts.
+appId: za.co.ctrlaltelite.farmable
+name: App launches and reaches the isolated API
 ---
 - launchApp:
     clearState: true
-# clearState wipes app data, so the local database is created and seeded before
-# anything renders — work the old status screen never did.
-#
-# The regex is required, not decorative: Maestro matches the WHOLE string, and
-# the ANDROID accessibility tree Maestro reads merges sibling nodes, even though
-# Flutter's own semantics tree keeps them separate. The greeting and the date are
-# two sibling Texts with no MergeSemantics, so Flutter gives them a node each —
-# but the node Maestro sees on a device is
-# content-desc="Hello, Sipho&#10;Monday, 21 September". A bare 'Hello, Sipho'
-# never matches. Verified against a live view-hierarchy dump, not inferred.
 - extendedWaitUntil:
-    visible: '.*Hello, Sipho.*'
-    timeout: 60000
-# The chip's wording is deliberately not asserted here. The seeded farm carries
-# unsynced changes, so it reads "3 changes waiting" in both flows rather than
-# "Synced" or "Offline" — queued work is the more useful fact when there is any.
-# Asserting its presence still proves the app reports its sync standing on
-# launch; telling the two flows apart by wording needs the sync engine that
-# does not exist yet.
+    visible: 'Farmable'
+    timeout: 30000
 - assertVisible:
-    id: 'sync-status'
+    id: 'api-status'
+- extendedWaitUntil:
+    visible: 'Online'
+    timeout: 30000

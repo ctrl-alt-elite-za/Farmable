@@ -1,33 +1,17 @@
-# With the API stopped, the app must still open and show the farm.
+# Maestro flow: with the API stopped, the app must still open and say Offline.
 #
-# This is the product's central claim: the dashboard is served from the local
-# database, so an unreachable API is a normal state rather than a failure.
-#
+# Run it against an emulator with a development build installed and no API running:
 #   maestro test e2e/mobile/offline_launch.yaml
-appId: za.co.almanac.app
-name: App launches into Home from local storage with no API reachable
+appId: za.co.ctrlaltelite.farmable
+name: App launches and reports Offline when the API is unreachable
 ---
 - launchApp:
     clearState: true
-# clearState wipes app data, so the local database is created and seeded before
-# anything renders — work the old status screen never did.
-#
-# The regex is required, not decorative: Maestro matches the WHOLE string, and
-# the ANDROID accessibility tree Maestro reads merges sibling nodes, even though
-# Flutter's own semantics tree keeps them separate. The greeting and the date are
-# two sibling Texts with no MergeSemantics, so Flutter gives them a node each —
-# but the node Maestro sees on a device is
-# content-desc="Hello, Sipho&#10;Monday, 21 September". A bare 'Hello, Sipho'
-# never matches. Verified against a live view-hierarchy dump, not inferred.
-#
-# Matching the seeded farmer's name proves Home rendered the SEEDED farm out of
-# local storage, not merely that some screen drew.
 - extendedWaitUntil:
-    visible: '.*Hello, Sipho.*'
-    timeout: 60000
-# The chip's wording is deliberately not asserted. The seeded farm carries
-# unsynced changes, so it reads "3 changes waiting" rather than "Offline" —
-# queued work is the more useful fact when there is any. Its presence still
-# proves the app reports its sync standing on launch.
+    visible: 'Farmable'
+    timeout: 30000
 - assertVisible:
-    id: 'sync-status'
+    id: 'api-status'
+- extendedWaitUntil:
+    visible: 'Offline'
+    timeout: 30000

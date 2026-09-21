@@ -1,11 +1,10 @@
 pnpm-lock.yaml
 uv.lock
 apps/ml-service/data/
-# The mobile app is Flutter; `dart format` owns its formatting.
-apps/mobile/
 **/dist/
 **/build/
 **/coverage/
+**/.expo/
 .venv/
 node_modules/
 /.uv-cache/
@@ -14,5 +13,3 @@ node_modules/
 /.ruff_cache/
 /.ci-reports/
 /.ci-tmp/
-# Local agent scratch, not part of the project.
-.claude/

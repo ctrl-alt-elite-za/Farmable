@@ -35,17 +35,6 @@ for dir in $changed_dirs; do
         [ -n "$(find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ] && { uv run pytest apps/backend -q || status=1; }
       fi
       ;;
-    apps/mobile)
-      if command -v flutter >/dev/null; then
-        # Generated from design/tokens.css — catch drift before it is pushed.
-        (cd apps/mobile && dart run tool/generate_tokens.dart --verify) || status=1
-        (cd apps/mobile && dart format --output=none --set-exit-if-changed lib test tool) || status=1
-        (cd apps/mobile && flutter analyze) || status=1
-        (cd apps/mobile && flutter test --exclude-tags demo-api) || status=1
-      else
-        echo "skipping apps/mobile: flutter is not on PATH"
-      fi
-      ;;
     apps/ml-service)
       if [ -n "$(scripts/has-py-files.sh apps/ml-service)" ]; then
         uv run ruff check --fix apps/ml-service || status=1
