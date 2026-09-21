@@ -35,10 +35,13 @@ class QueueJob(ExternalBase):
     status: Mapped[str] = mapped_column(String)
 
 
-def make_engine(settings: Settings):
+def make_engine(settings: Settings, *, migration: bool = False):
+    options = CONNECTION_OPTIONS
+    if migration:
+        options += " -c lock_timeout=1000"
     return create_engine(
         settings.database_url.get_secret_value(),
-        connect_args={"connect_timeout": 5, "options": CONNECTION_OPTIONS},
+        connect_args={"connect_timeout": 5, "options": options},
         pool_timeout=5,
         pool_pre_ping=True,
         hide_parameters=True,
