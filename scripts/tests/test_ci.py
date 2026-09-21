@@ -1,5 +1,6 @@
 """Security and failure behaviour of CI helpers, without GitHub writes or real outages."""
 
+import base64
 import io
 import json
 import re
@@ -421,6 +422,58 @@ def test_status_check_activation_defaults_to_read_only(monkeypatch, capsys):
     required_checks.main()
     assert "Plan only" in capsys.readouterr().out
     api.assert_not_called()
+
+
+@pytest.mark.parametrize("flutter_app", [True, False])
+def test_status_check_activation_recognizes_flutter_and_preserves_checks(monkeypatch, flutter_app):
+    import required_checks
+
+    required = json.loads(Path(".github/required-checks.json").read_text())
+    prefix = "/repos/example/repo"
+    endpoint = prefix + "/branches/main/protection/required_status_checks"
+    pubspec = "dependencies:\n  flutter:\n    sdk: flutter\n" if flutter_app else "dependencies: {}"
+    replies = {
+        prefix: {"permissions": {"admin": True}},
+        prefix + "/issues/4": {"state": "closed"},
+        prefix + "/contents/apps/mobile/pubspec.yaml?ref=main": {
+            "content": base64.b64encode(pubspec.encode()).decode()
+        },
+        prefix + "/contents/e2e/mobile?ref=main": [{"name": "online.yaml", "type": "file"}],
+        prefix + "/branches/main": {"commit": {"sha": "main-sha"}},
+        endpoint: {"checks": [{"context": "existing-review", "app_id": 17}], "contexts": []},
+    }
+    writes = []
+
+    def api(path, method="GET", payload=None):
+        if method == "PATCH":
+            writes.append((path, payload))
+            return {}
+        return replies[path]
+
+    monkeypatch.setenv("GITHUB_REPOSITORY", "example/repo")
+    monkeypatch.setattr("sys.argv", ["required_checks.py", "--apply"])
+    monkeypatch.setattr(required_checks, "request_json", api)
+    monkeypatch.setattr(
+        required_checks,
+        "all_pages",
+        lambda *args: [
+            {"id": index, "name": name, "conclusion": "success", "app": {"id": 99}}
+            for index, name in enumerate(required)
+        ],
+    )
+    if not flutter_app:
+        with pytest.raises(RuntimeError, match="Flutter app"):
+            required_checks.main()
+        assert writes == []
+        return
+
+    required_checks.main()
+    assert len(writes) == 1
+    path, payload = writes[0]
+    assert path == endpoint
+    assert payload["strict"] is True
+    assert {"context": "existing-review", "app_id": 17} in payload["checks"]
+    assert all({"context": name, "app_id": 99} in payload["checks"] for name in required)
 
 
 @pytest.mark.parametrize("approved", [False, True])

@@ -38,12 +38,18 @@ class HealthService {
   Future<Reachability> check() async {
     // A build with no API configured is offline by definition; there is no
     // point waiting for a DNS failure to tell us that.
-    if (isOfflineBuild) return Reachability.offline;
-
     try {
+      final host = Uri.parse(_dio.options.baseUrl).host;
+      if (host == 'invalid' || host.endsWith('.invalid')) {
+        return Reachability.offline;
+      }
       final response = await _dio.get<dynamic>('/health/live');
       final status = response.statusCode ?? 0;
-      return status >= 200 && status < 300
+      final data = response.data;
+      return status >= 200 &&
+              status < 300 &&
+              data is Map &&
+              data['status'] == 'ok'
           ? Reachability.online
           : Reachability.offline;
     } on Object {

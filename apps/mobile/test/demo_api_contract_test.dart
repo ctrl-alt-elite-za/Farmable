@@ -11,12 +11,13 @@
 ///   uv run python -m farmable_backend.demo_api.init
 ///   uv run uvicorn farmable_backend.demo_api.app:app --host 127.0.0.1 --port 8001
 ///
-/// The suite skips itself when nothing is listening, so it never fails a build
-/// on a machine that has not started the prototype.
+/// Run via `uv run python scripts/test_mobile_contract.py` from the repo root.
+/// Ordinary unit runs exclude the `demo-api` tag. When selected, these tests
+/// always exercise the backend and fail if it is unavailable.
+@Tags(['demo-api'])
 library;
 
-import 'dart:io';
-
+import 'package:dio/dio.dart';
 import 'package:almanac/data/demo_api_farm_repository.dart';
 import 'package:almanac/domain/farm_repository.dart';
 import 'package:almanac/domain/models.dart';
@@ -28,32 +29,7 @@ const _baseUrl = String.fromEnvironment(
   defaultValue: 'http://127.0.0.1:8001',
 );
 
-Future<bool> _isUp() async {
-  try {
-    final uri = Uri.parse(_baseUrl);
-    final socket = await Socket.connect(
-      uri.host,
-      uri.port,
-      timeout: const Duration(milliseconds: 600),
-    );
-    socket.destroy();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-
 void main() {
-  late bool up;
-
-  setUpAll(() async {
-    up = await _isUp();
-    if (!up) {
-      // ignore: avoid_print
-      print('demo_api is not running at $_baseUrl — skipping contract tests.');
-    }
-  });
-
   DemoApiFarmRepository repo() => DemoApiFarmRepository(baseUrl: _baseUrl);
 
   Future<(DemoApiFarmRepository, Dashboard)> session() async {
@@ -63,7 +39,6 @@ void main() {
 
   group('session and farm', () {
     test('startSession returns a token and the example farm', () async {
-      if (!up) return;
       final (r, dashboard) = await session();
 
       expect(r.sessionToken, isNotNull);
@@ -77,7 +52,6 @@ void main() {
     });
 
     test('the example farm has one available section', () async {
-      if (!up) return;
       final (_, dashboard) = await session();
       final available = dashboard.sections.where((s) => s.isAvailable).toList();
 
@@ -89,7 +63,6 @@ void main() {
     test(
       'an unauthenticated call raises SessionExpired, not a raw error',
       () async {
-        if (!up) return;
         await expectLater(repo().farm(), throwsA(isA<SessionExpired>()));
       },
     );
@@ -109,7 +82,6 @@ void main() {
     test(
       'a feasible request returns candidate plans with real figures',
       () async {
-        if (!up) return;
         final (r, dashboard) = await session();
         final section = dashboard.sections.firstWhere((s) => s.isAvailable);
 
@@ -155,7 +127,6 @@ void main() {
     test(
       'a plan that cannot afford the whole section leaves blocks unplanted',
       () async {
-        if (!up) return;
         final (r, dashboard) = await session();
         final section = dashboard.sections.firstWhere((s) => s.isAvailable);
 
@@ -186,7 +157,6 @@ void main() {
     test(
       'an unaffordable request explains itself instead of returning nothing',
       () async {
-        if (!up) return;
         final (r, dashboard) = await session();
         final section = dashboard.sections.firstWhere((s) => s.isAvailable);
 
@@ -213,7 +183,6 @@ void main() {
     );
 
     test('the scenario covers September 2026 only', () async {
-      if (!up) return;
       final (r, dashboard) = await session();
       final section = dashboard.sections.firstWhere((s) => s.isAvailable);
 
@@ -232,7 +201,6 @@ void main() {
 
   group('propose and approve', () {
     test('a saved plan starts proposed and only changes on approval', () async {
-      if (!up) return;
       final (r, dashboard) = await session();
       final section = dashboard.sections.firstWhere((s) => s.isAvailable);
       final request = PlanRequest(
@@ -240,7 +208,11 @@ void main() {
         budget: const Cents(300000),
       );
 
-      final saved = await r.savePlan(section.id, request);
+      final saved = await r.savePlan(
+        section.id,
+        request,
+        mutationId: 'propose-first-plan',
+      );
       expect(saved.status, PlanStatus.proposed);
       expect(saved.sectionRevision, section.revision);
       expect(saved.parentPlanId, isNull);
@@ -251,7 +223,10 @@ void main() {
       final before = await r.section(section.id);
       expect(before.plannedPlanId, isNull);
 
-      final approved = await r.approvePlan(saved.id);
+      final approved = await r.approvePlan(
+        saved.id,
+        mutationId: 'approve-first-plan',
+      );
       expect(approved.status, PlanStatus.approved);
 
       final after = await r.section(section.id);
@@ -259,7 +234,6 @@ void main() {
     });
 
     test('re-planning links back to the plan it replaced', () async {
-      if (!up) return;
       final (r, dashboard) = await session();
       final section = dashboard.sections.firstWhere((s) => s.isAvailable);
 
@@ -269,6 +243,7 @@ void main() {
           plantingDate: DateTime(2026, 9, 25),
           budget: const Cents(300000),
         ),
+        mutationId: 'propose-original-plan',
       );
 
       final second = await r.replan(
@@ -278,6 +253,7 @@ void main() {
           budget: const Cents(300000),
           minimumShares: const {Crop.cabbage: 50},
         ),
+        mutationId: 'replan-original-plan',
       );
 
       expect(second.parentPlanId, first.id);
@@ -286,11 +262,103 @@ void main() {
   });
 
   group('sections', () {
+    test('deletion supplies an idempotency key and can be replayed', () async {
+      final (r, _) = await session();
+      final created = await r.createSection(
+        mutationId: 'create-delete-test',
+        name: 'Temporary Plot',
+        areaM2: '100',
+      );
+      await r.deleteSection(created.id, mutationId: 'delete-section-test');
+      await r.deleteSection(created.id, mutationId: 'delete-section-test');
+      expect(
+        (await r.farm()).sections.where((s) => s.id == created.id),
+        isEmpty,
+      );
+    });
+
+    test(
+      'a lost creation response can be replayed after restoring the session',
+      () async {
+        final dio = Dio(BaseOptions(baseUrl: _baseUrl));
+        addTearDown(() => dio.close(force: true));
+        var dropResponse = true;
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onResponse: (response, handler) {
+              if (dropResponse &&
+                  response.requestOptions.path == '/demo/sections') {
+                dropResponse = false;
+                handler.reject(
+                  DioException(
+                    requestOptions: response.requestOptions,
+                    type: DioExceptionType.receiveTimeout,
+                  ),
+                );
+              } else {
+                handler.next(response);
+              }
+            },
+          ),
+        );
+        final r = DemoApiFarmRepository(baseUrl: _baseUrl, dio: dio);
+        final original = await r.startSession();
+        await expectLater(
+          r.createSection(
+            mutationId: 'retry-lost-creation',
+            name: 'Retry Plot',
+            areaM2: '100',
+          ),
+          throwsA(isA<Unreachable>()),
+        );
+
+        final restored = repo();
+        await restored.restoreSession(r.sessionToken!);
+        final result = await restored.createSection(
+          mutationId: 'retry-lost-creation',
+          name: 'Retry Plot',
+          areaM2: '100',
+        );
+        final farm = await restored.farm();
+        expect(farm.sections, hasLength(original.sections.length + 1));
+        expect(farm.sections.where((s) => s.id == result.id), hasLength(1));
+        await expectLater(
+          restored.createSection(
+            mutationId: 'retry-lost-creation',
+            name: 'A different action',
+            areaM2: '200',
+          ),
+          throwsA(
+            isA<RequestRejected>().having((e) => e.statusCode, 'status', 409),
+          ),
+        );
+      },
+    );
+
+    test('a section limit is not reported as a stale revision', () async {
+      final (r, dashboard) = await session();
+      for (var i = dashboard.sections.length; i < 20; i++) {
+        await r.createSection(
+          mutationId: 'fill-section-limit-$i',
+          name: 'Plot $i',
+          areaM2: '10',
+        );
+      }
+      await expectLater(
+        r.createSection(
+          mutationId: 'exceed-section-limit',
+          name: 'Extra',
+          areaM2: '10',
+        ),
+        throwsA(isA<LimitReached>()),
+      );
+    });
+
     test('a created section reports a farmer-supplied area', () async {
-      if (!up) return;
       final (r, _) = await session();
 
       final created = await r.createSection(
+        mutationId: 'create-north-section',
         name: 'North Plot',
         areaM2: '250.00',
       );
@@ -302,14 +370,15 @@ void main() {
     });
 
     test('a stale revision is refused rather than clobbering', () async {
-      if (!up) return;
       final (r, _) = await session();
       final created = await r.createSection(
+        mutationId: 'create-test-section',
         name: 'Test Plot',
         areaM2: '120.00',
       );
 
       final updated = await r.updateSection(
+        mutationId: 'rename-test-section',
         sectionId: created.id,
         expectedRevision: created.revision,
         name: 'Test Plot renamed',
@@ -320,6 +389,7 @@ void main() {
       // Replaying the original revision must now fail.
       await expectLater(
         r.updateSection(
+          mutationId: 'stale-test-section',
           sectionId: created.id,
           expectedRevision: created.revision,
           name: 'Something else',

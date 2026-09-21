@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:dio/dio.dart';
 
 import '../domain/farm_repository.dart';
@@ -20,12 +18,10 @@ import '../domain/models.dart';
 ///   2026 only. Anything else is refused rather than estimated.
 class DemoApiFarmRepository implements FarmRepository {
   final Dio _dio;
-  final Random _random;
   String? _token;
 
-  DemoApiFarmRepository({required String baseUrl, Dio? dio, Random? random})
-    : _random = random ?? Random(),
-      _dio =
+  DemoApiFarmRepository({required String baseUrl, Dio? dio})
+    : _dio =
           dio ??
           Dio(
             BaseOptions(
@@ -75,6 +71,7 @@ class DemoApiFarmRepository implements FarmRepository {
 
   @override
   Future<Section> createSection({
+    required String mutationId,
     required String name,
     required String areaM2,
   }) async => Section.fromJson(
@@ -82,12 +79,13 @@ class DemoApiFarmRepository implements FarmRepository {
       'POST',
       '/demo/sections',
       body: {'name': name, 'area_m2': areaM2},
-      headers: {'Idempotency-Key': _idempotencyKey()},
+      headers: {'Idempotency-Key': mutationId},
     ),
   );
 
   @override
   Future<Section> updateSection({
+    required String mutationId,
     required String sectionId,
     required int expectedRevision,
     required String name,
@@ -98,15 +96,22 @@ class DemoApiFarmRepository implements FarmRepository {
       '/demo/sections/$sectionId',
       body: {'name': name, 'area_m2': areaM2},
       headers: {
-        'Idempotency-Key': _idempotencyKey(),
+        'Idempotency-Key': mutationId,
         'Section-Revision': '$expectedRevision',
       },
     ),
   );
 
   @override
-  Future<void> deleteSection(String sectionId) async {
-    await _send('DELETE', '/demo/sections/$sectionId');
+  Future<void> deleteSection(
+    String sectionId, {
+    required String mutationId,
+  }) async {
+    await _send(
+      'DELETE',
+      '/demo/sections/$sectionId',
+      headers: {'Idempotency-Key': mutationId},
+    );
   }
 
   @override
@@ -120,51 +125,49 @@ class DemoApiFarmRepository implements FarmRepository {
       );
 
   @override
-  Future<SavedPlan> savePlan(String sectionId, PlanRequest request) async =>
-      SavedPlan.fromJson(
-        await _send(
-          'POST',
-          '/demo/sections/$sectionId/plans',
-          body: request.toJson(),
-          headers: {'Idempotency-Key': _idempotencyKey()},
-        ),
-      );
+  Future<SavedPlan> savePlan(
+    String sectionId,
+    PlanRequest request, {
+    required String mutationId,
+  }) async => SavedPlan.fromJson(
+    await _send(
+      'POST',
+      '/demo/sections/$sectionId/plans',
+      body: request.toJson(),
+      headers: {'Idempotency-Key': mutationId},
+    ),
+  );
 
   @override
-  Future<SavedPlan> replan(String planId, PlanRequest request) async =>
-      SavedPlan.fromJson(
-        await _send(
-          'POST',
-          '/demo/plans/$planId/constraints',
-          body: request.toJson(),
-          headers: {'Idempotency-Key': _idempotencyKey()},
-        ),
-      );
+  Future<SavedPlan> replan(
+    String planId,
+    PlanRequest request, {
+    required String mutationId,
+  }) async => SavedPlan.fromJson(
+    await _send(
+      'POST',
+      '/demo/plans/$planId/constraints',
+      body: request.toJson(),
+      headers: {'Idempotency-Key': mutationId},
+    ),
+  );
 
   @override
   Future<SavedPlan> plan(String planId) async =>
       SavedPlan.fromJson(await _send('GET', '/demo/plans/$planId'));
 
   @override
-  Future<SavedPlan> approvePlan(String planId) async => SavedPlan.fromJson(
+  Future<SavedPlan> approvePlan(
+    String planId, {
+    required String mutationId,
+  }) async => SavedPlan.fromJson(
     await _send(
       'POST',
       '/demo/plans/$planId/approve',
       body: const {},
-      headers: {'Idempotency-Key': _idempotencyKey()},
+      headers: {'Idempotency-Key': mutationId},
     ),
   );
-
-  /// The backend requires a caller-supplied key on every mutation so a retry
-  /// over a flaky link cannot create a duplicate section or plan — which is
-  /// the normal case for this product, not the edge case.
-  String _idempotencyKey() {
-    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    return List.generate(
-      24,
-      (_) => alphabet[_random.nextInt(alphabet.length)],
-    ).join();
-  }
 
   Future<Map<String, dynamic>> _send(
     String method,
@@ -184,12 +187,13 @@ class DemoApiFarmRepository implements FarmRepository {
         data: body,
         options: Options(
           method: method,
+          validateStatus: (_) => true,
           headers: {...headers, if (authed) 'Authorization': 'Bearer $_token'},
         ),
       );
-    } on DioException catch (e) {
-      // Connection refused, DNS failure, timeout — the request never landed.
-      throw Unreachable(e.message ?? 'Cannot reach the farm service');
+    } on DioException {
+      // A lost response does not prove the server rolled back the mutation.
+      throw const Unreachable();
     }
 
     final status = response.statusCode ?? 0;
@@ -215,9 +219,9 @@ class DemoApiFarmRepository implements FarmRepository {
 
     return switch (status) {
       401 => SessionExpired(message),
-      409 => RevisionConflict(message),
       // The prototype caps sections, plans and mutations per farm.
-      422 when code.contains('limit') => LimitReached(message),
+      409 || 422 when code.contains('limit') => LimitReached(message),
+      409 when code == 'stale_section' => RevisionConflict(message),
       429 => LimitReached(message),
       _ => RequestRejected(code, message, statusCode: status),
     };
