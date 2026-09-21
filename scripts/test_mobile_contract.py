@@ -1,7 +1,11 @@
 """Run Flutter's demo API contract suite against disposable loopback storage.
 
-Run with ``uv run python scripts/test_mobile_contract.py`` on Linux/macOS.
-The inherited listening socket reserves an ephemeral port until Uvicorn owns it.
+Run with ``uv run python scripts/test_mobile_contract.py``.
+On POSIX the inherited listening socket reserves an ephemeral port until Uvicorn
+owns it, so nothing can take the port in between. Windows cannot inherit a
+socket into a child process, so there it reserves the port, releases it and
+passes ``--port``; the window is small and the alternative is being unable to
+run the suite locally at all.
 No developer database or already-running server is used.
 """
 
@@ -32,23 +36,35 @@ def main() -> int:
             check=True,
             timeout=30,
         )
+        can_inherit_socket = os.name != "nt"
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             listener.listen()
-            base_url = f"http://127.0.0.1:{listener.getsockname()[1]}"
-            server = subprocess.Popen(  # noqa: S603 - fixed module and inherited socket
-                [
-                    sys.executable,
-                    "-m",
-                    "uvicorn",
-                    "farmable_backend.demo_api.app:app",
-                    "--fd",
-                    str(listener.fileno()),
-                    "--no-access-log",
-                ],
+            port = listener.getsockname()[1]
+            base_url = f"http://127.0.0.1:{port}"
+
+            command = [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "farmable_backend.demo_api.app:app",
+                "--no-access-log",
+            ]
+            if can_inherit_socket:
+                command += ["--fd", str(listener.fileno())]
+                popen_kwargs = {"pass_fds": (listener.fileno(),)}
+            else:
+                # subprocess cannot pass an fd to a child on Windows, so hand
+                # the port over instead and let go of it first.
+                listener.close()
+                command += ["--host", "127.0.0.1", "--port", str(port)]
+                popen_kwargs = {}
+
+            server = subprocess.Popen(  # noqa: S603 - fixed module and arguments
+                command,
                 cwd=ROOT,
                 env=env,
-                pass_fds=(listener.fileno(),),
+                **popen_kwargs,
             )
             try:
                 deadline = time.monotonic() + 30
