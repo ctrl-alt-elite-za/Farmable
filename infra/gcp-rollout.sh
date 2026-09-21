@@ -56,12 +56,27 @@ rollback() {
       --to-revisions="${previous_revision}=100" --quiet >/dev/null || \
       echo "Cloud Run traffic rollback failed; operator action required" >&2
   elif [[ "$service_existed" == false && -n "$new_revision" ]]; then
-    # A first Cloud Run deployment has no older revision that can receive
-    # traffic. Delete only the service created by this failed first rollout so
-    # an unhealthy revision is not left publicly reachable.
-    gcloud run services delete "$CLOUD_RUN_SERVICE" \
-      --project="$GCP_PROJECT" --region="$GCP_REGION" --quiet >/dev/null || \
-      echo "Failed first deployment could not be removed; operator action required" >&2
+    # A first Cloud Run deployment has no older revision that can receive traffic, and
+    # the failed one stays reachable at its sha- tag URL, so the service is removed.
+    #
+    # Deletion is the only irreversible action in this script, and service_existed is
+    # the absence of positive evidence: any way the existence probe could read a live
+    # service as absent -- a wrong projection, a filter matching nothing -- would point
+    # this at a service serving production traffic. So require positive proof instead:
+    # a service this run created holds exactly the one revision this run deployed.
+    # Revisions we did not create mean the probe was wrong; stop and hand over.
+    revisions="$(gcloud run revisions list --service="$CLOUD_RUN_SERVICE" \
+      --project="$GCP_PROJECT" --region="$GCP_REGION" \
+      --format='value(metadata.name)' 2>/dev/null)" || revisions="__probe_failed__"
+    mapfile -t revision_names < <(grep -v '^[[:space:]]*$' <<<"$revisions" || true)
+    if [[ ${#revision_names[@]} -eq 1 && "${revision_names[0]}" == "$new_revision" ]]; then
+      gcloud run services delete "$CLOUD_RUN_SERVICE" \
+        --project="$GCP_PROJECT" --region="$GCP_REGION" --quiet >/dev/null || \
+        echo "Failed first deployment could not be removed; operator action required" >&2
+    else
+      echo "Refusing to delete ${CLOUD_RUN_SERVICE}: it holds revisions this run did" \
+        "not create, so it was not created by this run; operator action required" >&2
+    fi
   fi
   exit "$status"
 }

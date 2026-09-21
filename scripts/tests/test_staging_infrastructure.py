@@ -597,3 +597,100 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     # A successful rollout must never touch the delete path.
     assert "services delete" not in calls
     assert f"Cloud Run deployed {sha}" in result.stdout
+
+
+# A first deploy that fails after the revision exists: the service is absent before
+# the run, `gcloud run deploy` succeeds, then resolving the tagged revision's URL
+# fails. That reaches rollback() with service_existed=false and new_revision set --
+# the state that arms the only irreversible action in the script.
+_FAILED_FIRST_DEPLOY_STUB = r"""
+if [[ "$*" == *"run services list"* ]]; then exit 0; fi
+if [[ "$*" == *"latestCreatedRevisionName"* ]]; then
+  printf '%s\n' 'farmable-00002'; exit 0
+fi
+if [[ "$*" == *"run services describe"* ]]; then
+  printf '%s\n' '{"status":{"traffic":[]}}'; exit 0
+fi
+if [[ "$*" == *"run revisions list"* ]]; then
+  printf '%s\n' "${FAKE_REVISIONS:-farmable-00002}"; exit 0
+fi
+"""
+
+
+@requires_jq
+def test_failed_first_deploy_deletes_only_a_service_this_run_created(
+    tmp_path: Path,
+) -> None:
+    """Positive proof: the service holds exactly one revision and it is the one this
+    run deployed. Then deleting it destroys only what this run built.
+    """
+    log = tmp_path / "calls.log"
+    _fake_gcloud(
+        tmp_path,
+        _log_calls(log) + _FAILED_FIRST_DEPLOY_STUB + "exit 0\n",
+    )
+    result = _run(
+        "infra/gcp-rollout.sh",
+        {**_rollout_env(tmp_path), "FAKE_REVISIONS": "farmable-00002"},
+    )
+    assert result.returncode != 0
+    assert "services delete" in log.read_text(encoding="utf-8")
+
+
+@requires_jq
+def test_failed_first_deploy_refuses_to_delete_a_service_holding_other_revisions(
+    tmp_path: Path,
+) -> None:
+    """The dangerous case. `services delete` previously fired on absence of positive
+    evidence -- service_existed=false plus a revision name -- so any way the existence
+    probe could read a live service as absent (a wrong projection, a filter that
+    matches nothing) destroyed a service serving production traffic.
+
+    Revisions this run did not create are proof the probe was wrong. The script must
+    refuse and hand over to an operator rather than delete.
+    """
+    log = tmp_path / "calls.log"
+    _fake_gcloud(
+        tmp_path,
+        _log_calls(log) + _FAILED_FIRST_DEPLOY_STUB + "exit 0\n",
+    )
+    result = _run(
+        "infra/gcp-rollout.sh",
+        {
+            **_rollout_env(tmp_path),
+            "FAKE_REVISIONS": "farmable-00001\nfarmable-00002",
+        },
+    )
+    assert result.returncode != 0
+    assert "services delete" not in log.read_text(encoding="utf-8")
+    assert "operator action required" in result.stderr
+
+
+@requires_jq
+def test_failed_first_deploy_refuses_to_delete_when_the_revision_probe_fails(
+    tmp_path: Path,
+) -> None:
+    """If the proof itself cannot be obtained, that is not proof. A failing
+    `revisions list` must leave the service alone rather than fall through to the
+    delete, which is how "absence of evidence" became "evidence of absence" the
+    first time.
+    """
+    log = tmp_path / "calls.log"
+    _fake_gcloud(
+        tmp_path,
+        _log_calls(log) + 'if [[ "$*" == *"run services list"* ]]; then exit 0; fi\n'
+        'if [[ "$*" == *"latestCreatedRevisionName"* ]]; then\n'
+        "  printf '%s\\n' 'farmable-00002'; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"run services describe"* ]]; then\n'
+        "  printf '%s\\n' '{\"status\":{\"traffic\":[]}}'; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"run revisions list"* ]]; then\n'
+        "  echo 'ERROR: HTTPError 503: backend error' >&2; exit 1\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    result = _run("infra/gcp-rollout.sh", _rollout_env(tmp_path))
+    assert result.returncode != 0
+    assert "services delete" not in log.read_text(encoding="utf-8")
+    assert "operator action required" in result.stderr
