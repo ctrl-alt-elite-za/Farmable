@@ -138,9 +138,7 @@ def validate_fixture_report(report: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("crop fixtures cannot be marked false_positive")
     counted_false_positives = sum(bool(result["false_positive"]) for result in results)
     if false_positives != counted_false_positives:
-        raise ValueError(
-            "negative_false_positives must equal false_positive fixture results"
-        )
+        raise ValueError("negative_false_positives must equal false_positive fixture results")
     for crop in REQUIRED_CROPS:
         usable_evidence = sum(
             result["expected_crop"] == crop
