@@ -17,28 +17,16 @@ set -Eeuo pipefail
 # `list --filter` answers the existence question directly: absent is empty output with
 # a zero exit, so a transient 503 or a permissions problem stays a failure instead of
 # reading as "absent" and arming the first-deploy `services delete` branch below.
-probe_stderr="$(mktemp)"
-trap 'rm -f "$probe_stderr"' EXIT
-if ! services="$(gcloud run services list \
+# `run services list` issues a RunNamespacesServicesListRequest -- the Knative v1 API,
+# which always populates metadata.name -- so one field is the whole answer.
+# $(...) captures stdout only; gcloud's stderr already reaches the workflow log.
+if ! existing="$(gcloud run services list \
   --project="$GCP_PROJECT" --region="$GCP_REGION" \
-  --format='value(metadata.name,name)' 2>"$probe_stderr")"; then
-  cat "$probe_stderr" >&2
+  --filter="metadata.name=${CLOUD_RUN_SERVICE}" \
+  --format='value(metadata.name)')"; then
   echo "Could not determine whether ${CLOUD_RUN_SERVICE} exists; refusing to deploy" >&2
   exit 1
 fi
-
-# Print whichever identifier field the API version populates -- Knative v1 fills
-# metadata.name with the bare name, Admin v2 fills name with the fully qualified
-# path -- and match on the final segment, so no encoding has to be assumed. Getting
-# this wrong would read as "absent", which is the branch that deletes the service.
-existing=""
-while IFS=$'\t' read -r -a fields; do
-  for field in "${fields[@]}"; do
-    if [[ "${field##*/}" == "$CLOUD_RUN_SERVICE" ]]; then
-      existing="$CLOUD_RUN_SERVICE"
-    fi
-  done
-done <<<"$services"
 
 if [[ -n "$existing" ]]; then
   service_json="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \

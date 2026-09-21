@@ -124,7 +124,7 @@ fi
     output = tmp_path / "github-output"
     environment = {
         **os.environ,
-        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "PATH": _path(tmp_path),
         "GCP_PROJECT": "farmable-project",
         "GCP_REGION": "africa-south1",
         "CLOUD_RUN_SERVICE": "farmable",
@@ -225,6 +225,15 @@ def _bash() -> str:
     return found
 
 
+def _log_calls(log: Path) -> str:
+    """Shell that appends every invocation's arguments to `log`.
+
+    Hand-copied into three stubs before this existed, and one copy had already drifted
+    to a different newline encoding -- the duplication was not being kept in sync.
+    """
+    return "printf '%s\\n' \"$*\" >>" + f'"{log}"\n'
+
+
 def _fake_gcloud(tmp_path: Path, body: str) -> None:
     script = tmp_path / "gcloud"
     script.write_text("#!/usr/bin/env bash\nset -Eeuo pipefail\n" + body, encoding="utf-8")
@@ -250,12 +259,6 @@ REFERENCE_ENV_V1 = (
     '{"name":"farmable-staging-database-url","key":"latest"}}},'
     '{"name":"GEMINI_API_KEY","valueFrom":{"secretKeyRef":'
     '{"name":"farmable-staging-gemini-api-key","key":"latest"}}}'
-)
-REFERENCE_ENV_V2 = (
-    '{"name":"DATABASE_URL","valueSource":{"secretKeyRef":'
-    '{"secret":"farmable-staging-database-url","version":"latest"}}},'
-    '{"name":"GEMINI_API_KEY","valueSource":{"secretKeyRef":'
-    '{"secret":"farmable-staging-gemini-api-key","version":"latest"}}}'
 )
 LITERAL_ENV = (
     '{"name":"DATABASE_URL","value":"postgresql://user:pw@host/db"},'
@@ -284,18 +287,13 @@ def _secret_env(tmp_path: Path) -> dict:
 
 
 @requires_jq
-@pytest.mark.parametrize(
-    "env_json", [REFERENCE_ENV_V1, REFERENCE_ENV_V2], ids=["knative-v1", "admin-v2"]
-)
-def test_secret_smoke_accepts_either_cloud_run_api_shape(tmp_path: Path, env_json: str) -> None:
-    """The assertion this script makes is "these are Secret Manager references,
-    not literals". That holds in both the Knative v1 encoding
-    (valueFrom/secretKeyRef.name/.key) and the Admin v2 one
-    (valueSource/secretKeyRef.secret/.version). Which shape `gcloud run services
-    describe --format=json` emits is not established anywhere in this repository,
-    so the script must not stake a deploy-blocking assertion on one of them.
+def test_secret_smoke_accepts_knative_v1_secret_references(tmp_path: Path) -> None:
+    """`gcloud run services describe` issues a RunNamespacesServicesGetRequest --
+    the Knative v1 API -- so a secret-backed env var is
+    EnvVar.valueFrom -> EnvVarSource.secretKeyRef -> SecretKeySelector{name, key}.
+    That is the one shape the assertion needs to accept.
     """
-    _fake_gcloud(tmp_path, _describe_body(env_json))
+    _fake_gcloud(tmp_path, _describe_body(REFERENCE_ENV_V1))
     result = _run("infra/gcp-secret-smoke.sh", _secret_env(tmp_path))
     assert result.returncode == 0, result.stderr
 
@@ -398,47 +396,29 @@ def test_rollout_treats_not_found_as_a_first_deployment(tmp_path: Path) -> None:
 # a probe that asks for the wrong identifier field: under the encoding that does not
 # populate it, the output is blank, which reads as "the service does not exist".
 _LIST_STUB = r"""
-fmt=""
-for arg in "$@"; do
-  case "$arg" in --format=*) fmt="${arg#--format=}" ;; esac
-done
+# `gcloud run services list --filter=metadata.name=X --format=value(metadata.name)`
+# prints the name when the service exists and nothing when it does not. Honouring
+# both flags -- rather than printing a canned row -- is what lets these tests catch a
+# probe that filters or projects on the wrong field: under a wrong field the output is
+# blank, which the script reads as "the service does not exist".
 if [[ "$*" == *"run services list"* ]]; then
-  # Real gcloud writes component-update notices to stderr on successful calls. If the
-  # probe ever merges stderr into the value it captures, this chatter makes an absent
-  # service look present, so emitting it here keeps that regression visible.
   echo 'Updates are available for some Google Cloud CLI components.' >&2
-  fields="${fmt#value(}"; fields="${fields%)}"
-  row=""
-  IFS=',' read -ra want <<<"$fields"
-  for f in "${want[@]}"; do
-    case "$f" in
-      metadata.name) row+="${FAKE_V1_NAME:-}" ;;
-      name) row+="${FAKE_V2_NAME:-}" ;;
-    esac
-    row+=$'\t'
-  done
-  printf '%s\n' "$row"
+  if [[ "$*" == *"metadata.name=${FAKE_SERVICE:-farmable}"* \
+        && "$*" == *"value(metadata.name)"* ]]; then
+    printf '%s\n' "${FAKE_SERVICE:-farmable}"
+  fi
   exit 0
 fi
 """
 
 
 @requires_jq
-@pytest.mark.parametrize(
-    ("v1_name", "v2_name"),
-    [
-        ("farmable", ""),
-        ("", "projects/farmable-project/locations/africa-south1/services/farmable"),
-    ],
-    ids=["knative-v1", "admin-v2"],
-)
-def test_rollout_reads_existing_traffic_under_either_api_shape(
-    tmp_path: Path, v1_name: str, v2_name: str
+def test_rollout_reads_existing_traffic_when_the_service_is_present(
+    tmp_path: Path,
 ) -> None:
-    """The "service exists" branch is where a misread is dangerous: concluding
-    absence here is what arms `gcloud run services delete`. The probe must recognise
-    the service whether the API populates metadata.name or name. Split traffic is the
-    cheapest observable proof that the branch was entered and traffic was parsed --
+    """The "service exists" branch is where a misread is dangerous: concluding absence
+    here is what arms `gcloud run services delete`. Split traffic is the cheapest
+    observable proof that the branch was entered and the traffic block was parsed --
     if the probe reads the service as absent, the script deploys instead and this
     assertion fails.
     """
@@ -453,8 +433,7 @@ def test_rollout_reads_existing_traffic_under_either_api_shape(
         "fi\n"
         "exit 0\n",
     )
-    environment = {**_rollout_env(tmp_path), "FAKE_V1_NAME": v1_name, "FAKE_V2_NAME": v2_name}
-    result = _run("infra/gcp-rollout.sh", environment)
+    result = _run("infra/gcp-rollout.sh", _rollout_env(tmp_path))
     assert result.returncode != 0
     assert "must route 100% traffic to one revision" in result.stderr
 

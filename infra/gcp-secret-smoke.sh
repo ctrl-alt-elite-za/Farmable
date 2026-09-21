@@ -10,24 +10,20 @@ service_json="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
   --region="$GCP_REGION" \
   --format=json)"
 
-# Check only secret reference names. Never print the service JSON: it may contain
-# non-secret configuration and this assertion must not turn into a log exfiltration.
-# `gcloud run services describe --format=json` may emit the Knative v1 encoding
-# (valueFrom/secretKeyRef.name/.key) or the Admin v2 one
-# (valueSource/secretKeyRef.secret/.version). The assertion being made -- that these
-# env vars are Secret Manager references rather than literals -- is true in both, so
-# accept either rather than staking a deploy-blocking check on one shape.
+# `gcloud run services describe` issues a RunNamespacesServicesGetRequest, i.e. the
+# Knative v1 API (SERVERLESS_API_VERSION = 'v1'), where a secret-backed env var is
+# EnvVar.valueFrom -> EnvVarSource.secretKeyRef -> SecretKeySelector{name, key}.
+# Checking that one shape fails loudly if the encoding ever changes; accepting several
+# shapes could only fail open.
 for name in DATABASE_URL GEMINI_API_KEY; do
   if ! jq -e --arg name "$name" '
     any(.. | objects;
-      .name == $name and (
-        (.valueFrom.secretKeyRef.name != null and .valueFrom.secretKeyRef.key == "latest")
-        or
-        (.valueSource.secretKeyRef.secret != null and .valueSource.secretKeyRef.version == "latest")
-      ))
+      .name == $name
+      and .valueFrom.secretKeyRef.name != null
+      and .valueFrom.secretKeyRef.key == "latest")
   ' <<<"$service_json" >/dev/null; then
-    # Name the variable only. The service JSON is never printed: if the value were a
-    # literal, echoing it here would turn this assertion into a log exfiltration.
+    # Name the variable only, never the value. If it were a literal, echoing it here
+    # would turn this assertion into a log exfiltration.
     echo "$name is not a Secret Manager reference on the Cloud Run service" >&2
     exit 1
   fi
