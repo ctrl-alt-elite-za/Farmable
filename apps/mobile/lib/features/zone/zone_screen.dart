@@ -99,6 +99,7 @@ class _Zone extends StatelessWidget {
                   context: context,
                   entry: entry,
                   actions: actions,
+                  today: view.today,
                 ),
               ),
 
@@ -119,6 +120,7 @@ class _Zone extends StatelessWidget {
                   context: context,
                   observation: observation,
                   actions: actions,
+                  today: view.today,
                 ),
               ),
               const SizedBox(height: AlmanacDimens.sp6),

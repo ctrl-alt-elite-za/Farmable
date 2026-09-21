@@ -90,9 +90,7 @@ final sessionStoreProvider = Provider<SessionStore>(
 
 final authApiProvider = Provider<AuthApi>((ref) => AuthApi());
 
-/// The account. Deliberately *not* wired into any farm read path — Home and
-/// Zone render identically signed in or out, which is what keeps
-/// `e2e/mobile/offline_launch.yaml` honest on a phone with cleared state.
+/// The account state used by protected routes and auth screens.
 final authControllerProvider = AsyncNotifierProvider<AuthController, AuthState>(
   AuthController.new,
 );

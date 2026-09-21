@@ -7,6 +7,8 @@
 /// A mocked repository would pass these tests with a broken database.
 library;
 
+import 'dart:async';
+
 import 'package:almanac/app/providers.dart';
 import 'package:almanac/app/router.dart';
 import 'package:almanac/app/theme/app_theme.dart';
@@ -15,6 +17,7 @@ import 'package:almanac/data/auth/session_store.dart';
 import 'package:almanac/data/health_service.dart';
 import 'package:almanac/data/local/database.dart';
 import 'package:almanac/data/local/seed.dart';
+import 'package:almanac/domain/farm_records.dart' as rec;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,6 +31,27 @@ final pinnedToday = DateTime(2026, 9, 20, 9, 42);
 /// A phone, not a tablet. 390x844 is the design set's frame size, and it is
 /// the width every overflow in this app will first appear at.
 const phoneSize = Size(390, 844);
+
+/// One of the three streams Zone Detail assembles itself from.
+///
+/// Named individually because each one has to be provable on its own: only the
+/// section's failure was ever reported, and a test that failed all three at
+/// once would not have noticed.
+enum FailingStream { section, timeline, observations }
+
+/// A stream that errors and then stays open, which is the shape the real
+/// repository produces.
+///
+/// It matters that it does not close. A closed stream leaves Riverpod holding
+/// an `AsyncError`; an open one that has errored leaves it holding an
+/// `AsyncLoading` that carries the error, and that is the state a screen can
+/// silently render as a spinner forever. Erroring with `Stream.error` would
+/// close the stream and quietly test the easier of the two.
+Stream<T> _storageIsDown<T>() {
+  final controller = StreamController<T>();
+  controller.addError(StateError('local storage would not answer'));
+  return controller.stream;
+}
 
 class _FixedHealth implements HealthService {
   final Reachability result;
@@ -71,9 +95,13 @@ Future<FarmHarness> pumpFarmApp(
   /// floor to check the width the type scale was actually set for.
   Size surface = phoneSize,
 
-  /// The account, for tests that care about one. Existing screen tests default
-  /// to a valid in-memory session so protected route tests remain focused on
-  /// their screens; auth tests pass their own store explicitly.
+  /// Which of Zone Detail's storage streams should fail instead of loading.
+  ///
+  /// The one thing that cannot be provoked from the database itself: a stream
+  /// that errors before it has ever emitted, with no earlier value to fall
+  /// back on. Nothing else here is substituted — the screens, the repository
+  /// and the storage stay real.
+  Set<FailingStream> failing = const {},
   SessionStore? sessionStore,
   AuthApi? authApi,
 }) async {
@@ -96,9 +124,20 @@ Future<FarmHarness> pumpFarmApp(
       healthServiceProvider.overrideWithValue(
         _FixedHealth(online ? Reachability.online : Reachability.offline),
       ),
+      if (failing.contains(FailingStream.section))
+        sectionProvider.overrideWith(
+          (ref, id) => _storageIsDown<rec.SectionSummary?>(),
+        ),
+      if (failing.contains(FailingStream.timeline))
+        timelineProvider.overrideWith(
+          (ref, id) => _storageIsDown<List<rec.FarmTask>>(),
+        ),
+      if (failing.contains(FailingStream.observations))
+        observationsProvider.overrideWith(
+          (ref, id) => _storageIsDown<List<rec.Observation>>(),
+        ),
       if (sessionStore != null)
         sessionStoreProvider.overrideWithValue(sessionStore),
-      if (authApi != null) authApiProvider.overrideWith((ref) => authApi),
       if (sessionStore == null)
         sessionStoreProvider.overrideWithValue(
           InMemorySessionStore(
@@ -108,6 +147,7 @@ Future<FarmHarness> pumpFarmApp(
             ),
           ),
         ),
+      if (authApi != null) authApiProvider.overrideWith((ref) => authApi),
     ],
   );
 

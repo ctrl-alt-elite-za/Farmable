@@ -45,8 +45,19 @@ final homeViewProvider = Provider<AsyncValue<HomeView?>>((ref) {
       .watch(reachabilityProvider)
       .maybeWhen(data: (r) => r, orElse: () => Reachability.offline);
 
-  return farm.whenData(
-    (snapshot) => snapshot == null
+  // Checked by hand rather than with `whenData`, which drops the error when
+  // the source is still loading. A live query that has failed is exactly that
+  // state — it errors and stays subscribed, in case the next read succeeds —
+  // so `whenData` handed the screen a plain loading value with the failure
+  // thrown away, and Home drew its blank first frame and never stopped.
+  if (farm.hasError) {
+    return AsyncValue.error(farm.error!, farm.stackTrace!);
+  }
+  if (!farm.hasValue) return const AsyncValue.loading();
+
+  final snapshot = farm.value;
+  return AsyncValue.data(
+    snapshot == null
         ? null
         : HomeView(
             farm: snapshot,

@@ -6,6 +6,7 @@
 library;
 
 import 'package:almanac/core/ui/buttons.dart';
+import 'package:almanac/app/providers.dart';
 import 'package:almanac/data/local/seed.dart';
 import 'package:almanac/domain/farm_records.dart';
 import 'package:almanac/features/zone/zone_view_model.dart';
@@ -14,6 +15,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/harness.dart';
+
+/// Only what the open bottom sheet is showing, never the list behind it.
+Finder _inSheet(Finder matching) =>
+    find.descendant(of: find.byType(BottomSheet), matching: matching);
 
 const _cabbage = '/farm/zone/${DemoSeed.cabbageFieldId}';
 const _north = '/farm/zone/${DemoSeed.northPlotId}';
@@ -139,6 +144,65 @@ void main() {
       ], today);
 
       expect(entries.single.state, TimelineState.completed);
+    });
+
+    test('an abandoned task is cancelled, never completed', () {
+      // Cancelled used to map onto completed, so work that was given up on got
+      // a completion tick — the icon-and-colour collapse f4828a6 spent a
+      // commit removing everywhere else.
+      final today = DateTime(2026, 9, 20);
+      final entries = buildTimeline([
+        FarmTask(
+          id: 'abandoned',
+          sectionId: 's',
+          title: 'Spray for aphids',
+          description: null,
+          dueDate: DateTime(2026, 9, 12),
+          status: TaskStatus.cancelled,
+          expectedCost: null,
+          syncState: SyncState.synced,
+        ),
+      ], today);
+
+      expect(entries.single.state, TimelineState.cancelled);
+      expect(entries.single.state, isNot(TimelineState.completed));
+    });
+
+    testWidgets('a cancelled step says the word, not just a duller colour', (
+      tester,
+    ) async {
+      final harness = await pumpFarmApp(tester, location: _cabbage);
+      final records = harness.container.read(farmRecordsProvider);
+      final task = await records.createTask(
+        sectionId: DemoSeed.cabbageFieldId,
+        title: 'Spray for aphids',
+        dueDate: pinnedToday.add(const Duration(days: 3)),
+      );
+      await records.setTaskStatus(task.id, TaskStatus.cancelled);
+      await tester.pumpAndSettle();
+
+      await revealOnPage(tester, find.text('Spray for aphids'));
+
+      // Scoped to this step's own row: the seeded timeline has genuinely
+      // completed steps on it, and they are meant to say so.
+      final row = find
+          .ancestor(
+            of: find.text('Spray for aphids'),
+            matching: find.byType(InkWell),
+          )
+          .first;
+
+      expect(
+        find.descendant(of: row, matching: find.textContaining('Cancelled')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: row, matching: find.textContaining('Completed')),
+        findsNothing,
+        reason:
+            'an abandoned step must not be reported as done. The word is what '
+            'carries it — a farmer who cannot rely on colour has nothing else.',
+      );
     });
 
     testWidgets('every step carries its state as a word, not just a colour', (
@@ -341,6 +405,58 @@ void main() {
       expect(find.text('1 change waiting'), findsWidgets);
       expect(find.text('By voice'), findsWidgets);
       expectNoFailureLanguage(tester);
+    });
+  });
+
+  group('the record sheets', () {
+    // These two subtitles were the only strings on this screen computed
+    // against DateTime.now() rather than the injected clock, so they could
+    // disagree with the very row that opened them and no test could say what
+    // they ought to read.
+    testWidgets("a step's sheet dates it from the screen's today", (
+      tester,
+    ) async {
+      final harness = await pumpFarmApp(tester, location: _cabbage);
+      await harness.container
+          .read(farmRecordsProvider)
+          .createTask(
+            sectionId: DemoSeed.cabbageFieldId,
+            title: 'Check drip lines',
+            dueDate: pinnedToday.add(const Duration(days: 1)),
+          );
+      await tester.pumpAndSettle();
+
+      await revealOnPage(tester, find.text('Check drip lines'));
+      await tester.tap(find.text('Check drip lines'));
+      await tester.pumpAndSettle();
+
+      // The day after the pinned Sunday. Read from the real clock this says
+      // something else entirely, and something different every day.
+      expect(_inSheet(find.text('Tomorrow')), findsOneWidget);
+    });
+
+    testWidgets("an observation's sheet times it from the screen's today", (
+      tester,
+    ) async {
+      final harness = await pumpFarmApp(tester, location: _cabbage);
+      await harness.container
+          .read(farmRecordsProvider)
+          .createObservation(
+            sectionId: DemoSeed.cabbageFieldId,
+            type: 'Leaf check',
+            note: 'Looks healthy across the bed',
+            healthStatus: HealthState.onTrack,
+          );
+      await tester.pumpAndSettle();
+
+      await revealOnPage(tester, find.text('Leaf check'));
+      await tester.tap(find.byType(ObservationTile).first);
+      await tester.pumpAndSettle();
+
+      // Written at the pinned clock, so on the pinned day it is today. Scoped
+      // to the sheet because the list behind it already dates its rows from
+      // the same clock, and correctly.
+      expect(_inSheet(find.text('Today, 09:42')), findsOneWidget);
     });
   });
 

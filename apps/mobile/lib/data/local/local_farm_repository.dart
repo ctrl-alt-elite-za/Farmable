@@ -542,9 +542,16 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
 
   // ------------------------------------------------------------- plumbing
 
+  /// The section a write is about to attach to.
+  ///
+  /// Deleted rows are tombstoned rather than removed, and every read path
+  /// already filters them out, so a write that did not would be the one way to
+  /// add a record to a section the farmer has deleted. Throwing is the same
+  /// answer this gives for an id that never existed, and the screen above it
+  /// already navigates back when a section goes.
   Future<Section> _requireSection(String sectionId) => (db.select(
     db.sections,
-  )..where((t) => t.id.equals(sectionId))).getSingle();
+  )..where((t) => t.id.equals(sectionId) & t.deletedAt.isNull())).getSingle();
 
   Future<rec.Observation?> _observationById(String id) async {
     final row = await (db.select(
@@ -601,6 +608,14 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
           final value = await load();
           if (!controller.isClosed) controller.add(value);
         } while (repeat);
+      } catch (error, stackTrace) {
+        // Nothing awaits emit() — it is driven by the change feed and by
+        // onListen — so an escaping exception would be an unhandled async
+        // error and the stream would simply go quiet. A silent stream leaves
+        // Home on its loading branch forever, which is a blank screen with no
+        // spinner and no way back. Forwarding it means the screen can say
+        // storage would not open and offer the retry it already has.
+        if (!controller.isClosed) controller.addError(error, stackTrace);
       } finally {
         running = false;
       }
