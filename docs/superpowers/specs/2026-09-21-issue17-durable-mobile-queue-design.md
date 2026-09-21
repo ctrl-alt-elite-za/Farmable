@@ -169,8 +169,10 @@ record without server-side deduplication.
 - [x] Compare SQLite, a file journal, and deferring until server integration.
 - [x] Present the local durability approach and write this specification.
 - [x] Self-review scope, crash recovery, account isolation, and acceptance claims.
-- [ ] Requester reviews the written specification.
-- [ ] Produce implementation plan, implement, verify, and publish for review.
+- [x] Requester reviews the written specification.
+- [x] Produce implementation plan and implement the approved local queue slice.
+- [x] Verify local storage/queue tests, static checks, and Android/iOS bundles.
+- [ ] Publish for review and inspect CI; native restart acceptance remains open.
 
 No visual companion is needed for these storage decisions. The referenced
 writing-plans skill is not installed; after written-spec approval, write the

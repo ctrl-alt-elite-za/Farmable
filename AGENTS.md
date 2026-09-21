@@ -72,6 +72,12 @@ and `#4` add code.
   `git push` whenever `apps/backend/` or
   `migrations/` changed (see `scripts/changed-scopes.sh`), and becomes a
   required CI check on `main` in #5.
+- **Approved mobile-only exception (#17):** `apps/mobile/src/offline/` and
+  its tests may use Expo SQLite for phone-local persistence. Fixed schema
+  statements and parameter-bound queries are allowed within the storage
+  adapter; never interpolate user input or user-selected identifiers into SQL.
+  UI components must use the local service, not database calls. This exception
+  does not apply to the backend, Python, Alembic, or their raw-SQL guards.
 - Formatting and simple lint issues are auto-fixed on commit (pre-commit
   hooks) and, if any slip through, on the PR itself (autofix.ci) — never
   hand-format to match a linter.
