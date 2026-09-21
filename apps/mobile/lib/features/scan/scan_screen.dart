@@ -8,6 +8,7 @@ import '../../app/theme/tokens.g.dart';
 import 'crop_overlay.dart';
 import 'detector.dart';
 import 'latency_metrics.dart';
+import 'latest_frame_processor.dart';
 import 'recorded_scan.dart';
 import 'scan_models.dart';
 import 'tracker.dart';
@@ -29,8 +30,10 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> {
   final CropTracker _tracker = CropTracker();
   final ScanLatencyMetrics _metrics = ScanLatencyMetrics();
+  late final LatestFrameProcessor<ScanFrame> _processor;
   Timer? _replay;
   List<CropTrack> _tracks = const [];
+  LatencySummary? _latencySummary;
   var _frameIndex = 0;
 
   bool get _recorded => widget.useRecordedFrames ?? testMode;
@@ -39,6 +42,18 @@ class _ScanScreenState extends State<ScanScreen> {
   void initState() {
     super.initState();
     requireApprovedDetector('crop-detector-1');
+    _processor = LatestFrameProcessor<ScanFrame>(
+      _processFrame,
+      onError: (error, stackTrace) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'crop scan frame processor',
+          ),
+        );
+      },
+    );
     if (_recorded) {
       _replay = Timer.periodic(
         widget.frameInterval,
@@ -48,23 +63,40 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   void _processRecordedFrame() {
-    final capturedAt = DateTime.timestamp();
     final raw = recordedScanFrames[_frameIndex % recordedScanFrames.length];
     _frameIndex += 1;
-    final tracks = _tracker.update(decodeDetections(raw));
+    _processor.submit(
+      ScanFrame(
+        sequence: _frameIndex,
+        capturedAt: DateTime.timestamp(),
+        detectorOutput: raw,
+      ),
+    );
+  }
+
+  Future<void> _processFrame(ScanFrame frame) async {
+    final inferenceStartedAt = DateTime.timestamp();
+    final tracks = _tracker.update(decodeDetections(frame.detectorOutput));
+    final inferenceEndedAt = DateTime.timestamp();
     if (!mounted) return;
     setState(() => _tracks = tracks);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _metrics.recordCameraToVisible(
-        DateTime.timestamp().difference(capturedAt),
+      final overlayRenderedAt = DateTime.timestamp();
+      _metrics.recordFrame(
+        capturedAt: frame.capturedAt,
+        inferenceStartedAt: inferenceStartedAt,
+        inferenceEndedAt: inferenceEndedAt,
+        overlayRenderedAt: overlayRenderedAt,
       );
+      setState(() => _latencySummary = _metrics.summary);
     });
   }
 
   @override
   void dispose() {
     _replay?.cancel();
+    _processor.dispose();
     super.dispose();
   }
 
@@ -125,6 +157,19 @@ class _ScanScreenState extends State<ScanScreen> {
               ],
             ),
           ),
+          if (_latencySummary case final summary?)
+            Semantics(
+              identifier: 'scan-latency-report',
+              label: 'Camera to visible box latency report',
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AlmanacDimens.sp3),
+                child: Text(
+                  'camera_to_visible_box_ms: p50 '
+                  '${summary.p50Milliseconds.toStringAsFixed(1)}, p95 '
+                  '${summary.p95Milliseconds.toStringAsFixed(1)}',
+                ),
+              ),
+            ),
         ],
       ),
     );

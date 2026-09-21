@@ -6,11 +6,12 @@ import 'dart:async';
 /// are overwritten rather than queued, keeping camera-to-overlay latency bounded.
 class LatestFrameProcessor<T> {
   final Future<void> Function(T frame) process;
+  final void Function(Object error, StackTrace stackTrace)? onError;
   T? _latest;
   bool _busy = false;
   bool _disposed = false;
 
-  LatestFrameProcessor(this.process);
+  LatestFrameProcessor(this.process, {this.onError});
 
   void submit(T frame) {
     if (_disposed) return;
@@ -20,12 +21,19 @@ class LatestFrameProcessor<T> {
 
   Future<void> _drain() async {
     _busy = true;
-    while (!_disposed && _latest != null) {
-      final frame = _latest as T;
-      _latest = null;
-      await process(frame);
+    try {
+      while (!_disposed && _latest != null) {
+        final frame = _latest as T;
+        _latest = null;
+        try {
+          await process(frame);
+        } catch (error, stackTrace) {
+          onError?.call(error, stackTrace);
+        }
+      }
+    } finally {
+      _busy = false;
     }
-    _busy = false;
   }
 
   void dispose() {

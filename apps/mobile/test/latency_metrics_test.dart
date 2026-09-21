@@ -13,4 +13,18 @@ void main() {
     expect(summary.p50Milliseconds, 11);
     expect(summary.p95Milliseconds, 20);
   });
+
+  test('requires complete chronological pipeline timestamps', () {
+    final metrics = ScanLatencyMetrics();
+    final captured = DateTime(2026, 1, 1);
+    expect(
+      () => metrics.recordFrame(
+        capturedAt: captured,
+        inferenceStartedAt: captured.subtract(const Duration(milliseconds: 1)),
+        inferenceEndedAt: captured,
+        overlayRenderedAt: captured,
+      ),
+      throwsArgumentError,
+    );
+  });
 }

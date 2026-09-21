@@ -29,4 +29,23 @@ void main() {
     expect(processed, [7, 10]);
     processor.dispose();
   });
+
+  test('continues with the newest frame after a processing error', () async {
+    final processed = <int>[];
+    final errors = <Object>[];
+    final processor = LatestFrameProcessor<int>((frame) async {
+      processed.add(frame);
+      if (frame == 1) throw StateError('detector failed');
+    }, onError: (error, _) => errors.add(error));
+
+    processor.submit(1);
+    await Future<void>.delayed(Duration.zero);
+    processor.submit(2);
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(processed, [1, 2]);
+    expect(errors, hasLength(1));
+    processor.dispose();
+  });
 }

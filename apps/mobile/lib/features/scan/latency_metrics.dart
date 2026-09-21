@@ -13,6 +13,20 @@ class LatencySummary {
 class ScanLatencyMetrics {
   final List<Duration> _cameraToVisible = [];
 
+  void recordFrame({
+    required DateTime capturedAt,
+    required DateTime inferenceStartedAt,
+    required DateTime inferenceEndedAt,
+    required DateTime overlayRenderedAt,
+  }) {
+    if (inferenceStartedAt.isBefore(capturedAt) ||
+        inferenceEndedAt.isBefore(inferenceStartedAt) ||
+        overlayRenderedAt.isBefore(inferenceEndedAt)) {
+      throw ArgumentError('Scan timestamps must be chronological');
+    }
+    recordCameraToVisible(overlayRenderedAt.difference(capturedAt));
+  }
+
   void recordCameraToVisible(Duration latency) {
     _cameraToVisible.add(latency);
   }

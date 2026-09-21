@@ -18,6 +18,7 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 35));
+    await tester.pump();
 
     expect(find.text('Recorded test scan'), findsOneWidget);
     expect(find.byKey(const Key('crop-overlay')), findsOneWidget);
@@ -26,6 +27,7 @@ void main() {
       find.text('Frames stay on this phone while scanning.'),
       findsOneWidget,
     );
+    expect(find.textContaining('camera_to_visible_box_ms'), findsOneWidget);
   });
 
   testWidgets('live mode never presents recorded detections as live', (
