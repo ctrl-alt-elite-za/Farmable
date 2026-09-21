@@ -54,11 +54,10 @@ final sectionProvider = StreamProvider.family<SectionSummary?, String>(
   (ref, sectionId) => ref.watch(farmRecordsProvider).watchSection(sectionId),
 );
 
-final observationsProvider =
-    StreamProvider.family<List<Observation>, String>(
-      (ref, sectionId) =>
-          ref.watch(farmRecordsProvider).watchObservations(sectionId),
-    );
+final observationsProvider = StreamProvider.family<List<Observation>, String>(
+  (ref, sectionId) =>
+      ref.watch(farmRecordsProvider).watchObservations(sectionId),
+);
 
 final timelineProvider = StreamProvider.family<List<FarmTask>, String>(
   (ref, sectionId) => ref.watch(farmRecordsProvider).watchTimeline(sectionId),

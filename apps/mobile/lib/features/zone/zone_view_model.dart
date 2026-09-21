@@ -100,8 +100,7 @@ List<TimelineEntry> buildTimeline(List<FarmTask> tasks, DateTime today) {
         task: task,
         state: switch (task) {
           _ when task.isDone => TimelineState.completed,
-          _ when task.status == TaskStatus.cancelled =>
-            TimelineState.completed,
+          _ when task.status == TaskStatus.cancelled => TimelineState.completed,
           _ when task.dueDate.isBefore(day) => TimelineState.overdue,
           _ when task.id == currentId => TimelineState.current,
           _ => TimelineState.upcoming,
@@ -153,8 +152,7 @@ class ZoneActions {
     actionTaken: actionTaken,
   );
 
-  Future<void> removeObservation(String id) =>
-      _records.deleteObservation(id);
+  Future<void> removeObservation(String id) => _records.deleteObservation(id);
 
   Future<void> addTask({
     required String title,
@@ -192,6 +190,5 @@ class ZoneActions {
 }
 
 final zoneActionsProvider = Provider.family<ZoneActions, String>(
-  (ref, sectionId) =>
-      ZoneActions(ref.watch(farmRecordsProvider), sectionId),
+  (ref, sectionId) => ZoneActions(ref.watch(farmRecordsProvider), sectionId),
 );

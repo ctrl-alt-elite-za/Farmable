@@ -234,9 +234,8 @@ class _PressableState extends State<_Pressable> {
         Flexible(
           child: Text(
             widget.label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: widget.foreground),
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: widget.foreground),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -251,9 +250,7 @@ class _PressableState extends State<_Pressable> {
         curve: AlmanacMotion.easeStandard,
         child: Material(
           color: widget.background,
-          shape: StadiumBorder(
-            side: widget.border ?? BorderSide.none,
-          ),
+          shape: StadiumBorder(side: widget.border ?? BorderSide.none),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: widget.onPressed,

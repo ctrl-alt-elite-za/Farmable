@@ -35,12 +35,10 @@ class HomeScreen extends ConsumerWidget {
         // One frame, at most, while SQLite answers. A spinner here would be a
         // spinner the farmer sees every single launch.
         loading: () => const SizedBox.shrink(),
-        error: (error, _) => _CouldNotOpen(
-          onRetry: () => ref.invalidate(farmProvider),
-        ),
-        data: (view) => view == null
-            ? const _NoFarmYet()
-            : _Dashboard(view: view),
+        error: (error, _) =>
+            _CouldNotOpen(onRetry: () => ref.invalidate(farmProvider)),
+        data: (view) =>
+            view == null ? const _NoFarmYet() : _Dashboard(view: view),
       ),
     );
   }
@@ -68,9 +66,9 @@ class _Dashboard extends StatelessWidget {
         children: [
           _Gutter(
             child: GreetingHeader(
-            firstName: farm.farmerFirstName,
-            today: view.today,
-            pendingChanges: farm.pendingChanges,
+              firstName: farm.farmerFirstName,
+              today: view.today,
+              pendingChanges: farm.pendingChanges,
               offline: view.offline,
             ),
           ),
@@ -87,8 +85,8 @@ class _Dashboard extends StatelessWidget {
           _Gutter(
             child: SectionHeader(
               title: 'Your farm',
-            subtitle: farm.sections.length == 1
-                ? '1 section'
+              subtitle: farm.sections.length == 1
+                  ? '1 section'
                   : '${farm.sections.length} sections',
               actionLabel: 'See all',
               onAction: () => context.go('/farm'),
@@ -99,7 +97,8 @@ class _Dashboard extends StatelessWidget {
               child: EmptyState(
                 icon: LucideIcons.layers,
                 headline: 'No sections yet',
-                body: 'A section is one piece of land you use for one thing — '
+                body:
+                    'A section is one piece of land you use for one thing — '
                     'a bed, a row, a field. Add your first one and the farm '
                     'starts here.',
                 actionLabel: 'Add section',
@@ -133,15 +132,15 @@ class _Dashboard extends StatelessWidget {
           const _Gutter(child: SectionHeader(title: 'Add to your farm')),
           const _Gutter(
             child: QuickActions(
-            actions: [
-              QuickAction(
-                icon: LucideIcons.notebookPen,
-                label: 'Add observation',
-              ),
-              QuickAction(icon: LucideIcons.receipt, label: 'Add expense'),
-              QuickAction(icon: LucideIcons.tag, label: 'Add sale'),
-              QuickAction(icon: LucideIcons.check, label: 'Add task'),
-              QuickAction(icon: LucideIcons.layers, label: 'Add section'),
+              actions: [
+                QuickAction(
+                  icon: LucideIcons.notebookPen,
+                  label: 'Add observation',
+                ),
+                QuickAction(icon: LucideIcons.receipt, label: 'Add expense'),
+                QuickAction(icon: LucideIcons.tag, label: 'Add sale'),
+                QuickAction(icon: LucideIcons.check, label: 'Add task'),
+                QuickAction(icon: LucideIcons.layers, label: 'Add section'),
                 QuickAction(icon: LucideIcons.camera, label: 'Scan crop'),
               ],
             ),
@@ -205,7 +204,8 @@ class _NoFarmYet extends StatelessWidget {
       child: const EmptyState(
         icon: LucideIcons.sprout,
         headline: 'Set up your farm',
-        body: 'A farm is the land you work, split into sections — a bed, a '
+        body:
+            'A farm is the land you work, split into sections — a bed, a '
             'row, a field. Everything else in Almanac hangs off it, and all '
             'of it stays on this phone.',
         actionLabel: 'Start',
@@ -233,7 +233,8 @@ class _CouldNotOpen extends StatelessWidget {
       child: EmptyState(
         icon: LucideIcons.refreshCw,
         headline: 'Your farm could not be opened on this phone',
-        body: 'The records are still on the device. Try again, and if it keeps '
+        body:
+            'The records are still on the device. Try again, and if it keeps '
             'happening the app needs reinstalling.',
         actionLabel: 'Try again',
         actionIcon: LucideIcons.refreshCw,

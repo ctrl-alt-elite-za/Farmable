@@ -38,34 +38,28 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   // ---------------------------------------------------------------- reads
 
   @override
-  Stream<rec.FarmSnapshot?> watchFarm() => _watch(
-    [
-      db.users,
-      db.farms,
-      db.sections,
-      db.plantings,
-      db.observations,
-      db.farmTasks,
-      db.financialRecords,
-      db.sectionProjections,
-      db.sectionDetails,
-    ],
-    _loadFarm,
-  );
+  Stream<rec.FarmSnapshot?> watchFarm() => _watch([
+    db.users,
+    db.farms,
+    db.sections,
+    db.plantings,
+    db.observations,
+    db.farmTasks,
+    db.financialRecords,
+    db.sectionProjections,
+    db.sectionDetails,
+  ], _loadFarm);
 
   @override
-  Stream<rec.SectionSummary?> watchSection(String sectionId) => _watch(
-    [
-      db.sections,
-      db.plantings,
-      db.observations,
-      db.farmTasks,
-      db.financialRecords,
-      db.sectionProjections,
-      db.sectionDetails,
-    ],
-    () => _loadSection(sectionId),
-  );
+  Stream<rec.SectionSummary?> watchSection(String sectionId) => _watch([
+    db.sections,
+    db.plantings,
+    db.observations,
+    db.farmTasks,
+    db.financialRecords,
+    db.sectionProjections,
+    db.sectionDetails,
+  ], () => _loadSection(sectionId));
 
   @override
   Stream<List<rec.Observation>> watchObservations(String sectionId) =>
@@ -107,9 +101,10 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   }
 
   Future<rec.SectionSummary?> _loadSection(String sectionId) async {
-    final row = await (db.select(db.sections)
-          ..where((t) => t.id.equals(sectionId) & t.deletedAt.isNull()))
-        .getSingleOrNull();
+    final row =
+        await (db.select(db.sections)
+              ..where((t) => t.id.equals(sectionId) & t.deletedAt.isNull()))
+            .getSingleOrNull();
     if (row == null) return null;
     return _summarise(row);
   }
@@ -187,7 +182,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   Future<List<rec.Observation>> _observations(String sectionId) async {
     final rows =
         await (db.select(db.observations)
-              ..where((t) => t.sectionId.equals(sectionId) & t.deletedAt.isNull())
+              ..where(
+                (t) => t.sectionId.equals(sectionId) & t.deletedAt.isNull(),
+              )
               ..orderBy([
                 (t) => OrderingTerm(
                   expression: t.createdAt,
@@ -207,7 +204,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   Future<List<rec.FarmTask>> _timeline(String sectionId) async {
     final rows =
         await (db.select(db.farmTasks)
-              ..where((t) => t.sectionId.equals(sectionId) & t.deletedAt.isNull())
+              ..where(
+                (t) => t.sectionId.equals(sectionId) & t.deletedAt.isNull(),
+              )
               ..orderBy([(t) => OrderingTerm(expression: t.dueDate)]))
             .get();
     return rows.map(_toTask).toList();
@@ -369,16 +368,16 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     await db.transaction(() async {
       // A tombstone, not a row removal: a delete performed in airplane mode
       // has to be able to sync, and a deleted row has nothing to sync from.
-      await (db.update(db.observations)
-            ..where((t) => t.id.equals(observationId)))
-          .write(
-            ObservationsCompanion(
-              deletedAt: Value(at),
-              version: Value(existing.version + 1),
-              syncState: const Value('pending'),
-              updatedAt: Value(at),
-            ),
-          );
+      await (db.update(
+        db.observations,
+      )..where((t) => t.id.equals(observationId))).write(
+        ObservationsCompanion(
+          deletedAt: Value(at),
+          version: Value(existing.version + 1),
+          syncState: const Value('pending'),
+          updatedAt: Value(at),
+        ),
+      );
       await _enqueue(
         farmId: existing.farmId,
         ownerId: existing.ownerId,
@@ -795,7 +794,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
 
     final at = now();
     await db.transaction(() async {
-      await (db.update(db.sections)..where((t) => t.id.equals(sectionId))).write(
+      await (db.update(
+        db.sections,
+      )..where((t) => t.id.equals(sectionId))).write(
         SectionsCompanion(
           name: Value(name),
           areaM2: Value(areaM2),
@@ -825,7 +826,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     final existing = await _requireSection(sectionId);
     final at = now();
     await db.transaction(() async {
-      await (db.update(db.sections)..where((t) => t.id.equals(sectionId))).write(
+      await (db.update(
+        db.sections,
+      )..where((t) => t.id.equals(sectionId))).write(
         SectionsCompanion(
           deletedAt: Value(at),
           version: Value(existing.version + 1),
@@ -882,10 +885,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   }) async => throw const Unreachable('Planning needs a connection');
 
   Future<List<String>> _approvedPlanIds() async {
-    final rows = await (db.select(db.savedPlans)..where(
-          (t) => t.status.equals('approved') & t.deletedAt.isNull(),
-        ))
-        .get();
+    final rows = await (db.select(
+      db.savedPlans,
+    )..where((t) => t.status.equals('approved') & t.deletedAt.isNull())).get();
     return rows.map((r) => r.id).toList();
   }
 

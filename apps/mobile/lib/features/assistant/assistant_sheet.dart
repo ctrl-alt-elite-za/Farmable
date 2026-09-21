@@ -58,9 +58,7 @@ class AssistantSheet extends StatelessWidget {
               top: Radius.circular(AlmanacDimens.r2xl),
             ),
           ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AlmanacDimens.gutter,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AlmanacDimens.gutter),
           child: Column(
             children: [
               const SizedBox(height: AlmanacDimens.sp2),

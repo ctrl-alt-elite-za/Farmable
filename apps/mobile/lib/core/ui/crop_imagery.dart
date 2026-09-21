@@ -26,6 +26,7 @@ enum CropScene {
   tomato,
   spinach,
   bare,
+
   /// The whole farm, seen from the rise above it — rows, a track, the tank.
   farm;
 
@@ -251,14 +252,7 @@ class _ScenePainter extends CustomPainter {
       );
 
       for (var x = -jitter; x < size.width + spacing; x += spacing) {
-        _plant(
-          canvas,
-          Offset(x, y),
-          plantSize,
-          p,
-          t,
-          random,
-        );
+        _plant(canvas, Offset(x, y), plantSize, p, t, random);
       }
     }
   }

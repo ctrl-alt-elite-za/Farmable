@@ -69,15 +69,11 @@ class _Zone extends StatelessWidget {
           section: section,
           onBack: () => ZoneScreen._back(context),
           onScan: () => context.go('/health/camera'),
-          onMore: () => showObservationEditor(
-            context: context,
-            actions: actions,
-          ),
+          onMore: () =>
+              showObservationEditor(context: context, actions: actions),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AlmanacDimens.gutter,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AlmanacDimens.gutter),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -109,19 +105,15 @@ class _Zone extends StatelessWidget {
               SectionHeader(
                 title: 'Recent observations',
                 actionLabel: 'Add',
-                onAction: () => showObservationEditor(
-                  context: context,
-                  actions: actions,
-                ),
+                onAction: () =>
+                    showObservationEditor(context: context, actions: actions),
               ),
               ObservationList(
                 observations: view.observations,
                 sectionId: section.id,
                 today: view.today,
-                onAdd: () => showObservationEditor(
-                  context: context,
-                  actions: actions,
-                ),
+                onAdd: () =>
+                    showObservationEditor(context: context, actions: actions),
                 onTap: (observation) => showObservationActions(
                   context: context,
                   observation: observation,

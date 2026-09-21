@@ -36,7 +36,8 @@ class ObservationList extends StatelessWidget {
       return EmptyState(
         icon: LucideIcons.notebookPen,
         headline: 'Nothing written down yet',
-        body: 'An observation is whatever you noticed when you walked this '
+        body:
+            'An observation is whatever you noticed when you walked this '
             'section — a colour, a pest, a repair. It works with no airtime '
             'and no data.',
         actionLabel: 'Write one down',
@@ -140,9 +141,7 @@ class ObservationTile extends StatelessWidget {
                     observation.actionTaken == null
                         ? observation.note
                         : '${observation.note} ${observation.actionTaken}',
-                    style: text.bodySmall?.copyWith(
-                      color: c.onSurfaceVariant,
-                    ),
+                    style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
                   ),
                   const SizedBox(height: AlmanacDimens.sp2),
                   Wrap(

@@ -87,9 +87,7 @@ class HealthSummaryCard extends StatelessWidget {
     }
     final n = farm.sectionsNeedingAttention;
     if (n == 0) return 'Every planted section is on track.';
-    return n == 1
-        ? '1 section needs attention'
-        : '$n sections need attention';
+    return n == 1 ? '1 section needs attention' : '$n sections need attention';
   }
 }
 
@@ -136,9 +134,8 @@ class _Gauge extends StatelessWidget {
               ),
               Text(
                 '/ 100',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: c.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: c.onSurfaceVariant),
               ),
             ],
           ),

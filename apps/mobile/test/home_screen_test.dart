@@ -6,7 +6,6 @@
 /// exists.
 library;
 
-import 'package:almanac/domain/farm_records.dart';
 import 'package:almanac/features/home/widgets/zone_card.dart';
 import 'package:almanac/features/home/widgets/zone_carousel.dart';
 import 'package:almanac/features/zone/zone_screen.dart';
@@ -202,9 +201,7 @@ void main() {
       await pumpFarmApp(tester);
 
       await revealOnPage(tester, find.byType(ZoneCarousel));
-      final centre = find.byWidgetPredicate(
-        (w) => w is ZoneCard && w.isCentre,
-      );
+      final centre = find.byWidgetPredicate((w) => w is ZoneCard && w.isCentre);
       await tester.tap(centre);
       await tester.pumpAndSettle();
 

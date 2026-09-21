@@ -47,11 +47,7 @@ class ZoneCarousel extends StatefulWidget {
   final List<SectionSummary> sections;
   final void Function(SectionSummary section) onOpen;
 
-  const ZoneCarousel({
-    super.key,
-    required this.sections,
-    required this.onOpen,
-  });
+  const ZoneCarousel({super.key, required this.sections, required this.onOpen});
 
   @override
   State<ZoneCarousel> createState() => _ZoneCarouselState();

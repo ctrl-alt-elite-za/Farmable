@@ -133,11 +133,7 @@ class SyncIndicator extends StatelessWidget {
   /// Only read for [SyncStanding.pending].
   final int pending;
 
-  const SyncIndicator({
-    super.key,
-    required this.standing,
-    this.pending = 0,
-  });
+  const SyncIndicator({super.key, required this.standing, this.pending = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -216,9 +212,8 @@ class ConstraintChip extends StatelessWidget {
           Flexible(
             child: Text(
               text,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: foreground),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: foreground),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -264,9 +259,8 @@ class _Pill extends StatelessWidget {
         Flexible(
           child: Text(
             text,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: foreground),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: foreground),
             overflow: TextOverflow.ellipsis,
           ),
         ),

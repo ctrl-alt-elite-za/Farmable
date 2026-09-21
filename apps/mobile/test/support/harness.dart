@@ -58,13 +58,17 @@ Future<FarmHarness> pumpFarmApp(
   bool seed = true,
   Brightness brightness = Brightness.light,
   bool reducedMotion = false,
+
+  /// Reuse storage from an earlier pump, which is how a test restarts the app
+  /// without losing the phone. Everything above this line is rebuilt.
+  AlmanacDatabase? storage,
 }) async {
   tester.view.physicalSize = phoneSize * tester.view.devicePixelRatio;
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = phoneSize;
   addTearDown(tester.view.reset);
 
-  final db = AlmanacDatabase.memory();
+  final db = storage ?? AlmanacDatabase.memory();
   if (seed) {
     await DemoSeed(db, now: () => pinnedToday).ensureSeeded();
   }
@@ -109,7 +113,7 @@ Future<FarmHarness> pumpFarmApp(
 
   addTearDown(() async {
     container.dispose();
-    await db.close();
+    if (storage == null) await db.close();
   });
 
   return FarmHarness._(db, container);
@@ -142,7 +146,8 @@ void expectNoFailureLanguage(WidgetTester tester) {
     expect(
       offending,
       isEmpty,
-      reason: 'offline and pending sync are calm states; found "$word" in '
+      reason:
+          'offline and pending sync are calm states; found "$word" in '
           '$offending',
     );
   }

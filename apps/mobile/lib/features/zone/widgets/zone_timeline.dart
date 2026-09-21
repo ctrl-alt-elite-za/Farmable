@@ -32,7 +32,8 @@ class ZoneTimeline extends StatelessWidget {
       return const EmptyState(
         icon: LucideIcons.calendarClock,
         headline: 'No steps yet',
-        body: 'A timeline is the jobs this section needs, in the order they '
+        body:
+            'A timeline is the jobs this section needs, in the order they '
             'come — planting, feeding, checks, harvest. Add one and the rest '
             'of the season builds around it.',
       );
@@ -194,15 +195,15 @@ class _TimelineItem extends StatelessWidget {
 
   /// The date line carries the state as a word, so the node's shape and colour
   /// are never the only thing saying whether a step is done or late.
-  static String _when(TimelineEntry entry, DateTime today) =>
-      switch (entry.state) {
-        TimelineState.completed =>
-          'Completed · ${shortDate(entry.task.dueDate)}',
-        TimelineState.overdue => whenPhrase(entry.task.dueDate, today),
-        TimelineState.current =>
-          'Next · ${dueSuffix(entry.task.dueDate, today)}',
-        TimelineState.upcoming => whenPhrase(entry.task.dueDate, today),
-      };
+  static String _when(
+    TimelineEntry entry,
+    DateTime today,
+  ) => switch (entry.state) {
+    TimelineState.completed => 'Completed · ${shortDate(entry.task.dueDate)}',
+    TimelineState.overdue => whenPhrase(entry.task.dueDate, today),
+    TimelineState.current => 'Next · ${dueSuffix(entry.task.dueDate, today)}',
+    TimelineState.upcoming => whenPhrase(entry.task.dueDate, today),
+  };
 }
 
 /// 22px node. Completed is filled with a check, current is filled with a halo,

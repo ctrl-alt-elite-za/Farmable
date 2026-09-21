@@ -50,9 +50,11 @@ String greetingDate(DateTime d) =>
     '${weekdayName(d)}, ${d.day} ${monthName(d)}';
 
 /// Whole days from [from] to [to], ignoring the time of day on both.
-int daysBetween(DateTime from, DateTime to) => DateTime(to.year, to.month, to.day)
-    .difference(DateTime(from.year, from.month, from.day))
-    .inDays;
+int daysBetween(DateTime from, DateTime to) => DateTime(
+  to.year,
+  to.month,
+  to.day,
+).difference(DateTime(from.year, from.month, from.day)).inDays;
 
 /// How a task's date is spoken relative to today.
 ///

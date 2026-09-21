@@ -101,10 +101,7 @@ class ZoneCard extends StatelessWidget {
                   ? Hero(tag: 'section-image-${section.id}', child: media)
                   : media,
             ),
-            Positioned(
-              bottom: -21,
-              child: _LabelChip(section: section),
-            ),
+            Positioned(bottom: -21, child: _LabelChip(section: section)),
           ],
         ),
       ),
@@ -182,9 +179,8 @@ class _Figures extends StatelessWidget {
       children: [
         Text(
           key,
-          style: Theme.of(
-            context,
-          ).textTheme.labelSmall?.copyWith(color: const Color(0xFFE4E1D8)),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: const Color(0xFFE4E1D8)),
         ),
         Text(
           value,

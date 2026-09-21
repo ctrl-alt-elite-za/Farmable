@@ -49,9 +49,7 @@ class SectionHeader extends StatelessWidget {
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: text.labelSmall?.copyWith(
-                      color: c.onSurfaceVariant,
-                    ),
+                    style: text.labelSmall?.copyWith(color: c.onSurfaceVariant),
                   ),
               ],
             ),
@@ -70,11 +68,7 @@ class SectionHeader extends StatelessWidget {
                       actionLabel!,
                       style: text.labelMedium?.copyWith(color: c.primary),
                     ),
-                    Icon(
-                      LucideIcons.chevronRight,
-                      size: 18,
-                      color: c.primary,
-                    ),
+                    Icon(LucideIcons.chevronRight, size: 18, color: c.primary),
                   ],
                 ),
               ),
@@ -159,11 +153,8 @@ class FarmMetricRow extends StatelessWidget {
           children: [
             for (final m in metrics)
               LayoutBuilder(
-                builder: (context, _) => _MetricCell(
-                  metric: m,
-                  textTheme: text,
-                  colors: c,
-                ),
+                builder: (context, _) =>
+                    _MetricCell(metric: m, textTheme: text, colors: c),
               ),
           ],
         ),
@@ -186,10 +177,8 @@ class _MetricCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Two columns, minus the 1px rule between them.
-    final width = (MediaQuery.sizeOf(context).width -
-            AlmanacDimens.gutter * 2 -
-            3) /
-        2;
+    final width =
+        (MediaQuery.sizeOf(context).width - AlmanacDimens.gutter * 2 - 3) / 2;
 
     return Container(
       width: width,

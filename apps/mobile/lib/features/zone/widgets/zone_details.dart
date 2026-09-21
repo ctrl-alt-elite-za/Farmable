@@ -18,11 +18,7 @@ class ZoneMetrics extends StatelessWidget {
   final SectionSummary section;
   final DateTime today;
 
-  const ZoneMetrics({
-    super.key,
-    required this.section,
-    required this.today,
-  });
+  const ZoneMetrics({super.key, required this.section, required this.today});
 
   @override
   Widget build(BuildContext context) {
@@ -143,9 +139,7 @@ class _ZoneAdditionalDetailsState extends State<ZoneAdditionalDetails> {
           const SizedBox(height: AlmanacDimens.sp3),
           AppTonalButton(
             label: _expanded ? 'Show less' : 'Show more',
-            icon: _expanded
-                ? LucideIcons.chevronUp
-                : LucideIcons.chevronDown,
+            icon: _expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
             onPressed: () => setState(() => _expanded = !_expanded),
           ),
         ],
@@ -169,9 +163,8 @@ class ZoneDescription extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AlmanacDimens.sp4),
       child: Text(
         description!,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: context.semantic.onSurfaceVariant,
-        ),
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: context.semantic.onSurfaceVariant),
       ),
     );
   }

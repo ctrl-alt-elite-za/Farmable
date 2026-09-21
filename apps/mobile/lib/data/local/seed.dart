@@ -325,7 +325,8 @@ class DemoSeed {
     name: 'North Plot',
     areaM2: '7000.00',
     at: at,
-    description: 'Open ground at the top of the farm. Nothing planted since '
+    description:
+        'Open ground at the top of the farm. Nothing planted since '
         'June.',
     water: 'No line run to it yet',
     soil: 'Sandy loam · slightly acidic',

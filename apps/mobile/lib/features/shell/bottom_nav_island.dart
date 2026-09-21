@@ -197,7 +197,12 @@ class AIActionButton extends StatelessWidget {
     final motion = AppMotion.of(context);
 
     final (icon, fill, onFill, word) = switch (state) {
-      AssistantState.idle => (LucideIcons.sprout, c.primary, c.onPrimary, 'Speak'),
+      AssistantState.idle => (
+        LucideIcons.sprout,
+        c.primary,
+        c.onPrimary,
+        'Speak',
+      ),
       AssistantState.listening => (
         LucideIcons.mic,
         c.primary,
@@ -229,8 +234,7 @@ class AIActionButton extends StatelessWidget {
             curve: AlmanacMotion.easeEmphasised,
             child: Semantics(
               button: true,
-              label:
-                  'Farm assistant. Hold to speak, or tap to start and stop.',
+              label: 'Farm assistant. Hold to speak, or tap to start and stop.',
               child: Material(
                 color: fill,
                 shape: CircleBorder(

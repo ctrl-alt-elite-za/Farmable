@@ -31,7 +31,8 @@ GoRouter buildRouter() => GoRouter(
       builder: (_, _) => const NotBuiltYetScreen(
         destination: NavDestination.farm,
         title: 'Farm',
-        body: 'The map and the full list of sections live here. For now, open '
+        body:
+            'The map and the full list of sections live here. For now, open '
             'a section from the carousel on Home.',
       ),
       routes: [
@@ -40,7 +41,8 @@ GoRouter buildRouter() => GoRouter(
           builder: (_, _) => const NotBuiltYetScreen(
             destination: NavDestination.farm,
             title: 'Farm map',
-            body: 'Walking your boundaries with the camera is being built. '
+            body:
+                'Walking your boundaries with the camera is being built. '
                 'Your sections and their areas are already saved on this '
                 'phone.',
           ),
@@ -58,7 +60,8 @@ GoRouter buildRouter() => GoRouter(
       builder: (_, _) => const NotBuiltYetScreen(
         destination: NavDestination.insights,
         title: 'Insights',
-        body: 'Health, money and market prices over time. Every record you '
+        body:
+            'Health, money and market prices over time. Every record you '
             'add now is what these will be built from.',
       ),
     ),
@@ -67,7 +70,8 @@ GoRouter buildRouter() => GoRouter(
       builder: (_, _) => const NotBuiltYetScreen(
         destination: NavDestination.profile,
         title: 'Profile',
-        body: 'Your details, your privacy choices and what the app is allowed '
+        body:
+            'Your details, your privacy choices and what the app is allowed '
             'to use. Being built.',
       ),
     ),

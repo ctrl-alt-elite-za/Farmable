@@ -44,8 +44,7 @@ class ObservationDraft {
   /// The type is what the list shows as a heading. An untyped observation is
   /// still worth saving, so it gets a plain default rather than a validation
   /// error blocking the farmer from writing down what they saw.
-  String get resolvedType =>
-      type.trim().isEmpty ? 'Observation' : type.trim();
+  String get resolvedType => type.trim().isEmpty ? 'Observation' : type.trim();
 
   String get resolvedNote => note.trim();
 

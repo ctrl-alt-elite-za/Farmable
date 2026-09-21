@@ -59,10 +59,7 @@ class GreetingHeader extends StatelessWidget {
         // the more useful fact when there is any, and the offline state is
         // already implied by it.
         if (pendingChanges > 0)
-          SyncIndicator(
-            standing: SyncStanding.pending,
-            pending: pendingChanges,
-          )
+          SyncIndicator(standing: SyncStanding.pending, pending: pendingChanges)
         else
           SyncIndicator(
             standing: offline ? SyncStanding.offline : SyncStanding.synced,
@@ -135,11 +132,7 @@ class _QuickActionTile extends StatelessWidget {
                   color: c.primaryContainer,
                   borderRadius: BorderRadius.circular(AlmanacDimens.rSm),
                 ),
-                child: Icon(
-                  action.icon,
-                  size: 20,
-                  color: c.onPrimaryContainer,
-                ),
+                child: Icon(action.icon, size: 20, color: c.onPrimaryContainer),
               ),
               const SizedBox(height: AlmanacDimens.sp2),
               Flexible(
@@ -201,8 +194,7 @@ class FarmMapPreview extends StatelessWidget {
                 spacing: AlmanacDimens.sp2,
                 runSpacing: AlmanacDimens.sp2,
                 children: [
-                  for (final section in sections)
-                    _MapPlot(section: section),
+                  for (final section in sections) _MapPlot(section: section),
                 ],
               ),
             ),
@@ -250,7 +242,8 @@ class _MapPlot extends StatelessWidget {
     };
 
     return Container(
-      width: (MediaQuery.sizeOf(context).width - AlmanacDimens.gutter * 2) / 2 -
+      width:
+          (MediaQuery.sizeOf(context).width - AlmanacDimens.gutter * 2) / 2 -
           AlmanacDimens.sp5,
       height: 58,
       padding: const EdgeInsets.symmetric(horizontal: AlmanacDimens.sp3),
@@ -266,17 +259,13 @@ class _MapPlot extends StatelessWidget {
         children: [
           Text(
             section.name,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: ink),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: ink),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
           ),
           Text(
             '${section.section.areaHectares} · ${section.health.label}',
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: ink),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: ink),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
           ),
@@ -307,7 +296,8 @@ class NextUpList extends StatelessWidget {
       return const EmptyState(
         icon: LucideIcons.calendarClock,
         headline: 'Nothing due',
-        body: 'A task is one job on one section — watering, weeding, a check. '
+        body:
+            'A task is one job on one section — watering, weeding, a check. '
             'Add one and it will show up here and on the section itself.',
       );
     }
@@ -392,9 +382,7 @@ class _TaskRow extends StatelessWidget {
                   ),
                   Text(
                     '$sectionName · ${dueSuffix(task.dueDate, today)}',
-                    style: text.labelSmall?.copyWith(
-                      color: c.onSurfaceVariant,
-                    ),
+                    style: text.labelSmall?.copyWith(color: c.onSurfaceVariant),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],

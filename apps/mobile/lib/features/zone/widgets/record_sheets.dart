@@ -73,8 +73,7 @@ Future<void> showTimelineActions({
             final confirmed = await confirmDelete(
               context: context,
               what: entry.task.title,
-              explanation:
-                  'It will be taken off this section’s timeline.',
+              explanation: 'It will be taken off this section’s timeline.',
             );
             if (confirmed) await actions.removeTask(entry.task.id);
           },
@@ -319,9 +318,7 @@ class _FormSheet extends StatelessWidget {
     final c = context.semantic;
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
         decoration: BoxDecoration(
           color: c.surface,
@@ -530,11 +527,7 @@ class _ObservationFormState extends State<_ObservationForm> {
     saveLabel: widget.observation == null ? 'Save' : 'Save changes',
     onSave: _draft.isValid ? _save : null,
     children: [
-      _Field(
-        label: 'What is it',
-        hint: 'Leaf yellowing',
-        controller: _type,
-      ),
+      _Field(label: 'What is it', hint: 'Leaf yellowing', controller: _type),
       _Field(
         label: 'What you saw',
         hint: 'Yellow leaves on the south side',
@@ -549,9 +542,8 @@ class _ObservationFormState extends State<_ObservationForm> {
       ),
       Text(
         'How is it doing',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: context.semantic.onSurfaceVariant,
-        ),
+        style: Theme.of(context).textTheme.labelMedium
+            ?.copyWith(color: context.semantic.onSurfaceVariant),
       ),
       const SizedBox(height: 6),
       _HealthChoice(
@@ -652,9 +644,7 @@ class _TaskFormState extends State<_TaskForm> {
   void initState() {
     super.initState();
     _title = TextEditingController(text: widget.task?.title ?? '');
-    _description = TextEditingController(
-      text: widget.task?.description ?? '',
-    );
+    _description = TextEditingController(text: widget.task?.description ?? '');
     _due = widget.task?.dueDate ?? DateTime.now();
     _title.addListener(() => setState(() {}));
   }
@@ -706,9 +696,8 @@ class _TaskFormState extends State<_TaskForm> {
         ),
         Text(
           'When',
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: c.onSurfaceVariant),
+          style: Theme.of(context).textTheme.labelMedium
+              ?.copyWith(color: c.onSurfaceVariant),
         ),
         const SizedBox(height: 6),
         AppTonalButton(
