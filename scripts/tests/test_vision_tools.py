@@ -290,8 +290,7 @@ def test_release_selection_requires_both_reports_and_usable_fixture_results() ->
     results = fixtures["results"]
     assert isinstance(results, list)
     results.extend(
-        dict(result, fixture_id=f"{result['fixture_id']}-second")
-        for result in list(results)
+        dict(result, fixture_id=f"{result['fixture_id']}-second") for result in list(results)
     )
     fixtures["fixtures"] = len(results)
     selected = select_release(
