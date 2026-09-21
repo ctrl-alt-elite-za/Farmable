@@ -12,8 +12,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps/ml-service"))
 
 from vision import export  # noqa: E402
+from vision.benchmark import build_report, read_samples, validate_report  # noqa: E402
 from vision.check_split import count_crop_images, split_sessions, validate_labels  # noqa: E402
 from vision.eval_weights import fit_range, load_measurements  # noqa: E402
+from vision.release import select_release, validate_fixture_report  # noqa: E402
 from vision.train import report_for  # noqa: E402
 
 # Keys accepted by ultralytics==8.4.0 cfg/default.yaml; anything else raises SyntaxError at export.
@@ -53,7 +55,8 @@ def fake_yoloe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> type[FakeYOLO
 
 
 def run_export(monkeypatch: pytest.MonkeyPatch, *args: str) -> int:
-    monkeypatch.setattr(sys, "argv", ["export.py", "--model", "weights.pt", *args])
+    Path(export.DEFAULT_MODEL).write_bytes(b"source-weights")
+    monkeypatch.setattr(sys, "argv", ["export.py", *args])
     return export.main()
 
 
@@ -75,12 +78,154 @@ def test_export_manifest_marks_demo_artifacts_unmeasured_with_hashes(
     manifest = json.loads(Path("out/demo1.json").read_text(encoding="utf-8"))
     assert manifest["measured"] is False
     assert manifest["precision"] == "fp16"
+    assert manifest["source_revision"].startswith("Ultralytics assets release v8.4.0")
+    assert manifest["license"].startswith("AGPL-3.0-only")
+    assert manifest["source_sha256"] == hashlib.sha256(b"source-weights").hexdigest()
+    assert manifest["classes"] == export.PROMPTS
     assert set(manifest["artifacts"]) == {"coreml", "tflite"}
     assert all(len(item["sha256"]) == 64 for item in manifest["artifacts"].values())
+    assert all(item["bytes"] > 0 for item in manifest["artifacts"].values())
     assert Path("out/demo1.mlpackage/Manifest.json").is_file()
     assert Path("out/demo1.tflite").is_file()
     expected = hashlib.sha256(b"tflite").hexdigest()
     assert manifest["artifacts"]["tflite"]["sha256"] == expected
+
+
+def test_benchmark_report_computes_warm_percentiles_and_requires_physical_device() -> None:
+    report = build_report(
+        model_version="demo1",
+        artifact_sha256="a" * 64,
+        platform="ios",
+        device="iPhone fixture",
+        os_version="17.0",
+        runtime="Core ML",
+        precision="fp16",
+        input_size=640,
+        artifact_bytes=123,
+        cold_load_ms=12.0,
+        first_inference_ms=4.0,
+        warm_sample_ms=[10.0, 20.0, 30.0, 40.0] * 5,
+        warmup_iterations=10,
+        peak_memory_mb=50.0,
+    )
+    assert report["warm_samples"] == 20
+    assert report["warm_p50_ms"] == 25.0
+    assert report["warm_p95_ms"] == 40.0
+    invalid = dict(report, measurement_source="desktop")
+    with pytest.raises(ValueError, match="physical_device"):
+        validate_report(invalid)
+
+
+def test_benchmark_rejects_too_few_or_non_numeric_warm_samples(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="at least 20"):
+        build_report(
+            model_version="demo1",
+            artifact_sha256="a" * 64,
+            platform="ios",
+            device="iPhone fixture",
+            os_version="17",
+            runtime="Core ML",
+            precision="fp16",
+            input_size=640,
+            artifact_bytes=10,
+            cold_load_ms=1,
+            first_inference_ms=1,
+            warm_sample_ms=[1] * 19,
+            warmup_iterations=1,
+            peak_memory_mb=1,
+        )
+    samples = tmp_path / "samples.json"
+    samples.write_text('[1, true, "2"]', encoding="utf-8")
+    with pytest.raises(ValueError, match="JSON number"):
+        read_samples(samples)
+
+
+def test_release_selection_requires_both_reports_and_usable_fixture_results() -> None:
+    ios = build_report(
+        model_version="demo1",
+        artifact_sha256="a" * 64,
+        platform="ios",
+        device="iPhone fixture",
+        os_version="17",
+        runtime="Core ML",
+        precision="fp16",
+        input_size=640,
+        artifact_bytes=10,
+        cold_load_ms=1,
+        first_inference_ms=1,
+        warm_sample_ms=[1, 2] * 10,
+        warmup_iterations=1,
+        peak_memory_mb=1,
+    )
+    android = build_report(
+        model_version="demo1",
+        artifact_sha256="b" * 64,
+        platform="android",
+        device="Android fixture",
+        os_version="14",
+        runtime="LiteRT",
+        precision="fp16",
+        input_size=640,
+        artifact_bytes=20,
+        cold_load_ms=1,
+        first_inference_ms=1,
+        warm_sample_ms=[2, 3] * 10,
+        warmup_iterations=1,
+        peak_memory_mb=1,
+    )
+    fixtures = {
+        "model_version": "demo1",
+        "fixtures": 3,
+        "required_crop_hits": {"cabbage": "usable", "tomato": "usable", "spinach": "usable"},
+        "negative_false_positives": 0,
+        "results": [
+            {
+                "fixture_id": "cabbage-1",
+                "expected_crop": "cabbage",
+                "detected": True,
+                "raw_label": "cabbage plant",
+                "confidence": 0.9,
+                "false_positive": False,
+            },
+            {
+                "fixture_id": "tomato-1",
+                "expected_crop": "tomato",
+                "detected": True,
+                "raw_label": "tomato plant",
+                "confidence": 0.9,
+                "false_positive": False,
+            },
+            {
+                "fixture_id": "spinach-1",
+                "expected_crop": "spinach",
+                "detected": True,
+                "raw_label": "spinach plant",
+                "confidence": 0.9,
+                "false_positive": False,
+            },
+        ],
+    }
+    manifest = {
+        "version": "demo1",
+        "measured": False,
+        "source_model": export.DEFAULT_MODEL,
+        "source_revision": export.DEFAULT_SOURCE_REVISION,
+        "source_url": export.DEFAULT_SOURCE_URL,
+        "source_sha256": "c" * 64,
+        "license": export.DEFAULT_LICENSE,
+        "classes": export.PROMPTS,
+        "input_size": 640,
+        "precision": "fp16",
+        "artifacts": {
+            "coreml": {"sha256": "a" * 64, "bytes": 10},
+            "tflite": {"sha256": "b" * 64, "bytes": 20},
+        },
+    }
+    selected = select_release(manifest, ios, android, fixtures)
+    assert selected["measured"] is True
+    assert selected["selected_for_demo"] is True
+    assert manifest["measured"] is False
+    assert validate_fixture_report(fixtures)["fixtures"] == 3
 
 
 def test_int8_export_requires_crop_calibration_data(

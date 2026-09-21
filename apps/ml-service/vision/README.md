@@ -14,12 +14,16 @@ python apps/ml-service/vision/export.py --version demo1 \
 
 This produces `demo1.mlpackage` for iOS and `demo1.tflite` for Android. The
 phone app still needs its Core ML or LiteRT camera adapter and must bundle the
-matching manifest. The pretrained model is a demo shortcut: it has not been
-trained or measured on Farmable field images, does not prove the issue's
-per-class accuracy or 300-images-per-crop requirement, and its prompt labels
-are not the custom `plant`, `crop_head_or_fruit`, and `check_suggested` label
-contract. Treat detections as provisional until a Farmable-labelled model is
-trained and evaluated.
+matching manifest. The export manifest records the pinned Ultralytics source
+metadata, source checkpoint hash, exact prompt order, runtime input/output contract, artifact hashes
+and byte sizes; it remains `measured: false` until physical-device reports and
+a fixed fixture report are available. The separate release gate writes
+`demo1.release.json` without mutating the export manifest.
+
+This is a pretrained demo shortcut, not a Farmable field-data accuracy claim:
+it may miss local varieties, lighting and occlusion, and it does not diagnose
+disease or estimate weight. Fixtures are qualitative regression evidence, not
+a substitute for a labelled training/evaluation dataset.
 
 Organise the private dataset as `data/<version>/{train,test}/images` with an
 `image_sessions.csv` manifest containing `image,session_id,crop` columns. Validate
