@@ -38,7 +38,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   // ---------------------------------------------------------------- reads
 
   @override
-  Stream<rec.FarmSnapshot> watchFarm() => _watch(
+  Stream<rec.FarmSnapshot?> watchFarm() => _watch(
     [
       db.users,
       db.farms,
@@ -84,8 +84,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     db.plantings,
   ], _pendingChanges);
 
-  Future<rec.FarmSnapshot> _loadFarm() async {
+  Future<rec.FarmSnapshot?> _loadFarm() async {
     final farmRow = await _farmRow();
+    if (farmRow == null) return null;
     final user = await (db.select(db.users)..limit(1)).getSingleOrNull();
     final sections = await _sectionRows();
 
@@ -560,11 +561,11 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     return row == null ? null : _toTask(row);
   }
 
-  Future<Farm> _farmRow() =>
+  Future<Farm?> _farmRow() =>
       (db.select(db.farms)
             ..where((t) => t.deletedAt.isNull())
             ..limit(1))
-          .getSingle();
+          .getSingleOrNull();
 
   Future<List<Section>> _sectionRows() =>
       (db.select(db.sections)
@@ -716,6 +717,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   @override
   Future<demo.Dashboard> farm() async {
     final farmRow = await _farmRow();
+    if (farmRow == null) throw const SessionExpired('No farm on this phone');
     final rows = await _sectionRows();
     final sections = <demo.Section>[];
     var totalArea = 0.0;
@@ -746,6 +748,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required String areaM2,
   }) async {
     final farmRow = await _farmRow();
+    if (farmRow == null) throw const SessionExpired('No farm on this phone');
     final at = now();
     final id = newUuid();
     await db.transaction(() async {

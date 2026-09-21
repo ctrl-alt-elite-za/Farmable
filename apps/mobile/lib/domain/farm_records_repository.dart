@@ -15,7 +15,11 @@ import 'farm_records.dart';
 abstract interface class FarmRecordsRepository {
   /// The farm as Home renders it. Emits immediately from local storage and
   /// again whenever any record it depends on changes.
-  Stream<FarmSnapshot> watchFarm();
+  ///
+  /// Emits null when there is no farm on this phone yet. That is a state, not
+  /// a failure: it is what a farmer sees between signing in and setting their
+  /// farm up, and reporting it as an error would be both untrue and useless.
+  Stream<FarmSnapshot?> watchFarm();
 
   /// One section with everything Zone Detail needs. Emits null if the section
   /// is deleted while the screen is open.
