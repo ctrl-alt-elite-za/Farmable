@@ -21,6 +21,7 @@ from vision.benchmark import (  # noqa: E402
 )
 from vision.check_split import count_crop_images, split_sessions, validate_labels  # noqa: E402
 from vision.eval_weights import fit_range, load_measurements  # noqa: E402
+from vision.fixtures import build_manifest  # noqa: E402
 from vision.release import select_release, validate_fixture_report  # noqa: E402
 from vision.train import report_for  # noqa: E402
 
@@ -184,6 +185,21 @@ def test_export_manifest_marks_demo_artifacts_unmeasured_with_hashes(
     assert Path("out/demo1.tflite").is_file()
     expected = hashlib.sha256(b"tflite").hexdigest()
     assert manifest["artifacts"]["tflite"]["sha256"] == expected
+
+
+def test_fixture_manifest_hashes_real_images_without_fabricating_results(tmp_path: Path) -> None:
+    for crop in ("cabbage", "tomato", "spinach", "negative"):
+        directory = tmp_path / crop
+        directory.mkdir()
+        for index in (1, 2):
+            (directory / f"{index}.jpg").write_bytes(f"real-fixture-{crop}-{index}".encode())
+
+    manifest = build_manifest(tmp_path, "demo1")
+    assert manifest["model_version"] == "demo1"
+    fixtures = manifest["fixtures"]
+    assert len(fixtures) == 8
+    assert all(len(fixture["fixture_sha256"]) == 64 for fixture in fixtures)
+    assert all("path" in fixture for fixture in fixtures)
 
 
 def test_benchmark_report_computes_warm_percentiles_and_requires_physical_device() -> None:

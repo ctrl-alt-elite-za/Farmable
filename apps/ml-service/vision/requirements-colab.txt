@@ -3,7 +3,10 @@
 ultralytics @ git+https://github.com/ultralytics/ultralytics.git@7758bda8f53d154dc06bc9c3fcb2946456dec7d9
 # YOLOE prompt baking uses the CLIP helper; this package still imports
 # pkg_resources, which was removed from newer setuptools releases.
-openai-clip
-setuptools<81
+openai-clip==1.0.1
+setuptools==80.9.0
+# Core ML is only available on macOS; keep it out of the Android/Colab solve.
+coremltools==9.0; sys_platform == "darwin"
 tensorflow==2.18.0
-onnx==1.22.0
+# 1.22 requires ml-dtypes>=0.5.4, conflicting with TensorFlow 2.18's <0.5.
+onnx==1.17.0

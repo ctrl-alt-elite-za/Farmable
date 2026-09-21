@@ -22,7 +22,8 @@ artifacts are ignored by git; the export manifest records their hashes.
 ## 2. Export on a supported host
 
 Use the pinned environment from `apps/ml-service/vision/requirements-colab.txt`
-and enough free disk for PyTorch, TensorFlow, and the generated artifacts. The
+with the repository's Python 3.12 toolchain, and enough free disk for PyTorch,
+TensorFlow, and the generated artifacts. The
 Ultralytics dependency is pinned to the exact revision containing the YOLOE
 prompt-fusion export fix; do not substitute `ultralytics==8.4.0`:
 
@@ -31,11 +32,26 @@ python apps/ml-service/vision/export.py --version demo1 --formats coreml tflite
 ```
 
 Core ML export must run on macOS. LiteRT/TFLite export requires the pinned
-TensorFlow environment. The output is `apps/ml-service/vision/models/demo1.*`
+TensorFlow environment. The requirements file includes the pinned macOS-only
+Core ML toolchain. The output is `apps/ml-service/vision/models/demo1.*`
 plus `demo1.json`; inspect generated tensor shapes, NMS behavior, preprocessing,
 and prompt metadata before handing the artifact to mobile.
 
 ## 3. Physical reports
+
+Before device runs, build the fixed fixture manifest from supplied real images;
+the command records each image hash and never invents detections:
+
+```bash
+python apps/ml-service/vision/fixtures.py \
+  --root path/to/real-fixtures \
+  --output apps/ml-service/vision/reports/demo1-fixtures.json
+```
+
+The fixture directory must contain `cabbage/`, `tomato/`, `spinach/`, and
+`negative/`, with at least two images in each directory. These images are
+inputs for the later iOS/Android run; this command is not a benchmark and does
+not create a passing release report.
 
 On the demo iPhone and Android device, collect at least 20 warm inference
 samples plus cold load, first inference, and peak memory. Then record them with

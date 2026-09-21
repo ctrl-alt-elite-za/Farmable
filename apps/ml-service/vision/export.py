@@ -21,7 +21,7 @@ SUFFIXES = {"coreml": ".mlpackage", "tflite": ".tflite"}
 IMAGE_SIZE = 640
 DEFAULT_MODEL = "yoloe-26n-seg.pt"
 ULTRALYTICS_EXPORTER_REVISION = (
-    "git+https://github.com/ultralytics/ultralytics.git@" "7758bda8f53d154dc06bc9c3fcb2946456dec7d9"
+    "git+https://github.com/ultralytics/ultralytics.git@7758bda8f53d154dc06bc9c3fcb2946456dec7d9"
 )
 
 # These values describe the reproducible software/model source used by the
@@ -30,7 +30,7 @@ ULTRALYTICS_EXPORTER_REVISION = (
 # In particular, this is not a claim that the package version is a model
 # checkpoint revision.
 DEFAULT_SOURCE_REVISION = (
-    "Ultralytics assets release v8.4.0; " f"exporter ultralytics @ {ULTRALYTICS_EXPORTER_REVISION}"
+    f"Ultralytics assets release v8.4.0; exporter ultralytics @ {ULTRALYTICS_EXPORTER_REVISION}"
 )
 DEFAULT_SOURCE_URL = (
     "https://github.com/ultralytics/assets/releases/download/v8.4.0/yoloe-26n-seg.pt"
