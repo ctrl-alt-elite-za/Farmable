@@ -11,7 +11,8 @@ prompts in this order:
 4. `tomato fruit` → `tomato`
 5. `spinach plant` → `spinach`
 
-The export environment is pinned to `ultralytics==8.4.0`; the exporter records
+The export environment is pinned to the exact Ultralytics revision containing
+the YOLOE prompt-fusion export fix (`7758bda`, PR #24359); the exporter records
 the source metadata and checkpoint SHA-256, prompt order, artifact SHA-256 and artifact byte size in
 the immutable export manifest. The default precision is FP16 at 640×640. The
 manifest remains `measured: false` until physical iOS and Android reports and

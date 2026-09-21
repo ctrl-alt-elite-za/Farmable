@@ -22,7 +22,9 @@ artifacts are ignored by git; the export manifest records their hashes.
 ## 2. Export on a supported host
 
 Use the pinned environment from `apps/ml-service/vision/requirements-colab.txt`
-and enough free disk for PyTorch, TensorFlow, and the generated artifacts:
+and enough free disk for PyTorch, TensorFlow, and the generated artifacts. The
+Ultralytics dependency is pinned to the exact revision containing the YOLOE
+prompt-fusion export fix; do not substitute `ultralytics==8.4.0`:
 
 ```bash
 python apps/ml-service/vision/export.py --version demo1 --formats coreml tflite

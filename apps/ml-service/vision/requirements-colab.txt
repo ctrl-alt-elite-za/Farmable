@@ -1,3 +1,9 @@
-ultralytics==8.4.0
+# YOLOE prompt fusion export fix (Ultralytics PR #24359). Keep this exact
+# revision until the fix is included in a released package.
+ultralytics @ git+https://github.com/ultralytics/ultralytics.git@7758bda8f53d154dc06bc9c3fcb2946456dec7d9
+# YOLOE prompt baking uses the CLIP helper; this package still imports
+# pkg_resources, which was removed from newer setuptools releases.
+openai-clip
+setuptools<81
 tensorflow==2.18.0
 onnx==1.22.0

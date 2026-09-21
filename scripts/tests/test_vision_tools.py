@@ -24,7 +24,8 @@ from vision.eval_weights import fit_range, load_measurements  # noqa: E402
 from vision.release import select_release, validate_fixture_report  # noqa: E402
 from vision.train import report_for  # noqa: E402
 
-# Keys accepted by ultralytics==8.4.0 cfg/default.yaml; anything else raises SyntaxError at export.
+# Keys accepted by the pinned Ultralytics cfg/default.yaml; anything else raises
+# SyntaxError at export.
 ULTRALYTICS_EXPORT_KEYS = {"format", "imgsz", "half", "int8", "data", "nms", "batch", "dynamic"}
 
 
@@ -172,6 +173,7 @@ def test_export_manifest_marks_demo_artifacts_unmeasured_with_hashes(
     assert manifest["measured"] is False
     assert manifest["precision"] == "fp16"
     assert manifest["source_revision"].startswith("Ultralytics assets release v8.4.0")
+    assert export.ULTRALYTICS_EXPORTER_REVISION in manifest["source_revision"]
     assert manifest["license"].startswith("AGPL-3.0-only")
     assert manifest["source_sha256"] == hashlib.sha256(b"source-weights").hexdigest()
     assert manifest["classes"] == export.PROMPTS
