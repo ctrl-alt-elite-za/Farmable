@@ -107,15 +107,15 @@ Repository-wide lint, formatting, typing, unit, integration, security, migration
 
 ## Acceptance mapping
 
-| Issue criterion | Proof |
-| --- | --- |
-| Client-generated UUID accepted | Unit and PostgreSQL repository tests preserve the supplied record ID. |
+| Issue criterion                                   | Proof                                                                                     |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Client-generated UUID accepted                    | Unit and PostgreSQL repository tests preserve the supplied record ID.                     |
 | Duplicate mutation does not duplicate observation | Sequential and concurrent exact-replay tests assert one record, ledger entry, and change. |
-| Observations are owner-scoped | Composite constraints plus repository queries and cross-owner tests. |
-| Tasks are owner-scoped | Composite constraints plus repository queries and cross-owner tests. |
-| Financial records are owner-scoped | Composite constraints plus repository queries and cross-owner tests. |
-| Tombstone is not resurrected | Create/delete/recreate and repeated-delete tests. |
-| Demo seed has observations and tasks | Idempotent seed test on PostgreSQL and fast unit coverage. |
+| Observations are owner-scoped                     | Composite constraints plus repository queries and cross-owner tests.                      |
+| Tasks are owner-scoped                            | Composite constraints plus repository queries and cross-owner tests.                      |
+| Financial records are owner-scoped                | Composite constraints plus repository queries and cross-owner tests.                      |
+| Tombstone is not resurrected                      | Create/delete/recreate and repeated-delete tests.                                         |
+| Demo seed has observations and tasks              | Idempotent seed test on PostgreSQL and fast unit coverage.                                |
 
 ## Review and rollout
 
