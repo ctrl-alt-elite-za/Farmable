@@ -6,6 +6,10 @@
 /// exists.
 library;
 
+import 'package:almanac/data/local/local_farm_repository.dart';
+import 'package:almanac/data/local/seed.dart';
+import 'package:almanac/domain/farm_records.dart';
+import 'package:almanac/features/home/widgets/carousel_caption.dart';
 import 'package:almanac/features/home/widgets/zone_card.dart';
 import 'package:almanac/features/home/widgets/zone_carousel.dart';
 import 'package:almanac/features/zone/zone_screen.dart';
@@ -273,6 +277,134 @@ void main() {
       // said.
       await revealOnPage(tester, find.textContaining('by Friday'));
       expect(find.textContaining('by Friday'), findsWidgets);
+    });
+  });
+
+  group('the caption under the carousel', () {
+    testWidgets('names the next job and the harvest window in words', (
+      tester,
+    ) async {
+      await pumpFarmApp(tester);
+      await revealOnPage(tester, find.byType(CarouselCaption));
+
+      // The card has room for a name and one figure. The rest of what a
+      // section card is asked to show lives here, where it is legible.
+      expect(find.textContaining('Next: Weed second row'), findsOneWidget);
+      expect(find.textContaining('Harvest 21 Dec – 31 Dec'), findsOneWidget);
+      expect(find.textContaining('about 92 days'), findsOneWidget);
+    });
+
+    testWidgets('an unplanted section is offered, not scored', (tester) async {
+      await pumpFarmApp(tester);
+      // The carousel has to stay on screen to be dragged, so scroll to it
+      // rather than to the caption underneath it.
+      await revealOnPage(tester, find.byType(ZoneCarousel));
+
+      await tester.drag(find.byType(ZoneCarousel), const Offset(-300, 0));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ZoneCarousel), const Offset(-300, 0));
+      await tester.pumpAndSettle();
+
+      await revealOnPage(tester, find.byType(CarouselCaption));
+      expect(find.text('Nothing planted here yet'), findsOneWidget);
+      expect(find.textContaining('0.7 ha waiting for a crop'), findsOneWidget);
+    });
+  });
+
+  group('quick actions', () {
+    testWidgets('writing an observation from Home lands on the section', (
+      tester,
+    ) async {
+      final harness = await pumpFarmApp(tester);
+      await revealOnPage(tester, find.text('Add observation'));
+
+      await tester.tap(find.text('Add observation'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), 'Hail');
+      await tester.enterText(
+        find.byType(TextField).at(1),
+        'Hail took the outer leaves off the top rows.',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final saved = await (harness.db.select(
+        harness.db.observations,
+      )..where((o) => o.type.equals('Hail'))).get();
+      expect(saved, hasLength(1));
+      // It went to the section the farmer was looking at, not to an arbitrary
+      // one.
+      expect(saved.single.sectionId, DemoSeed.cabbageFieldId);
+    });
+
+    testWidgets('an unbuilt action says so instead of doing nothing', (
+      tester,
+    ) async {
+      await pumpFarmApp(tester);
+      await revealOnPage(tester, find.text('Add sale'));
+
+      await tester.tap(find.text('Add sale'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Recording a sale is being built'), findsOneWidget);
+      expectNoFailureLanguage(tester);
+    });
+  });
+
+  group('the dashboard follows the records', () {
+    testWidgets('a new observation changes the visible health state', (
+      tester,
+    ) async {
+      final harness = await pumpFarmApp(tester);
+      await revealOnPage(tester, find.text('/ 100'));
+      expect(find.text('79'), findsOneWidget);
+
+      // What the voice flow will do once confirmed: one observation, written
+      // straight to local storage.
+      final repo = LocalFarmRepository(harness.db, now: () => pinnedToday);
+      await repo.createObservation(
+        sectionId: DemoSeed.cabbageFieldId,
+        type: 'Leaf yellowing',
+        note: 'Spreading up the rows.',
+        healthStatus: HealthState.needsAttention,
+        healthScore: 40,
+      );
+      await tester.pumpAndSettle();
+
+      // No reload, no pull-to-refresh: the farm is a stream over the records.
+      await revealOnPage(tester, find.text('/ 100'));
+      expect(find.text('79'), findsNothing);
+      expect(find.text('62'), findsOneWidget);
+    });
+
+    testWidgets('rescheduling a task moves it in Next up', (tester) async {
+      final harness = await pumpFarmApp(tester);
+      await revealOnPage(tester, find.text('Weed second row'));
+      expect(
+        find.textContaining('Cabbage Field · overdue since'),
+        findsOneWidget,
+      );
+
+      // The write a voice reschedule will make. Read through a plain query
+      // rather than the watch stream: a broadcast stream's first event and a
+      // widget test's fake clock do not reliably meet.
+      final repo = LocalFarmRepository(harness.db, now: () => pinnedToday);
+      final weeding = await (harness.db.select(
+        harness.db.farmTasks,
+      )..where((t) => t.title.equals('Weed second row'))).getSingle();
+      await repo.rescheduleTask(
+        weeding.id,
+        pinnedToday.add(const Duration(days: 3)),
+      );
+      await tester.pumpAndSettle();
+
+      await revealOnPage(tester, find.text('Weed second row'));
+      expect(find.textContaining('overdue since'), findsNothing);
+      expect(
+        find.textContaining('Cabbage Field · by Wednesday 23 Sep'),
+        findsOneWidget,
+      );
     });
   });
 

@@ -6,9 +6,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../app/providers.dart';
 import '../../app/theme/tokens.g.dart';
 import '../../core/ui/layout.dart';
+import '../../domain/farm_records.dart';
 import '../shell/almanac_scaffold.dart';
 import '../shell/bottom_nav_island.dart';
 import 'home_view_model.dart';
+import '../../core/ui/not_built_yet_sheet.dart';
+import '../zone/widgets/record_sheets.dart';
+import '../zone/zone_view_model.dart';
+import 'widgets/carousel_caption.dart';
 import 'widgets/farm_hero_card.dart';
 import 'widgets/health_summary_card.dart';
 import 'widgets/home_sections.dart';
@@ -44,14 +49,38 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _Dashboard extends StatelessWidget {
+class _Dashboard extends ConsumerStatefulWidget {
   final HomeView view;
 
   const _Dashboard({required this.view});
 
   @override
+  ConsumerState<_Dashboard> createState() => _DashboardState();
+}
+
+class _DashboardState extends ConsumerState<_Dashboard> {
+  /// The section currently at the centre of the carousel.
+  ///
+  /// Held here because two things below the carousel depend on it: the caption
+  /// that spells out its next job and harvest window, and "Add observation",
+  /// which has to write to *some* section and the one the farmer is looking at
+  /// is the only defensible answer.
+  String? _centreId;
+
+  SectionSummary? get _centre {
+    final sections = widget.view.farm.sections;
+    if (sections.isEmpty) return null;
+    return sections.firstWhere(
+      (s) => s.id == _centreId,
+      orElse: () => sections.first,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final view = widget.view;
     final farm = view.farm;
+    final centre = _centre;
 
     return SafeArea(
       bottom: false,
@@ -112,6 +141,12 @@ class _Dashboard extends StatelessWidget {
             ZoneCarousel(
               sections: farm.sections,
               onOpen: (section) => context.push('/farm/zone/${section.id}'),
+              onCentreChanged: (section) =>
+                  setState(() => _centreId = section.id),
+            ),
+          if (centre != null)
+            _Gutter(
+              child: CarouselCaption(section: centre, today: view.today),
             ),
 
           _Gutter(
@@ -130,21 +165,7 @@ class _Dashboard extends StatelessWidget {
           ),
 
           const _Gutter(child: SectionHeader(title: 'Add to your farm')),
-          const _Gutter(
-            child: QuickActions(
-              actions: [
-                QuickAction(
-                  icon: LucideIcons.notebookPen,
-                  label: 'Add observation',
-                ),
-                QuickAction(icon: LucideIcons.receipt, label: 'Add expense'),
-                QuickAction(icon: LucideIcons.tag, label: 'Add sale'),
-                QuickAction(icon: LucideIcons.check, label: 'Add task'),
-                QuickAction(icon: LucideIcons.layers, label: 'Add section'),
-                QuickAction(icon: LucideIcons.camera, label: 'Scan crop'),
-              ],
-            ),
-          ),
+          _Gutter(child: QuickActions(actions: _quickActions(centre))),
 
           _Gutter(
             child: SectionHeader(
@@ -173,6 +194,81 @@ class _Dashboard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// The six actions, with real destinations.
+  ///
+  /// Two of them are built and write to the centred section. The other four
+  /// are not, and say so plainly rather than being tiles that do nothing when
+  /// tapped — a control that silently ignores you is how an app teaches a
+  /// farmer that it is broken.
+  List<QuickAction> _quickActions(SectionSummary? centre) {
+    final actions = centre == null
+        ? null
+        : ref.read(zoneActionsProvider(centre.id));
+    final on = centre == null ? '' : ' on ${centre.name}';
+
+    return [
+      QuickAction(
+        icon: LucideIcons.notebookPen,
+        label: 'Add observation',
+        onTap: actions == null
+            ? null
+            : () => showObservationEditor(context: context, actions: actions),
+      ),
+      QuickAction(
+        icon: LucideIcons.receipt,
+        label: 'Add expense',
+        onTap: () => showNotBuiltYetSheet(
+          context,
+          title: 'Recording money is being built',
+          body:
+              'Your costs so far are already counted$on — what is missing '
+              'is the form to add a new one. Until then they come in with '
+              'your plan.',
+        ),
+      ),
+      QuickAction(
+        icon: LucideIcons.tag,
+        label: 'Add sale',
+        onTap: () => showNotBuiltYetSheet(
+          context,
+          title: 'Recording a sale is being built',
+          body:
+              'When it is here, what you actually sold will sit next to '
+              'what was projected, so you can see which was closer.',
+        ),
+      ),
+      QuickAction(
+        icon: LucideIcons.check,
+        label: 'Add task',
+        onTap: actions == null
+            ? null
+            : () => showTaskEditor(context: context, actions: actions),
+      ),
+      QuickAction(
+        icon: LucideIcons.layers,
+        label: 'Add section',
+        onTap: () => showNotBuiltYetSheet(
+          context,
+          title: 'Adding a section is being built',
+          body:
+              'A section is one piece of land you use for one thing. '
+              'Walking its boundary with the camera comes with the map.',
+        ),
+      ),
+      QuickAction(
+        icon: LucideIcons.camera,
+        label: 'Scan crop',
+        onTap: () => showNotBuiltYetSheet(
+          context,
+          title: 'The crop camera is being built',
+          body:
+              'Pointing the phone at a plant to check it will work without '
+              'airtime or data, on this phone.',
+        ),
+      ),
+    ];
   }
 }
 

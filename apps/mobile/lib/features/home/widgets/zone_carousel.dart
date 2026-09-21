@@ -47,7 +47,19 @@ class ZoneCarousel extends StatefulWidget {
   final List<SectionSummary> sections;
   final void Function(SectionSummary section) onOpen;
 
-  const ZoneCarousel({super.key, required this.sections, required this.onOpen});
+  /// Fires whenever a different section reaches the centre.
+  ///
+  /// The centred section is the one the farmer is looking at, so it is also
+  /// the one the caption beneath describes and the one "Add observation"
+  /// writes to.
+  final void Function(SectionSummary section)? onCentreChanged;
+
+  const ZoneCarousel({
+    super.key,
+    required this.sections,
+    required this.onOpen,
+    this.onCentreChanged,
+  });
 
   @override
   State<ZoneCarousel> createState() => _ZoneCarouselState();
@@ -108,7 +120,12 @@ class _ZoneCarouselState extends State<ZoneCarousel> {
       height: MediaQuery.sizeOf(context).width * 0.72 * 1.25 + 82,
       child: PageView.builder(
         controller: _controller,
-        onPageChanged: (page) => setState(() => _centre = page),
+        onPageChanged: (page) {
+          setState(() => _centre = page);
+          widget.onCentreChanged?.call(
+            widget.sections[carouselIndexFor(page, count)],
+          );
+        },
         padEnds: true,
         itemBuilder: (context, page) {
           final section = widget.sections[carouselIndexFor(page, count)];
