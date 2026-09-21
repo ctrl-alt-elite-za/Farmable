@@ -310,6 +310,21 @@ def test_every_remote_action_is_sha_pinned_and_jobs_are_bounded():
                     assert re.fullmatch(r"[^@]+@[0-9a-f]{40}", action), (path, action)
 
 
+def test_pr_checks_use_tested_merge_parent_instead_of_stale_event_base():
+    repo = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
+    scope_step = next(s for s in workflow["jobs"]["scopes"]["steps"] if s.get("id") == "paths")
+    check_step = next(
+        s for s in workflow["jobs"]["checks"]["steps"] if "CI_BASE" in s.get("env", {})
+    )
+    expected = (
+        "${{ github.event_name == 'pull_request' && 'HEAD^1' "
+        "|| github.event.before || 'HEAD^' }}"
+    )
+    assert scope_step["env"]["BASE"] == expected
+    assert check_step["env"]["CI_BASE"] == expected
+
+
 def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     repo = Path(__file__).resolve().parents[2]
     workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())

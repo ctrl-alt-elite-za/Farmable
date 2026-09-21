@@ -31,7 +31,9 @@ jobs:
           persist-credentials: false
       - id: paths
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+          # Checkout tests GitHub's synthetic PR merge. Its first parent is
+          # the actual tested base; the event's base SHA can lag behind main.
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before || 'HEAD^' }}
         run: python scripts/ci_scopes.py --base "$BASE"
 
   checks:
@@ -68,7 +70,7 @@ jobs:
         env:
           CHECK: ${{ matrix.check }}
           GH_TOKEN: ${{ github.token }}
-          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+          CI_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before || 'HEAD^' }}
           CI_MIGRATION_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'migration-approved') }}
         run: uv run python scripts/ci_run.py "$CHECK"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
