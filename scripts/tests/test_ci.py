@@ -368,7 +368,7 @@ def test_release_manifest_grants_network_access_and_scopes_cleartext():
     config = repo / "apps/mobile/android/app/src/main/res/xml/network_security_config.xml"
     assert config.is_file(), "referenced by the manifest, so it must be committed"
     policy = config.read_text()
-    assert "<base-config cleartextTrafficPermitted=\"false\" />" in policy
+    assert '<base-config cleartextTrafficPermitted="false" />' in policy
     assert "10.0.2.2" in policy
 
 
