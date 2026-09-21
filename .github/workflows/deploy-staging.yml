@@ -1,4 +1,4 @@
-name: Deploy staging
+name: Deploy demo backend
 
 on:
   push:
@@ -8,88 +8,119 @@ on:
 permissions:
   contents: read
   id-token: write
-  issues: write
 
 concurrency:
-  group: farmable-staging-deploy
+  group: farmable-gcp-staging-deploy
   cancel-in-progress: false
 
 env:
-  AWS_REGION: af-south-1
-  IMAGE_TAG: ${{ github.sha }}
+  GCP_REGION: africa-south1
+  CLOUD_RUN_SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE || 'farmable-backend' }}
+  MIGRATION_JOB: ${{ vars.GCP_MIGRATION_JOB || 'farmable-migrate' }}
 
 jobs:
   deploy:
-    name: Deploy ${{ github.sha }}
+    name: Deploy ${{ github.sha }} to Johannesburg
     if: ${{ vars.DEPLOY_FREEZE != 'on' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: staging
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 1 }
-      - name: Configure AWS through GitHub OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-      - name: Resolve deployment resources
-        id: resources
-        shell: bash
-        run: |
-          echo "repository=$(aws ecr describe-repositories --repository-names farmable-backend --query 'repositories[0].repositoryUri' --output text)" >> "$GITHUB_OUTPUT"
-          echo "instance=$(aws ec2 describe-instances --filters Name=tag:Farmable,Values=staging Name=instance-state-name,Values=running --query 'Reservations[0].Instances[0].InstanceId' --output text)" >> "$GITHUB_OUTPUT"
-          echo "backup_bucket=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'farmable-staging-backups-')].Name | [0]" --output text)" >> "$GITHUB_OUTPUT"
-      - name: Build and push SHA image
-        env: { ECR_REGISTRY: ${{ steps.resources.outputs.repository }} }
-        run: |
-          aws ecr get-login-password | docker login --username AWS --password-stdin "$ECR_REGISTRY"
-          docker build --file apps/backend/Dockerfile --target runtime --tag "$ECR_REGISTRY:${IMAGE_TAG}" .
-          docker push "$ECR_REGISTRY:${IMAGE_TAG}"
-      - name: Back up staging database before migration
-        env: { INSTANCE_ID: ${{ steps.resources.outputs.instance }}, BACKUP_BUCKET: ${{ steps.resources.outputs.backup_bucket }} }
-        run: |
-          command_id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript --parameters commands="curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/infra/backup.sh -o /tmp/backup.sh,chmod 700 /tmp/backup.sh,DATABASE_URL=\$(aws ssm get-parameter --name /farmable/staging/database-url --with-decryption --query Parameter.Value --output text) BACKUP_BUCKET=$BACKUP_BUCKET COMMIT_SHA=${IMAGE_TAG} /tmp/backup.sh" --query Command.CommandId --output text)
-          aws ssm wait command-executed --command-id "$command_id" --instance-id "$INSTANCE_ID"
-      - name: Deploy through SSM
-        env: { INSTANCE_ID: ${{ steps.resources.outputs.instance }}, ECR_REGISTRY: ${{ steps.resources.outputs.repository }} }
-        run: |
-          command_id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript --parameters commands="curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/infra/remote-deploy.sh -o /tmp/deploy.sh,chmod 700 /tmp/deploy.sh,IMAGE_TAG=${IMAGE_TAG} ECR_REGISTRY=${ECR_REGISTRY} COMMIT_SHA=${IMAGE_TAG} /tmp/deploy.sh" --query Command.CommandId --output text)
-          aws ssm wait command-executed --command-id "$command_id" --instance-id "$INSTANCE_ID"
-      - name: Wait for readiness
-        env: { STAGING_URL: ${{ vars.STAGING_URL }} }
-        run: |
-          for attempt in {1..30}; do
-            body=$(curl --fail --silent --show-error "$STAGING_URL/health/ready" && exit 0) || true
-            echo "readiness attempt $attempt: $body"
-            sleep 10
-          done
-          exit 1
-      - name: Run staging API checks
-        uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version-file: .python-version }
-      - run: pip install httpx pytest
-      - name: Execute public smoke tests
-        env: { API_URL: ${{ vars.STAGING_URL }}, COMMIT_SHA: ${{ github.sha }} }
-        run: pytest e2e/api -q
-      - name: Report deployment
-        if: always()
-        run: echo "staging SHA=${IMAGE_TAG}; readiness and E2E completed with status ${{ job.status }}"
-      - name: Roll back and open failure issue
-        if: failure()
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f # v2.1.7
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@6189d56e4096ee891640bb02ac264be376592d6a # v2.1.2
+        with:
+          version: '>= 494.0.0'
+
+      - name: Configure Artifact Registry authentication
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Resolve deployment configuration
+        id: config
         env:
-          INSTANCE_ID: ${{ steps.resources.outputs.instance }}
-          ECR_REGISTRY: ${{ steps.resources.outputs.repository }}
-          BACKUP_KEY: staging/${{ github.sha }}.dump
-          GH_TOKEN: ${{ github.token }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          REPOSITORY: ${{ vars.GCP_ARTIFACT_REPOSITORY }}
+          SQL_CONNECTION: ${{ vars.GCP_CLOUD_SQL_CONNECTION }}
+          MEDIA_BUCKET: ${{ vars.GCP_MEDIA_BUCKET }}
+          RUNTIME_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+          DATABASE_SECRET: ${{ vars.GCP_DATABASE_SECRET }}
+          GEMINI_SECRET: ${{ vars.GCP_GEMINI_SECRET }}
         run: |
-          command_id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript --parameters commands="curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/infra/rollback.sh -o /tmp/rollback.sh,chmod 700 /tmp/rollback.sh,ECR_REGISTRY=${ECR_REGISTRY} BACKUP_KEY=${BACKUP_KEY} /tmp/rollback.sh" --query Command.CommandId --output text)
-          aws ssm wait command-executed --command-id "$command_id" --instance-id "$INSTANCE_ID" || true
-          gh issue create --title "Deploy failed: ${{ github.sha }}" --body "The staging deployment for ${{ github.sha }} failed. The workflow attempted image and database rollback. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          set -Eeuo pipefail
+          test -n "$PROJECT" -a -n "$REPOSITORY" -a -n "$SQL_CONNECTION"
+          test -n "$MEDIA_BUCKET" -a -n "$RUNTIME_ACCOUNT"
+          test -n "$DATABASE_SECRET" -a -n "$GEMINI_SECRET"
+          {
+            echo "project=$PROJECT"
+            echo "repository=$REPOSITORY"
+            echo "sql_connection=$SQL_CONNECTION"
+            echo "media_bucket=$MEDIA_BUCKET"
+            echo "runtime_account=$RUNTIME_ACCOUNT"
+            echo "database_secret=$DATABASE_SECRET"
+            echo "gemini_secret=$GEMINI_SECRET"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build image tagged with the exact commit SHA
+        env:
+          IMAGE: ${{ steps.config.outputs.repository }}/backend:${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          docker build --file apps/backend/Dockerfile --target runtime --tag "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Complete Cloud SQL backup before migration
+        env:
+          GCP_PROJECT: ${{ steps.config.outputs.project }}
+          CLOUD_SQL_INSTANCE: ${{ vars.GCP_CLOUD_SQL_INSTANCE }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: bash infra/gcp-backup.sh
+
+      - name: Apply approved Alembic migration
+        env:
+          PROJECT: ${{ steps.config.outputs.project }}
+          IMAGE: ${{ steps.config.outputs.repository }}/backend:${{ github.sha }}
+          SQL_CONNECTION: ${{ steps.config.outputs.sql_connection }}
+          RUNTIME_ACCOUNT: ${{ steps.config.outputs.runtime_account }}
+          DATABASE_SECRET: ${{ steps.config.outputs.database_secret }}
+        run: |
+          set -Eeuo pipefail
+          gcloud run jobs deploy "$MIGRATION_JOB" \
+            --project="$PROJECT" --region="$GCP_REGION" \
+            --image="$IMAGE" --service-account="$RUNTIME_ACCOUNT" \
+            --set-secrets="DATABASE_URL=${DATABASE_SECRET}:latest" \
+            --set-env-vars="ENVIRONMENT=staging,COMMIT_SHA=${{ github.sha }}" \
+            --set-cloudsql-instances="$SQL_CONNECTION" \
+            --command=/app/cloudrun-migrate.sh \
+            --tasks=1 --parallelism=1 --max-retries=0 --task-timeout=20m --quiet
+          gcloud run jobs execute "$MIGRATION_JOB" \
+            --project="$PROJECT" --region="$GCP_REGION" --wait --quiet
+
+      - name: Deploy, verify, smoke test, and route traffic
+        env:
+          GCP_PROJECT: ${{ steps.config.outputs.project }}
+          IMAGE: ${{ steps.config.outputs.repository }}/backend:${{ github.sha }}
+          CLOUD_SQL_CONNECTION: ${{ steps.config.outputs.sql_connection }}
+          RUNTIME_SERVICE_ACCOUNT: ${{ steps.config.outputs.runtime_account }}
+          DATABASE_SECRET: ${{ steps.config.outputs.database_secret }}
+          GEMINI_SECRET: ${{ steps.config.outputs.gemini_secret }}
+          GCS_BUCKET: ${{ steps.config.outputs.media_bucket }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: bash infra/gcp-rollout.sh
 
   frozen:
-    name: skipped: deploy freeze
+    name: Deployment freeze is active
     if: ${{ vars.DEPLOY_FREEZE == 'on' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - run: echo "skipped: deploy freeze is on; staging SHA is unchanged"
+      - run: echo "Deployment freeze is active; no image, migration, or traffic change was attempted"

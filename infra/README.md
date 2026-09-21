@@ -1,65 +1,77 @@
-# AWS staging deployment
+# Google Cloud demo deployment
 
-This directory contains the staging deployment for issue #6. It deliberately
-uses one x86_64 EC2 instance in `af-south-1` rather than RDS or ECS: the
-repository's API, worker, and PostGIS database already run together in
-`compose.yaml`, which keeps the hackathon environment quick to operate.
+Issue #6 deploys the smallest online backend in `africa-south1`:
 
-## What is automated
+- Cloud Run runs the FastAPI image and its Procrastinate worker in one bounded
+  demo instance so `/health/ready` can verify both heartbeats.
+- Cloud SQL PostgreSQL 16 is the database. Cloud SQL supports the PostGIS
+  extension used by the backend's existing schema.
+- Artifact Registry stores immutable images tagged with the full commit SHA.
+- Cloud Storage is uniform-access, versioned, and has public access prevention
+  enforced. The deployment service account runs a private upload/download smoke.
+- Secret Manager supplies `DATABASE_URL` and provider credentials to Cloud Run.
+- GitHub Actions uses OIDC Workload Identity Federation; no service-account JSON
+  key is stored in GitHub or the repository.
 
-`aws-staging.yaml` creates the ECR repositories, encrypted private S3 buckets,
-SSM parameters, instance role, OIDC deploy role, security group, and EC2
-instance. `user-data.sh` installs Docker and Caddy and starts the stack. The
-instance has no SSH ingress; operators use SSM.
+## One-time operator setup
 
-The workflows in `.github/workflows/` build SHA-tagged images, back up the
-database before migrations, deploy through SSM, verify `/health/ready`, and
-roll back the image and database backup when a deployment fails. The nightly
-workflow runs the staging E2E, degradation, restore, expiry, and assistant
-evaluation jobs when those suites are available.
+1. Create a Google Cloud project, attach billing, and configure a budget alert.
+2. Enable Terraform and authenticate locally. From the repository root:
 
-## One-time operator steps
+   ```bash
+   terraform -chdir=infra init
+   terraform -chdir=infra apply -var=project_id=YOUR_PROJECT_ID
+   ```
 
-These cannot safely be automated from a repository: enable MFA on the root
-user, add billing/credits, choose a domain, confirm the GitHub organization
-OIDC trust, and configure budget-alert email recipients. Create the stack with:
+   Terraform creates the region-scoped Artifact Registry, private media bucket,
+   Cloud SQL/PostGIS-capable instance, runtime/deployer service accounts, and
+   GitHub OIDC pool/provider. It creates Secret Manager _containers_ only; it
+   never receives or stores provider values in this repository.
 
-```bash
-aws cloudformation deploy \
-  --region af-south-1 \
-  --stack-name farmable-staging \
-  --template-file infra/aws-staging.yaml \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    GitHubRepository=ctrl-alt-elite-za/Farmable \
-    DomainName=staging.example.com \
-    AlertEmail=you@example.com
-```
+   Set the Cloud SQL application user's password out of band and enable the
+   supported extension once on the `farmable` database (`CREATE EXTENSION
+postgis;`). The current migrations do not execute handwritten SQL, so this
+   one-time operator action is intentionally outside Alembic.
 
-Set the resulting SSM parameters before the first deploy:
+3. Add secret versions out of band. Secret names are Terraform outputs or the
+   `${name_prefix}-...` resources: `database-url`, `gemini-api-key`,
+   `twilio-auth-token`, `turnstile-secret`, `azure-speech-key`,
+   `crop-health-api-key`, and `maps-server-api-key`. The database URL must use
+   `postgresql+psycopg`, credentials, and the Cloud SQL Unix socket host used by
+   Cloud Run's connector, for example `?host=/cloudsql/PROJECT:africa-south1:INSTANCE`.
+   Never put a secret value in a GitHub variable or workflow argument.
+4. Create these protected `staging` environment variables (names only; values
+   are non-secret resource identifiers):
 
-```bash
-aws ssm put-parameter --region af-south-1 --name /farmable/staging/database-url \
-  --type SecureString --value 'postgresql+psycopg://...' --overwrite
-aws ssm put-parameter --region af-south-1 --name /farmable/staging/postgres-password \
-  --type SecureString --value 'a-new-random-password' --overwrite
-aws ssm put-parameter --region af-south-1 --name /farmable/staging/caddy-domain \
-  --type String --value staging.example.com --overwrite
-```
+   `GCP_PROJECT_ID`, `GCP_WORKLOAD_IDENTITY_PROVIDER`,
+   `GCP_DEPLOYER_SERVICE_ACCOUNT`, `GCP_RUNTIME_SERVICE_ACCOUNT`,
+   `GCP_ARTIFACT_REPOSITORY`, `GCP_CLOUD_SQL_INSTANCE`,
+   `GCP_CLOUD_SQL_CONNECTION`, `GCP_MEDIA_BUCKET`, `GCP_DATABASE_SECRET`,
+   `GCP_GEMINI_SECRET`, `GCP_STAGING_URL`, and `GCP_STAGING_SHA`.
 
-Configure the `AWS_DEPLOY_ROLE_ARN` GitHub variable with the stack output
-`DeployRoleArn`, then enable the `deploy-staging` environment. Never put the
-database URL in GitHub variables, workflow YAML, or an image.
+   `GCP_WORKLOAD_IDENTITY_PROVIDER` is the Terraform output
+   `workload_identity_provider`; the Artifact Registry value is
+   `REGION-docker.pkg.dev/PROJECT/REPOSITORY`. Use full Secret Manager resource
+   IDs for the two secret variables if the project uses a prefix.
 
-The domain must resolve to the instance's Elastic IP before Caddy can obtain a
-certificate. Until DNS is configured, use the instance public IP for smoke
-testing only; iOS will require HTTPS for the real demo.
+5. Set `DEPLOY_FREEZE=on` on the protected environment before an event day.
+   The deploy job is skipped before authentication, image push, backup,
+   migration, or traffic changes. Remove it after the event.
 
-## Security and limits
+## Delivery and failure behavior
 
-The instance role can read only `/farmable/staging/*` and access only the
-three named buckets. The GitHub OIDC role can push to ECR, send commands only
-to the tagged instance, and write only to the backup bucket. S3 public access
-is blocked and bucket encryption/versioning are enabled. This is a staging
-demo environment, not a production design; the database is on the encrypted
-instance volume and backups are retained for 14 days.
+Each deploy captures the revision receiving 100% traffic before deployment. It
+builds and pushes `backend:<exact Git SHA>`, completes and verifies a Cloud SQL backup,
+runs `alembic upgrade head` and initializes the worker vendor schema as a Cloud Run Job, creates a no-traffic revision,
+and checks the revision URL until `/health/ready` reports the same SHA with both
+database and worker healthy. It then runs live/openapi, Secret Manager reference,
+and private Storage upload/download smoke tests before assigning 100% traffic.
+
+Any readiness or smoke failure triggers a fail-closed rollback to the captured
+revision. A failed first deployment has no prior revision, so the newly created
+service is deleted. Migration failure never changes service traffic.
+
+Live Google Cloud project, billing, budget, DNS, secret values, and real-device
+acceptance remain operator-only evidence. The repository contract tests prove the
+workflow ordering, no-key/WIF security boundary, freeze behavior, secret
+references, private bucket Terraform settings, and rollback paths.

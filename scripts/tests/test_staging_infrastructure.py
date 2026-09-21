@@ -1,5 +1,6 @@
+import shutil
+import subprocess
 from pathlib import Path
-
 
 ROOT = Path(__file__).parents[2]
 
@@ -8,37 +9,119 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_staging_stack_has_required_isolation_and_resources() -> None:
-    template = read("infra/aws-staging.yaml")
+def test_gcp_stack_is_johannesburg_and_private() -> None:
+    terraform = read("infra/gcp-staging.tf")
     for marker in (
-        "AWS::ECR::Repository",
-        "AWS::S3::Bucket",
-        "AWS::SSM::Parameter",
-        "AWS::IAM::OIDCProvider",
-        "AWS::EC2::Instance",
-        "InstanceType: t3.medium",
-        "BlockPublicAcls: true",
-        "Encrypted: true",
-        "FromPort: 80",
-        "FromPort: 443",
+        'default     = "africa-south1"',
+        "google_artifact_registry_repository",
+        "google_sql_database_instance",
+        "POSTGRES_16",
+        "google_storage_bucket",
+        'public_access_prevention    = "enforced"',
+        "uniform_bucket_level_access = true",
+        "google_secret_manager_secret",
+        "google_iam_workload_identity_pool_provider",
+        "token.actions.githubusercontent.com",
     ):
-        assert marker in template
-    assert "FromPort: 22" not in template
+        assert marker in terraform
+    assert "AWS::" not in terraform
+    assert "serviceAccountKey" not in terraform
 
 
-def test_deploy_workflow_uses_oidc_and_serial_deploys() -> None:
+def test_wif_workflow_orders_backup_migration_and_rollout() -> None:
     workflow = read(".github/workflows/deploy-staging.yml")
     assert "id-token: write" in workflow
-    assert "configure-aws-credentials" in workflow
-    assert "concurrency:" in workflow
-    assert "cancel-in-progress: false" in workflow
-    assert "health/ready" in workflow
-    assert "gh issue create" in workflow
+    assert "google-github-actions/auth@" in workflow
+    assert "workload_identity_provider:" in workflow
+    assert "service_account:" in workflow
+    assert "serviceAccountKey" not in workflow
+    assert "credentials_json" not in workflow
+    assert "configure-aws-credentials" not in workflow
+    assert workflow.index("gcp-backup.sh") < workflow.index("Apply approved Alembic migration")
+    assert workflow.index("Apply approved Alembic migration") < workflow.index("gcp-rollout.sh")
+    assert "IMAGE: ${{ steps.config.outputs.repository }}/backend:${{ github.sha }}" in workflow
+    assert "--command=/app/cloudrun-migrate.sh" in workflow
+    assert "DEPLOY_FREEZE != 'on'" in workflow
+    assert "DEPLOY_FREEZE == 'on'" in workflow
 
 
-def test_runtime_scripts_do_not_contain_real_credentials() -> None:
-    for path in ("infra/backup.sh", "infra/remote-deploy.sh", "infra/rollback.sh"):
+def test_rollout_captures_traffic_and_rolls_back_on_negative_paths() -> None:
+    rollout = read("infra/gcp-rollout.sh")
+    assert "status.traffic" in rollout
+    assert "previous_revision" in rollout
+    assert "trap rollback ERR" in rollout
+    assert "update-traffic" in rollout
+    assert "health/ready" in rollout
+    assert 'database == "ok" and .worker == "ok"' in rollout
+    assert "sha // empty" in rollout
+    assert "--no-traffic" in rollout
+    assert '--to-revisions="${previous_revision}=100"' in rollout
+    assert "gcloud run services delete" in rollout
+    assert "service_existed" in rollout
+    assert "must route 100% traffic to one revision" in rollout
+    assert "--no-cpu-throttling" in rollout
+
+
+def test_backup_verifies_completed_operation_before_returning() -> None:
+    backup = read("infra/gcp-backup.sh")
+    assert "--async" in backup
+    assert "gcloud sql operations wait" in backup
+    assert "status" in backup and '"$status" != "DONE"' in backup
+    assert "DATABASE_URL" not in backup
+    assert "password" not in backup.lower()
+    assert 'role   = "roles/cloudsql.admin"' in read("infra/gcp-staging.tf")
+
+
+def test_migration_job_initializes_app_and_worker_schemas() -> None:
+    migration = read("infra/cloudrun-migrate.sh")
+    assert "alembic upgrade head" in migration
+    assert "farmable_backend.manage queue-schema" in migration
+
+
+def test_secret_and_storage_smokes_do_not_print_values() -> None:
+    secret = read("infra/gcp-secret-smoke.sh")
+    storage = read("infra/gcp-storage-smoke.sh")
+    assert "valueSource.secretKeyRef" in secret
+    assert "service_json" in secret
+    assert "gcloud storage cp" in storage
+    assert "gcloud storage rm" in storage
+    assert "--public" not in storage.lower()
+    for path in (
+        ".github/workflows/deploy-staging.yml",
+        ".github/workflows/nightly-staging.yml",
+        "infra/gcp-rollout.sh",
+        "infra/gcp-secret-smoke.sh",
+    ):
         content = read(path)
-        assert "CHANGE_ME" not in content
         assert "AKIA" not in content
         assert "ghp_" not in content
+        assert "service-account.json" not in content
+
+
+def test_old_aws_deployment_is_not_left_as_a_second_path() -> None:
+    for path in (
+        "infra/aws-staging.yaml",
+        "infra/remote-deploy.sh",
+        "infra/user-data.sh",
+        "infra/Caddyfile",
+        "infra/compose.staging.yaml",
+    ):
+        assert not (ROOT / path).exists(), path
+
+
+def test_shell_contracts_parse() -> None:
+    bash = shutil.which("bash")
+    assert bash is not None
+    for path in (
+        "infra/cloudrun-entrypoint.sh",
+        "infra/cloudrun-migrate.sh",
+        "infra/gcp-backup.sh",
+        "infra/gcp-demo-smoke.sh",
+        "infra/gcp-rollout.sh",
+        "infra/gcp-secret-smoke.sh",
+        "infra/gcp-storage-smoke.sh",
+    ):
+        result = subprocess.run(  # noqa: S603 - fixed shell parser and repository paths
+            [bash, "-n", str(ROOT / path)], capture_output=True, text=True
+        )
+        assert result.returncode == 0, result.stderr

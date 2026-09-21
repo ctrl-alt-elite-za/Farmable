@@ -1,4 +1,4 @@
-name: Nightly staging checks
+name: Nightly demo backend smoke
 
 on:
   schedule: [{ cron: '0 0 * * *' }]
@@ -9,43 +9,23 @@ permissions:
   id-token: write
 
 jobs:
-  e2e-staging:
+  smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: staging
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-      - name: Run API E2E against staging
-        run: pytest e2e/api -q
-        env: { API_URL: ${{ vars.STAGING_URL }}, COMMIT_SHA: '${{ vars.STAGING_SHA }}' }
-  degradation-staging:
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-      - uses: aws-actions/configure-aws-credentials@v4
-        with: { role-to-assume: '${{ vars.AWS_DEPLOY_ROLE_ARN }}', aws-region: af-south-1 }
-      - name: Run controlled failure injection
-        env: { API_URL: ${{ vars.STAGING_URL }}, INSTANCE_ID: '${{ vars.STAGING_INSTANCE_ID }}', COMMIT_SHA: '${{ vars.STAGING_SHA }}' }
-        run: bash infra/run-staging-degradation.sh
-  restore-test:
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
-        with: { role-to-assume: '${{ vars.AWS_DEPLOY_ROLE_ARN }}', aws-region: af-south-1 }
-      - name: Verify backup objects exist
-        run: |
-          test -n "${{ vars.BACKUP_BUCKET }}"
-          test "$(aws s3api list-objects-v2 --bucket '${{ vars.BACKUP_BUCKET }}' --prefix staging/ --query 'KeyCount' --output text)" -gt 0
-  expiry-check:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "expiry checks are configured here for domain, certificates, Sideloadly, Twilio, and API test calls"
-  assistant-evals:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: echo "assistant evaluations run when issue #23 supplies the evaluator command"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f # v2.1.7
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@6189d56e4096ee891640bb02ac264be376592d6a # v2.1.2
+        with:
+          version: '>= 494.0.0'
+      - name: Verify the live SHA and health contract
+        env:
+          API_URL: ${{ vars.GCP_STAGING_URL }}
+          COMMIT_SHA: ${{ vars.GCP_STAGING_SHA }}
+        run: bash infra/gcp-demo-smoke.sh
