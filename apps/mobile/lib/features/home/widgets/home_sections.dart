@@ -87,18 +87,52 @@ class QuickActions extends StatelessWidget {
 
   const QuickActions({super.key, required this.actions});
 
+  /// Three to a row.
+  static const _columns = 3;
+
   @override
-  Widget build(BuildContext context) => GridView.count(
-    crossAxisCount: 3,
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    mainAxisSpacing: AlmanacDimens.sp3,
-    crossAxisSpacing: AlmanacDimens.sp3,
-    // Tall enough for a two-line label at the 13px floor: "Add
-    // observation" wraps on a 108px tile and the word is not negotiable.
-    childAspectRatio: 0.9,
-    children: [for (final action in actions) _QuickActionTile(action: action)],
-  );
+  Widget build(BuildContext context) {
+    final rows = <List<QuickAction>>[
+      for (var i = 0; i < actions.length; i += _columns)
+        actions.sublist(i, (i + _columns).clamp(0, actions.length)),
+    ];
+
+    // Rows of tiles, not a GridView.
+    //
+    // A shrink-wrapped GridView nested inside the page's ListView reported a
+    // height 112px larger than the tiles it had laid out — measured, not
+    // guessed — which is where the band of dead paper between the quick
+    // actions and "Farm map" came from. Three Expanded cells in an
+    // IntrinsicHeight row give the same layout with an arithmetic the widget
+    // tree can be held to.
+    return Column(
+      children: [
+        for (final row in rows)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: row == rows.last ? 0 : AlmanacDimens.sp3,
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < _columns; i++) ...[
+                    if (i > 0) const SizedBox(width: AlmanacDimens.sp3),
+                    Expanded(
+                      child: i < row.length
+                          ? _QuickActionTile(action: row[i])
+                          // An incomplete last row keeps its columns rather
+                          // than stretching three tiles across four slots.
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _QuickActionTile extends StatelessWidget {
@@ -120,6 +154,10 @@ class _QuickActionTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(AlmanacDimens.rLg),
             border: Border.all(color: c.outlineVariant),
           ),
+          // 96 is the design's minimum tile height. The row grows past it
+          // when a label needs two lines, and every tile in that row grows
+          // with it, because the Row stretches.
+          constraints: const BoxConstraints(minHeight: 96),
           padding: const EdgeInsets.all(AlmanacDimens.sp3),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -135,14 +173,11 @@ class _QuickActionTile extends StatelessWidget {
                 child: Icon(action.icon, size: 20, color: c.onPrimaryContainer),
               ),
               const SizedBox(height: AlmanacDimens.sp2),
-              Flexible(
-                child: Text(
-                  action.label,
-                  style: Theme.of(context).textTheme.labelSmall,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              Text(
+                action.label,
+                style: Theme.of(context).textTheme.labelSmall,
+                textAlign: TextAlign.center,
+                maxLines: 2,
               ),
             ],
           ),
@@ -177,44 +212,61 @@ class FarmMapPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.semantic;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AlmanacDimens.rXl),
-      child: Container(
-        height: 190,
-        decoration: BoxDecoration(
-          color: c.surfaceContainer,
-          borderRadius: BorderRadius.circular(AlmanacDimens.rXl),
-          border: Border.all(color: c.outlineVariant),
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AlmanacDimens.sp4),
-              child: Wrap(
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surfaceContainer,
+        borderRadius: BorderRadius.circular(AlmanacDimens.rXl),
+        border: Border.all(color: c.outlineVariant),
+      ),
+      padding: const EdgeInsets.all(AlmanacDimens.sp4),
+      // Sized by its contents rather than pinned to a fixed height. At 190 the
+      // card was shorter than four plots and simply cut the last section off
+      // the bottom — Spinach Beds was not on the map at all.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Two columns, measured from the width this card actually got. The
+          // previous version derived the plot width from the screen width
+          // minus a guessed gutter, guessed 10px too wide, and fell back to
+          // one plot per row.
+          final plotWidth = (constraints.maxWidth - AlmanacDimens.sp2) / 2;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
                 spacing: AlmanacDimens.sp2,
                 runSpacing: AlmanacDimens.sp2,
                 children: [
-                  for (final section in sections) _MapPlot(section: section),
+                  for (final section in sections)
+                    _MapPlot(section: section, width: plotWidth),
                 ],
               ),
-            ),
-            const Positioned(
-              top: AlmanacDimens.sp3,
-              right: AlmanacDimens.sp3,
-              child: OfflineBadge(label: 'Offline map'),
-            ),
-            Positioned(
-              right: AlmanacDimens.sp3,
-              bottom: AlmanacDimens.sp3,
-              child: AppTonalButton(
-                label: 'Open map',
-                icon: LucideIcons.map,
-                block: false,
-                onPressed: onOpen,
+              const SizedBox(height: AlmanacDimens.sp3),
+              // The chips sit under the plots rather than floating over them.
+              // Over a real map raster an overlay is right; over a schematic
+              // that fills the card it covers a section, which is the one
+              // thing this card exists to show.
+              // A Wrap, not a Row: at a narrow width, or with a larger system
+              // font, the badge and the button stop fitting on one line and
+              // the button drops below instead of being cut off the edge.
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: AlmanacDimens.sp3,
+                runSpacing: AlmanacDimens.sp2,
+                children: [
+                  const OfflineBadge(label: 'Offline map'),
+                  AppTonalButton(
+                    label: 'Open map',
+                    icon: LucideIcons.map,
+                    block: false,
+                    onPressed: onOpen,
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -222,8 +274,9 @@ class FarmMapPreview extends StatelessWidget {
 
 class _MapPlot extends StatelessWidget {
   final SectionSummary section;
+  final double width;
 
-  const _MapPlot({required this.section});
+  const _MapPlot({required this.section, required this.width});
 
   @override
   Widget build(BuildContext context) {
@@ -240,14 +293,15 @@ class _MapPlot extends StatelessWidget {
       HealthState.actionRequired => c.onStatusActionRequiredContainer,
       HealthState.unknown => c.onSurface,
     };
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(color: ink);
 
     return Container(
-      width:
-          (MediaQuery.sizeOf(context).width - AlmanacDimens.gutter * 2) / 2 -
-          AlmanacDimens.sp5,
-      height: 58,
-      padding: const EdgeInsets.symmetric(horizontal: AlmanacDimens.sp3),
-      alignment: Alignment.centerLeft,
+      width: width,
+      constraints: const BoxConstraints(minHeight: 58),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AlmanacDimens.sp3,
+        vertical: AlmanacDimens.sp2,
+      ),
       decoration: BoxDecoration(
         color: tint,
         borderRadius: BorderRadius.circular(AlmanacDimens.rSm),
@@ -257,17 +311,14 @@ class _MapPlot extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            section.name,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: ink),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
+          // Both lines wrap instead of truncating. "Needs atten…" and "Not
+          // checked…" are not words, and this is the farmer's own land being
+          // described.
+          Text(section.name, style: style, maxLines: 2),
           Text(
             '${section.section.areaHectares} · ${section.health.label}',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: ink),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
+            style: style,
+            maxLines: 2,
           ),
         ],
       ),
@@ -380,10 +431,12 @@ class _TaskRow extends StatelessWidget {
                     style: text.titleSmall,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  // Wraps rather than truncating. The row has no fixed height
+                  // and a second line costs 16px; "overdue sin…" costs the
+                  // farmer the sentence.
                   Text(
                     '$sectionName · ${dueSuffix(task.dueDate, today)}',
                     style: text.labelSmall?.copyWith(color: c.onSurfaceVariant),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

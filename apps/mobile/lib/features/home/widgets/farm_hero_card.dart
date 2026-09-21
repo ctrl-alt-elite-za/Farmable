@@ -45,7 +45,14 @@ class FarmHeroCard extends StatelessWidget {
                 top: AlmanacDimens.sp4,
                 left: AlmanacDimens.sp4,
                 right: AlmanacDimens.sp4,
+                // No Spacer. A Spacer is an Expanded with flex 1, so putting
+                // one beside a Flexible badge splits the free width between
+                // them and hands the badge half of what it asked for — which
+                // is what was cutting "Health: Needs attention" in half.
+                // `spaceBetween` pushes the two apart *after* the badge has
+                // taken the width it needs.
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Flexible(
                       child: FarmStatusBadge(
@@ -54,7 +61,7 @@ class FarmHeroCard extends StatelessWidget {
                         label: 'Health: ${farm.health.label}',
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: AlmanacDimens.sp3),
                     IconOnlyButton(
                       icon: LucideIcons.map,
                       semanticLabel: 'Open farm map',

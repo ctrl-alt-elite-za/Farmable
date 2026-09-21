@@ -144,10 +144,14 @@ class _DashboardState extends ConsumerState<_Dashboard> {
               onCentreChanged: (section) =>
                   setState(() => _centreId = section.id),
             ),
-          if (centre != null)
+          if (centre != null) ...[
+            // Clear of the label chip, which now hangs below the card rather
+            // than being clipped by the strip's bounds.
+            const SizedBox(height: AlmanacDimens.sp4),
             _Gutter(
               child: CarouselCaption(section: centre, today: view.today),
             ),
+          ],
 
           _Gutter(
             child: SectionHeader(

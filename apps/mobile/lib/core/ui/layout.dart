@@ -79,6 +79,32 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
+/// The design's card shadow — and nothing at all in dark mode.
+///
+/// The dark page is pitch black. A black shadow on black paints nothing, so
+/// every one of these was a blur layer the compositor drew for no visible
+/// result, on every frame of a scrolling carousel, on the entry-level phone
+/// this product targets. What separates a card from the page in dark is its
+/// 1px outline, which is already there — TOKENS.md §1.2 makes exactly that
+/// point about surfaces floating on black.
+List<BoxShadow>? almanacElevation(
+  BuildContext context, {
+  double blur = 16,
+  double dy = 6,
+  double spread = -10,
+  double opacity = 0.18,
+}) {
+  if (Theme.of(context).brightness == Brightness.dark) return null;
+  return [
+    BoxShadow(
+      color: const Color(0xFF000000).withValues(alpha: opacity),
+      blurRadius: blur,
+      offset: Offset(0, dy),
+      spreadRadius: spread,
+    ),
+  ];
+}
+
 /// A card resting on paper.
 class AlmanacCard extends StatelessWidget {
   final Widget child;

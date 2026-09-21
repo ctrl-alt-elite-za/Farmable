@@ -55,11 +55,20 @@ class CropImagery extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => RepaintBoundary(
-    child: CustomPaint(
-      painter: _ScenePainter(scene: scene, seed: seed.hashCode),
-      size: Size.infinite,
-      isComplex: true,
-      willChange: false,
+    // The scene paints each plant *centred* on its row, so the bottom half of
+    // the last row falls outside the box it was given. A CustomPaint does not
+    // clip, so on Zone Detail — where the hero has no rounded clip of its own —
+    // the cabbages were being drawn over the paragraph underneath it.
+    //
+    // Clipped here rather than at each call site: whatever box this widget is
+    // handed is the box it paints in, and no caller has to remember.
+    child: ClipRect(
+      child: CustomPaint(
+        painter: _ScenePainter(scene: scene, seed: seed.hashCode),
+        size: Size.infinite,
+        isComplex: true,
+        willChange: false,
+      ),
     ),
   );
 }

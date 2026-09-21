@@ -88,14 +88,7 @@ class ZoneCard extends StatelessWidget {
                 color: c.surface,
                 borderRadius: BorderRadius.circular(AlmanacDimens.r2xl),
                 border: Border.all(color: c.outlineVariant),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF000000).withValues(alpha: 0.18),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                    spreadRadius: -10,
-                  ),
-                ],
+                boxShadow: almanacElevation(context),
               ),
               child: isCentre
                   ? Hero(tag: 'section-image-${section.id}', child: media)
@@ -115,45 +108,38 @@ class _TopRow extends StatelessWidget {
   const _TopRow({required this.section});
 
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget build(BuildContext context) => Wrap(
+    // A Wrap, not a Row.
+    //
+    // Side by side these two badges fit comfortably on a 390dp card and only
+    // just fit on a 360dp one — and "only just" is how a status ends up cut in
+    // half on somebody's phone. A Wrap keeps them at opposite ends of one line
+    // while there is room and drops the second below when there is not, which
+    // costs a row of pixels over the image and never costs a word.
+    alignment: WrapAlignment.spaceBetween,
+    spacing: AlmanacDimens.sp2,
+    runSpacing: AlmanacDimens.sp2,
     children: [
-      // Both badges are Flexible with no Spacer between them: a long crop name
-      // must give way to the attention badge rather than push it off the card,
-      // and neither may claim the whole width.
-      Flexible(
-        flex: 3,
-        child: ScrimBadge(
-          icon: section.isAvailable
-              ? LucideIcons.circleDashed
-              : LucideIcons.leaf,
-          text: section.cropLabel,
-        ),
+      ScrimBadge(
+        icon: section.isAvailable ? LucideIcons.circleDashed : LucideIcons.leaf,
+        text: section.cropLabel,
       ),
-      const SizedBox(width: AlmanacDimens.sp2),
       // Attention takes the slot when there is attention to give; otherwise
       // queued work takes it. Never both, because two badges over a 4:5 image
       // is the point at which nothing is read at all.
       if (section.health == HealthState.needsAttention ||
           section.health == HealthState.actionRequired)
-        Flexible(
-          flex: 2,
-          child: FarmStatusBadge(
-            state: section.health,
-            surface: BadgeSurface.imagery,
-            label: 'Attention',
-          ),
+        FarmStatusBadge(
+          state: section.health,
+          surface: BadgeSurface.imagery,
+          label: 'Attention',
         )
       else if (section.pendingChanges > 0)
-        Flexible(
-          flex: 2,
-          child: ScrimBadge(
-            icon: LucideIcons.upload,
-            text: section.pendingChanges == 1
-                ? '1 waiting'
-                : '${section.pendingChanges} waiting',
-          ),
+        ScrimBadge(
+          icon: LucideIcons.upload,
+          text: section.pendingChanges == 1
+              ? '1 waiting'
+              : '${section.pendingChanges} waiting',
         ),
     ],
   );
@@ -221,14 +207,7 @@ class _LabelChip extends StatelessWidget {
           color: c.surface,
           borderRadius: BorderRadius.circular(AlmanacDimens.rPill),
           border: Border.all(color: c.outlineVariant),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF000000).withValues(alpha: 0.18),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-              spreadRadius: -10,
-            ),
-          ],
+          boxShadow: almanacElevation(context),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

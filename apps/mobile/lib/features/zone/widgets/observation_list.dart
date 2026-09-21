@@ -17,6 +17,7 @@ import '../../../domain/farm_records.dart';
 class ObservationList extends StatelessWidget {
   final List<Observation> observations;
   final String sectionId;
+  final String? crop;
   final DateTime today;
   final void Function(Observation observation) onTap;
   final VoidCallback onAdd;
@@ -25,6 +26,7 @@ class ObservationList extends StatelessWidget {
     super.key,
     required this.observations,
     required this.sectionId,
+    required this.crop,
     required this.today,
     required this.onTap,
     required this.onAdd,
@@ -54,6 +56,7 @@ class ObservationList extends StatelessWidget {
             ObservationTile(
               observation: observation,
               sectionId: sectionId,
+              crop: crop,
               today: today,
               last: observation == observations.last,
               onTap: () => onTap(observation),
@@ -67,6 +70,9 @@ class ObservationList extends StatelessWidget {
 class ObservationTile extends StatelessWidget {
   final Observation observation;
   final String sectionId;
+
+  /// What is planted here, for the thumbnail. Null on bare land.
+  final String? crop;
   final DateTime today;
   final bool last;
   final VoidCallback onTap;
@@ -75,6 +81,7 @@ class ObservationTile extends StatelessWidget {
     super.key,
     required this.observation,
     required this.sectionId,
+    required this.crop,
     required this.today,
     required this.last,
     required this.onTap,
@@ -106,9 +113,11 @@ class ObservationTile extends StatelessWidget {
                 // No photograph was captured with this record. The tile shows
                 // the section's own land rather than a grey box, so the row
                 // still reads as a place — and it is drawn, so it costs
-                // nothing to store.
+                // nothing to store. It draws the crop that is actually
+                // planted: every thumbnail on a cabbage field was rendering
+                // bare soil, which reads as a picture that failed to load.
                 child: CropImagery(
-                  scene: CropScene.forCrop(null),
+                  scene: CropScene.forCrop(crop),
                   seed: '$sectionId-${observation.id}',
                 ),
               ),

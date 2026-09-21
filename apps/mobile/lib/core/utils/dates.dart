@@ -76,7 +76,9 @@ String whenPhrase(DateTime due, DateTime today) {
 /// The short form used under a row: `Cabbage Field · by Friday 26 Sep`.
 String dueSuffix(DateTime due, DateTime today) {
   final days = daysBetween(today, due);
-  if (days < 0) return 'overdue since ${shortDate(due)}';
+  // "was due", not "overdue since": the row already carries an Overdue badge,
+  // and the shorter phrase leaves room for the date beside a section name.
+  if (days < 0) return 'was due ${shortDate(due)}';
   if (days == 0) return 'due today';
   if (days == 1) return 'due tomorrow';
   if (days < 7) return 'by ${weekdayName(due)} ${shortDate(due)}';

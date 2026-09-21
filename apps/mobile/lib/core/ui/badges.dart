@@ -215,12 +215,13 @@ class ConstraintChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: foreground),
           const SizedBox(width: 6),
+          // Wraps rather than truncates, for the reason given on _Pill.
           Flexible(
             child: Text(
               text,
+              maxLines: 2,
               style: Theme.of(context).textTheme.labelSmall
                   ?.copyWith(color: foreground),
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -253,21 +254,26 @@ class _Pill extends StatelessWidget {
       color: background,
       borderRadius: BorderRadius.circular(AlmanacDimens.rPill),
     ),
-    // The glyph and its gap have a floor; below it the pill has nothing left
-    // to give, and a clipped badge is better than one that spills across the
-    // card. Nothing legible is lost — the word ellipsises first.
-    clipBehavior: Clip.hardEdge,
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 15, color: foreground),
         const SizedBox(width: 6),
+        // **This pill never ellipsises.** Squeezed, it wraps to a second line
+        // and grows taller; it does not cut the word.
+        //
+        // "Needs atten…" is not a word. The target user has low functional
+        // English literacy, so a status they have to sound out gives them
+        // nothing — truncating collapses the design's icon + text + colour
+        // system down to icon + colour, which it explicitly forbids. Making
+        // the ellipsis unexpressible here is what stops it coming back the
+        // next time a caller squeezes a badge.
         Flexible(
           child: Text(
             text,
+            maxLines: 2,
             style: Theme.of(context).textTheme.labelSmall
                 ?.copyWith(color: foreground),
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

@@ -7,6 +7,18 @@ import '../../../app/theme/tokens.g.dart';
 import '../../../domain/farm_records.dart';
 import 'zone_card.dart';
 
+/// How much of the viewport one card occupies.
+///
+/// 0.72 leaves the neighbours visibly on screen. A farmer who cannot see that
+/// there is another card does not know to swipe, and nothing here tells them.
+const _viewportFraction = 0.72;
+
+/// The mat the card leaves below the image, which the label chip sits on.
+const _matFoot = 26.0;
+
+/// Half the label chip's 42px height — how far it hangs below the card.
+const _chipOverhang = 21.0;
+
 /// How many times the strip is repeated in each direction.
 ///
 /// `PageView.builder` with an unbounded item count numbers its pages from zero
@@ -74,10 +86,7 @@ class _ZoneCarouselState extends State<ZoneCarousel> {
     super.initState();
     _centre = carouselInitialPage(widget.sections.length);
     _controller = PageController(
-      // 0.72 of the viewport, so the neighbours are visibly there. A farmer
-      // who cannot see that there is another card does not know to swipe, and
-      // nothing on this screen tells them to.
-      viewportFraction: 0.72,
+      viewportFraction: _viewportFraction,
       initialPage: _centre,
     );
   }
@@ -115,35 +124,66 @@ class _ZoneCarouselState extends State<ZoneCarousel> {
   Widget build(BuildContext context) {
     final count = widget.sections.length;
 
-    return SizedBox(
-      // The card is 4:5 inside a mat, plus the room the label chip hangs into.
-      height: MediaQuery.sizeOf(context).width * 0.72 * 1.25 + 82,
-      child: PageView.builder(
-        controller: _controller,
-        onPageChanged: (page) {
-          setState(() => _centre = page);
-          widget.onCentreChanged?.call(
-            widget.sections[carouselIndexFor(page, count)],
+    // Measured from the width the strip is actually given, not guessed from
+    // the screen width. The old figure was 69px taller than the card, and a
+    // PageView hands every page the full height of its viewport — so the card,
+    // aligned to the bottom of that box, left a band of dead paper under the
+    // "Your farm" header, and the label chip hanging below the card fell
+    // outside the viewport and was clipped away.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final pageWidth = constraints.maxWidth * _viewportFraction;
+        final cardWidth = pageWidth - AlmanacDimens.sp2 * 2;
+        final mediaWidth = cardWidth - AlmanacDimens.rFrameInset * 2;
+        // The mat: 8 above the 4:5 image and 26 below it.
+        final cardHeight =
+            mediaWidth * 5 / 4 + AlmanacDimens.rFrameInset + _matFoot;
+
+        return SizedBox(
+          height: cardHeight + _chipOverhang,
+          child: _strip(count, cardHeight),
+        );
+      },
+    );
+  }
+
+  Widget _strip(int count, double cardHeight) => PageView.builder(
+    controller: _controller,
+    onPageChanged: (page) {
+      setState(() => _centre = page);
+      widget.onCentreChanged?.call(
+        widget.sections[carouselIndexFor(page, count)],
+      );
+    },
+    padEnds: true,
+    // The label chip hangs half its height below the card, which is the
+    // signature detail of this component. A PageView clips to its bounds
+    // by default and was cutting the chip in half.
+    clipBehavior: Clip.none,
+    itemBuilder: (context, page) {
+      final section = widget.sections[carouselIndexFor(page, count)];
+      return AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final p = _page;
+          return Opacity(
+            opacity: carouselOpacityFor(p, page),
+            child: Transform.scale(
+              scale: carouselScaleFor(p, page),
+              // Cards shrink toward the label chip rather than away from
+              // it, so the names stay on one line as the strip moves.
+              alignment: Alignment.bottomCenter,
+              child: child,
+            ),
           );
         },
-        padEnds: true,
-        itemBuilder: (context, page) {
-          final section = widget.sections[carouselIndexFor(page, count)];
-          return AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              final p = _page;
-              return Opacity(
-                opacity: carouselOpacityFor(p, page),
-                child: Transform.scale(
-                  scale: carouselScaleFor(p, page),
-                  // Cards shrink toward the label chip rather than away from
-                  // it, so the names stay on one line as the strip moves.
-                  alignment: Alignment.bottomCenter,
-                  child: child,
-                ),
-              );
-            },
+        // Pinned to the top of the page, and given exactly the card's own
+        // height, so the space left underneath is the chip's overhang and
+        // nothing else.
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            height: cardHeight,
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AlmanacDimens.sp2,
@@ -154,9 +194,9 @@ class _ZoneCarouselState extends State<ZoneCarousel> {
                 onTap: () => _tap(page, section),
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        ),
+      );
+    },
+  );
 }

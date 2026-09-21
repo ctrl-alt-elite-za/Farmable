@@ -62,10 +62,13 @@ Future<FarmHarness> pumpFarmApp(
   /// Reuse storage from an earlier pump, which is how a test restarts the app
   /// without losing the phone. Everything above this line is rebuilt.
   AlmanacDatabase? storage,
+
+  /// The logical screen. Defaults to the design set's frame; pass the 360dp
+  /// floor to check the width the type scale was actually set for.
+  Size surface = phoneSize,
 }) async {
-  tester.view.physicalSize = phoneSize * tester.view.devicePixelRatio;
   tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = phoneSize;
+  tester.view.physicalSize = surface;
   addTearDown(tester.view.reset);
 
   final db = storage ?? AlmanacDatabase.memory();
@@ -94,7 +97,7 @@ Future<FarmHarness> pumpFarmApp(
       container: container,
       child: MediaQuery(
         data: MediaQueryData(
-          size: phoneSize,
+          size: surface,
           disableAnimations: reducedMotion,
           platformBrightness: brightness,
         ),

@@ -148,7 +148,7 @@ class DemoSeed {
     await _observation(
       sectionId: cabbageFieldId,
       type: 'Pest check',
-      note: 'A few holes in the outer leaves. Sprayed with soap solution.',
+      note: 'A few holes in the outer leaves.',
       action: 'Sprayed with soap solution.',
       health: 'on_track',
       score: 82,

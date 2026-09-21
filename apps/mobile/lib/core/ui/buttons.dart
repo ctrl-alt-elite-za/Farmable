@@ -262,7 +262,14 @@ class _PressableState extends State<_Pressable> {
               padding: const EdgeInsets.symmetric(
                 horizontal: AlmanacDimens.sp5,
               ),
-              alignment: Alignment.center,
+              // Only a block button centres its content, because a Container
+              // with an alignment expands to fill whatever bounded width it is
+              // offered. That is what made `block: false` buttons stretch to
+              // the full width of any Row or Wrap they were dropped into —
+              // "Open map" was spanning the whole map card. Without an
+              // alignment the Container sizes to its child, which is what
+              // `block: false` is asking for.
+              alignment: widget.block ? Alignment.center : null,
               child: content,
             ),
           ),

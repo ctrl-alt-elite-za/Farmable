@@ -262,10 +262,7 @@ void main() {
 
       expect(find.text('Weed second row'), findsOneWidget);
       expect(find.text('Overdue'), findsWidgets);
-      expect(
-        find.textContaining('Cabbage Field · overdue since'),
-        findsWidgets,
-      );
+      expect(find.textContaining('Cabbage Field · was due'), findsWidgets);
     });
 
     testWidgets('an upcoming task reads as a day, not a date maths problem', (
@@ -381,10 +378,7 @@ void main() {
     testWidgets('rescheduling a task moves it in Next up', (tester) async {
       final harness = await pumpFarmApp(tester);
       await revealOnPage(tester, find.text('Weed second row'));
-      expect(
-        find.textContaining('Cabbage Field · overdue since'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Cabbage Field · was due'), findsOneWidget);
 
       // The write a voice reschedule will make. Read through a plain query
       // rather than the watch stream: a broadcast stream's first event and a
@@ -400,7 +394,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await revealOnPage(tester, find.text('Weed second row'));
-      expect(find.textContaining('overdue since'), findsNothing);
+      expect(find.textContaining('was due'), findsNothing);
       expect(
         find.textContaining('Cabbage Field · by Wednesday 23 Sep'),
         findsOneWidget,

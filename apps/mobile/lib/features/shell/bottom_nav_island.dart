@@ -9,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../app/theme/app_motion.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.g.dart';
+import '../../core/ui/layout.dart';
 
 /// The four navigation destinations. The assistant is not one of them.
 enum NavDestination {
@@ -65,14 +66,13 @@ class BottomNavIsland extends StatelessWidget {
               color: c.glassSurface,
               borderRadius: BorderRadius.circular(AlmanacDimens.rPill),
               border: Border.all(color: c.glassHairline),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF000000).withValues(alpha: 0.28),
-                  blurRadius: 44,
-                  offset: const Offset(0, 18),
-                  spreadRadius: -20,
-                ),
-              ],
+              boxShadow: almanacElevation(
+                context,
+                blur: 44,
+                dy: 18,
+                spread: -20,
+                opacity: 0.28,
+              ),
             ),
             child: Row(
               children: [

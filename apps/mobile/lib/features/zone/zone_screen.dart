@@ -111,6 +111,7 @@ class _Zone extends StatelessWidget {
               ObservationList(
                 observations: view.observations,
                 sectionId: section.id,
+                crop: section.planting?.crop,
                 today: view.today,
                 onAdd: () =>
                     showObservationEditor(context: context, actions: actions),
