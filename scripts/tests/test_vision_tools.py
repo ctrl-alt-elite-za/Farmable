@@ -287,11 +287,13 @@ def test_release_selection_requires_both_reports_and_usable_fixture_results() ->
             "tflite": {"sha256": "b" * 64, "bytes": 20},
         },
     }
-    fixtures["results"].extend(
+    results = fixtures["results"]
+    assert isinstance(results, list)
+    results.extend(
         dict(result, fixture_id=f"{result['fixture_id']}-second")
-        for result in list(fixtures["results"])
+        for result in list(results)
     )
-    fixtures["fixtures"] = len(fixtures["results"])
+    fixtures["fixtures"] = len(results)
     selected = select_release(
         manifest,
         ios,
