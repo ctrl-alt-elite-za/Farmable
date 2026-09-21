@@ -121,8 +121,7 @@ fi
         "CLOUD_RUN_SERVICE": "farmable",
         "GITHUB_OUTPUT": str(output),
     }
-    bash = shutil.which("bash")
-    assert bash is not None
+    bash = _bash()
     result = subprocess.run(  # noqa: S603 - fixed shell and repository script
         [bash, str(ROOT / "infra/gcp-live-config.sh")],
         capture_output=True,
@@ -166,7 +165,6 @@ def test_migration_job_initializes_app_and_worker_schemas() -> None:
 def test_secret_and_storage_smokes_do_not_print_values() -> None:
     secret = read("infra/gcp-secret-smoke.sh")
     storage = read("infra/gcp-storage-smoke.sh")
-    assert "valueSource.secretKeyRef" in secret
     assert "service_json" in secret
     assert "gcloud storage cp" in storage
     assert "gcloud storage rm" in storage
@@ -195,8 +193,7 @@ def test_old_aws_deployment_is_not_left_as_a_second_path() -> None:
 
 
 def test_shell_contracts_parse() -> None:
-    bash = shutil.which("bash")
-    assert bash is not None
+    bash = _bash()
     for path in (
         "infra/cloudrun-entrypoint.sh",
         "infra/cloudrun-migrate.sh",
@@ -211,3 +208,187 @@ def test_shell_contracts_parse() -> None:
             [bash, "-n", str(ROOT / path)], capture_output=True, text=True
         )
         assert result.returncode == 0, result.stderr
+
+
+def _bash() -> str:
+    found = shutil.which("bash")
+    assert found is not None
+    return found
+
+
+def _fake_gcloud(tmp_path: Path, body: str) -> None:
+    script = tmp_path / "gcloud"
+    script.write_text("#!/usr/bin/env bash\nset -Eeuo pipefail\n" + body, encoding="utf-8")
+    script.chmod(0o755)
+
+
+def _run(script: str, environment: dict) -> "subprocess.CompletedProcess[str]":
+    return subprocess.run(  # noqa: S603 - fixed shell and repository script
+        [_bash(), str(ROOT / script)],
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+
+
+def _path(tmp_path: Path) -> str:
+    return f"{tmp_path}{os.pathsep}{os.environ['PATH']}"
+
+
+REFERENCE_ENV_V1 = (
+    '{"name":"DATABASE_URL","valueFrom":{"secretKeyRef":'
+    '{"name":"farmable-staging-database-url","key":"latest"}}},'
+    '{"name":"GEMINI_API_KEY","valueFrom":{"secretKeyRef":'
+    '{"name":"farmable-staging-gemini-api-key","key":"latest"}}}'
+)
+REFERENCE_ENV_V2 = (
+    '{"name":"DATABASE_URL","valueSource":{"secretKeyRef":'
+    '{"secret":"farmable-staging-database-url","version":"latest"}}},'
+    '{"name":"GEMINI_API_KEY","valueSource":{"secretKeyRef":'
+    '{"secret":"farmable-staging-gemini-api-key","version":"latest"}}}'
+)
+LITERAL_ENV = (
+    '{"name":"DATABASE_URL","value":"postgresql://user:pw@host/db"},'
+    '{"name":"GEMINI_API_KEY","value":"AIzaSyFAKE"}'
+)
+
+
+def _describe_body(env_json: str) -> str:
+    payload = '{"spec":{"containers":[{"env":[' + env_json + "]}]}}"
+    return "cat <<'FAKEJSON'\n" + payload + "\nFAKEJSON\n"
+
+
+def _secret_env(tmp_path: Path) -> dict:
+    return {
+        **os.environ,
+        "PATH": _path(tmp_path),
+        "GCP_PROJECT": "farmable-project",
+        "GCP_REGION": "africa-south1",
+        "CLOUD_RUN_SERVICE": "farmable",
+    }
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is required by deployment scripts")
+@pytest.mark.parametrize(
+    "env_json", [REFERENCE_ENV_V1, REFERENCE_ENV_V2], ids=["knative-v1", "admin-v2"]
+)
+def test_secret_smoke_accepts_either_cloud_run_api_shape(tmp_path: Path, env_json: str) -> None:
+    """The assertion this script makes is "these are Secret Manager references,
+    not literals". That holds in both the Knative v1 encoding
+    (valueFrom/secretKeyRef.name/.key) and the Admin v2 one
+    (valueSource/secretKeyRef.secret/.version). Which shape `gcloud run services
+    describe --format=json` emits is not established anywhere in this repository,
+    so the script must not stake a deploy-blocking assertion on one of them.
+    """
+    _fake_gcloud(tmp_path, _describe_body(env_json))
+    result = _run("infra/gcp-secret-smoke.sh", _secret_env(tmp_path))
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is required by deployment scripts")
+def test_secret_smoke_rejects_plaintext_secret_env_vars(tmp_path: Path) -> None:
+    _fake_gcloud(tmp_path, _describe_body(LITERAL_ENV))
+    result = _run("infra/gcp-secret-smoke.sh", _secret_env(tmp_path))
+    assert result.returncode != 0
+    assert "postgresql://" not in result.stdout + result.stderr
+
+
+def test_migrate_script_runs_alembic_without_resyncing_the_venv(tmp_path: Path) -> None:
+    """`uv run` re-syncs the project before executing the command. In the runtime
+    image /app/.venv is created by root and the process runs as `farmable`
+    (Dockerfile:14,21), so that re-sync is EACCES and the migration job fails every
+    time. A `uv` on PATH that refuses to run is what makes this test fail if
+    `uv run` ever returns to the script.
+    """
+    log = tmp_path / "calls.log"
+    for name in ("alembic", "python"):
+        stub = tmp_path / name
+        stub.write_text(
+            "#!/usr/bin/env bash\nprintf '%s %s\\n' " + name + ' "$*" >>"' + str(log) + '"\n',
+            encoding="utf-8",
+        )
+        stub.chmod(0o755)
+    uv = tmp_path / "uv"
+    uv.write_text(
+        "#!/usr/bin/env bash\necho 'uv must not run in the migration job' >&2\nexit 97\n",
+        encoding="utf-8",
+    )
+    uv.chmod(0o755)
+
+    result = _run("infra/cloudrun-migrate.sh", {**os.environ, "PATH": _path(tmp_path)})
+    assert result.returncode == 0, result.stderr
+    calls = log.read_text(encoding="utf-8")
+    assert "alembic upgrade head" in calls
+    assert "farmable_backend.manage queue-schema" in calls
+
+
+def _rollout_env(tmp_path: Path) -> dict:
+    return {
+        **os.environ,
+        "PATH": _path(tmp_path),
+        "GCP_PROJECT": "farmable-project",
+        "GCP_REGION": "africa-south1",
+        "CLOUD_RUN_SERVICE": "farmable",
+        "IMAGE": "africa-south1-docker.pkg.dev/p/r/backend:abc",
+        "COMMIT_SHA": "0123456789abcdef0123456789abcdef01234567",
+        "CLOUD_SQL_CONNECTION": "farmable-project:africa-south1:farmable-staging",
+        "RUNTIME_SERVICE_ACCOUNT": "runtime@farmable-project.iam.gserviceaccount.com",
+        "DATABASE_SECRET": "farmable-staging-database-url",
+        "GEMINI_SECRET": "farmable-staging-gemini-api-key",
+        "GCS_BUCKET": "farmable-project-farmable-staging-media",
+    }
+
+
+def test_rollout_aborts_when_describe_fails_for_any_reason_but_not_found(tmp_path: Path) -> None:
+    """A transient 503 must not be read as "the service does not exist". Concluding
+    absence sets service_existed=false, which arms the `gcloud run services delete`
+    rollback branch against a service that is live and serving traffic.
+    """
+    _fake_gcloud(
+        tmp_path,
+        'if [[ "$*" == *"run services list"* ]]; then\n'
+        "  echo 'ERROR: (gcloud.run.services.list) HTTPError 503: backend error' >&2\n"
+        "  exit 1\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    result = _run("infra/gcp-rollout.sh", _rollout_env(tmp_path))
+    assert result.returncode != 0
+    assert "could not determine" in result.stderr.lower()
+
+
+def test_rollout_treats_not_found_as_a_first_deployment(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    _fake_gcloud(
+        tmp_path,
+        'printf \'%s\\n\' "$*" >>"' + str(log) + '"\n'
+        # An absent service is empty output and a zero exit, not an error.
+        'if [[ "$*" == *"run services list"* ]]; then exit 0; fi\n'
+        'if [[ "$*" == *"run deploy"* ]]; then exit 42; fi\n'
+        "exit 0\n",
+    )
+    result = _run("infra/gcp-rollout.sh", _rollout_env(tmp_path))
+    assert result.returncode != 0
+    assert "run deploy" in log.read_text(encoding="utf-8")
+
+
+def test_terraform_state_is_ignored() -> None:
+    """infra/README.md documents a local `terraform apply` with no remote backend,
+    so state lands in the working tree. State records full resource attributes for
+    Secret Manager and Cloud SQL.
+    """
+    ignored = read("infra/.gitignore")
+    assert "*.tfstate" in ignored
+    assert "*.tfstate.backup" in ignored
+
+
+def test_deploy_freeze_is_documented_as_a_repository_variable() -> None:
+    """A job-level `if:` is evaluated before the job's environment is resolved, so
+    an environment-scoped variable is invisible there. The `frozen` job also
+    declares no environment at all, so the two jobs cannot read the same variable
+    set. Repository scope is the one place both `if:` expressions can see.
+    """
+    readme = read("infra/README.md")
+    assert "repository variable" in readme
+    assert "protected environment" not in readme

@@ -12,9 +12,22 @@ set -Eeuo pipefail
 : "${GEMINI_SECRET:?GEMINI_SECRET is required}"
 : "${GCS_BUCKET:?GCS_BUCKET is required}"
 
-service_json="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
-  --project="$GCP_PROJECT" --region="$GCP_REGION" --format=json 2>/dev/null || true)"
-if [[ -n "$service_json" ]]; then
+# `describe` exits non-zero both when the service is absent and when the call simply
+# failed, and the two are distinguishable only by parsing human-readable error text.
+# `list --filter` answers the existence question directly: absent is empty output with
+# a zero exit, so a transient 503 or a permissions problem stays a failure instead of
+# reading as "absent" and arming the first-deploy `services delete` branch below.
+if ! existing="$(gcloud run services list \
+  --project="$GCP_PROJECT" --region="$GCP_REGION" \
+  --filter="metadata.name=${CLOUD_RUN_SERVICE}" \
+  --format='value(metadata.name)' 2>&1)"; then
+  echo "$existing" >&2
+  echo "Could not determine whether ${CLOUD_RUN_SERVICE} exists; refusing to deploy" >&2
+  exit 1
+fi
+if [[ -n "$existing" ]]; then
+  service_json="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+    --project="$GCP_PROJECT" --region="$GCP_REGION" --format=json)"
   service_existed=true
   previous_revision="$(jq -r '
     [.status.traffic[]? | select(.percent == 100 and .revisionName != null)] |

@@ -55,9 +55,15 @@ postgis;`). The current migrations do not execute handwritten SQL, so this
    `REGION-docker.pkg.dev/PROJECT/REPOSITORY`. Use full Secret Manager resource
    IDs for the two secret variables if the project uses a prefix.
 
-5. Set `DEPLOY_FREEZE=on` on the protected environment before an event day.
+5. Set `DEPLOY_FREEZE=on` as a repository variable before an event day.
    The deploy job is skipped before authentication, image push, backup,
    migration, or traffic changes. Remove it after the event.
+
+   It must be repository-scoped, not environment-scoped: both jobs gate on it
+   from a job-level `if:`, which GitHub evaluates before a job's environment is
+   resolved, and the `frozen` job declares no environment at all. An
+   environment variable would be invisible to both and the freeze would
+   silently fail open.
 
 The nightly workflow resolves the service URL and expected commit SHA from the
 single revision receiving 100 percent of live traffic. It does not rely on a
