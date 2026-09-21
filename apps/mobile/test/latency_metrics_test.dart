@@ -27,4 +27,22 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('bounds retained latency samples for long-running scans', () {
+    final metrics = ScanLatencyMetrics(maxSamples: 3);
+    metrics
+      ..recordCameraToVisible(const Duration(milliseconds: 1))
+      ..recordCameraToVisible(const Duration(milliseconds: 2))
+      ..recordCameraToVisible(const Duration(milliseconds: 3))
+      ..recordCameraToVisible(const Duration(milliseconds: 4));
+
+    final summary = metrics.summary!;
+    expect(summary.samples, 3);
+    expect(summary.p50Milliseconds, 3);
+    expect(summary.p95Milliseconds, 4);
+  });
+
+  test('rejects an empty sample capacity', () {
+    expect(() => ScanLatencyMetrics(maxSamples: 0), throwsArgumentError);
+  });
 }

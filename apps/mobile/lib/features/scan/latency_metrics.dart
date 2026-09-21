@@ -11,7 +11,14 @@ class LatencySummary {
 }
 
 class ScanLatencyMetrics {
+  final int maxSamples;
   final List<Duration> _cameraToVisible = [];
+
+  ScanLatencyMetrics({this.maxSamples = 512}) {
+    if (maxSamples < 1) {
+      throw ArgumentError.value(maxSamples, 'maxSamples', 'Must be positive');
+    }
+  }
 
   void recordFrame({
     required DateTime capturedAt,
@@ -28,6 +35,9 @@ class ScanLatencyMetrics {
   }
 
   void recordCameraToVisible(Duration latency) {
+    if (_cameraToVisible.length == maxSamples) {
+      _cameraToVisible.removeAt(0);
+    }
     _cameraToVisible.add(latency);
   }
 
