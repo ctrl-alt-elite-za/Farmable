@@ -7,6 +7,30 @@ x-backend: &backend
     DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL using the database hostname and percent-encoded credentials}
     COMMIT_SHA: ${COMMIT_SHA:-unknown}
     LOG_LEVEL: ${LOG_LEVEL:-info}
+    ENVIRONMENT: ${ENVIRONMENT:-production}
+    INTEGRATIONS_MODE: ${INTEGRATIONS_MODE:-disabled}
+    FAULT_TWILIO: ${FAULT_TWILIO:-false}
+    FAULT_TURNSTILE: ${FAULT_TURNSTILE:-false}
+    FAULT_AZURE_STT: ${FAULT_AZURE_STT:-false}
+    FAULT_AZURE_TTS: ${FAULT_AZURE_TTS:-false}
+    FAULT_GEMINI: ${FAULT_GEMINI:-false}
+    FAULT_CROP_HEALTH: ${FAULT_CROP_HEALTH:-false}
+    FAULT_SOILGRIDS: ${FAULT_SOILGRIDS:-false}
+    FAULT_OPEN_METEO: ${FAULT_OPEN_METEO:-false}
+    FAULT_MAPS: ${FAULT_MAPS:-false}
+    TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+    TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID:-}
+    TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+    TWILIO_FRAUD_GUARD_CONFIRMED: ${TWILIO_FRAUD_GUARD_CONFIRMED:-false}
+    TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
+    TURNSTILE_HOSTNAME: ${TURNSTILE_HOSTNAME:-}
+    AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+    AZURE_SPEECH_RESOURCE: ${AZURE_SPEECH_RESOURCE:-}
+    AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
+    GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    GEMINI_MODEL: ${GEMINI_MODEL:-}
+    CROP_HEALTH_API_KEY: ${CROP_HEALTH_API_KEY:-}
+    MAPS_SERVER_API_KEY: ${MAPS_SERVER_API_KEY:-}
 
 services:
   database:
@@ -18,7 +42,7 @@ services:
     volumes:
       - database-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 2s
       timeout: 5s
       retries: 30
@@ -59,6 +83,8 @@ services:
     environment:
       <<: *backend-env
       API_URL: http://api:8000
+      ENVIRONMENT: ci
+      INTEGRATIONS_MODE: fake
     command: ['pytest', 'apps/backend/tests/integration', '-m', 'integration', '-q']
 
 volumes:

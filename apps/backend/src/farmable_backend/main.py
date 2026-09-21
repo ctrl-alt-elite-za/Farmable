@@ -11,6 +11,8 @@ from starlette.exceptions import HTTPException
 
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
+from farmable_backend.integrations.registry import ServiceRegistry
+from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
 from farmable_backend.middleware import RateLimiter, SafeDefaultsMiddleware, error_response
 from farmable_backend.schemas import ErrorResponse, LiveResponse, ReadyResponse
@@ -20,22 +22,29 @@ def create_app(
     settings: Settings | None = None,
     readiness: Callable[[], dict[str, str]] | None = None,
     limiter: RateLimiter | None = None,
+    service_settings: ServiceSettings | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         config = settings or Settings()
         configure_logging(config.log_level)
+        services = ServiceRegistry(service_settings or ServiceSettings())
+        app.state.services = services
         app.state.sha = config.commit_sha
-        database = None if readiness is not None else Database(config)
-        if readiness is not None:
-            app.state.readiness = readiness
-        elif database is not None:
-            app.state.readiness = database.readiness
+        database = None
         try:
+            database = None if readiness is not None else Database(config)
+            if readiness is not None:
+                app.state.readiness = readiness
+            elif database is not None:
+                app.state.readiness = database.readiness
             yield
         finally:
-            if database is not None:
-                database.close()
+            try:
+                if database is not None:
+                    database.close()
+            finally:
+                await services.close()
 
     app = FastAPI(
         title="Farmable API",

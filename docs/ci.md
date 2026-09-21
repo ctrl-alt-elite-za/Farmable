@@ -60,14 +60,19 @@ they do not claim an unrelated PR fixes a particular advisory.
 
 This change cannot honestly close #5 yet:
 
-- **#4 remains open:** no Expo app/APK or Maestro flows exist on main. The
-  `e2e-mobile` job explicitly reports **NOT VERIFIED**, rather than fabricating
-  a passing flow. When the app/config/flows land, it builds with test mode,
-  installs the APK, runs Maestro against the isolated API, and retries emulator
-  boot once only if tests never started. Android API URLs use `10.0.2.2:8000`.
-- **#7's service fault flags** join the degradation suite when those services
-  exist. Today database/worker stops exercise real dependency failure/recovery;
-  there is no claim that unimplemented external-service flags were tested.
+- **#4 remains open for physical-device acceptance:** main now contains the
+  Expo app and Maestro launch flows. The `e2e-mobile` job builds a standalone
+  release test APK (no Metro server required), enables HTTP only in test-mode
+  builds, and verifies Online against its isolated API at `10.0.2.2:8000`.
+  It then stops only its own API to verify Offline. Emulator boot may retry
+  once only if tests never started; tests themselves are never retried.
+  Emulator tests do not prove native camera, LiDAR, microphone, or AR behavior
+  on real phones.
+- **#7's service fault flags** are tested at the adapter/application boundary
+  using isolated fakes. CI Compose stacks explicitly use `ci`/`fake`; real paid
+  providers are forbidden in CI. Database/worker stops still exercise real
+  dependency failure/recovery. Feature-level provider degradation E2E proof is
+  due when feature consumers land; adapter tests do not claim that UI coverage.
 - **#23** supplies `make eval-assistant SET=dev`. Both the issue's legacy
   `backend/app/assistant/**` path and the real package's assistant directory
   trigger the required job. No paid API secrets are exposed to fork PR code;
