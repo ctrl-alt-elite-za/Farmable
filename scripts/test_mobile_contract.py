@@ -52,19 +52,17 @@ def main() -> int:
             ]
             if can_inherit_socket:
                 command += ["--fd", str(listener.fileno())]
-                popen_kwargs = {"pass_fds": (listener.fileno(),)}
             else:
                 # subprocess cannot pass an fd to a child on Windows, so hand
                 # the port over instead and let go of it first.
                 listener.close()
                 command += ["--host", "127.0.0.1", "--port", str(port)]
-                popen_kwargs = {}
 
             server = subprocess.Popen(  # noqa: S603 - fixed module and arguments
                 command,
                 cwd=ROOT,
                 env=env,
-                **popen_kwargs,
+                pass_fds=(listener.fileno(),) if can_inherit_socket else (),
             )
             try:
                 deadline = time.monotonic() + 30
