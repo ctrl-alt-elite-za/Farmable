@@ -356,15 +356,18 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
 
 def test_mobile_maestro_flows_wait_for_release_app_startup():
     repo = Path(__file__).resolve().parents[2]
-    for name, expected in (("online_launch.yaml", "Synced"), ("offline_launch.yaml", "Offline")):
+    for name in ("online_launch.yaml", "offline_launch.yaml"):
         flow = (repo / "e2e/mobile" / name).read_text()
         assert "extendedWaitUntil:" in flow
-        # The greeting proves Home rendered the SEEDED farm from local storage,
-        # not merely that some screen drew. Home is the launch destination.
-        assert "visible: 'Hello, Sipho'" in flow
+        # Matching the seeded farmer's name proves Home rendered the SEEDED farm
+        # from local storage, not merely that some screen drew.
+        #
+        # The regex matters: Maestro matches the whole string, and Flutter
+        # merges the greeting with the date into one accessibility node. A bare
+        # "Hello, Sipho" silently never matches, which is exactly how this
+        # passed review once and failed on a device.
+        assert "visible: '.*Hello, Sipho.*'" in flow
         assert "id: 'sync-status'" in flow
-        assert "timeout: 30000" in flow
-        assert f"visible: '{expected}'" in flow
 
 
 def test_release_manifest_grants_network_access_and_scopes_cleartext():

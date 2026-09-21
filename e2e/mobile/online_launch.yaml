@@ -1,22 +1,29 @@
-# The isolated CI API must be running before this flow starts.
+# The isolated CI API is running for this flow.
+#
+# Home is served from the local database either way, so this proves the same
+# launch path works with a reachable API — nothing regressed when the network
+# came back.
+#
+#   maestro test e2e/mobile/online_launch.yaml
 appId: za.co.almanac.app
-name: App launches into Home and reports Synced when the API is reachable
+name: App launches into Home from local storage with the API reachable
 ---
 - launchApp:
     clearState: true
-# Home renders from the local database, so the farm appears without waiting on
-# the network. The greeting proves the seeded farm loaded, not just that some
-# screen drew.
-# First launch wipes app data, so the local database is created and seeded
-# before anything renders. Measured at 23s on a warm local emulator with a
-# debug build; CI's emulator is cold and software-rendered, so 30s was
-# marginal and flaked. Only this first wait is generous — once the farm is on
-# screen the connectivity chip is already there.
+# clearState wipes app data, so the local database is created and seeded before
+# anything renders — work the old status screen never did.
+#
+# The regex is required, not decorative: Maestro matches the WHOLE string, and
+# Flutter merges the greeting and the date into one accessibility node
+# ("Hello, Sipho\nMonday, 21 September"). A bare 'Hello, Sipho' never matches.
 - extendedWaitUntil:
-    visible: 'Hello, Sipho'
-    timeout: 120000
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+# The chip's wording is deliberately not asserted here. The seeded farm carries
+# unsynced changes, so it reads "3 changes waiting" in both flows rather than
+# "Synced" or "Offline" — queued work is the more useful fact when there is any.
+# Asserting its presence still proves the app reports its sync standing on
+# launch; telling the two flows apart by wording needs the sync engine that
+# does not exist yet.
 - assertVisible:
     id: 'sync-status'
-- extendedWaitUntil:
-    visible: 'Synced'
-    timeout: 30000

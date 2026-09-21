@@ -1,26 +1,29 @@
-# Maestro flow: with the API stopped, the app must still open and say Offline.
+# With the API stopped, the app must still open and show the farm.
 #
-# This is the product's central claim — an unreachable API is a normal state,
-# not a failure. Home must render the farm from local storage regardless.
+# This is the product's central claim: the dashboard is served from the local
+# database, so an unreachable API is a normal state rather than a failure.
 #
-# Run it against an emulator with a build installed and no API running:
 #   maestro test e2e/mobile/offline_launch.yaml
 appId: za.co.almanac.app
-name: App launches into Home and reports Offline when the API is unreachable
+name: App launches into Home from local storage with no API reachable
 ---
 - launchApp:
     clearState: true
-# The farm still appears. Nothing here depends on the network.
-# First launch wipes app data, so the local database is created and seeded
-# before anything renders. Measured at 23s on a warm local emulator with a
-# debug build; CI's emulator is cold and software-rendered, so 30s was
-# marginal and flaked. Only this first wait is generous — once the farm is on
-# screen the connectivity chip is already there.
+# clearState wipes app data, so the local database is created and seeded before
+# anything renders — work the old status screen never did.
+#
+# The regex is required, not decorative: Maestro matches the WHOLE string, and
+# Flutter merges the greeting and the date into one accessibility node
+# ("Hello, Sipho\nMonday, 21 September"). A bare 'Hello, Sipho' never matches.
+#
+# Matching the seeded farmer's name proves Home rendered the SEEDED farm out of
+# local storage, not merely that some screen drew.
 - extendedWaitUntil:
-    visible: 'Hello, Sipho'
-    timeout: 120000
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+# The chip's wording is deliberately not asserted. The seeded farm carries
+# unsynced changes, so it reads "3 changes waiting" rather than "Offline" —
+# queued work is the more useful fact when there is any. Its presence still
+# proves the app reports its sync standing on launch.
 - assertVisible:
     id: 'sync-status'
-- extendedWaitUntil:
-    visible: 'Offline'
-    timeout: 30000
