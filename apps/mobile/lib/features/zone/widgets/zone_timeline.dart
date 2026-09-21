@@ -83,7 +83,11 @@ class _TimelineItem extends StatelessWidget {
         ? c.statusActionRequired
         : c.onSurfaceVariant;
 
-    final titleColour = entry.state == TimelineState.completed
+    // Completed and cancelled are both finished business, so neither keeps
+    // the full-strength title of something still to do.
+    final titleColour =
+        entry.state == TimelineState.completed ||
+            entry.state == TimelineState.cancelled
         ? c.onSurfaceVariant
         : c.onSurface;
 
@@ -200,14 +204,19 @@ class _TimelineItem extends StatelessWidget {
     DateTime today,
   ) => switch (entry.state) {
     TimelineState.completed => 'Completed · ${shortDate(entry.task.dueDate)}',
+    // The word is what separates this from "Completed". A cancelled step that
+    // differed only by the colour of its node would read as done to anybody
+    // who cannot rely on colour, and to anybody glancing.
+    TimelineState.cancelled => 'Cancelled · ${shortDate(entry.task.dueDate)}',
     TimelineState.overdue => whenPhrase(entry.task.dueDate, today),
     TimelineState.current => 'Next · ${dueSuffix(entry.task.dueDate, today)}',
     TimelineState.upcoming => whenPhrase(entry.task.dueDate, today),
   };
 }
 
-/// 22px node. Completed is filled with a check, current is filled with a halo,
-/// overdue is filled with an alert glyph, upcoming is a dashed hollow ring.
+/// 22px node. Completed is filled with a check, cancelled is a muted node
+/// struck through with an x, current is filled with a halo, overdue is filled
+/// with an alert glyph, upcoming is a dashed hollow ring.
 class _Node extends StatelessWidget {
   final TimelineState state;
 
@@ -222,6 +231,13 @@ class _Node extends StatelessWidget {
         c.statusOnTrack,
         LucideIcons.check,
         const Color(0xFFFFFFFF),
+      ),
+      // Neutral rather than green: nothing was achieved. The glyph is an x,
+      // not a check, so the shape says so as well as the word beneath it.
+      TimelineState.cancelled => _dot(
+        c.outlineVariant,
+        LucideIcons.x,
+        c.onSurfaceVariant,
       ),
       TimelineState.overdue => _dot(
         c.statusActionRequired,

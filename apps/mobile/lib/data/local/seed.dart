@@ -39,11 +39,19 @@ class DemoSeed {
   /// Returns true if this call planted the demo farm, false if it was already
   /// there. Safe to call on every launch.
   Future<bool> ensureSeeded() async {
-    final already = await db.select(db.seedState).getSingleOrNull();
-    if (already != null) return false;
-
     final at = now();
+    var planted = false;
+
     await db.transaction(() async {
+      // Read inside the transaction that writes, not before it. Two launches
+      // racing each other both read null from outside it and both went on to
+      // seed; the `id: Value(1)` primary key meant the loser threw and rolled
+      // back rather than double-seeding, so nothing was ever corrupted — but
+      // it failed noisily where a SELECT in here simply returns early.
+      final already = await db.select(db.seedState).getSingleOrNull();
+      if (already != null) return;
+      planted = true;
+
       await _user(at);
       await _farm(at);
       await _cabbageField(at);
@@ -60,7 +68,7 @@ class DemoSeed {
             ),
           );
     });
-    return true;
+    return planted;
   }
 
   Future<void> _user(DateTime at) => db

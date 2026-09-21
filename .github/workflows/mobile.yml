@@ -34,6 +34,17 @@ env:
   BUILD_SHA: ${{ github.sha }}
   # Pinned so a Flutter release cannot change the build out from under a PR.
   FLUTTER_VERSION: 3.47.1
+  # The single source of truth for the build modes: check-test-mode.sh reads
+  # these, and every build below passes these same values to the compiler.
+  # A --dart-define set anywhere else is a compiler flag the guard cannot
+  # see, which is how it came to be checking defaults and approving builds
+  # it had never been shown.
+  #
+  # Spelled true/false because that is the only thing Dart's
+  # bool.fromEnvironment recognises. These artifacts go to real phones, so
+  # neither mode belongs in them.
+  TEST_MODE: 'false'
+  DEMO_MODE: 'false'
 
 jobs:
   native-changes:
@@ -139,9 +150,14 @@ jobs:
       - name: Build without signing
         working-directory: apps/mobile
         run: |
+          # The same two variables the guard just read, handed to the
+          # compiler. Nothing else may set these defines.
+          bash ../../scripts/check-test-mode.sh
           flutter build ios --release --no-codesign \
             --dart-define=API_URL="$MOBILE_API_BASE_URL" \
-            --dart-define=BUILD_SHA="$BUILD_SHA"
+            --dart-define=BUILD_SHA="$BUILD_SHA" \
+            --dart-define=TEST_MODE="$TEST_MODE" \
+            --dart-define=DEMO_MODE="$DEMO_MODE"
       - name: Package Almanac-unsigned.ipa
         working-directory: apps/mobile
         run: |
@@ -192,9 +208,14 @@ jobs:
         working-directory: apps/mobile
         # Physical test phones use ARM64. The E2E job builds its own x86_64 APK.
         run: |
+          # The same two variables the guard just read, handed to the
+          # compiler. Nothing else may set these defines.
+          bash ../../scripts/check-test-mode.sh
           flutter build apk --release --target-platform android-arm64 \
             --dart-define=API_URL="$MOBILE_API_BASE_URL" \
-            --dart-define=BUILD_SHA="$BUILD_SHA"
+            --dart-define=BUILD_SHA="$BUILD_SHA" \
+            --dart-define=TEST_MODE="$TEST_MODE" \
+            --dart-define=DEMO_MODE="$DEMO_MODE"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: almanac-android-arm64-apk-${{ env.MOBILE_ARTIFACT_KIND }}

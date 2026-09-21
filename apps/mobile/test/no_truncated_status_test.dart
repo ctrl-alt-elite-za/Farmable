@@ -47,16 +47,30 @@ List<String> _truncated(WidgetTester tester, Finder within) {
   return cut;
 }
 
-void _expectNothingCut(WidgetTester tester, String where) {
-  for (final type in <Type>[
-    FarmStatusBadge,
-    ScrimBadge,
-    OfflineBadge,
-    SyncIndicator,
-    ConstraintChip,
-  ]) {
+/// Every badge type this rule covers.
+const _statusTypes = <Type>[
+  FarmStatusBadge,
+  ScrimBadge,
+  OfflineBadge,
+  SyncIndicator,
+  ConstraintChip,
+];
+
+/// Checks what is on screen right now, and reports which types were there.
+///
+/// The set it returns is the point of the return value: a type that is absent
+/// at one scroll position is normal, but a type that is absent at every
+/// position on a screen that is supposed to carry it means the loop below ran
+/// to completion asserting nothing at all. That is how a renamed or deleted
+/// badge used to leave this file green while testing nothing.
+Set<Type> _expectNothingCut(WidgetTester tester, String where) {
+  final present = <Type>{};
+
+  for (final type in _statusTypes) {
     final badges = find.byType(type);
     if (badges.evaluate().isEmpty) continue;
+    present.add(type);
+
     final cut = _truncated(tester, badges);
     expect(
       cut,
@@ -68,7 +82,63 @@ void _expectNothingCut(WidgetTester tester, String where) {
           'give it the width it needs — do not ellipsise it.',
     );
   }
+
+  return present;
 }
+
+/// Walks the whole page, checking at every position, and returns what it saw.
+///
+/// Not just the fold: the map preview and the Next up rows are where the
+/// squeeze used to happen.
+Future<Set<Type>> _walkPage(WidgetTester tester, String where) async {
+  final seen = <Type>{};
+  for (var i = 0; i < 24; i++) {
+    seen.addAll(_expectNothingCut(tester, where));
+    await tester.drag(pageScrollable().first, const Offset(0, -260));
+    await tester.pumpAndSettle();
+  }
+  return seen;
+}
+
+/// Fails when a screen that carries a badge type turns out not to.
+///
+/// Without this the walk above is silently satisfied by a screen with no
+/// badges on it at all, which is exactly what a renamed or removed badge type
+/// produces: a green run that asserted nothing.
+void _expectEveryBadgeRendered(
+  Set<Type> seen,
+  List<Type> expected,
+  String where,
+) {
+  final missing = expected.where((type) => !seen.contains(type)).toList();
+  expect(
+    missing,
+    isEmpty,
+    reason:
+        '$where rendered no $missing anywhere on the page, so this test '
+        'walked the whole screen asserting nothing about them. Either the '
+        'badge stopped being shown — which is a regression in its own right, '
+        'because status is how this screen speaks — or the type was renamed '
+        'and this list needs to follow it.',
+  );
+}
+
+/// What Home puts on the page. Offline is on the list because the harness
+/// pumps with no API reachable, which is this product's normal state.
+const _onHome = <Type>[
+  FarmStatusBadge,
+  ScrimBadge,
+  SyncIndicator,
+  OfflineBadge,
+];
+
+/// What Zone Detail puts on the page.
+const _onZoneDetail = <Type>[
+  FarmStatusBadge,
+  ScrimBadge,
+  SyncIndicator,
+  ConstraintChip,
+];
 
 void main() {
   for (final size in <Size>[_narrow, phoneSize]) {
@@ -78,15 +148,8 @@ void main() {
       testWidgets('no status chip on Home is truncated', (tester) async {
         await pumpFarmApp(tester, surface: size);
 
-        _expectNothingCut(tester, 'Home');
-
-        // Walk the whole page, not just the fold: the map preview and the
-        // Next up rows are where the squeeze used to happen.
-        for (var i = 0; i < 24; i++) {
-          _expectNothingCut(tester, 'Home');
-          await tester.drag(pageScrollable().first, const Offset(0, -260));
-          await tester.pumpAndSettle();
-        }
+        final seen = await _walkPage(tester, 'Home');
+        _expectEveryBadgeRendered(seen, _onHome, 'Home');
       });
 
       testWidgets('no status chip on Zone Detail is truncated', (tester) async {
@@ -96,11 +159,8 @@ void main() {
           surface: size,
         );
 
-        for (var i = 0; i < 24; i++) {
-          _expectNothingCut(tester, 'Zone Detail');
-          await tester.drag(pageScrollable().first, const Offset(0, -260));
-          await tester.pumpAndSettle();
-        }
+        final seen = await _walkPage(tester, 'Zone Detail');
+        _expectEveryBadgeRendered(seen, _onZoneDetail, 'Zone Detail');
       });
 
       testWidgets('the words themselves survive, not just the boxes', (

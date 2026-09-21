@@ -14,10 +14,15 @@ import '../../domain/farm_records_repository.dart';
 
 /// Where a timeline item sits in the season.
 ///
-/// Four states, each with an icon, a word and a colour in the widget layer.
+/// Five states, each with an icon, a word and a colour in the widget layer.
 /// Derived here rather than in the widget so "current" means one thing across
 /// the app, and so a test can pin the clock and assert it.
-enum TimelineState { completed, current, upcoming, overdue }
+///
+/// Cancelled is its own state rather than a shade of completed. Abandoned work
+/// given a completion tick tells the farmer a job was done that never was, and
+/// the only thing separating the two would be a colour — which is exactly the
+/// icon-and-colour collapse the rest of this app spends its effort avoiding.
+enum TimelineState { completed, cancelled, current, upcoming, overdue }
 
 class TimelineEntry {
   final FarmTask task;
@@ -57,8 +62,21 @@ final zoneViewProvider = Provider.family<AsyncValue<ZoneView?>, String>((
 
   // All three read from the same database; the screen appears when they have
   // all answered, which is one disk read away and never a network round trip.
-  if (section.hasError) {
-    return AsyncValue.error(section.error!, section.stackTrace!);
+  //
+  // Every one of them has to be checked for failure, not just the section. A
+  // timeline or observations stream that errors before it has ever produced a
+  // value has no value to fall back on, so checking only `hasValue` below sent
+  // it down the loading branch and left the screen spinning for good. Any of
+  // the three failing is the same fact — local storage would not answer — and
+  // the screen has one honest answer to it.
+  for (final dependency in <AsyncValue<Object?>>[
+    section,
+    timeline,
+    observations,
+  ]) {
+    if (dependency.hasError) {
+      return AsyncValue.error(dependency.error!, dependency.stackTrace!);
+    }
   }
   if (!section.hasValue || !timeline.hasValue || !observations.hasValue) {
     return const AsyncValue.loading();
@@ -100,7 +118,7 @@ List<TimelineEntry> buildTimeline(List<FarmTask> tasks, DateTime today) {
         task: task,
         state: switch (task) {
           _ when task.isDone => TimelineState.completed,
-          _ when task.status == TaskStatus.cancelled => TimelineState.completed,
+          _ when task.status == TaskStatus.cancelled => TimelineState.cancelled,
           _ when task.dueDate.isBefore(day) => TimelineState.overdue,
           _ when task.id == currentId => TimelineState.current,
           _ => TimelineState.upcoming,

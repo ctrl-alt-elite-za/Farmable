@@ -21,6 +21,12 @@ Future<void> showTimelineActions({
   required BuildContext context,
   required TimelineEntry entry,
   required ZoneActions actions,
+
+  /// The screen's "today", from `clockProvider`. Passed in rather than read
+  /// from `DateTime.now()` so this subtitle is computed against the same day
+  /// as the timeline row the farmer tapped to get here, and so a test with a
+  /// pinned clock can assert what it says.
+  required DateTime today,
 }) async {
   final done = entry.task.isDone;
 
@@ -29,7 +35,7 @@ Future<void> showTimelineActions({
     backgroundColor: Colors.transparent,
     builder: (sheetContext) => _SheetMenu(
       title: entry.task.title,
-      subtitle: whenPhrase(entry.task.dueDate, DateTime.now()),
+      subtitle: whenPhrase(entry.task.dueDate, today),
       items: [
         _MenuItem(
           icon: LucideIcons.pencil,
@@ -92,12 +98,15 @@ Future<void> showObservationActions({
   required BuildContext context,
   required Observation observation,
   required ZoneActions actions,
+
+  /// The screen's "today". See [showTimelineActions].
+  required DateTime today,
 }) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: Colors.transparent,
   builder: (sheetContext) => _SheetMenu(
     title: observation.type,
-    subtitle: observedAt(observation.createdAt, DateTime.now()),
+    subtitle: observedAt(observation.createdAt, today),
     items: [
       _MenuItem(
         icon: LucideIcons.pencil,

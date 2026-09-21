@@ -1,6 +1,7 @@
 /// The section carousel — the signature interaction of the dashboard.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/tokens.g.dart';
@@ -33,6 +34,10 @@ const _loops = 1000;
 /// is not, so page 4001 and page 4005 are the same section when there are four
 /// of them. There is no jump to hide because nothing ever jumps — the page
 /// number simply keeps counting.
+///
+/// [page] may be negative once it has been shifted by the carousel's identity
+/// anchor. Dart's `%` is euclidean for a positive divisor, so -1 of four
+/// sections is 3 and the strip still reads backwards correctly.
 int carouselIndexFor(int page, int count) => count == 0 ? 0 : page % count;
 
 /// The page a carousel of [count] sections starts on.
@@ -79,16 +84,90 @@ class ZoneCarousel extends StatefulWidget {
 
 class _ZoneCarouselState extends State<ZoneCarousel> {
   late final PageController _controller;
+
+  /// The page the farmer is looking at. It counts upward forever and is not an
+  /// index into [ZoneCarousel.sections].
   late int _centre;
+
+  /// The page/index pair that ties the endless page numbering to the list.
+  ///
+  /// Sections arrive from a live database stream, so the list can gain or lose
+  /// one under a carousel that is already on screen. Page numbers cannot be
+  /// re-derived from the new length: `page % count` with a different `count`
+  /// quietly resolves to a *different* section, and because the controller has
+  /// not moved, nothing fires to say so. The caption and the quick actions
+  /// would then be writing to a section other than the card on screen.
+  ///
+  /// So the mapping is anchored to a section identity instead — the card at
+  /// [_anchorPage] is `sections[_anchorIndex]` — and when the list changes the
+  /// anchor is re-pointed at wherever the centred section moved to. The strip
+  /// never jumps, because the page numbering never has to change.
+  late int _anchorPage;
+  late int _anchorIndex;
+
+  /// The id of the section at the centre, which is what the anchor is
+  /// re-established from.
+  String? _centreId;
 
   @override
   void initState() {
     super.initState();
     _centre = carouselInitialPage(widget.sections.length);
+    _anchorPage = _centre;
+    _anchorIndex = 0;
+    _centreId = _sectionAt(_centre)?.id;
     _controller = PageController(
       viewportFraction: _viewportFraction,
       initialPage: _centre,
     );
+  }
+
+  @override
+  void didUpdateWidget(ZoneCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final oldIds = [for (final s in oldWidget.sections) s.id];
+    final newIds = [for (final s in widget.sections) s.id];
+    if (listEquals(oldIds, newIds)) return;
+    if (newIds.isEmpty) {
+      _centreId = null;
+      return;
+    }
+
+    // Re-anchored on the section that is centred, not on the index it used to
+    // sit at: deleting a section ahead of it shifts every index after it, and
+    // the identity is the only thing that survives that.
+    final moved = newIds.indexOf(_centreId ?? '');
+    setState(() {
+      _anchorPage = _centre;
+      _anchorIndex = moved == -1
+          ? carouselIndexFor(_centre, newIds.length)
+          : moved;
+      _centreId = _sectionAt(_centre)?.id;
+    });
+
+    // The centred section itself is gone, so the centre really did change and
+    // whatever reads it has to be told. Deferred because didUpdateWidget runs
+    // inside the parent's build and the listener's answer is setState.
+    if (moved == -1) {
+      final section = _sectionAt(_centre);
+      final onCentreChanged = widget.onCentreChanged;
+      if (section != null && onCentreChanged != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) onCentreChanged(section);
+        });
+      }
+    }
+  }
+
+  /// The section drawn on [page], resolved through the identity anchor.
+  SectionSummary? _sectionAt(int page) {
+    final count = widget.sections.length;
+    if (count == 0) return null;
+    return widget.sections[carouselIndexFor(
+      page - _anchorPage + _anchorIndex,
+      count,
+    )];
   }
 
   @override
@@ -122,8 +201,6 @@ class _ZoneCarouselState extends State<ZoneCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    final count = widget.sections.length;
-
     // Measured from the width the strip is actually given, not guessed from
     // the screen width. The old figure was 69px taller than the card, and a
     // PageView hands every page the full height of its viewport — so the card,
@@ -141,19 +218,21 @@ class _ZoneCarouselState extends State<ZoneCarousel> {
 
         return SizedBox(
           height: cardHeight + _chipOverhang,
-          child: _strip(count, cardHeight),
+          child: _strip(cardHeight),
         );
       },
     );
   }
 
-  Widget _strip(int count, double cardHeight) => PageView.builder(
+  Widget _strip(double cardHeight) => PageView.builder(
     controller: _controller,
     onPageChanged: (page) {
-      setState(() => _centre = page);
-      widget.onCentreChanged?.call(
-        widget.sections[carouselIndexFor(page, count)],
-      );
+      final section = _sectionAt(page);
+      setState(() {
+        _centre = page;
+        _centreId = section?.id;
+      });
+      if (section != null) widget.onCentreChanged?.call(section);
     },
     padEnds: true,
     // The label chip hangs half its height below the card, which is the
@@ -161,7 +240,7 @@ class _ZoneCarouselState extends State<ZoneCarousel> {
     // by default and was cutting the chip in half.
     clipBehavior: Clip.none,
     itemBuilder: (context, page) {
-      final section = widget.sections[carouselIndexFor(page, count)];
+      final section = _sectionAt(page)!;
       return AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {

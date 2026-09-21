@@ -3,8 +3,10 @@
 import base64
 import io
 import json
+import os
 import re
 import runpy
+import shutil
 import subprocess
 import zipfile
 from pathlib import Path
@@ -336,8 +338,14 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     # harness does not provide; x86_64 only, because the CI emulator is x86_64.
     assert "flutter build apk --release" in build and "--debug" not in build
     assert "--target-platform android-x64" in build
-    # Test mode replays recorded frames so camera screens run without a camera.
-    assert "--dart-define=TEST_MODE=true" in build
+    # Test mode replays recorded frames so camera screens run without a camera,
+    # and it reaches the compiler from the same variable the guard reads.
+    assert 'export TEST_MODE="${TEST_MODE:-true}"' in build
+    assert "bash scripts/check-test-mode.sh" in build
+    assert '--dart-define=TEST_MODE="$TEST_MODE"' in build
+    assert '--dart-define=DEMO_MODE="$DEMO_MODE"' in build
+    # The guard has to run before anything is compiled, or it is decoration.
+    assert build.index("check-test-mode.sh") < build.index("flutter build apk")
     device_workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
     device_steps = device_workflow["jobs"]["android-build"]["steps"]
     device_build = next(step for step in device_steps if step.get("name") == "Build the APK")
@@ -362,8 +370,9 @@ def test_mobile_maestro_flows_wait_for_release_app_startup():
         # Matching the seeded farmer's name proves Home rendered the SEEDED farm
         # from local storage, not merely that some screen drew.
         #
-        # The regex matters: Maestro matches the whole string, and Flutter
-        # merges the greeting with the date into one accessibility node. A bare
+        # The regex matters: Maestro matches the whole string, and the Android
+        # accessibility tree Maestro reads merges sibling nodes, even though
+        # Flutter's own semantics tree keeps them separate. A bare
         # "Hello, Sipho" silently never matches, which is exactly how this
         # passed review once and failed on a device.
         assert "visible: '.*Hello, Sipho.*'" in flow
@@ -544,3 +553,73 @@ def test_unrelated_pr_cannot_approve_main_migrations(monkeypatch, field, value):
     }
     monkeypatch.setattr(migration_safety, "request_json", Mock(return_value=[pr]))
     assert not migration_safety.migration_approved()
+
+
+def _run_guard(**env):
+    """The mode guard, run the way CI runs it, with the modes supplied by us."""
+    repo = Path(__file__).resolve().parents[2]
+    # Native Windows tests can select Git Bash instead of the WSL launcher.
+    executable = os.environ.get("FARMABLE_TEST_BASH") or shutil.which("bash")
+    if executable is None:
+        pytest.skip("Bash is required for the build-mode guard tests")
+    return subprocess.run(  # noqa: S603 - a fixed script, with modes passed as environment
+        [executable, "scripts/check-test-mode.sh"],
+        cwd=repo,
+        # Inherited so bash can start at all, but with the two variables under
+        # test always coming from the caller and never from the developer's shell.
+        env={**{k: v for k, v in os.environ.items() if k not in ("TEST_MODE", "DEMO_MODE")}, **env},
+        capture_output=True,
+        text=True,
+    )
+
+
+@pytest.mark.parametrize(
+    ("test_mode", "demo_mode"),
+    [("true", "false"), ("false", "true"), ("false", "false")],
+)
+def test_one_build_mode_at_a_time_is_allowed(test_mode, demo_mode):
+    result = _run_guard(TEST_MODE=test_mode, DEMO_MODE=demo_mode)
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_build_asking_for_both_modes_is_refused():
+    """The whole point of the guard: recorded detections must never be shown as live.
+
+    It could not do this before. `ci-mobile.sh` passed TEST_MODE as a
+    --dart-define, which is a compiler flag the script cannot read, and the
+    script compared against "1" while Dart's bool.fromEnvironment only accepts
+    the literal "true" — two independent reasons the two ends could never agree.
+    """
+    result = _run_guard(TEST_MODE="true", DEMO_MODE="true")
+    assert result.returncode == 1
+    assert "cannot both be set" in result.stderr
+
+
+@pytest.mark.parametrize("value", ["1", "0", "True", "TRUE", "yes"])
+def test_a_mode_dart_cannot_read_is_refused_rather_than_read_as_off(value):
+    """`bool.fromEnvironment` recognises only `true`.
+
+    Any other spelling compiles as false while looking set to a shell reading
+    it, which is how a build could be handed TEST_MODE=1 and be neither in test
+    mode nor reported as out of it.
+    """
+    result = _run_guard(TEST_MODE=value, DEMO_MODE="false")
+    assert result.returncode == 1
+    assert "must be exactly" in result.stderr
+
+
+def test_the_guard_runs_against_the_values_the_device_builds_compile_in():
+    """The workflow's builds and its guard must read one pair of variables."""
+    repo = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
+    assert workflow["env"]["TEST_MODE"] == "false"
+    assert workflow["env"]["DEMO_MODE"] == "false"
+
+    for job, name in (("ios-unsigned-build", "Build without signing"), ("android-build", "Build the APK")):
+        steps = workflow["jobs"][job]["steps"]
+        build = next(step for step in steps if step.get("name") == name)
+        run = build["run"]
+        assert "check-test-mode.sh" in run
+        assert '--dart-define=TEST_MODE="$TEST_MODE"' in run
+        assert '--dart-define=DEMO_MODE="$DEMO_MODE"' in run
+        assert run.index("check-test-mode.sh") < run.index("flutter build")

@@ -7,6 +7,7 @@
 library;
 
 import 'package:almanac/data/local/database.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:almanac/data/local/local_farm_repository.dart';
 import 'package:almanac/data/local/seed.dart';
 import 'package:almanac/domain/farm_records.dart';
@@ -79,6 +80,33 @@ void main() {
         hasLength(1),
       );
     });
+
+    test(
+      'two launches racing each other seed once, and neither fails',
+      () async {
+        // The check used to sit outside the transaction that writes the state
+        // row, so both callers read null and both went on to seed. The primary
+        // key stopped the second one corrupting anything, but it stopped it by
+        // throwing — a first launch that happened to be fast enough failed
+        // loudly for no reason.
+        final fresh = AlmanacDatabase.memory();
+        addTearDown(fresh.close);
+
+        final seed = DemoSeed(fresh, now: () => _today);
+        final results = await Future.wait([
+          seed.ensureSeeded(),
+          seed.ensureSeeded(),
+          seed.ensureSeeded(),
+        ]);
+
+        expect(results.where((planted) => planted).length, 1);
+        final sections = await LocalFarmRepository(
+          fresh,
+          now: () => _today,
+        ).watchFarm().first;
+        expect(sections!.sections, hasLength(4));
+      },
+    );
 
     test('leaves North Plot honestly empty', () async {
       final farm = await _farm(repo);
@@ -282,6 +310,31 @@ void main() {
         expect(
           farm.upcoming.map((t) => t.dueDate),
           orderedEquals(List.of(farm.upcoming.map((t) => t.dueDate))..sort()),
+        );
+      },
+    );
+  });
+
+  group('writes and deleted sections', () {
+    test(
+      'a record cannot be attached to a section that has been deleted',
+      () async {
+        // Tombstoned rather than removed, so the row is still there to be found
+        // by anything that does not filter it out. Every read path does; the
+        // write path did not, which was the one way to add an observation to a
+        // section the farmer had already deleted.
+        await (db.update(db.sections)
+              ..where((t) => t.id.equals(DemoSeed.tomatoSectionId)))
+            .write(SectionsCompanion(deletedAt: Value(_today)));
+
+        expect(
+          () => repo.createObservation(
+            sectionId: DemoSeed.tomatoSectionId,
+            type: 'Pest check',
+            note: 'Nothing to report',
+            healthStatus: HealthState.onTrack,
+          ),
+          throwsA(isA<StateError>()),
         );
       },
     );
