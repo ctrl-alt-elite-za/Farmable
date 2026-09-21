@@ -23,7 +23,7 @@ from farmable_backend.models import (
     User,
 )
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.integration
@@ -218,6 +218,41 @@ def test_farm_records_concurrent_exact_replay_creates_one_change(engine, farm_sc
             )
             == 1
         )
+
+
+def test_farm_records_serialize_same_farm_change_cursors(engine, farm_scope):
+    owner_id, farm_id, section_id = farm_scope
+    first_id, second_id = uuid4(), uuid4()
+
+    with Session(engine) as first_session, Session(engine) as second_session:
+        FarmRecordRepository(first_session, owner_id, farm_id).create_observation(
+            mutation_id=uuid4(), **observation_request(section_id, first_id)
+        )
+
+        second_session.scalar(select(func.set_config("lock_timeout", "250ms", True)))
+        with pytest.raises(OperationalError, match="lock timeout"):
+            FarmRecordRepository(second_session, owner_id, farm_id).create_observation(
+                mutation_id=uuid4(), **observation_request(section_id, second_id)
+            )
+        second_session.rollback()
+
+        first_session.commit()
+        FarmRecordRepository(second_session, owner_id, farm_id).create_observation(
+            mutation_id=uuid4(), **observation_request(section_id, second_id)
+        )
+        second_session.commit()
+
+    with Session(engine) as session:
+        changes = session.scalars(
+            select(SyncChange)
+            .where(
+                SyncChange.owner_id == owner_id,
+                SyncChange.farm_id == farm_id,
+                SyncChange.record_id.in_((first_id, second_id)),
+            )
+            .order_by(SyncChange.id)
+        ).all()
+        assert [change.record_id for change in changes] == [first_id, second_id]
 
 
 def test_farm_records_constraint_failure_preserves_outer_transaction(engine, farm_scope):
