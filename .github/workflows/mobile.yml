@@ -9,9 +9,6 @@ on:
       - 'scripts/mobile-api.mjs'
       - 'scripts/tests/mobile-api.test.mjs'
       - '.github/workflows/mobile.yml'
-      - '.npmrc'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
   push:
     branches: [main]
   workflow_dispatch:
@@ -30,7 +27,9 @@ concurrency:
 
 env:
   # Device API URLs are non-secret and validated per build. No localhost release.
-  EXPO_PUBLIC_BUILD_SHA: ${{ github.sha }}
+  BUILD_SHA: ${{ github.sha }}
+  # Pinned so a Flutter release cannot change the build out from under a PR.
+  FLUTTER_VERSION: 3.47.1
 
 jobs:
   native-changes:
@@ -56,7 +55,7 @@ jobs:
           # Fail if the diff cannot be read; consume all output under pipefail.
           changed_files=$(git diff --name-only "$BASE_SHA...$GITHUB_SHA")
           if printf '%s\n' "$changed_files" | grep -E \
-            '^(apps/mobile/|scripts/mobile-api\.mjs$|package\.json$|pnpm-lock\.yaml$|\.npmrc$|\.github/workflows/mobile\.yml$)' > /dev/null; then
+            '^(apps/mobile/|scripts/mobile-api\.mjs$|\.github/workflows/mobile\.yml$)' > /dev/null; then
             echo "native=true" >> "$GITHUB_OUTPUT"
           else
             echo "native=false" >> "$GITHUB_OUTPUT"
@@ -65,41 +64,39 @@ jobs:
   mobile-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      EXPO_PUBLIC_API_URL: https://api.invalid
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
-      # Enable pnpm before any cache step tries to locate its store.
-      - run: corepack enable
       - name: Check physical-device API configuration policy
         run: node --test scripts/tests/mobile-api.test.mjs
-      - name: Locate pnpm store
-        id: pnpm-store
-        shell: bash
-        run: |
-          store_path=$(pnpm store path --silent)
-          echo "path=$store_path" >> "$GITHUB_OUTPUT"
-      - name: Restore pnpm store
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
         with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('.nvmrc', 'package.json', 'pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-
-      - run: pnpm install --frozen-lockfile
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
       - name: Test mode and demo mode must not both be set
         run: bash scripts/check-test-mode.sh
-      - run: pnpm -C apps/mobile run typecheck
-      - run: pnpm -C apps/mobile test
+      - run: flutter pub get
+        working-directory: apps/mobile
+      - name: Design tokens must match the design set
+        # The Dart theme is generated from design/tokens.css. This fails if the
+        # CSS changed without regenerating, so the app cannot drift from the
+        # contrast-verified design.
+        run: dart run tool/generate_tokens.dart --verify
+        working-directory: apps/mobile
+      - run: dart format --output=none --set-exit-if-changed lib test tool
+        working-directory: apps/mobile
+      - run: flutter analyze
+        working-directory: apps/mobile
+      # The demo API is not running here, so its contract tests skip themselves.
+      - run: flutter test
+        working-directory: apps/mobile
 
   ios-unsigned-build:
     needs: native-changes
     if: needs.native-changes.outputs.native == 'true'
-    # Expo SDK 57 ships SwiftPM manifests requiring Swift tools 6.2.
-    # macos-15's Xcode 16.4 only provides Swift 6.1.
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -111,61 +108,38 @@ jobs:
         run: node scripts/mobile-api.mjs
         env:
           MOBILE_API_URL: ${{ inputs.api_url || vars.MOBILE_API_URL }}
-      # Enable pnpm before any cache step tries to locate its store.
-      - run: corepack enable
-      - name: Locate pnpm store
-        id: pnpm-store
-        shell: bash
-        run: |
-          store_path=$(pnpm store path --silent)
-          echo "path=$store_path" >> "$GITHUB_OUTPUT"
-      - name: Restore pnpm store
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
         with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('.nvmrc', 'package.json', 'pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-
-      - run: pnpm install --frozen-lockfile
-      - name: Generate the iOS project
-        run: pnpm -C apps/mobile exec expo prebuild --platform ios --no-install --clean
-      - name: Restore iOS build caches
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: apps/mobile
+      - name: Restore CocoaPods cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/Library/Caches/CocoaPods
             apps/mobile/ios/Pods
-            apps/mobile/ios/build
-          key: ${{ runner.os }}-ios-${{ hashFiles('pnpm-lock.yaml', 'apps/mobile/app.config.ts', 'apps/mobile/package.json') }}
+          key: ${{ runner.os }}-ios-${{ hashFiles('apps/mobile/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-ios-
-      - name: Install CocoaPods
-        working-directory: apps/mobile/ios
-        run: pod install
       - name: Build without signing
-        working-directory: apps/mobile/ios
+        working-directory: apps/mobile
         run: |
-          xcodebuild \
-            -workspace Farmable.xcworkspace \
-            -scheme Farmable \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build
-      - name: Package Farmable-unsigned.ipa
-        working-directory: apps/mobile/ios
+          flutter build ios --release --no-codesign \
+            --dart-define=API_URL="$MOBILE_API_BASE_URL" \
+            --dart-define=BUILD_SHA="$BUILD_SHA"
+      - name: Package Almanac-unsigned.ipa
+        working-directory: apps/mobile
         run: |
           mkdir -p payload/Payload
-          cp -R build/Build/Products/Release-iphoneos/Farmable.app payload/Payload/
-          cd payload && zip -qry ../Farmable-unsigned.ipa Payload
+          cp -R build/ios/iphoneos/Runner.app payload/Payload/
+          cd payload && zip -qry ../Almanac-unsigned.ipa Payload
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: farmable-ios-unsigned-${{ env.MOBILE_ARTIFACT_KIND }}
-          path: apps/mobile/ios/Farmable-unsigned.ipa
+          name: almanac-ios-unsigned-${{ env.MOBILE_ARTIFACT_KIND }}
+          path: apps/mobile/Almanac-unsigned.ipa
           if-no-files-found: error
 
   android-build:
@@ -186,43 +160,33 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      # Enable pnpm before any cache step tries to locate its store.
-      - run: corepack enable
-      - name: Locate pnpm store
-        id: pnpm-store
-        shell: bash
-        run: |
-          store_path=$(pnpm store path --silent)
-          echo "path=$store_path" >> "$GITHUB_OUTPUT"
-      - name: Restore pnpm store
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
         with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('.nvmrc', 'package.json', 'pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-pnpm-
-      - run: pnpm install --frozen-lockfile
-      - name: Generate the Android project
-        run: pnpm -C apps/mobile exec expo prebuild --platform android --no-install --clean
-      - name: Restore Android build caches
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: apps/mobile
+      - name: Restore Gradle cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-            apps/mobile/android/.gradle
-            apps/mobile/android/app/build
-          key: ${{ runner.os }}-android-${{ hashFiles('pnpm-lock.yaml', 'apps/mobile/app.config.ts', 'apps/mobile/package.json') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/pubspec.lock') }}
           restore-keys: |
-            ${{ runner.os }}-android-
+            ${{ runner.os }}-gradle-
       - name: Build the APK
-        working-directory: apps/mobile/android
+        working-directory: apps/mobile
         # Physical test phones use ARM64. The E2E job builds its own x86_64 APK.
-        run: ./gradlew assembleRelease --no-daemon --build-cache --parallel -PreactNativeArchitectures=arm64-v8a
+        run: |
+          flutter build apk --release --target-platform android-arm64 \
+            --dart-define=API_URL="$MOBILE_API_BASE_URL" \
+            --dart-define=BUILD_SHA="$BUILD_SHA"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: farmable-android-arm64-apk-${{ env.MOBILE_ARTIFACT_KIND }}
-          path: apps/mobile/android/app/build/outputs/apk/release/*.apk
+          name: almanac-android-arm64-apk-${{ env.MOBILE_ARTIFACT_KIND }}
+          path: apps/mobile/build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
       - name: Check the Android test phone supports ARCore
         # Exits 2 with no phone attached, which is the normal case on a runner.

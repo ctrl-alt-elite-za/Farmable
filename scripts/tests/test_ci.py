@@ -40,7 +40,7 @@ def test_shared_changes_check_all_consumers(path):
 
 
 def test_mobile_only_does_not_build_backend():
-    assert scopes(["apps/mobile/app.tsx"]) == {
+    assert scopes(["apps/mobile/lib/main.dart"]) == {
         "backend": False,
         "mobile": True,
         "any": True,
@@ -316,17 +316,21 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     java = next(step for step in steps if step.get("uses", "").startswith("actions/setup-java@"))
     assert (repo / java["with"]["cache-dependency-path"]).is_file()
     build = (repo / "scripts/ci-mobile.sh").read_text()
-    assert "assembleRelease" in build and "assembleDebug" not in build
-    assert "-PreactNativeArchitectures=x86_64" in build
-    assert "expo prebuild --platform android --no-install --clean" in build
+    # A release build, because a debug build needs a Dart VM service the E2E
+    # harness does not provide; x86_64 only, because the CI emulator is x86_64.
+    assert "flutter build apk --release" in build and "--debug" not in build
+    assert "--target-platform android-x64" in build
+    # Test mode replays recorded frames so camera screens run without a camera.
+    assert "--dart-define=TEST_MODE=true" in build
     device_workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
     device_steps = device_workflow["jobs"]["android-build"]["steps"]
     device_build = next(step for step in device_steps if step.get("name") == "Build the APK")
-    assert "-PreactNativeArchitectures=arm64-v8a" in device_build["run"]
+    # Physical test phones are ARM64; the emulator build above is separate.
+    assert "--target-platform android-arm64" in device_build["run"]
     assert device_workflow["jobs"]["android-build"]["timeout-minutes"] == 30
     for step in steps:
         if "APK=" in step.get("with", {}).get("script", ""):
-            assert "apk/release/app-release.apk" in step["with"]["script"]
+            assert "flutter-apk/app-release.apk" in step["with"]["script"]
     stack = (repo / "scripts/ci-stack.sh").read_text()
     online = stack.index("maestro test e2e/mobile/online_launch.yaml")
     stop = stack.index('"${compose[@]}" stop api')
