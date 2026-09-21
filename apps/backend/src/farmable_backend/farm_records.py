@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from farmable_backend.models import (
+    Farm,
     FarmTask,
     FinancialRecord,
     Media,
@@ -81,6 +82,24 @@ class FarmRecordRepository:
         return self.session.scalar(
             select(SyncMutation).where(SyncMutation.mutation_id == mutation_id)
         )
+
+    def _lock_change_stream(self) -> None:
+        """Serialize cursor allocation within this owned farm until commit."""
+        locked_farm_id = self.session.scalar(
+            select(Farm.id)
+            .where(Farm.id == self.farm_id, Farm.owner_id == self.owner_id)
+            .with_for_update()
+        )
+        if locked_farm_id is None:
+            raise RecordNotFoundError("farm not found")
+
+    def _mutation_or_lock_change_stream(self, mutation_id: UUID) -> SyncMutation | None:
+        """Return a replay, or lock the farm and recheck before a new change."""
+        existing = self._mutation(mutation_id)
+        if existing is not None:
+            return existing
+        self._lock_change_stream()
+        return self._mutation(mutation_id)
 
     def _replayed_observation(
         self,
@@ -167,7 +186,7 @@ class FarmRecordRepository:
                 "type": type,
             }
         )
-        existing_mutation = self._mutation(mutation_id)
+        existing_mutation = self._mutation_or_lock_change_stream(mutation_id)
         if existing_mutation is not None:
             return self._replayed_observation(
                 existing_mutation,
@@ -243,7 +262,7 @@ class FarmRecordRepository:
                 "record_type": "observation",
             }
         )
-        existing_mutation = self._mutation(mutation_id)
+        existing_mutation = self._mutation_or_lock_change_stream(mutation_id)
         if existing_mutation is not None:
             return self._replayed_observation(
                 existing_mutation,

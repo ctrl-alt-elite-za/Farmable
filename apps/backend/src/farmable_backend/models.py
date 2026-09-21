@@ -476,6 +476,7 @@ class SyncMutation(Base):
         _max_length("operation", "sync_mutations", 20),
         _max_length("record_type", "sync_mutations", 100),
         UniqueConstraint("mutation_id", name="uq_sync_mutations_mutation_id"),
+        UniqueConstraint("id", "farm_id", "owner_id", name="uq_sync_mutations_id_farm_owner"),
         Index("ix_sync_mutations_owner_farm", "owner_id", "farm_id"),
         Index("ix_sync_mutations_record", "record_type", "record_id"),
     )
@@ -495,6 +496,12 @@ class SyncChange(Base):
     __tablename__ = "sync_changes"
     __table_args__ = (
         _farm_owner_fk("sync_changes"),
+        ForeignKeyConstraint(
+            ("mutation_id", "farm_id", "owner_id"),
+            ("sync_mutations.id", "sync_mutations.farm_id", "sync_mutations.owner_id"),
+            name="fk_sync_changes_mutation_farm_owner",
+            ondelete="CASCADE",
+        ),
         CheckConstraint(column("version") > 0, name="ck_sync_changes_version_positive"),
         _nonblank("operation", "sync_changes"),
         _nonblank("record_type", "sync_changes"),
@@ -508,9 +515,7 @@ class SyncChange(Base):
     id: Mapped[int] = mapped_column(CHANGE_CURSOR, Identity(), primary_key=True)
     farm_id: Mapped[UUID] = mapped_column(Uuid)
     owner_id: Mapped[UUID] = mapped_column(Uuid)
-    mutation_id: Mapped[UUID] = mapped_column(
-        Uuid, ForeignKey("sync_mutations.id", ondelete="CASCADE")
-    )
+    mutation_id: Mapped[UUID] = mapped_column(Uuid)
     record_type: Mapped[str] = mapped_column(Text)
     record_id: Mapped[UUID] = mapped_column(Uuid)
     operation: Mapped[str] = mapped_column(Text)

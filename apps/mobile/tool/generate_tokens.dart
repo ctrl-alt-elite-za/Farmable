@@ -1,0 +1,317 @@
+// Generates lib/app/theme/tokens.g.dart from design/tokens.css.
+//
+// The design set is the single source of truth for colour, type, spacing,
+// radii, elevation and motion. Transcribing ~70 hex values by hand guarantees
+// drift the first time a designer changes one, so nobody does: run `make
+// tokens` (or `dart run tool/generate_tokens.dart`) and commit the result.
+//
+// `--verify` regenerates in memory and exits non-zero if the committed file
+// differs, so CI can fail a PR that edits tokens.css without regenerating.
+
+import 'dart:io';
+
+void main(List<String> args) {
+  final root = Directory.current;
+  final source = File('${root.path}/design/tokens.css');
+  final target = File('${root.path}/lib/app/theme/tokens.g.dart');
+
+  if (!source.existsSync()) {
+    stderr.writeln('Cannot find ${source.path}. Run from apps/almanac.');
+    exit(2);
+  }
+
+  final css = source.readAsStringSync();
+  final generated = _render(
+    scale: _vars(_block(css, r':root\s*\{')),
+    light: _vars(_block(css, r':root,\s*\[data-theme="light"\]\s*\{')),
+    dark: _vars(_block(css, r'\[data-theme="dark"\]\s*\{')),
+  );
+
+  if (args.contains('--verify')) {
+    final current = target.existsSync() ? target.readAsStringSync() : '';
+    // Format the candidate the same way the written file is formatted, so this
+    // compares content rather than whitespace.
+    final candidate = _formatted(generated);
+    if (_normalise(current) != _normalise(candidate)) {
+      stderr.writeln(
+        'tokens.g.dart is stale. design/tokens.css changed without regenerating.\n'
+        'Run: dart run tool/generate_tokens.dart',
+      );
+      exit(1);
+    }
+    stdout.writeln('tokens.g.dart is up to date.');
+    return;
+  }
+
+  target.parent.createSync(recursive: true);
+  target.writeAsStringSync(generated);
+
+  // Format the output rather than trusting it to come out format-clean. Without
+  // this, emitting anything `dart format` would rewrite puts the format check
+  // and `--verify` in permanent conflict: formatting the committed file makes
+  // it differ from freshly generated output, and regenerating undoes the
+  // formatting. The failure is confusing and the fix is two lines.
+  final fmt = Process.runSync('dart', ['format', target.path]);
+  if (fmt.exitCode != 0) {
+    stderr.writeln('dart format failed on ${target.path}:\n${fmt.stderr}');
+    exit(3);
+  }
+
+  stdout.writeln('Wrote ${target.path}');
+}
+
+String _normalise(String s) => s.replaceAll('\r\n', '\n').trimRight();
+
+/// Runs `dart format` over [source] via a temporary file.
+String _formatted(String source) {
+  final dir = Directory.systemTemp.createTempSync('almanac_tokens');
+  try {
+    final file = File('${dir.path}/tokens.g.dart')..writeAsStringSync(source);
+    final result = Process.runSync('dart', ['format', file.path]);
+    if (result.exitCode != 0) {
+      stderr.writeln('dart format failed:\n${result.stderr}');
+      exit(3);
+    }
+    return file.readAsStringSync();
+  } finally {
+    dir.deleteSync(recursive: true);
+  }
+}
+
+/// Extracts the body of the first CSS block whose selector matches [selector].
+String _block(String css, String selector) {
+  final start = RegExp(selector).firstMatch(css);
+  if (start == null) throw StateError('No block matching $selector');
+  var depth = 1;
+  final buffer = StringBuffer();
+  for (var i = start.end; i < css.length; i++) {
+    final ch = css[i];
+    if (ch == '{') depth++;
+    if (ch == '}') {
+      depth--;
+      if (depth == 0) break;
+    }
+    buffer.write(ch);
+  }
+  return buffer.toString();
+}
+
+/// Custom properties in declaration order, comments stripped.
+Map<String, String> _vars(String block) {
+  final withoutComments = block.replaceAll(
+    RegExp(r'/\*.*?\*/', dotAll: true),
+    '',
+  );
+  final out = <String, String>{};
+  for (final match in RegExp(
+    r'--([a-z0-9-]+)\s*:\s*([^;]+);',
+    caseSensitive: false,
+  ).allMatches(withoutComments)) {
+    out[match.group(1)!] = match.group(2)!.trim();
+  }
+  return out;
+}
+
+/// `--on-surface-variant` -> `onSurfaceVariant`; `--r-2xl` -> `r2xl`.
+String _camel(String kebab) {
+  final parts = kebab.split('-').where((p) => p.isNotEmpty).toList();
+  return parts.first +
+      parts.skip(1).map((p) => p[0].toUpperCase() + p.substring(1)).join();
+}
+
+final _hex = RegExp(r'^#([0-9a-fA-F]{6})$');
+final _rgba = RegExp(
+  r'^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,/\s]+([\d.]+))?\s*\)$',
+);
+
+/// Returns a Dart `Color(0x…)` literal, or null when the value is not a colour.
+String? _color(String value) {
+  final hex = _hex.firstMatch(value);
+  if (hex != null) return 'Color(0xFF${hex.group(1)!.toUpperCase()})';
+
+  final rgba = _rgba.firstMatch(value);
+  if (rgba != null) {
+    final a = double.parse(rgba.group(4) ?? '1');
+    final alpha = (a * 255).round().clamp(0, 255);
+    final channels = [1, 2, 3]
+        .map((i) => int.parse(rgba.group(i)!.split('.').first).clamp(0, 255))
+        .map((c) => c.toRadixString(16).padLeft(2, '0').toUpperCase())
+        .join();
+    return 'Color(0x${alpha.toRadixString(16).padLeft(2, '0').toUpperCase()}$channels)';
+  }
+  return null;
+}
+
+double? _px(String value) {
+  final m = RegExp(r'^(-?[\d.]+)px$').firstMatch(value.trim());
+  return m == null ? null : double.parse(m.group(1)!);
+}
+
+int? _ms(String value) {
+  final m = RegExp(r'^(\d+)ms$').firstMatch(value.trim());
+  return m == null ? null : int.parse(m.group(1)!);
+}
+
+/// `600 17px/24px var(--font-text)` -> weight, size, height.
+({int weight, double size, double lineHeight})? _type(String value) {
+  final m = RegExp(r'^(\d{3})\s+([\d.]+)px\s*/\s*([\d.]+)px')
+      .firstMatch(value.trim());
+  if (m == null) return null;
+  return (
+    weight: int.parse(m.group(1)!),
+    size: double.parse(m.group(2)!),
+    lineHeight: double.parse(m.group(3)!),
+  );
+}
+
+/// `cubic-bezier(0.2, 0, 0, 1)` -> `Cubic(0.2, 0, 0, 1)`.
+String? _cubic(String value) {
+  final m = RegExp(r'^cubic-bezier\(([^)]+)\)$').firstMatch(value.trim());
+  if (m == null) return null;
+  final n = m.group(1)!.split(',').map((p) => double.parse(p.trim()));
+  return 'Cubic(${n.join(', ')})';
+}
+
+String _render({
+  required Map<String, String> scale,
+  required Map<String, String> light,
+  required Map<String, String> dark,
+}) {
+  final b = StringBuffer()
+    ..writeln('// GENERATED BY tool/generate_tokens.dart — DO NOT EDIT.')
+    ..writeln('// Source: design/tokens.css. Regenerate with `make tokens`.')
+    ..writeln('//')
+    ..writeln(
+      '// Every on*/status/connectivity pair here is verified >= 4.5:1 by the',
+    )
+    ..writeln(
+      '// design set\'s contrast.mjs (130 pairs, 0 failures). Changing a value by',
+    )
+    ..writeln(
+      '// hand bypasses that check — change tokens.css and regenerate instead.',
+    )
+    ..writeln()
+    ..writeln("import 'dart:ui';")
+    ..writeln()
+    ..writeln("import 'package:flutter/animation.dart' show Cubic;")
+    ..writeln()
+    ..writeln('/// The full colour role set for one theme.')
+    ..writeln('class AlmanacColors {');
+
+  // Colour roles are whatever light defines; dark must define the same keys.
+  final roles = light.entries
+      .where((e) => _color(e.value) != null)
+      .map((e) => e.key)
+      .toList();
+
+  for (final role in roles) {
+    b.writeln('  final Color ${_camel(role)};');
+  }
+  b
+    ..writeln()
+    ..writeln('  const AlmanacColors({');
+  for (final role in roles) {
+    b.writeln('    required this.${_camel(role)},');
+  }
+  b
+    ..writeln('  });')
+    ..writeln('}')
+    ..writeln();
+
+  for (final entry in {'light': light, 'dark': dark}.entries) {
+    b.writeln(
+      'const almanacColors${entry.key[0].toUpperCase()}${entry.key.substring(1)} ='
+      ' AlmanacColors(',
+    );
+    for (final role in roles) {
+      final value = entry.value[role];
+      if (value == null) {
+        throw StateError(
+          'Role "$role" is defined in light but missing from ${entry.key}',
+        );
+      }
+      final color = _color(value);
+      if (color == null) {
+        throw StateError(
+          'Role "$role" is not a colour in ${entry.key}: $value',
+        );
+      }
+      b.writeln('  ${_camel(role)}: $color,');
+    }
+    b
+      ..writeln(');')
+      ..writeln();
+  }
+
+  // Scale tokens — theme-invariant.
+  b.writeln('/// Spacing, radii and layout. 4px base.');
+  b.writeln('abstract final class AlmanacDimens {');
+  for (final e in scale.entries) {
+    final px = _px(e.value);
+    if (px == null) continue;
+    if (!e.key.startsWith('sp-') &&
+        !e.key.startsWith('r-') &&
+        !['touch-min', 'gutter', 'navbar-h'].contains(e.key)) {
+      continue;
+    }
+    b.writeln('  static const double ${_camel(e.key)} = $px;');
+  }
+  b
+    ..writeln('}')
+    ..writeln();
+
+  b.writeln(
+    '/// Motion. Durations collapse to 1ms under reduced motion — see AppMotion.',
+  );
+  b.writeln('abstract final class AlmanacMotion {');
+  for (final e in scale.entries) {
+    final ms = _ms(e.value);
+    if (ms != null) {
+      b.writeln(
+        '  static const Duration ${_camel(e.key)} = Duration(milliseconds: $ms);',
+      );
+    }
+  }
+  for (final e in scale.entries) {
+    final cubic = _cubic(e.value);
+    if (cubic != null) {
+      b.writeln('  static const Cubic ${_camel(e.key)} = $cubic;');
+    }
+  }
+  b
+    ..writeln('}')
+    ..writeln();
+
+  b.writeln('/// One entry of the type scale, in logical pixels.');
+  b.writeln('class AlmanacTypeToken {');
+  b.writeln('  final int weight;');
+  b.writeln('  final double size;');
+  b.writeln('  final double lineHeight;');
+  b.writeln(
+    '  const AlmanacTypeToken(this.weight, this.size, this.lineHeight);',
+  );
+  b.writeln();
+  b.writeln('  /// Flutter expects line height as a multiple of font size.');
+  b.writeln('  double get heightFactor => lineHeight / size;');
+  b.writeln('}');
+  b.writeln();
+
+  b.writeln(
+    '/// Type scale. Floor is 14px body / 13px meta — there is deliberately',
+  );
+  b.writeln('/// no smaller token to reach for.');
+  b.writeln('abstract final class AlmanacType {');
+  for (final e in scale.entries) {
+    if (!e.key.startsWith('type-')) continue;
+    final t = _type(e.value);
+    if (t == null) continue;
+    final name = _camel(e.key.substring('type-'.length));
+    b.writeln(
+      '  static const AlmanacTypeToken $name ='
+      ' AlmanacTypeToken(${t.weight}, ${t.size}, ${t.lineHeight});',
+    );
+  }
+  b.writeln('}');
+
+  return b.toString();
+}

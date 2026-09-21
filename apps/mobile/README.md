@@ -1,15 +1,40 @@
-# Farmable Flutter mobile app
+# Almanac mobile
 
-This is the Flutter replacement for the retired Expo client. It currently implements only the issue #9 authentication/session flow: sign-up, sequential phone/email verification, password login and restoring a previously valid secure local session while offline.
+Flutter 3.47.1 application scaffold, design tokens and client for the local demo
+planning API. The current screen reports connectivity; authentication and the
+production farm, observation, task and finance endpoints are not implemented here.
 
-```bash
-cd apps/mobile
-flutter pub get
-flutter test
+## Run and test
+
+From `apps/mobile`:
+
+```sh
+flutter pub get --enforce-lockfile
+flutter run --dart-define=API_URL=https://your-api.example
 flutter analyze
-flutter run
+flutter test --exclude-tags demo-api
+dart run tool/generate_tokens.dart --verify
 ```
 
-Set `--dart-define=API_BASE_URL=https://your-api.example` for a device-reachable API URL. The default is `http://10.0.2.2:8000` for an Android emulator.
+From the repository root, run the API contract tests:
 
-`assets/models/` is intentionally a handoff location for issue #16. `VisionService` is a swappable interface only: this client does not bundle, invoke or claim support for a vision model yet.
+```sh
+uv run python scripts/test_mobile_contract.py
+```
+
+The Linux/macOS runner starts an isolated demo API on an ephemeral loopback port,
+runs the Flutter contract tests, and cleans up its server and temporary database.
+CI runs both test suites. Selected contract tests fail when the backend is absent;
+they never silently pass without exercising it.
+
+## Mutations and retries
+
+Every section or plan mutation requires a caller-supplied `mutationId`. Generate
+and persist it with the user action, then reuse it with the identical payload on
+every retry, including after restart. A timeout can happen after the server has
+committed the change. Use a new ID for a new action. This repository provides the
+HTTP contract; a durable local mutation queue remains separate work.
+
+Release CI validates device API URLs with `scripts/mobile-api.mjs`. Without a
+configured URL, artifacts are explicitly labelled compile-only and remain offline.
+The emulator uses `http://10.0.2.2:8000`; physical devices need a reachable HTTPS API.

@@ -4,14 +4,21 @@ on:
   pull_request:
     paths:
       - 'apps/mobile/**'
-      - 'scripts/ci-mobile.sh'
+      - 'scripts/check-test-mode.sh'
+      - 'scripts/check-arcore-device.sh'
+      - 'scripts/mobile-api.mjs'
+      - 'scripts/test_mobile_contract.py'
+      - 'apps/backend/src/farmable_backend/demo_api/**'
+      - 'apps/backend/src/farmable_backend/planning/**'
+      - 'uv.lock'
+      - 'scripts/tests/mobile-api.test.mjs'
       - '.github/workflows/mobile.yml'
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
       api_url:
-        description: 'Non-secret, device-reachable HTTPS API URL'
+        description: 'Non-secret, phone-reachable HTTPS API URL (overrides MOBILE_API_URL repository variable)'
         required: false
         type: string
 
@@ -23,55 +30,144 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: '3.47.1'
-  API_BASE_URL: ${{ inputs.api_url || vars.MOBILE_API_URL || 'https://api.invalid' }}
+  # Device API URLs are non-secret and validated per build. No localhost release.
+  BUILD_SHA: ${{ github.sha }}
+  # Pinned so a Flutter release cannot change the build out from under a PR.
+  FLUTTER_VERSION: 3.47.1
 
 jobs:
+  native-changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      native: ${{ steps.detect.outputs.native }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Detect native build changes
+        id: detect
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "native=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Fail if the diff cannot be read; consume all output under pipefail.
+          changed_files=$(git diff --name-only "$BASE_SHA...$GITHUB_SHA")
+          if printf '%s\n' "$changed_files" | grep -E \
+            '^(apps/mobile/|scripts/mobile-api\.mjs$|\.github/workflows/mobile\.yml$)' > /dev/null; then
+            echo "native=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "native=false" >> "$GITHUB_OUTPUT"
+          fi
+
   mobile-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: apps/mobile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Check physical-device API configuration policy
+        run: node --test scripts/tests/mobile-api.test.mjs
       - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Test mode and demo mode must not both be set
+        run: bash scripts/check-test-mode.sh
       - run: flutter pub get --enforce-lockfile
-      - run: dart format --output=none --set-exit-if-changed lib test
+        working-directory: apps/mobile
+      - name: Design tokens must match the design set
+        # The Dart theme is generated from design/tokens.css. This fails if the
+        # CSS changed without regenerating, so the app cannot drift from the
+        # contrast-verified design.
+        run: dart run tool/generate_tokens.dart --verify
+        working-directory: apps/mobile
+      - run: dart format --output=none --set-exit-if-changed lib test tool
+        working-directory: apps/mobile
       - run: flutter analyze
-      - run: flutter test
+        working-directory: apps/mobile
+      - run: flutter test --exclude-tags demo-api
+        working-directory: apps/mobile
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: '0.12.15'
+      - run: uv sync --locked
+      - name: Exercise the Flutter client against the demo API
+        run: uv run python scripts/test_mobile_contract.py
 
   ios-unsigned-build:
+    needs: native-changes
+    if: needs.native-changes.outputs.native == 'true'
     runs-on: macos-26
     timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: apps/mobile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Configure device API URL or label compile-only artifact
+        run: node scripts/mobile-api.mjs
+        env:
+          MOBILE_API_URL: ${{ inputs.api_url || vars.MOBILE_API_URL }}
       - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - name: Build unsigned iOS application
-        run: flutter build ios --release --no-codesign --dart-define=API_BASE_URL="$API_BASE_URL"
+        working-directory: apps/mobile
+      - name: Restore CocoaPods cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            apps/mobile/ios/Pods
+          key: ${{ runner.os }}-ios-${{ hashFiles('apps/mobile/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-ios-
+      - name: Build without signing
+        working-directory: apps/mobile
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=API_URL="$MOBILE_API_BASE_URL" \
+            --dart-define=BUILD_SHA="$BUILD_SHA"
+      - name: Package Almanac-unsigned.ipa
+        working-directory: apps/mobile
+        run: |
+          mkdir -p payload/Payload
+          cp -R build/ios/iphoneos/Runner.app payload/Payload/
+          cd payload && zip -qry ../Almanac-unsigned.ipa Payload
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: farmable-ios-unsigned
-          path: apps/mobile/build/ios/iphoneos/Runner.app
+          name: almanac-ios-unsigned-${{ env.MOBILE_ARTIFACT_KIND }}
+          path: apps/mobile/Almanac-unsigned.ipa
           if-no-files-found: error
 
   android-build:
+    needs: native-changes
+    if: needs.native-changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Configure device API URL or label compile-only artifact
+        run: node scripts/mobile-api.mjs
+        env:
+          MOBILE_API_URL: ${{ inputs.api_url || vars.MOBILE_API_URL }}
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
@@ -81,12 +177,30 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - working-directory: apps/mobile
-        run: flutter pub get --enforce-lockfile
-      - working-directory: apps/mobile
-        run: flutter build apk --release --dart-define=API_BASE_URL="$API_BASE_URL"
+      - run: flutter pub get --enforce-lockfile
+        working-directory: apps/mobile
+      - name: Restore Gradle cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: Build the APK
+        working-directory: apps/mobile
+        # Physical test phones use ARM64. The E2E job builds its own x86_64 APK.
+        run: |
+          flutter build apk --release --target-platform android-arm64 \
+            --dart-define=API_URL="$MOBILE_API_BASE_URL" \
+            --dart-define=BUILD_SHA="$BUILD_SHA"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: farmable-android-apk
-          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          name: almanac-android-arm64-apk-${{ env.MOBILE_ARTIFACT_KIND }}
+          path: apps/mobile/build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
+      - name: Check the Android test phone supports ARCore
+        # Exits 2 with no phone attached, which is the normal case on a runner.
+        continue-on-error: true
+        run: bash scripts/check-arcore-device.sh

@@ -1,8 +1,5 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const FarmableApp());
-}
+void main() => runApp(const AlmanacApp());

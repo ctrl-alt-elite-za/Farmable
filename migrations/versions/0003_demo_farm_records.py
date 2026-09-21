@@ -331,6 +331,7 @@ def upgrade() -> None:
         max_length("operation", "sync_mutations", 20),
         max_length("record_type", "sync_mutations", 100),
         sa.UniqueConstraint("mutation_id", name="uq_sync_mutations_mutation_id"),
+        sa.UniqueConstraint("id", "farm_id", "owner_id", name="uq_sync_mutations_id_farm_owner"),
     )
     op.create_index("ix_sync_mutations_owner_farm", "sync_mutations", ["owner_id", "farm_id"])
     op.create_index("ix_sync_mutations_record", "sync_mutations", ["record_type", "record_id"])
@@ -345,12 +346,7 @@ def upgrade() -> None:
         ),
         sa.Column("farm_id", sa.Uuid(), nullable=False),
         sa.Column("owner_id", sa.Uuid(), nullable=False),
-        sa.Column(
-            "mutation_id",
-            sa.Uuid(),
-            sa.ForeignKey("sync_mutations.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
+        sa.Column("mutation_id", sa.Uuid(), nullable=False),
         sa.Column("record_type", sa.Text(), nullable=False),
         sa.Column("record_id", sa.Uuid(), nullable=False),
         sa.Column("operation", sa.Text(), nullable=False),
@@ -362,6 +358,12 @@ def upgrade() -> None:
             ("farm_id", "owner_id"),
             ("farms.id", "farms.owner_id"),
             name="fk_sync_changes_farm_owner",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ("mutation_id", "farm_id", "owner_id"),
+            ("sync_mutations.id", "sync_mutations.farm_id", "sync_mutations.owner_id"),
+            name="fk_sync_changes_mutation_farm_owner",
             ondelete="CASCADE",
         ),
         sa.CheckConstraint(sa.column("version") > 0, name="ck_sync_changes_version_positive"),

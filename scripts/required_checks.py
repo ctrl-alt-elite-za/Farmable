@@ -7,6 +7,7 @@ import os
 import urllib.error
 from pathlib import Path
 
+import yaml
 from ci_report import all_pages, request_json
 
 
@@ -26,10 +27,10 @@ def main() -> None:
         raise RuntimeError("A repository administrator must configure branch protection")
     if request_json(prefix + "/issues/4")["state"] != "closed":
         raise RuntimeError("Refusing to activate incomplete mobile checks before #4 is verified")
-    manifest = request_json(prefix + "/contents/apps/mobile/pubspec.yaml?ref=main")
-    mobile = base64.b64decode(manifest["content"]).decode("utf-8")
-    if "name: farmable_mobile" not in mobile or "flutter:" not in mobile:
-        raise RuntimeError("Main does not contain #4's Flutter app")
+    package = request_json(prefix + "/contents/apps/mobile/pubspec.yaml?ref=main")
+    mobile = yaml.safe_load(base64.b64decode(package["content"]))
+    if mobile.get("dependencies", {}).get("flutter", {}).get("sdk") != "flutter":
+        raise RuntimeError("Main does not contain the Flutter app")
     flows = request_json(prefix + "/contents/e2e/mobile?ref=main")
     if not any(item["name"].endswith(".yaml") and item["type"] == "file" for item in flows):
         raise RuntimeError("Main does not contain real Maestro flows")

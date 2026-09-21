@@ -30,7 +30,6 @@ setup:
 		echo "pnpm not on PATH after corepack enable."; \
 		echo "Add this to your shell profile: export PATH=\"$$HOME/.local/bin:$$PATH\""; \
 		exit 1; }
-	@if command -v flutter >/dev/null 2>&1; then cd apps/mobile && flutter pub get; else echo "flutter not found - mobile setup skipped (see README)"; fi
 	@# uv and pnpm install in parallel; each exit code is checked explicitly.
 	@set -e; \
 	(uv sync) & uv_pid=$$!; \

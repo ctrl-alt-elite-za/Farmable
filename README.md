@@ -14,7 +14,6 @@ make setup
 
 ### Prerequisites
 
-- **Flutter** — stable 3.47.1 (Dart 3.13.1), used by `apps/mobile`.
 - **Node** — the version in [`.nvmrc`](.nvmrc) (Node 22). `nvm install` picks it up
   automatically. pnpm itself is provisioned by Corepack; don't install it globally.
 - **Python** — the version in [`.python-version`](.python-version) (3.12). `uv` is
@@ -35,8 +34,7 @@ Works on Linux, macOS, and Windows via WSL.
    needs write access to the system Node directory.
 3. Syncs Python dependencies (`uv sync`) and Node dependencies
    (`pnpm install --frozen-lockfile`) in parallel.
-4. Installs Flutter dependencies (`flutter pub get` in `apps/mobile`).
-5. Installs the git pre-commit and pre-push hooks.
+4. Installs the git pre-commit and pre-push hooks.
 
 Tool versions are pinned in `.python-version`, `.nvmrc`, `package.json`'s
 `packageManager` and `devDependencies`, `uv.lock`, `pnpm-lock.yaml`, and
@@ -61,10 +59,6 @@ Tool versions are pinned in `.python-version`, `.nvmrc`, `package.json`'s
 See [the backend guide](apps/backend/README.md) for local services, safe defaults,
 migrations, and integration tests. Unit tests do not require Docker. Commands for
 languages with no source files yet remain no-ops.
-
-The mobile entry point is `apps/mobile/lib/main.dart`. Run `flutter analyze`,
-`flutter test`, or `flutter run` from `apps/mobile`; see its README for API URL
-configuration and the issue #16 vision-runtime handoff.
 
 ## Troubleshooting
 

@@ -61,7 +61,7 @@ they do not claim an unrelated PR fixes a particular advisory.
 This change cannot honestly close #5 yet:
 
 - **#4 remains open for physical-device acceptance:** main now contains the
-  Flutter app and Maestro launch flows. The `e2e-mobile` job builds a standalone
+  Expo app and Maestro launch flows. The `e2e-mobile` job builds a standalone
   release test APK (no Metro server required), enables HTTP only in test-mode
   builds, and verifies Online against its isolated API at `10.0.2.2:8000`.
   It then stops only its own API to verify Offline. Emulator boot may retry

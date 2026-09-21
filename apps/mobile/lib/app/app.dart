@@ -1,27 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../features/auth/presentation/auth_controller.dart';
-import 'router.dart';
+import '../features/status/status_screen.dart';
 import 'theme/app_theme.dart';
 
-class FarmableApp extends StatelessWidget {
-  const FarmableApp({super.key});
+class AlmanacApp extends StatelessWidget {
+  const AlmanacApp({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const ProviderScope(child: _FarmableRoot());
-}
-
-class _FarmableRoot extends ConsumerWidget {
-  const _FarmableRoot();
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(sessionControllerProvider);
-    return MaterialApp.router(
-      title: 'Farmable',
-      theme: AppTheme.light,
-      routerConfig: createRouter(session),
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Almanac',
+      debugShowCheckedModeBanner: false,
+      theme: almanacLightTheme(),
+      darkTheme: almanacDarkTheme(),
+      // The design ships both themes; the farmer's device decides. Dark is not
+      // a preference here so much as a response to working at dawn and in sheds.
+      themeMode: ThemeMode.system,
+      home: const StatusScreen(),
     );
   }
 }

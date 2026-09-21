@@ -2,7 +2,7 @@
 
 Related: #8, #11, #12, #22, #25, #26. **MVP slices only; production issues remain
 open.** Depends on the planner core in PR39. This separate app is not mounted
-into the production API, Flutter application or your colleague's web branch.
+into the production API, Expo application or your colleague's web branch.
 
 ## Start
 

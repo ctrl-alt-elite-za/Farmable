@@ -1,37 +1,14 @@
-appId: za.co.ctrlaltelite.farmable
-name: Sign up, verify both channels and enter the farm shell
+# The isolated CI API must be running before this flow starts.
+appId: za.co.almanac.app
+name: App launches and reaches the isolated API
 ---
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: 'Log in'
+    visible: 'Almanac'
     timeout: 30000
-- tapOn: 'Create an account'
-- tapOn: 'Name'
-- inputText: 'Sipho'
-- tapOn: 'Surname'
-- inputText: 'Dlamini'
-- tapOn: 'Phone number'
-- inputText: '+27123456789'
-- tapOn: 'Email'
-- inputText: 'sipho@example.com'
-- tapOn: 'Password (15+ characters)'
-- inputText: 'correct horse battery staple'
-- tapOn: 'Create account'
+- assertVisible:
+    id: 'api-status'
 - extendedWaitUntil:
-    visible: 'Verify phone'
-    timeout: 15000
-- tapOn:
-    id: 'verification-code-input'
-- inputText: '111111'
-- tapOn: 'Verify phone'
-- extendedWaitUntil:
-    visible: 'Verify email'
-    timeout: 15000
-- tapOn:
-    id: 'verification-code-input'
-- inputText: '222222'
-- tapOn: 'Verify email'
-- extendedWaitUntil:
-    visible: 'Hello, Sipho'
-    timeout: 15000
+    visible: 'Online'
+    timeout: 30000
