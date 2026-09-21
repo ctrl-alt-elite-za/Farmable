@@ -21,6 +21,7 @@ from farmable_backend.models import (
     User,
 )
 from sqlalchemy import create_engine, event, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 
@@ -169,6 +170,37 @@ def test_mutation_id_cannot_be_replayed_by_another_owner(session: Session):
         FarmRecordRepository(session, second_owner, second.farm_id).create_observation(
             mutation_id=mutation_id, **observation_request(second, uuid4())
         )
+
+
+def test_change_cannot_reference_another_tenants_mutation(session: Session):
+    first_owner, second_owner = uuid4(), uuid4()
+    first = owned_section(session, first_owner)
+    second = owned_section(session, second_owner)
+    mutation = SyncMutation(
+        mutation_id=uuid4(),
+        farm_id=first.farm_id,
+        owner_id=first_owner,
+        operation="create",
+        record_type="observation",
+        record_id=uuid4(),
+        request_fingerprint="a" * 64,
+    )
+    session.add(mutation)
+    session.flush()
+    session.add(
+        SyncChange(
+            farm_id=second.farm_id,
+            owner_id=second_owner,
+            mutation_id=mutation.id,
+            record_type="observation",
+            record_id=uuid4(),
+            operation="create",
+            version=1,
+        )
+    )
+
+    with pytest.raises(IntegrityError):
+        session.flush()
 
 
 def test_tombstone_retry_is_stable_and_record_cannot_be_resurrected(session: Session):

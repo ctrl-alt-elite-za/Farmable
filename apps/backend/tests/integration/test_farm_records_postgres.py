@@ -139,6 +139,41 @@ def test_farm_records_database_rejects_cross_tenant_section(engine, farm_scope):
         remove_owner(engine, other_owner)
 
 
+def test_farm_records_database_rejects_cross_tenant_mutation_change(engine, farm_scope):
+    owner_id, farm_id, _section_id = farm_scope
+    with Session(engine) as session:
+        other_owner, other_farm, _other_section = create_scope(session)
+        mutation = SyncMutation(
+            mutation_id=uuid4(),
+            farm_id=other_farm,
+            owner_id=other_owner,
+            operation="create",
+            record_type="observation",
+            record_id=uuid4(),
+            request_fingerprint="a" * 64,
+        )
+        session.add(mutation)
+        session.commit()
+        mutation_id = mutation.id
+    try:
+        with Session(engine) as session:
+            session.add(
+                SyncChange(
+                    farm_id=farm_id,
+                    owner_id=owner_id,
+                    mutation_id=mutation_id,
+                    record_type="observation",
+                    record_id=uuid4(),
+                    operation="create",
+                    version=1,
+                )
+            )
+            with pytest.raises(IntegrityError):
+                session.commit()
+    finally:
+        remove_owner(engine, other_owner)
+
+
 def test_farm_records_concurrent_exact_replay_creates_one_change(engine, farm_scope):
     owner_id, farm_id, section_id = farm_scope
     mutation_id, observation_id = uuid4(), uuid4()
