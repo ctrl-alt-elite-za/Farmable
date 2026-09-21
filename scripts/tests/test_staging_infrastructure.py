@@ -264,7 +264,12 @@ LITERAL_ENV = (
 
 
 def _describe_body(env_json: str) -> str:
-    payload = '{"spec":{"containers":[{"env":[' + env_json + "]}]}}"
+    """Knative v1 nests containers under spec.template.spec, per run_v1_messages:
+    ServiceSpec.template -> RevisionTemplate -> RevisionSpec.containers. Writing the
+    real path matters even though gcp-secret-smoke.sh searches with `..`: a fixture
+    on a made-up path cannot catch a regression that makes the query path-sensitive.
+    """
+    payload = '{"spec":{"template":{"spec":{"containers":[{"env":[' + env_json + "]}]}}}}"
     return "cat <<'FAKEJSON'\n" + payload + "\nFAKEJSON\n"
 
 
@@ -473,3 +478,143 @@ def test_deploy_freeze_is_documented_as_a_repository_variable() -> None:
     readme = read("infra/README.md")
     assert "repository variable" in readme
     assert "protected environment" not in readme
+
+
+def test_backup_does_not_pass_unsupported_flags_to_sql_operations(tmp_path: Path) -> None:
+    """`gcloud sql operations wait|describe` take OPERATION plus wide flags only --
+    verified against gcloud 585.0.0, whose synopsis is
+    `gcloud sql operations wait OPERATION [OPERATION ...] [--timeout=TIMEOUT]`.
+    Passing --instance is an unrecognised argument, which under `set -Eeuo pipefail`
+    aborts the backup step and therefore every deploy, before the migration runs.
+
+    The fake rejects unknown flags the way a real CLI does, so this fails if an
+    unsupported flag is passed to either subcommand.
+    """
+    log = tmp_path / "calls.log"
+    _fake_gcloud(
+        tmp_path,
+        'printf \'%s\n\' "$*" >>"' + str(log) + '"\n'
+        'if [[ "$*" == *"sql operations"* ]]; then\n'
+        '  for arg in "$@"; do\n'
+        '    case "$arg" in\n'
+        "      --instance=*|--instance)\n"
+        '        echo "ERROR: unrecognized arguments: $arg" >&2\n'
+        "        exit 2 ;;\n"
+        "    esac\n"
+        "  done\n"
+        "fi\n"
+        'if [[ "$*" == *"sql backups create"* ]]; then\n'
+        "  printf '%s\\n' 'operation-abc123'; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"operations describe"* ]]; then\n'
+        '  if [[ "$*" == *"error.errors"* ]]; then exit 0; fi\n'
+        "  printf '%s\\n' 'DONE'; exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    result = _run(
+        "infra/gcp-backup.sh",
+        {
+            **os.environ,
+            "PATH": _path(tmp_path),
+            "GCP_PROJECT": "farmable-project",
+            "CLOUD_SQL_INSTANCE": "farmable-staging",
+            "COMMIT_SHA": "0123456789abcdef0123456789abcdef01234567",
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "unrecognized arguments" not in result.stderr
+
+
+_READY_JSON = (
+    '{"sha":"0123456789abcdef0123456789abcdef01234567","status":"ok",'
+    '"database":"ok","worker":"ok"}'
+)
+
+
+def _fake_curl(tmp_path: Path) -> None:
+    """Serves the readiness/liveness contract gcp-rollout.sh and gcp-demo-smoke.sh
+    poll, so the successful path can run to completion offline."""
+    curl = tmp_path / "curl"
+    curl.write_text(
+        "#!/usr/bin/env bash\n"
+        'url="${!#}"\n'
+        'case "$url" in\n'
+        "  *openapi.json) printf '%s\\n' '{\"paths\":{\"/health/ready\":{}}}' ;;\n"
+        "  *) printf '%s\\n' '" + _READY_JSON + "' ;;\n"
+        "esac\n",
+        encoding="utf-8",
+    )
+    curl.chmod(0o755)
+
+
+_STORAGE_STUB = r"""
+# gcp-storage-smoke.sh uploads, downloads and diffs a file, so a fake that merely
+# exits 0 leaves an empty download and the diff fails. Move the bytes through a
+# local stand-in for the bucket. Flags are skipped because `gcloud storage cp`
+# is called with a trailing --quiet, so the paths are not simply the last two args.
+if [[ "$*" == *"storage cp"* ]]; then
+  positional=()
+  for a in "$@"; do
+    case "$a" in --*) ;; *) positional+=("$a") ;; esac
+  done
+  resolve() {
+    case "$1" in
+      gs://*) printf '%s\n' "${FAKE_BUCKET}/${1#gs://}" ;;
+      *) printf '%s\n' "$1" ;;
+    esac
+  }
+  src="$(resolve "${positional[-2]}")"
+  dst="$(resolve "${positional[-1]}")"
+  mkdir -p "$(dirname "$dst")"
+  cp "$src" "$dst"
+  exit 0
+fi
+if [[ "$*" == *"storage rm"* ]]; then exit 0; fi
+"""
+
+
+@requires_jq
+def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
+    tmp_path: Path,
+) -> None:
+    """The path that actually runs on a merge -- deploy, resolve the tagged revision,
+    poll readiness, run the three smokes, then shift traffic -- had no coverage at
+    all: every other rollout test exits early. This asserts the deploy completes and
+    that 100% of traffic is moved to the revision this run created.
+    """
+    log = tmp_path / "calls.log"
+    sha = "0123456789abcdef0123456789abcdef01234567"
+    service_json = (
+        '{"status":{"traffic":[{"tag":"sha-' + sha + '",'
+        '"url":"https://sha-' + sha[:8] + '---farmable.run.app",'
+        '"revisionName":"farmable-00002"}]},'
+        '"spec":{"template":{"spec":{"containers":[{"env":[' + REFERENCE_ENV_V1 + "]}]}}}}"
+    )
+    _fake_gcloud(
+        tmp_path,
+        'printf \'%s\n\' "$*" >>"' + str(log) + '"\n'
+        # First deploy: no existing service.
+        'if [[ "$*" == *"run services list"* ]]; then exit 0; fi\n'
+        'if [[ "$*" == *"latestCreatedRevisionName"* ]]; then\n'
+        "  printf '%s\\n' 'farmable-00002'; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"run services describe"* ]]; then\n'
+        "  cat <<'FAKEJSON'\n" + service_json + "\nFAKEJSON\n"
+        "  exit 0\n"
+        "fi\n" + _STORAGE_STUB + "exit 0\n",
+    )
+    _fake_curl(tmp_path)
+
+    bucket = tmp_path / "bucket"
+    bucket.mkdir()
+    environment = {**_rollout_env(tmp_path), "FAKE_BUCKET": str(bucket)}
+    result = _run("infra/gcp-rollout.sh", environment)
+    assert result.returncode == 0, result.stderr + result.stdout
+    calls = log.read_text(encoding="utf-8")
+    assert "run deploy" in calls
+    assert "update-traffic" in calls
+    assert "farmable-00002=100" in calls
+    # A successful rollout must never touch the delete path.
+    assert "services delete" not in calls
+    assert f"Cloud Run deployed {sha}" in result.stdout

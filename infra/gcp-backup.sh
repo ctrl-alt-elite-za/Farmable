@@ -20,18 +20,19 @@ if [[ -z "$operation" || ! "$operation" =~ ^[A-Za-z0-9._-]+$ ]]; then
   exit 1
 fi
 
+# `gcloud sql operations wait|describe` take the operation name plus wide flags
+# only -- the synopsis is `gcloud sql operations wait OPERATION [OPERATION ...]
+# [--timeout=TIMEOUT]`. Passing --instance is an unrecognised argument, which under
+# `set -Eeuo pipefail` fails the backup step and so every deploy, before migration.
 gcloud sql operations wait "$operation" \
   --project="$GCP_PROJECT" \
-  --instance="$CLOUD_SQL_INSTANCE" \
   --quiet >/dev/null
 
 status="$(gcloud sql operations describe "$operation" \
   --project="$GCP_PROJECT" \
-  --instance="$CLOUD_SQL_INSTANCE" \
   --format='value(status)')"
 error_code="$(gcloud sql operations describe "$operation" \
   --project="$GCP_PROJECT" \
-  --instance="$CLOUD_SQL_INSTANCE" \
   --format='value(error.errors[0].code)')"
 
 if [[ "$status" != "DONE" || -n "$error_code" ]]; then
