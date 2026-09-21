@@ -19,7 +19,8 @@ class _VerifyPageState extends ConsumerState<VerifyPage> {
   @override
   void didUpdateWidget(covariant VerifyPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.channel != widget.channel || oldWidget.userId != widget.userId) {
+    if (oldWidget.channel != widget.channel ||
+        oldWidget.userId != widget.userId) {
       _code.clear();
     }
   }
