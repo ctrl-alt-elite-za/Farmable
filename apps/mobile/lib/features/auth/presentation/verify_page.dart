@@ -15,6 +15,15 @@ class VerifyPage extends ConsumerStatefulWidget {
 
 class _VerifyPageState extends ConsumerState<VerifyPage> {
   final _code = TextEditingController();
+
+  @override
+  void didUpdateWidget(covariant VerifyPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.channel != widget.channel || oldWidget.userId != widget.userId) {
+      _code.clear();
+    }
+  }
+
   @override
   void dispose() {
     _code.dispose();
