@@ -343,7 +343,7 @@ def test_mobile_maestro_flows_wait_for_release_app_startup():
     for name, expected in (("online_launch.yaml", "Online"), ("offline_launch.yaml", "Offline")):
         flow = (repo / "e2e/mobile" / name).read_text()
         assert "extendedWaitUntil:" in flow
-        assert "visible: 'Farmable'" in flow
+        assert "visible: 'Almanac'" in flow
         assert "timeout: 30000" in flow
         assert f"visible: '{expected}'" in flow
 
@@ -360,7 +360,7 @@ def test_mobile_launch_failure_keeps_diagnostics_before_emulator_shutdown():
     repo = Path(__file__).resolve().parents[2]
     stack = (repo / "scripts/ci-stack.sh").read_text()
     assert 'if [ "$mode" = mobile ] && [ "$status" -ne 0 ]' in stack
-    assert "AndroidRuntime:E ReactNativeJS:E" in stack
+    assert "AndroidRuntime:E flutter:E" in stack
     assert "adb exec-out screencap -p" in stack
     assert "uiautomator dump" in stack
     workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
