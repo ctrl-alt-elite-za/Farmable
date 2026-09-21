@@ -348,6 +348,43 @@ def test_mobile_maestro_flows_wait_for_release_app_startup():
         assert f"visible: '{expected}'" in flow
 
 
+def test_release_manifest_grants_network_access_and_scopes_cleartext():
+    """A release APK must be able to reach the network, and only over HTTPS.
+
+    `flutter create` declares INTERNET only in the debug and profile manifests,
+    so a release build silently has no network at all while debug builds work.
+    That failure mode reaches a real phone before anyone notices, so it is
+    asserted here rather than left to the E2E job to rediscover.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    manifest = (repo / "apps/mobile/android/app/src/main/AndroidManifest.xml").read_text()
+    assert 'android:name="android.permission.INTERNET"' in manifest
+
+    # Cleartext is permitted only for the emulator's route to its host, never
+    # globally: a farmer's phone must not be able to talk HTTP to anything.
+    assert 'android:usesCleartextTraffic="true"' not in manifest
+    assert 'android:networkSecurityConfig="@xml/network_security_config"' in manifest
+
+    config = repo / "apps/mobile/android/app/src/main/res/xml/network_security_config.xml"
+    assert config.is_file(), "referenced by the manifest, so it must be committed"
+    policy = config.read_text()
+    assert "<base-config cleartextTrafficPermitted=\"false\" />" in policy
+    assert "10.0.2.2" in policy
+
+
+def test_flutter_native_sources_are_not_gitignored():
+    """android/ and ios/ are committed source for Flutter, unlike under Expo.
+
+    Ignoring them hides only *new* native files, because gitignore does not
+    apply to already-tracked ones — so the repository looks healthy right up
+    until someone adds a resource and the release build breaks in CI.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    ignored = (repo / ".gitignore").read_text()
+    assert "apps/mobile/android/" not in ignored
+    assert "apps/mobile/ios/" not in ignored
+
+
 def test_privileged_reporter_never_checks_out_pr_code():
     repo = Path(__file__).resolve().parents[2]
     data = yaml.safe_load((repo / ".github/workflows/ci-report.yml").read_text())

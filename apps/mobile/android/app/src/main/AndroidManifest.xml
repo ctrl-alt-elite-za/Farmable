@@ -1,4 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      `flutter create` declares INTERNET only in the debug and profile
+      manifests, so a RELEASE build ships with no network access at all and
+      every API call fails silently. Debug builds work, which is what makes it
+      easy to miss until a release APK is in someone's hands.
+
+      Almanac is offline-first, not offline-only: it syncs, fetches prices and
+      talks to the planner whenever a connection exists.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="Almanac"
         android:name="${applicationName}"
