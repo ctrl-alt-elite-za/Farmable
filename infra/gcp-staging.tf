@@ -89,7 +89,10 @@ resource "google_storage_bucket" "media" {
 
   versioning { enabled = true }
   lifecycle_rule {
-    condition { age = 30 }
+    condition {
+      days_since_noncurrent_time = 30
+      with_state                  = "ARCHIVED"
+    }
     action { type = "Delete" }
   }
 }

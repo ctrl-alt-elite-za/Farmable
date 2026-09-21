@@ -8,6 +8,10 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  GCP_REGION: africa-south1
+  CLOUD_RUN_SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE || 'farmable-backend' }}
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -24,8 +28,13 @@ jobs:
       - uses: google-github-actions/setup-gcloud@6189d56e4096ee891640bb02ac264be376592d6a # v2.1.2
         with:
           version: '>= 494.0.0'
+      - name: Resolve the revision receiving live traffic
+        id: live
+        env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+        run: bash infra/gcp-live-config.sh
       - name: Verify the live SHA and health contract
         env:
-          API_URL: ${{ vars.GCP_STAGING_URL }}
-          COMMIT_SHA: ${{ vars.GCP_STAGING_SHA }}
+          API_URL: ${{ steps.live.outputs.api_url }}
+          COMMIT_SHA: ${{ steps.live.outputs.commit_sha }}
         run: bash infra/gcp-demo-smoke.sh

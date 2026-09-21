@@ -8,7 +8,8 @@ Issue #6 deploys the smallest online backend in `africa-south1`:
   extension used by the backend's existing schema.
 - Artifact Registry stores immutable images tagged with the full commit SHA.
 - Cloud Storage is uniform-access, versioned, and has public access prevention
-  enforced. The deployment service account runs a private upload/download smoke.
+  enforced. Live media is retained; noncurrent versions expire after 30 days.
+  The deployment service account runs a private upload/download smoke.
 - Secret Manager supplies `DATABASE_URL` and provider credentials to Cloud Run.
 - GitHub Actions uses OIDC Workload Identity Federation; no service-account JSON
   key is stored in GitHub or the repository.
@@ -47,7 +48,7 @@ postgis;`). The current migrations do not execute handwritten SQL, so this
    `GCP_DEPLOYER_SERVICE_ACCOUNT`, `GCP_RUNTIME_SERVICE_ACCOUNT`,
    `GCP_ARTIFACT_REPOSITORY`, `GCP_CLOUD_SQL_INSTANCE`,
    `GCP_CLOUD_SQL_CONNECTION`, `GCP_MEDIA_BUCKET`, `GCP_DATABASE_SECRET`,
-   `GCP_GEMINI_SECRET`, `GCP_STAGING_URL`, and `GCP_STAGING_SHA`.
+   and `GCP_GEMINI_SECRET`.
 
    `GCP_WORKLOAD_IDENTITY_PROVIDER` is the Terraform output
    `workload_identity_provider`; the Artifact Registry value is
@@ -57,6 +58,11 @@ postgis;`). The current migrations do not execute handwritten SQL, so this
 5. Set `DEPLOY_FREEZE=on` on the protected environment before an event day.
    The deploy job is skipped before authentication, image push, backup,
    migration, or traffic changes. Remove it after the event.
+
+The nightly workflow resolves the service URL and expected commit SHA from the
+single revision receiving 100 percent of live traffic. It does not rely on a
+manually updated URL or SHA variable, and it fails if the live service,
+database, worker, or revision identity is unhealthy.
 
 ## Delivery and failure behavior
 
