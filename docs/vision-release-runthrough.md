@@ -45,13 +45,30 @@ the command records each image hash and never invents detections:
 ```bash
 python apps/ml-service/vision/fixtures.py \
   --root path/to/real-fixtures \
-  --output apps/ml-service/vision/reports/demo1-fixtures.json
+  --output apps/ml-service/vision/reports/demo1-fixture-set.json
 ```
 
 The fixture directory must contain `cabbage/`, `tomato/`, `spinach/`, and
 `negative/`, with at least two images in each directory. These images are
 inputs for the later iOS/Android run; this command is not a benchmark and does
 not create a passing release report.
+
+After each platform has returned one result object per fixture, assemble the
+canonical report consumed by `release.py`:
+
+```bash
+python apps/ml-service/vision/fixtures.py \
+  --root path/to/real-fixtures \
+  --output apps/ml-service/vision/reports/demo1-fixtures.json \
+  --ios-results path/to/ios-results.json \
+  --android-results path/to/android-results.json \
+  --ios-artifact-sha256 '<Core ML SHA-256>' \
+  --android-artifact-sha256 '<TFLite SHA-256>'
+```
+
+The result files are JSON arrays with `fixture_id`, `detected`, `raw_label`,
+and `confidence`; the release validator performs the final schema and
+confidence checks.
 
 On the demo iPhone and Android device, collect at least 20 warm inference
 samples plus cold load, first inference, and peak memory. Then record them with

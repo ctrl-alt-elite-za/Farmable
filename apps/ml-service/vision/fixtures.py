@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 REQUIRED_CROPS = ("cabbage", "tomato", "spinach", "negative")
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
@@ -58,16 +59,82 @@ def build_manifest(root: Path, model_version: str) -> dict[str, object]:
     return {"schema_version": 1, "model_version": model_version, "fixtures": fixtures}
 
 
+def build_release_report(
+    manifest: dict[str, object],
+    ios_artifact_sha256: str,
+    android_artifact_sha256: str,
+    ios_results: list[dict[str, Any]],
+    android_results: list[dict[str, Any]],
+) -> dict[str, object]:
+    """Assemble the canonical fixture report consumed by ``release.py``."""
+    fixtures = manifest.get("fixtures")
+    if not isinstance(fixtures, list):
+        raise ValueError("fixture manifest must contain fixtures")
+    fixture_set = [
+        {
+            "fixture_id": fixture["fixture_id"],
+            "fixture_sha256": fixture["fixture_sha256"],
+            "expected_crop": fixture["expected_crop"],
+        }
+        for fixture in fixtures
+        if isinstance(fixture, dict)
+    ]
+    model_version = manifest.get("model_version")
+    if not isinstance(model_version, str) or not model_version:
+        raise ValueError("fixture manifest model_version must be non-empty")
+    return {
+        "schema_version": 1,
+        "model_version": model_version,
+        "fixture_set": fixture_set,
+        "runs": {
+            "ios": {"artifact_sha256": ios_artifact_sha256, "results": ios_results},
+            "android": {
+                "artifact_sha256": android_artifact_sha256,
+                "results": android_results,
+            },
+        },
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--model-version", default="demo1")
+    parser.add_argument("--ios-results", type=Path)
+    parser.add_argument("--android-results", type=Path)
+    parser.add_argument("--ios-artifact-sha256")
+    parser.add_argument("--android-artifact-sha256")
     args = parser.parse_args()
     try:
         manifest = build_manifest(args.root, args.model_version)
     except ValueError as error:
         parser.error(str(error))
+    assembly_args = (
+        args.ios_results,
+        args.android_results,
+        args.ios_artifact_sha256,
+        args.android_artifact_sha256,
+    )
+    if any(value is not None for value in assembly_args) and not all(
+        value is not None for value in assembly_args
+    ):
+        parser.error("assembly requires both result files and both artifact SHA-256 values")
+    if all(value is not None for value in assembly_args):
+        try:
+            ios_results = json.loads(args.ios_results.read_text(encoding="utf-8"))
+            android_results = json.loads(args.android_results.read_text(encoding="utf-8"))
+            if not isinstance(ios_results, list) or not isinstance(android_results, list):
+                raise ValueError("result files must contain JSON arrays")
+            manifest = build_release_report(
+                manifest,
+                args.ios_artifact_sha256,
+                args.android_artifact_sha256,
+                ios_results,
+                android_results,
+            )
+        except (OSError, json.JSONDecodeError, ValueError) as error:
+            parser.error(str(error))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return 0

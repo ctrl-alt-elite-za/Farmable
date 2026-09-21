@@ -21,7 +21,7 @@ from vision.benchmark import (  # noqa: E402
 )
 from vision.check_split import count_crop_images, split_sessions, validate_labels  # noqa: E402
 from vision.eval_weights import fit_range, load_measurements  # noqa: E402
-from vision.fixtures import build_manifest  # noqa: E402
+from vision.fixtures import build_manifest, build_release_report  # noqa: E402
 from vision.release import select_release, validate_fixture_report  # noqa: E402
 from vision.train import report_for  # noqa: E402
 
@@ -200,6 +200,27 @@ def test_fixture_manifest_hashes_real_images_without_fabricating_results(tmp_pat
     assert len(fixtures) == 8
     assert all(len(fixture["fixture_sha256"]) == 64 for fixture in fixtures)
     assert all("path" in fixture for fixture in fixtures)
+
+
+def test_fixture_manifest_assembles_release_schema_without_paths() -> None:
+    expected = release_inputs()[3]
+    manifest = {
+        "schema_version": 1,
+        "model_version": expected["model_version"],
+        "fixtures": [
+            {**fixture, "path": f"{fixture['fixture_id']}.jpg"}
+            for fixture in expected["fixture_set"]
+        ],
+    }
+    report = build_release_report(
+        manifest,
+        expected["runs"]["ios"]["artifact_sha256"],
+        expected["runs"]["android"]["artifact_sha256"],
+        expected["runs"]["ios"]["results"],
+        expected["runs"]["android"]["results"],
+    )
+    assert validate_fixture_report(report) == report
+    assert all("path" not in fixture for fixture in report["fixture_set"])
 
 
 def test_benchmark_report_computes_warm_percentiles_and_requires_physical_device() -> None:
