@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,7 @@ DEFAULT_SOURCE_URL = (
     "https://github.com/ultralytics/assets/releases/download/v8.4.0/yoloe-26n-seg.pt"
 )
 DEFAULT_LICENSE = "AGPL-3.0-only OR Ultralytics Enterprise License"
+VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 RUNTIME_CONTRACT = {
     "input": {
@@ -99,13 +101,21 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, default=Path("apps/ml-service/vision/models"))
     parser.add_argument("--formats", nargs="+", choices=list(SUFFIXES), default=list(SUFFIXES))
     parser.add_argument("--int8", action="store_true", help="int8 instead of FP16")
-    parser.add_argument("--data", help="dataset YAML of crop images for int8 calibration")
+    parser.add_argument(
+        "--data", type=Path, help="dataset YAML of crop images for int8 calibration"
+    )
     parser.add_argument("--source-revision", default=DEFAULT_SOURCE_REVISION)
     parser.add_argument("--source-url", default=DEFAULT_SOURCE_URL)
     parser.add_argument("--license", dest="license_name", default=DEFAULT_LICENSE)
     args = parser.parse_args()
+    if not VERSION_RE.fullmatch(args.version) or args.version in {".", ".."}:
+        parser.error("--version must be a safe filename component")
     if args.int8 and not args.data:
         parser.error("--int8 needs --data with crop calibration images (default is COCO)")
+    if args.int8 and not args.data.is_file():
+        parser.error(f"--data calibration file does not exist: {args.data}")
+    if args.data and not args.int8:
+        parser.error("--data is only valid with --int8")
     if args.model != DEFAULT_MODEL and (
         args.source_revision == DEFAULT_SOURCE_REVISION
         or args.source_url == DEFAULT_SOURCE_URL
@@ -135,7 +145,8 @@ def main() -> int:
     model.set_classes(PROMPTS)
     artifacts: dict[str, dict[str, str | int]] = {}
     for export_format, destination in destinations.items():
-        exported = Path(str(model.export(**export_options(export_format, args.int8, args.data))))
+        data = str(args.data) if args.data is not None else None
+        exported = Path(str(model.export(**export_options(export_format, args.int8, data))))
         if exported.is_dir():
             shutil.copytree(exported, destination)
         else:

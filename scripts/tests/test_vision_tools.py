@@ -12,7 +12,13 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps/ml-service"))
 
 from vision import export  # noqa: E402
-from vision.benchmark import build_report, read_samples, validate_report  # noqa: E402
+from vision.benchmark import (  # noqa: E402
+    MIN_WARM_SAMPLES,
+    build_report,
+    percentile,
+    read_samples,
+    validate_report,
+)
 from vision.check_split import count_crop_images, split_sessions, validate_labels  # noqa: E402
 from vision.eval_weights import fit_range, load_measurements  # noqa: E402
 from vision.release import select_release, validate_fixture_report  # noqa: E402
@@ -58,6 +64,66 @@ def run_export(monkeypatch: pytest.MonkeyPatch, *args: str) -> int:
     Path(export.DEFAULT_MODEL).write_bytes(b"source-weights")
     monkeypatch.setattr(sys, "argv", ["export.py", *args])
     return export.main()
+
+
+def release_inputs() -> tuple[dict, dict, dict, dict]:
+    def report(platform: str, digest: str, size: int) -> dict:
+        return build_report(
+            model_version="demo1",
+            artifact_sha256=digest,
+            platform=platform,
+            device=f"{platform} fixture",
+            os_version="17",
+            runtime="test runtime",
+            precision="fp16",
+            input_size=640,
+            artifact_bytes=size,
+            cold_load_ms=1,
+            first_inference_ms=1,
+            warm_sample_ms=[1, 2] * 10,
+            warmup_iterations=1,
+            peak_memory_mb=1,
+        )
+
+    fixtures = {
+        "model_version": "demo1",
+        "fixtures": 6,
+        "required_crop_hits": {"cabbage": "usable", "tomato": "usable", "spinach": "usable"},
+        "negative_false_positives": 0,
+        "results": [
+            {
+                "fixture_id": f"{crop}-{index}",
+                "expected_crop": crop,
+                "detected": True,
+                "raw_label": label,
+                "confidence": 0.9,
+                "false_positive": False,
+            }
+            for crop, label in (
+                ("cabbage", "cabbage plant"),
+                ("tomato", "tomato plant"),
+                ("spinach", "spinach plant"),
+            )
+            for index in (1, 2)
+        ],
+    }
+    manifest = {
+        "version": "demo1",
+        "measured": False,
+        "source_model": export.DEFAULT_MODEL,
+        "source_revision": export.DEFAULT_SOURCE_REVISION,
+        "source_url": export.DEFAULT_SOURCE_URL,
+        "source_sha256": "c" * 64,
+        "license": export.DEFAULT_LICENSE,
+        "classes": export.PROMPTS,
+        "input_size": 640,
+        "precision": "fp16",
+        "artifacts": {
+            "coreml": {"sha256": "a" * 64, "bytes": 10},
+            "tflite": {"sha256": "b" * 64, "bytes": 20},
+        },
+    }
+    return manifest, report("ios", "a" * 64, 10), report("android", "b" * 64, 20), fixtures
 
 
 def test_export_passes_only_arguments_ultralytics_accepts(
@@ -221,11 +287,117 @@ def test_release_selection_requires_both_reports_and_usable_fixture_results() ->
             "tflite": {"sha256": "b" * 64, "bytes": 20},
         },
     }
-    selected = select_release(manifest, ios, android, fixtures)
+    fixtures["results"].extend(
+        dict(result, fixture_id=f"{result['fixture_id']}-second")
+        for result in list(fixtures["results"])
+    )
+    fixtures["fixtures"] = len(fixtures["results"])
+    selected = select_release(
+        manifest,
+        ios,
+        android,
+        fixtures,
+        accepted_licenses={export.DEFAULT_LICENSE},
+        ios_report_sha256="d" * 64,
+        android_report_sha256="e" * 64,
+        fixture_report_sha256="f" * 64,
+    )
     assert selected["measured"] is True
-    assert selected["selected_for_demo"] is True
+    assert selected["evidence_complete"] is True
+    assert "selected_for_demo" not in selected
+    assert selected["benchmarks"]["ios"] == {
+        "path": "reports/ios.json",
+        "sha256": "d" * 64,
+    }
+    assert selected["fixture_report"]["sha256"] == "f" * 64
     assert manifest["measured"] is False
-    assert validate_fixture_report(fixtures)["fixtures"] == 3
+    assert validate_fixture_report(fixtures)["fixtures"] == 6
+
+
+def test_release_fails_closed_without_an_explicitly_accepted_license() -> None:
+    manifest, ios, android, fixtures = release_inputs()
+    with pytest.raises(ValueError, match="accepted license"):
+        select_release(manifest, ios, android, fixtures)
+
+
+def test_release_rejects_low_confidence_fixture_evidence() -> None:
+    manifest, ios, android, fixtures = release_inputs()
+    fixtures["results"][0]["confidence"] = 0.49
+    with pytest.raises(ValueError, match="confidence"):
+        select_release(
+            manifest,
+            ios,
+            android,
+            fixtures,
+            accepted_licenses={export.DEFAULT_LICENSE},
+        )
+
+
+def test_fixture_report_cross_checks_false_positive_count() -> None:
+    fixtures = release_inputs()[3]
+    fixtures["results"].append(
+        {
+            "fixture_id": "negative-1",
+            "expected_crop": None,
+            "detected": True,
+            "raw_label": "tomato fruit",
+            "confidence": 0.9,
+            "false_positive": True,
+        }
+    )
+    fixtures["fixtures"] += 1
+    with pytest.raises(ValueError, match="negative_false_positives"):
+        validate_fixture_report(fixtures)
+
+
+def test_release_requires_evidence_report_digests() -> None:
+    manifest, ios, android, fixtures = release_inputs()
+    with pytest.raises(ValueError, match="ios_report_sha256"):
+        select_release(
+            manifest,
+            ios,
+            android,
+            fixtures,
+            accepted_licenses={export.DEFAULT_LICENSE},
+        )
+
+
+def test_percentile_interpolation_and_minimum_sample_boundary() -> None:
+    assert percentile([0, 10], 95) == 9.5
+    report = release_inputs()[1]
+    assert report["warm_samples"] == MIN_WARM_SAMPLES
+    assert validate_report(report) is report
+
+
+def test_export_rejects_unsafe_version_before_loading_model(
+    fake_yoloe: type[FakeYOLOE],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as error:
+        run_export(monkeypatch, "--version", "../escape", "--output-dir", "out")
+    assert error.value.code == 2
+    assert "version" in capsys.readouterr().err
+    assert not fake_yoloe.instances
+
+
+def test_int8_export_rejects_missing_calibration_path_before_loading_model(
+    fake_yoloe: type[FakeYOLOE],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as error:
+        run_export(
+            monkeypatch,
+            "--version",
+            "demo1",
+            "--int8",
+            "--data",
+            "missing.yaml",
+        )
+    assert error.value.code == 2
+    assert "calibration" in capsys.readouterr().err
+    assert not fake_yoloe.instances
 
 
 def test_int8_export_requires_crop_calibration_data(

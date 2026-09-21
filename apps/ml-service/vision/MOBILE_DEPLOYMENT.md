@@ -46,6 +46,7 @@ python apps/ml-service/vision/release.py \
   --ios-report apps/ml-service/vision/reports/demo1-ios.json \
   --android-report apps/ml-service/vision/reports/demo1-android.json \
   --fixtures apps/ml-service/vision/reports/demo1-fixtures.json \
+  --accepted-license '<exact license value approved by the project>' \
   --output apps/ml-service/vision/models/demo1.release.json
 ```
 

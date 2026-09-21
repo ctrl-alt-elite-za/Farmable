@@ -15,8 +15,11 @@ The export environment is pinned to `ultralytics==8.4.0`; the exporter records
 the source metadata and checkpoint SHA-256, prompt order, artifact SHA-256 and artifact byte size in
 the immutable export manifest. The default precision is FP16 at 640×640. The
 manifest remains `measured: false` until physical iOS and Android reports and
-a fixed fixture report pass the release gate. The gate writes a separate
-`*.release.json` and never changes the export manifest.
+a fixed fixture report pass the evidence gate. The gate writes a separate
+`*.release.json` with `evidence_complete: true` and never changes the export
+manifest. Evidence completeness is not a performance-readiness claim: raw
+inference has no approved ceiling yet, and Issue #18's 150 ms goal covers the
+whole camera-to-visible-box path rather than inference alone.
 
 ## Runtime contract
 
@@ -40,13 +43,17 @@ measurement, weight estimation, or disease diagnosis.
 Fixtures are deterministic still images or clips used for qualitative crop-hit
 and false-positive checks. They are not a training dataset and do not justify
 precision, recall, mAP, field-level accuracy, or agricultural diagnosis claims.
+Each required crop needs at least two matching detections at confidence 0.5 or
+higher. Selection also fails closed unless the caller explicitly allowlists the
+manifest's exact license value. No license is accepted by default.
 Physical reports record cold load, first inference, warm p50/p95, memory,
 device/OS/runtime, precision, input size, and artifact identity. Desktop timing
-cannot be used as physical-device evidence.
+cannot be used as physical-device evidence. The release manifest records the
+SHA-256 of each benchmark and fixture report alongside its path.
 
 ## Handoff
 
-Issue #18 can load the exact artifact/hash selected in the release manifest and
+Issue #18 can load the exact artifact/hash recorded in the release manifest and
 use its preprocessing, prompt mapping, normalized-box, and lifecycle contract.
 Issue #19 may use any segmentation output after a crop is selected, but Issue
 #16 does not require continuous full-frame segmentation.
