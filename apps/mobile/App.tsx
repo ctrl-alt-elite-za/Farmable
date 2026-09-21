@@ -4,8 +4,9 @@ import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 
 import { HealthScreen } from './src/screens/HealthScreen';
 import { SelfTestScreen } from './src/screens/SelfTestScreen';
+import { ScanScreen } from './src/scan/ScanScreen';
 
-type Tab = 'health' | 'selftest';
+type Tab = 'health' | 'selftest' | 'scan';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('health');
@@ -27,17 +28,41 @@ export default function App() {
             Self-test
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          testID="tab-scan"
+          accessibilityRole="button"
+          accessibilityLabel="Scan crops"
+          accessibilityState={{ selected: tab === 'scan' }}
+          style={styles.tab}
+          onPress={() => setTab('scan')}
+        >
+          <Text style={tab === 'scan' ? styles.tabLabelActive : styles.tabLabel}>Scan</Text>
+        </TouchableOpacity>
       </View>
-      {tab === 'health' ? <HealthScreen /> : <SelfTestScreen />}
+      {tab === 'health' ? (
+        <HealthScreen />
+      ) : tab === 'selftest' ? (
+        <SelfTestScreen />
+      ) : (
+        <ScanScreen />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { flex: 1, backgroundColor: '#fff' },
   title: { fontSize: 28, fontWeight: '700', paddingHorizontal: 24, paddingTop: 16 },
-  tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingVertical: 12 },
+  tabs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
   tab: {
+    minHeight: 48,
+    minWidth: 48,
     borderColor: '#1f6f43',
     borderRadius: 8,
     borderWidth: 1,
