@@ -423,9 +423,7 @@ class SyncMutation(Base):
         _max_length("operation", "sync_mutations", 20),
         _max_length("record_type", "sync_mutations", 100),
         UniqueConstraint("mutation_id", name="uq_sync_mutations_mutation_id"),
-        UniqueConstraint(
-            "id", "farm_id", "owner_id", name="uq_sync_mutations_id_farm_owner"
-        ),
+        UniqueConstraint("id", "farm_id", "owner_id", name="uq_sync_mutations_id_farm_owner"),
         Index("ix_sync_mutations_owner_farm", "owner_id", "farm_id"),
         Index("ix_sync_mutations_record", "record_type", "record_id"),
     )

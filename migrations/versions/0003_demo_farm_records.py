@@ -331,9 +331,7 @@ def upgrade() -> None:
         max_length("operation", "sync_mutations", 20),
         max_length("record_type", "sync_mutations", 100),
         sa.UniqueConstraint("mutation_id", name="uq_sync_mutations_mutation_id"),
-        sa.UniqueConstraint(
-            "id", "farm_id", "owner_id", name="uq_sync_mutations_id_farm_owner"
-        ),
+        sa.UniqueConstraint("id", "farm_id", "owner_id", name="uq_sync_mutations_id_farm_owner"),
     )
     op.create_index("ix_sync_mutations_owner_farm", "sync_mutations", ["owner_id", "farm_id"])
     op.create_index("ix_sync_mutations_record", "sync_mutations", ["record_type", "record_id"])
