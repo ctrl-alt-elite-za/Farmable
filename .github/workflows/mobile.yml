@@ -81,6 +81,9 @@ jobs:
           channel: stable
           cache: true
       - name: Test mode and demo mode must not both be set
+        env:
+          TEST_MODE: 'false'
+          DEMO_MODE: 'false'
         run: bash scripts/check-test-mode.sh
       - run: flutter pub get --enforce-lockfile
         working-directory: apps/mobile

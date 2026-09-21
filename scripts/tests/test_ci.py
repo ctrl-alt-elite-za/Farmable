@@ -3,6 +3,7 @@
 import base64
 import io
 import json
+import os
 import re
 import runpy
 import subprocess
@@ -538,3 +539,48 @@ def test_unrelated_pr_cannot_approve_main_migrations(monkeypatch, field, value):
     }
     monkeypatch.setattr(migration_safety, "request_json", Mock(return_value=[pr]))
     assert not migration_safety.migration_approved()
+
+
+def _run_test_mode_guard(**env):
+    """Run the build-mode guard the way CI does, with only the given variables set."""
+    repo = Path(__file__).resolve().parents[2]
+    return subprocess.run(
+        ["bash", "scripts/check-test-mode.sh"],
+        cwd=repo,
+        env={"PATH": os.environ["PATH"], **env},
+        capture_output=True,
+        text=True,
+    ).returncode
+
+
+@pytest.mark.parametrize("value", ["1", "true"])
+def test_test_mode_guard_rejects_both_modes_however_they_are_spelled(value):
+    """Flutter passes build modes as --dart-define=TEST_MODE=true, not TEST_MODE=1.
+
+    The guard predates the Flutter port, when these were Expo env vars compared
+    against "1". A guard that only understands the old spelling cannot fail on
+    the new one, so a demo build would present recorded frames as live
+    detections with nothing to stop it.
+    """
+    assert _run_test_mode_guard(TEST_MODE=value, DEMO_MODE=value) == 1
+
+
+@pytest.mark.parametrize(
+    ("test_mode", "demo_mode"),
+    [("true", "false"), ("false", "true"), ("1", "0"), ("0", "1"), ("false", "false")],
+)
+def test_test_mode_guard_allows_every_combination_that_is_not_both(test_mode, demo_mode):
+    assert _run_test_mode_guard(TEST_MODE=test_mode, DEMO_MODE=demo_mode) == 0
+
+
+def test_test_mode_guard_reads_the_modes_the_emulator_build_actually_sets():
+    """ci-mobile.sh must not hand the guard one spelling and the compiler another.
+
+    The guard can only protect the build if the values it reads are the values
+    the APK is compiled with, from a single source rather than two that drift.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    build = (repo / "scripts/ci-mobile.sh").read_text()
+    assert "--dart-define=TEST_MODE=${TEST_MODE}" in build
+    assert "--dart-define=DEMO_MODE=${DEMO_MODE}" in build
+    assert "bash scripts/check-test-mode.sh" in build

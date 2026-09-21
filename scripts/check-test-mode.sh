@@ -9,11 +9,19 @@
 # Exit: 0 the combination is allowed, 1 it is not.
 set -euo pipefail
 
-test_mode="${TEST_MODE:-0}"
-demo_mode="${DEMO_MODE:-0}"
+test_mode="${TEST_MODE:-false}"
+demo_mode="${DEMO_MODE:-false}"
 
-if [ "$test_mode" = "1" ] && [ "$demo_mode" = "1" ]; then
-  echo "FAIL: TEST_MODE=1 and DEMO_MODE=1 cannot both be set." >&2
+is_enabled() {
+  case "$1" in
+    1|true|TRUE|yes|YES) return 0 ;;
+    0|false|FALSE|no|NO|'') return 1 ;;
+    *) echo "FAIL: invalid build-mode value: $1" >&2; exit 1 ;;
+  esac
+}
+
+if is_enabled "$test_mode" && is_enabled "$demo_mode"; then
+  echo "FAIL: TEST_MODE and DEMO_MODE cannot both be enabled." >&2
   echo "      Test mode replays recorded frames; a demo build would show them as real." >&2
   exit 1
 fi

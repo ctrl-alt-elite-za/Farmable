@@ -4,6 +4,7 @@ import '../../app/config.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.g.dart';
 import '../../data/health_service.dart';
+import '../../testmode/source.dart';
 
 /// The app's first screen while the real Home dashboard is being built.
 ///
@@ -57,6 +58,10 @@ class _StatusScreenState extends State<StatusScreen> {
               ),
               const SizedBox(height: AlmanacDimens.sp7),
               _ConnectivityChip(status: _status),
+              if (testMode) ...[
+                const SizedBox(height: AlmanacDimens.sp4),
+                const _TestModeNotice(),
+              ],
               const SizedBox(height: AlmanacDimens.sp6),
               FilledButton(
                 onPressed: _status == Reachability.checking ? null : _refresh,
@@ -75,6 +80,31 @@ class _StatusScreenState extends State<StatusScreen> {
       ),
     );
   }
+}
+
+class _TestModeNotice extends StatelessWidget {
+  const _TestModeNotice();
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<SimulatedFrame>>(
+        future: const SimulatedFrameSource().load(),
+        builder: (context, snapshot) {
+          final detail = snapshot.hasError
+              ? 'Recorded test fixture unavailable'
+              : snapshot.hasData
+                  ? '${snapshot.data!.length} recorded frames ready'
+                  : 'Loading recorded test fixture…';
+          return Semantics(
+            label: 'Test mode: $detail',
+            child: Text(
+              'Test mode · $detail',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.semantic.onSurfaceVariant,
+                  ),
+            ),
+          );
+        },
+      );
 }
 
 /// Status is carried by icon *and* text *and* colour — never colour alone.

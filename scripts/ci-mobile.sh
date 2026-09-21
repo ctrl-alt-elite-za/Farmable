@@ -9,9 +9,14 @@ if [ "${1:-}" = build ]; then
   # x86_64 only — the CI emulator is x86_64 and compiling the other ABIs wastes
   # its budget. A release build is required because a debug build needs a
   # running Dart VM service the E2E harness does not provide.
+  TEST_MODE="${TEST_MODE:-true}"
+  DEMO_MODE="${DEMO_MODE:-false}"
+  export TEST_MODE DEMO_MODE
+  bash scripts/check-test-mode.sh
   (cd apps/mobile && flutter build apk --release \
     --target-platform android-x64 \
-    --dart-define=TEST_MODE=true \
+    --dart-define=TEST_MODE=${TEST_MODE} \
+    --dart-define=DEMO_MODE=${DEMO_MODE} \
     --dart-define=API_URL=http://10.0.2.2:8000)
 else
   [ -d e2e/mobile ] || { echo 'prerequisite: Maestro flows wait for #4'; exit 1; }
