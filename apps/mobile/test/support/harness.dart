@@ -96,8 +96,7 @@ Future<FarmHarness> pumpFarmApp(
       ),
       if (sessionStore != null)
         sessionStoreProvider.overrideWithValue(sessionStore),
-      if (authApi != null)
-        authApiProvider.overrideWith((ref) => authApi),
+      if (authApi != null) authApiProvider.overrideWith((ref) => authApi),
     ],
   );
 
