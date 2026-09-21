@@ -13,9 +13,10 @@ from uuid import UUID, uuid4
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from farmable_backend.models import AuthSession, User, VerificationChallenge
+from farmable_backend.models import AuthIdentity, AuthSession, User, VerificationChallenge
 
 PASSWORD_HASHER = PasswordHasher()  # argon2-cffi defaults are Argon2id.
 # Unknown accounts must still pay the same Argon2 verification cost as known
@@ -110,7 +111,7 @@ def _hash_token(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
-def _user(model: User) -> AuthUser:
+def _user(model: AuthIdentity) -> AuthUser:
     if not all((model.first_name, model.surname, model.phone, model.email)):
         raise AuthError("invalid_credentials", 401)
     return AuthUser(
@@ -134,29 +135,48 @@ class AuthService:
     ) -> AuthUser:
         email = email.strip().lower()
         phone = phone.strip()
-        with self.sessions.begin() as session:
-            existing = session.scalar(
-                select(User.id).where((User.email == email) | (User.phone == phone))
-            )
-            if existing is not None:
-                raise AuthError("account_exists", 409)
-            user = User(
-                first_name=first_name.strip(),
-                surname=surname.strip(),
-                phone=phone,
-                email=email,
-                password_hash=PASSWORD_HASHER.hash(password),
-            )
-            session.add(user)
-            session.flush()
-            self._send(session, user, Channel.PHONE)
-            return _user(user)
+        try:
+            with self.sessions.begin() as session:
+                existing = session.scalar(
+                    select(AuthIdentity.id).where(
+                        (AuthIdentity.email == email) | (AuthIdentity.phone == phone)
+                    )
+                )
+                if existing is not None:
+                    raise AuthError("account_exists", 409)
+                password_hash = PASSWORD_HASHER.hash(password)
+                owner = User()
+                session.add(owner)
+                session.flush()
+                user = AuthIdentity(
+                    id=owner.id,
+                    first_name=first_name.strip(),
+                    surname=surname.strip(),
+                    phone=phone,
+                    email=email,
+                    password_hash=password_hash,
+                )
+                session.add(user)
+                # Claim the unique credentials before delivering an OTP. On a
+                # conflict the entire transaction, including owner, rolls back.
+                session.flush()
+                self._send(session, user, Channel.PHONE)
+                return _user(user)
+        except IntegrityError as exc:
+            diagnostic = getattr(exc.orig, "diag", None)
+            if getattr(exc.orig, "sqlstate", None) == "23505" and getattr(
+                diagnostic, "constraint_name", None
+            ) in {"uq_auth_identities_email", "uq_auth_identities_phone"}:
+                raise AuthError("account_exists", 409) from None
+            raise
 
     def verify(self, user_id: UUID, channel: Channel, code: str) -> AuthUser | SessionTokens:
         failure: AuthError | None = None
         result: AuthUser | SessionTokens | None = None
         with self.sessions.begin() as session:
-            user = session.scalar(select(User).where(User.id == user_id).with_for_update())
+            user = session.scalar(
+                select(AuthIdentity).where(AuthIdentity.id == user_id).with_for_update()
+            )
             if user is None:
                 raise AuthError("invalid_verification", 400)
             challenge = session.scalar(
@@ -197,7 +217,9 @@ class AuthService:
 
     def resend(self, user_id: UUID, channel: Channel) -> None:
         with self.sessions.begin() as session:
-            user = session.scalar(select(User).where(User.id == user_id).with_for_update())
+            user = session.scalar(
+                select(AuthIdentity).where(AuthIdentity.id == user_id).with_for_update()
+            )
             if user is None or (channel is Channel.EMAIL and not user.phone_verified):
                 raise AuthError("invalid_verification", 400)
             if (channel is Channel.PHONE and user.phone_verified) or (
@@ -210,7 +232,9 @@ class AuthService:
         identifier = identifier.strip()
         with self.sessions.begin() as session:
             user = session.scalar(
-                select(User).where((User.email == identifier.lower()) | (User.phone == identifier))
+                select(AuthIdentity).where(
+                    (AuthIdentity.email == identifier.lower()) | (AuthIdentity.phone == identifier)
+                )
             )
             password_hash = (
                 user.password_hash
@@ -241,12 +265,12 @@ class AuthService:
             )
             if user_id is None:
                 raise AuthError("invalid_session", 401)
-            user = session.get(User, user_id)
+            user = session.get(AuthIdentity, user_id)
             if user is None or not (user.phone_verified and user.email_verified):
                 raise AuthError("invalid_session", 401)
             return self._new_session(session, user)
 
-    def _send(self, session: Session, user: User, channel: Channel) -> None:
+    def _send(self, session: Session, user: AuthIdentity, channel: Channel) -> None:
         recent = session.scalars(
             select(VerificationChallenge).where(
                 VerificationChallenge.user_id == user.id,
@@ -276,7 +300,7 @@ class AuthService:
             )
         )
 
-    def _new_session(self, session: Session, user: User) -> SessionTokens:
+    def _new_session(self, session: Session, user: AuthIdentity) -> SessionTokens:
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
         expires_at = _now() + SESSION_TTL
         session.add(

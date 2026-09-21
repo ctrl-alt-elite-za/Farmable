@@ -10,6 +10,7 @@ from sqlalchemy.schema import CreateIndex, CreateTable
 
 ROOT = Path(__file__).resolve().parents[3]
 FARM_TABLES = (
+    "users",
     "farms",
     "sections",
     "plantings",
@@ -48,9 +49,7 @@ def _orm_sql(table: str) -> str:
     return ";\n".join(str(statement.compile(dialect=dialect)) for statement in statements)
 
 
-def test_unchanged_migration_0003_tables_match_issue_8_orm_tables():
-    # The users table intentionally evolves in 0004 for authentication. Keep
-    # parity protection on every issue-8 table that later migrations do not alter.
+def test_migration_0003_matches_issue_8_orm_tables():
     migration = _migration_sql()
     for table in FARM_TABLES:
         orm = _orm_sql(table)

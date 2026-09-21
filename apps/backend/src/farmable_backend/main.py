@@ -1,6 +1,10 @@
+import asyncio
 import os
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from contextvars import copy_context
+from functools import partial
 from http import HTTPStatus
 
 from fastapi import FastAPI, Request
@@ -65,6 +69,16 @@ def create_app(
     limiter: RateLimiter | None = None,
     service_settings: ServiceSettings | None = None,
 ) -> FastAPI:
+    # Argon2 uses significant memory per call. A dedicated bounded executor also
+    # leaves the general thread pool available for readiness checks. Cancelled
+    # HTTP requests cannot free a running thread's slot before its work finishes.
+    auth_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="farmable-auth")
+
+    async def call_auth(function, *args):
+        return await asyncio.get_running_loop().run_in_executor(
+            auth_executor, partial(copy_context().run, function, *args)
+        )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         config = settings or Settings()
@@ -89,10 +103,14 @@ def create_app(
             yield
         finally:
             try:
-                if database is not None:
-                    database.close()
+                # Drain uncancelled database work before disposing its pool.
+                await run_in_threadpool(auth_executor.shutdown, wait=True, cancel_futures=True)
             finally:
-                await services.close()
+                try:
+                    if database is not None:
+                        database.close()
+                finally:
+                    await services.close()
 
     app = FastAPI(
         title="Farmable API",
@@ -108,6 +126,7 @@ def create_app(
         },
     )
     app.state.sha = settings.commit_sha if settings else os.getenv("COMMIT_SHA", "unknown")
+    app.state.auth_executor = auth_executor
     app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
 
     @app.exception_handler(RequestValidationError)
@@ -145,8 +164,13 @@ def create_app(
 
     @app.post("/auth/signup", response_model=AuthProgressResponse, operation_id="authSignup")
     async def signup(request: Request, payload: SignUpRequest) -> AuthProgressResponse:
-        user = auth(request).signup(
-            payload.first_name, payload.surname, payload.phone, str(payload.email), payload.password
+        user = await call_auth(
+            auth(request).signup,
+            payload.first_name,
+            payload.surname,
+            payload.phone,
+            str(payload.email),
+            payload.password,
         )
         return AuthProgressResponse(user_id=user.id, next_step="phone")
 
@@ -154,27 +178,29 @@ def create_app(
         "/auth/verify/phone", response_model=AuthProgressResponse, operation_id="authVerifyPhone"
     )
     async def verify_phone(request: Request, payload: VerifyOtpRequest) -> AuthProgressResponse:
-        auth(request).verify(payload.user_id, Channel.PHONE, payload.code)
+        await call_auth(auth(request).verify, payload.user_id, Channel.PHONE, payload.code)
         return AuthProgressResponse(user_id=payload.user_id, next_step="email")
 
     @app.post("/auth/verify/email", response_model=SessionResponse, operation_id="authVerifyEmail")
     async def verify_email(request: Request, payload: VerifyOtpRequest) -> SessionResponse:
-        tokens = auth(request).verify(payload.user_id, Channel.EMAIL, payload.code)
+        tokens = await call_auth(auth(request).verify, payload.user_id, Channel.EMAIL, payload.code)
         if not isinstance(tokens, SessionTokens):
             raise HTTPException(400)
         return _session_response(tokens)
 
     @app.post("/auth/otp/resend", status_code=204, operation_id="authResendOtp")
     async def resend_otp(request: Request, payload: ResendOtpRequest) -> None:
-        auth(request).resend(payload.user_id, Channel(payload.channel))
+        await call_auth(auth(request).resend, payload.user_id, Channel(payload.channel))
 
     @app.post("/auth/login", response_model=SessionResponse, operation_id="authLogin")
     async def login(request: Request, payload: LoginRequest) -> SessionResponse:
-        return _session_response(auth(request).login(payload.identifier, payload.password))
+        return _session_response(
+            await call_auth(auth(request).login, payload.identifier, payload.password)
+        )
 
     @app.post("/auth/refresh", response_model=SessionResponse, operation_id="authRefresh")
     async def refresh(request: Request, payload: RefreshRequest) -> SessionResponse:
-        return _session_response(auth(request).refresh(payload.refresh_token))
+        return _session_response(await call_auth(auth(request).refresh, payload.refresh_token))
 
     @app.get("/health/live", response_model=LiveResponse, operation_id="healthLive")
     async def live(request: Request) -> LiveResponse:

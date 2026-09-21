@@ -118,25 +118,37 @@ class WeightFormula(Base):
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (
-        UniqueConstraint("email", name="uq_users_email"),
-        UniqueConstraint("phone", name="uq_users_phone"),
-        _nonblank("first_name", "users"),
-        _nonblank("surname", "users"),
-        _max_length("first_name", "users", 100),
-        _max_length("surname", "users", 100),
-        _max_length("phone", "users", 32),
-        _max_length("email", "users", 320),
-    )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    # Nullable only for records created before authentication landed in migration 0004.
-    # Every account created through AuthService supplies all five values.
-    first_name: Mapped[str | None] = mapped_column(Text)
-    surname: Mapped[str | None] = mapped_column(Text)
-    phone: Mapped[str | None] = mapped_column(Text)
-    email: Mapped[str | None] = mapped_column(Text)
-    password_hash: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AuthIdentity(Base):
+    """Optional credentials for an existing ownership identity; no legacy backfill."""
+
+    __tablename__ = "auth_identities"
+    __table_args__ = (
+        UniqueConstraint("email", name="uq_auth_identities_email"),
+        UniqueConstraint("phone", name="uq_auth_identities_phone"),
+        _nonblank("first_name", "auth_identities"),
+        _nonblank("surname", "auth_identities"),
+        _max_length("first_name", "auth_identities", 100),
+        _max_length("surname", "auth_identities", 100),
+        _max_length("phone", "auth_identities", 32),
+        _max_length("email", "auth_identities", 320),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    first_name: Mapped[str] = mapped_column(Text)
+    surname: Mapped[str] = mapped_column(Text)
+    phone: Mapped[str] = mapped_column(Text)
+    email: Mapped[str] = mapped_column(Text)
+    password_hash: Mapped[str] = mapped_column(Text)
     phone_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -153,11 +165,13 @@ class VerificationChallenge(Base):
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    user_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE")
+    )
     channel: Mapped[str] = mapped_column(Text)
     code_hash: Mapped[str] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    attempts: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -171,7 +185,9 @@ class AuthSession(Base):
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    user_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE")
+    )
     access_token_hash: Mapped[str] = mapped_column(Text)
     refresh_token_hash: Mapped[str] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

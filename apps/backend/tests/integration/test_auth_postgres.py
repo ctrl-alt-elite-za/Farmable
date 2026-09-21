@@ -1,20 +1,25 @@
 """PostgreSQL concurrency coverage for authentication token rotation."""
 
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from threading import Barrier, Lock
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from farmable_backend import auth as auth_module
 from farmable_backend.auth import (
+    PASSWORD_HASHER,
     AuthError,
     AuthService,
+    AuthUser,
     Channel,
     DeterministicFakeOtpProvider,
     SessionTokens,
 )
 from farmable_backend.config import Settings
 from farmable_backend.database import make_engine
-from farmable_backend.models import User
+from farmable_backend.models import AuthIdentity, AuthSession, User, VerificationChallenge
+from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 pytestmark = pytest.mark.integration
@@ -64,3 +69,97 @@ def test_refresh_token_can_only_be_rotated_once_concurrently(engine):
             if stored is not None:
                 session.delete(stored)
                 session.commit()
+
+
+@pytest.mark.parametrize("duplicate", ["email", "phone"])
+def test_auth_concurrent_signup_returns_conflict_without_orphans(engine, monkeypatch, duplicate):
+    suffix = uuid4().hex
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    barrier = Barrier(2)
+    lock = Lock()
+    created_ids = []
+    deliveries = []
+
+    class RecordingProvider(DeterministicFakeOtpProvider):
+        def deliver(self, channel, destination, code):
+            with lock:
+                deliveries.append((channel, destination))
+            super().deliver(channel, destination, code)
+
+    # Both transactions must finish the optimistic existence check before either
+    # attempts INSERT. Hashing follows that check and precedes all writes.
+    password = "concurrent synthetic signup password"  # noqa: S105
+    original_hash = PASSWORD_HASHER.hash
+
+    def synchronized_hash(value):
+        if value == password:
+            barrier.wait(timeout=10)
+        return original_hash(value)
+
+    monkeypatch.setattr(
+        auth_module,
+        "PASSWORD_HASHER",
+        SimpleNamespace(hash=synchronized_hash, verify=PASSWORD_HASHER.verify),
+    )
+
+    def record_users(session, flush_context):
+        with lock:
+            created_ids.extend(
+                item.id for item in session.identity_map.values() if isinstance(item, User)
+            )
+
+    event.listen(sessions, "after_flush_postexec", record_users)
+    service = AuthService(sessions, RecordingProvider())
+    phone = int(suffix[:10], 16) % 1_000_000_000
+
+    def signup(index):
+        try:
+            return service.signup(
+                "Test",
+                "User",
+                f"+278{phone + (index if duplicate == 'email' else 0):09d}",
+                f"auth-race-{suffix}-{index if duplicate == 'phone' else 0}@example.com",
+                password,
+            )
+        except AuthError as exc:
+            return exc
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(signup, range(2)))
+        successes = [result for result in results if isinstance(result, AuthUser)]
+        failures = [result for result in results if isinstance(result, AuthError)]
+        assert len(successes) == len(failures) == 1
+        assert failures[0].code == "account_exists"
+        assert failures[0].status_code == 409
+        assert len(deliveries) == 1
+        assert len(set(created_ids)) == 2  # Even the losing user INSERT occurred.
+        with Session(engine) as session:
+            for model in (User, AuthIdentity):
+                assert (
+                    session.scalar(
+                        select(func.count()).select_from(model).where(model.id.in_(created_ids))
+                    )
+                    == 1
+                )
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(VerificationChallenge)
+                    .where(VerificationChallenge.user_id.in_(created_ids))
+                )
+                == 1
+            )
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(AuthSession)
+                    .where(AuthSession.user_id.in_(created_ids))
+                )
+                == 0
+            )
+    finally:
+        with Session(engine) as session:
+            for user in session.scalars(select(User).where(User.id.in_(created_ids))):
+                session.delete(user)
+            session.commit()

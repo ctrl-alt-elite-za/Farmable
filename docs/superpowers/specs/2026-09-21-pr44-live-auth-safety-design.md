@@ -78,9 +78,23 @@ operator migration plan; it must not be silently rewritten or reset.
 - [x] Compare migration approaches and select additive storage.
 - [x] Present the design and write this specification.
 - [x] Self-review scope, failure handling, and verification requirements.
-- [ ] Requester reviews the written specification.
-- [ ] Produce implementation plan, implement, verify, and push without merging.
+- [x] Requester reviews the written specification.
+- [x] Produce implementation plan and implement the approved design.
+- [x] Verify locally, including isolated PostgreSQL migration and race checks.
+- [ ] Push without merging and inspect CI; retain the migration-review gate.
 
 No visual companion is needed for these text-only decisions. The referenced
 writing-plans skill is not installed; after specification approval, use the
 verification list above to write a concrete implementation plan directly.
+
+## Implementation sequence
+
+1. Add the failing health/auth concurrency regression, then offload service calls
+   to a dedicated two-worker executor with request-context propagation.
+2. Introduce the credential model and rewrite pending `0004` additively; keep the
+   ownership model unchanged and bound migration connection lock waits.
+3. Handle only named credential uniqueness violations after rollback; test both
+   concurrent signup conflicts and unrelated database errors.
+4. Test schema parity, existing-record preservation, and migration contention in
+   disposable PostgreSQL. Run local checks and CI, then publish the fixes with
+   migration-review limitations explicit. Do not merge or enable auto-merge.

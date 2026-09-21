@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
 import pytest
 from farmable_backend.auth import (
     DUMMY_PASSWORD_HASH,
@@ -11,9 +14,10 @@ from farmable_backend.auth import (
     _hash_token,
 )
 from farmable_backend.main import create_app
-from farmable_backend.models import AuthSession, Base, User, VerificationChallenge
+from farmable_backend.models import AuthIdentity, AuthSession, Base, User, VerificationChallenge
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 PASSWORD = "correct horse battery staple"  # noqa: S105 - synthetic test credential
@@ -133,7 +137,12 @@ def _database_auth():
     engine = create_engine("sqlite://")
     Base.metadata.create_all(
         engine,
-        tables=[User.__table__, VerificationChallenge.__table__, AuthSession.__table__],
+        tables=[
+            User.__table__,
+            AuthIdentity.__table__,
+            VerificationChallenge.__table__,
+            AuthSession.__table__,
+        ],
     )
     sessions = sessionmaker(engine, expire_on_commit=False)
     return sessions, AuthService(sessions, DeterministicFakeOtpProvider())
@@ -150,7 +159,7 @@ def test_database_service_persists_attempt_limit_and_only_hashes_secrets():
         service.verify(user.id, Channel.PHONE, "111111")
 
     with sessions() as session:
-        stored_user = session.get(User, user.id)
+        stored_user = session.get(AuthIdentity, user.id)
         challenge = session.scalar(select(VerificationChallenge))
         assert stored_user is not None and stored_user.password_hash != PASSWORD
         assert challenge is not None and challenge.code_hash != "111111"
@@ -193,3 +202,39 @@ def test_database_service_rate_limits_resends_and_invalidates_old_code():
         assert len(challenges) == 3
         assert all(item.consumed_at is not None for item in challenges[:-1])
         assert challenges[-1].consumed_at is None
+
+
+@pytest.mark.parametrize(
+    ("sqlstate", "constraint", "conflict"),
+    [
+        ("23505", "uq_auth_identities_email", True),
+        ("23505", "uq_auth_identities_phone", True),
+        ("23505", "users_pkey", False),
+        ("23514", "ck_auth_identities_first_name_nonblank", False),
+        ("23503", "uq_auth_identities_email", False),
+    ],
+)
+def test_signup_only_translates_credential_unique_violations(sqlstate, constraint, conflict):
+    class DatabaseFailure(Exception):
+        pass
+
+    original = DatabaseFailure()
+    original.sqlstate = sqlstate
+    original.diag = SimpleNamespace(constraint_name=constraint)
+    failure = IntegrityError("generated statement", {}, original)
+    sessions = MagicMock()
+    transaction = sessions.begin.return_value
+    transaction.__enter__.return_value.scalar.return_value = None
+    transaction.__enter__.return_value.flush.side_effect = failure
+    provider = MagicMock()
+    service = AuthService(sessions, provider)
+    with pytest.raises(AuthError if conflict else IntegrityError) as caught:
+        service.signup("Test", "User", "+27820000000", "test@example.com", PASSWORD)
+    if conflict:
+        assert caught.value.code == "account_exists"
+        assert caught.value.status_code == 409
+    else:
+        assert caught.value is failure
+    # Exception exits the transaction before the public conflict is raised.
+    assert transaction.__exit__.call_args.args[0] is IntegrityError
+    provider.deliver.assert_not_called()
