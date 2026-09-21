@@ -26,6 +26,7 @@ from farmable_backend.records_schemas import (
     SectionView,
     SignedForm,
     UploadCreate,
+    UploadRetry,
     UploadView,
 )
 from farmable_backend.records_service import RecordsService
@@ -229,6 +230,22 @@ async def get_photo(request: Request, response: Response, farm_id: UUID, upload_
     response.headers["Cache-Control"] = "no-store"
     worker = runtime(request)
     return await worker.call(worker.service.upload, token(request), farm_id, upload_id)
+
+
+@router.post(
+    "/farms/{farm_id}/photo-uploads/{upload_id}/retry",
+    response_model=UploadView,
+    operation_id="retryPhotoUpload",
+    response_model_exclude_none=True,
+)
+async def retry_photo(
+    request: Request, response: Response, farm_id: UUID, upload_id: UUID, payload: UploadRetry
+):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    return await worker.call(
+        worker.service.retry_upload, token(request), farm_id, upload_id, payload.failed_attempt_id
+    )
 
 
 @router.post(

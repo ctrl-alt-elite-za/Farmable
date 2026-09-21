@@ -209,6 +209,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/farms/{farm_id}/photo-uploads/{upload_id}/retry': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Retry Photo */
+    post: operations['retryPhotoUpload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/farms/{farm_id}/sections': {
     parameters: {
       query?: never;
@@ -604,8 +621,21 @@ export interface components {
        */
       section_id: string;
     };
+    /** UploadRetry */
+    UploadRetry: {
+      /**
+       * Failed Attempt Id
+       * Format: uuid
+       */
+      failed_attempt_id: string;
+    };
     /** UploadView */
     UploadView: {
+      /**
+       * Attempt Id
+       * Format: uuid
+       */
+      attempt_id: string;
       /** Cloud Media Id */
       cloud_media_id?: string | null;
       /**
@@ -614,7 +644,9 @@ export interface components {
        */
       entity_id: string;
       /** Error Code */
-      error_code?: string | null;
+      error_code?:
+        | ('temporarily_unavailable' | 'invalid_photo' | 'target_unavailable' | 'upload_failed')
+        | null;
       /**
        * Farm Id
        * Format: uuid
@@ -631,6 +663,8 @@ export interface components {
        * Format: uuid
        */
       owner_id: string;
+      /** Retryable */
+      retryable: boolean;
       /**
        * State
        * @enum {string}
@@ -1602,6 +1636,106 @@ export interface operations {
       };
       /** @description Accepted */
       202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UploadView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  retryPhotoUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        upload_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UploadRetry'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
         headers: {
           [name: string]: unknown;
         };

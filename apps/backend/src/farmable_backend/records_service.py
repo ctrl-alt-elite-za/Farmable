@@ -20,6 +20,7 @@ from farmable_backend.models import (
     SyncMutation,
     User,
 )
+from farmable_backend.photo_policy import RECOVERABLE_ERRORS, public_photo_error
 from farmable_backend.record_access import (
     ApiError,
     authenticate,
@@ -70,13 +71,15 @@ def upload_view(session: Session, upload: PhotoUpload) -> UploadView:
         raise ApiError(503, "upload_unavailable")
     return UploadView(
         upload_id=upload.id,
+        attempt_id=current_attempt(session, upload).id,
+        retryable=upload.state == "failed" and upload.error_code in RECOVERABLE_ERRORS,
         mutation_id=mutation.mutation_id,
         entity_id=upload.local_media_id,
         owner_id=upload.owner_id,
         farm_id=upload.farm_id,
         state=upload.state,
         cloud_media_id=upload.media_id if upload.state == "ready" else None,
-        error_code=upload.error_code,
+        error_code=public_photo_error(upload.error_code),
     )
 
 
@@ -112,6 +115,11 @@ class RecordsService:
             if section_id is not None and farm_id is not None:
                 section_scope(session, owner, farm_id, section_id)
             model = {"farms": Farm, "sections": Section, "observations": Observation}[kind]
+            transform = {
+                "farms": FarmView.model_validate,
+                "sections": SectionView.model_validate,
+                "observations": observation_view,
+            }[kind]
             query = select(model).where(model.owner_id == owner, model.deleted_at.is_(None))
             if model is not Farm:
                 query = query.where(model.farm_id == farm_id)
@@ -127,15 +135,10 @@ class RecordsService:
                 record = session.scalar(query.where(model.id == record_id))
                 if record is None:
                     raise ApiError(404, "not_found")
-                return observation_view(record)
+                return transform(record)
             if cursor is not None:
                 query = query.where(model.id > cursor)
             records = list(session.scalars(query.order_by(model.id).limit(limit + 1)))
-            transform = {
-                "farms": FarmView.model_validate,
-                "sections": SectionView.model_validate,
-                "observations": observation_view,
-            }[kind]
             return Page(
                 items=[transform(record) for record in records[:limit]],
                 next_cursor=records[limit - 1].id if len(records) > limit else None,
@@ -164,6 +167,19 @@ class RecordsService:
                 )
                 if ready is None:
                     raise ApiError(404, "not_found")
+            # Do not age out an already accepted mutation. The repository still
+            # validates its owner, entity and exact fingerprint on every replay.
+            existing = session.scalar(
+                select(SyncMutation.id).where(SyncMutation.mutation_id == payload.mutation_id)
+            )
+            if existing is None:
+                now = db_now(session)
+                if (
+                    not now - timedelta(days=365)
+                    <= payload.created_at
+                    <= now + timedelta(minutes=5)
+                ):
+                    raise ApiError(422, "observation_time_out_of_range")
             values = payload.model_dump(exclude={"media_id"})
             record = FarmRecordRepository(session, owner, farm_id).create_observation(
                 **values, local_media_id=payload.media_id
@@ -190,7 +206,7 @@ class RecordsService:
             rate = session.get(PhotoRate, owner)
             hits = [] if rate is None else [hit for hit in rate.hits if hit > now - 60]
             if len(hits) >= 30:
-                raise ApiError(429, "rate_limited", max(1, math.ceil(hits[0] + 60 - now)))
+                raise ApiError(429, "rate_limited", max(1, math.ceil(min(hits) + 60 - now)))
             if rate is None:
                 rate = PhotoRate(owner_id=owner, hits=[])
                 session.add(rate)
@@ -294,6 +310,43 @@ class RecordsService:
         session.add(attempt)
         session.flush()
         return attempt
+
+    def retry_upload(
+        self, authorization: str | None, farm_id: UUID, upload_id: UUID, failed_attempt_id: UUID
+    ) -> UploadView:
+        self.photo_rate(authorization)
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            farm_scope(session, owner, farm_id, lock=True)
+            upload = session.scalar(
+                select(PhotoUpload).where(
+                    PhotoUpload.id == upload_id,
+                    PhotoUpload.owner_id == owner,
+                    PhotoUpload.farm_id == farm_id,
+                )
+            )
+            if upload is None:
+                raise ApiError(404, "not_found")
+            section_scope(session, owner, farm_id, upload.section_id, lock=True)
+            session.refresh(upload, with_for_update=True)
+            attempt = current_attempt(session, upload, lock=True)
+            previous = session.scalar(
+                select(PhotoAttempt).where(
+                    PhotoAttempt.id == failed_attempt_id, PhotoAttempt.upload_id == upload.id
+                )
+            )
+            if previous is None:
+                raise ApiError(404, "not_found")
+            if previous.sequence < attempt.sequence:
+                # Lost response or delayed duplicate: report current state, never
+                # replenish the successor's budget, even if it has also failed.
+                return upload_view(session, upload)
+            if upload.state != "failed" or upload.error_code not in RECOVERABLE_ERRORS:
+                raise ApiError(409, "upload_state_conflict")
+            upload.sequence += 1
+            upload.state, upload.error_code = "awaiting_upload", None
+            self._new_attempt(session, upload)
+            return upload_view(session, upload)
 
     def upload(
         self,

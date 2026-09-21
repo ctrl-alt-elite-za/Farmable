@@ -7,11 +7,11 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from farmable_backend.photo_jobs import PhotoJobs
+from farmable_backend.photo_policy import TRANSIENT_ERRORS
 from farmable_backend.record_access import ApiError
 from farmable_backend.uploads import UploadError, sanitize_photo
 
 logger = logging.getLogger(__name__)
-TRANSIENT = {"incoming_missing", "storage_unavailable", "private_bucket_unverified"}
 
 
 class PhotoWorker:
@@ -53,7 +53,7 @@ class PhotoWorker:
         except UploadError as error:
             code = str(error)
             # UploadError originates only in our adapters/sanitizer, never SDK text.
-            self.jobs.fail(upload.id, token, code, transient=code in TRANSIENT)
+            self.jobs.fail(upload.id, token, code, transient=code in TRANSIENT_ERRORS)
         except ApiError:
             # A stale lease must not mutate its successor. Other internal
             # consistency failures consume the claim budget after lease expiry.

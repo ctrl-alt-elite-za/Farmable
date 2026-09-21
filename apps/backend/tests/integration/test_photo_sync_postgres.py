@@ -25,6 +25,7 @@ from farmable_backend.models import (
     User,
 )
 from farmable_backend.photo_jobs import PhotoJobs
+from farmable_backend.photo_policy import MAX_CLAIMS
 from farmable_backend.photo_worker import PhotoWorker
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_schemas import ObservationCreate, UploadCreate
@@ -273,3 +274,55 @@ def test_worker_discovers_committed_intent_without_enqueue_or_client_resend(pg):
             await task
 
     asyncio.run(exercise())
+
+
+def test_concurrent_recovery_preserves_one_photo_and_stale_attempt_fences(pg):
+    command.upgrade(pg.config, "0005")
+    payload = photo_input(pg)
+    _, upload, attempt = pg.service.reserve(pg.ids.authorization, pg.ids.farm, payload)
+    pg.service.upload(pg.ids.authorization, pg.ids.farm, upload.id, complete=True)
+    stale_claim = None
+    for _ in range(MAX_CLAIMS):
+        stale_claim = pg.jobs.claim(upload.id)
+        pg.jobs.fail(upload.id, stale_claim[1].lease_token, "storage_unavailable", transient=True)
+        with pg.sessions.begin() as session:
+            session.get(PhotoAttempt, attempt.id).next_attempt_at = datetime.now(UTC) - timedelta(
+                seconds=1
+            )
+    # A janitor already owns the old attempt before recovery. Its immutable keys
+    # and stale worker token must remain harmless after a new attempt starts.
+    with pg.sessions.begin() as session:
+        old = session.get(PhotoAttempt, attempt.id)
+        old.terminal_at = datetime.now(UTC) - timedelta(hours=2)
+        old.form_expires_at = old.terminal_at
+    cleanup = pg.jobs.cleanup_claim(upload.id, attempt.id)
+    assert cleanup is not None
+    recovered = race(
+        lambda: pg.service.retry_upload(pg.ids.authorization, pg.ids.farm, upload.id, attempt.id)
+    )
+    assert {item.attempt_id for item in recovered} == {recovered[0].attempt_id}
+    assert all(item.state == "awaiting_upload" for item in recovered)
+    assert all(item.entity_id == payload.local_media_id for item in recovered)
+    _, same_upload, renewed = pg.service.reserve(pg.ids.authorization, pg.ids.farm, payload)
+    assert same_upload.media_id == upload.media_id and renewed.id != attempt.id
+    pg.storage.cleanup(cleanup[0], cleanup[1], keep_clean=False)
+    pg.jobs.cleanup_finish(upload.id, attempt.id, cleanup[1].cleanup_token, True)
+    pg.service.upload(pg.ids.authorization, pg.ids.farm, upload.id, complete=True)
+    worker = PhotoWorker(pg.sessions, lambda: pg.storage)
+    try:
+        worker.process(*stale_claim)
+        claims = race(lambda: pg.jobs.claim(upload.id))
+        assert sum(item is not None for item in claims) == 1
+        worker.process(*next(item for item in claims if item is not None))
+    finally:
+        worker.executor.shutdown()
+    ready = pg.service.upload(pg.ids.authorization, pg.ids.farm, upload.id)
+    assert ready.state == "ready" and ready.cloud_media_id == upload.media_id
+    assert (
+        pg.service.retry_upload(pg.ids.authorization, pg.ids.farm, upload.id, attempt.id) == ready
+    )
+    with pg.sessions() as session:
+        assert session.get(PhotoAttempt, renewed.id).cleaned_at is None
+        assert session.scalar(select(func.count()).select_from(PhotoAttempt)) == 2
+        for model in (PhotoUpload, SyncMutation, Media, SyncChange):
+            assert session.scalar(select(func.count()).select_from(model)) == 1

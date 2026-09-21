@@ -15,6 +15,7 @@ from pydantic import (
     field_validator,
 )
 
+from farmable_backend.photo_policy import PublicPhotoError
 from farmable_backend.record_access import utc
 from farmable_backend.schemas import StrictModel
 
@@ -55,6 +56,10 @@ class UploadCreate(StrictModel):
     section_id: UUID
     content_type: Literal["image/jpeg", "image/png"]
     byte_length: Annotated[StrictInt, Field(ge=1, le=5_000_000)]
+
+
+class UploadRetry(StrictModel):
+    failed_attempt_id: UUID
 
 
 class RecordView(StrictModel):
@@ -122,11 +127,13 @@ class SignedForm(StrictModel):
 
 class UploadView(StrictModel):
     upload_id: UUID
+    attempt_id: UUID
+    retryable: bool
     mutation_id: UUID
     entity_id: UUID
     owner_id: UUID
     farm_id: UUID
     state: Literal["awaiting_upload", "queued", "processing", "ready", "failed", "expired"]
     cloud_media_id: UUID | None = None
-    error_code: str | None = None
+    error_code: PublicPhotoError | None = None
     form: SignedForm | None = None

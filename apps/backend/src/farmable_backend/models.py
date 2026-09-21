@@ -27,6 +27,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from farmable_backend.photo_policy import MAX_CLAIMS
+
 # Spinach is sold by bunch or kilogram, so only these crops get a per-plant formula (#16).
 WEIGHED_CROPS = ("cabbage", "tomato")
 SYNC_STATES = ("pending", "synced", "conflict")
@@ -590,7 +592,9 @@ class PhotoAttempt(Base):
     __table_args__ = (
         UniqueConstraint("upload_id", "sequence", name="uq_photo_attempts_sequence"),
         CheckConstraint(column("sequence") > 0, name="ck_photo_attempts_sequence"),
-        CheckConstraint(column("attempt_count").between(0, 4), name="ck_photo_attempts_count"),
+        CheckConstraint(
+            column("attempt_count").between(0, MAX_CLAIMS), name="ck_photo_attempts_count"
+        ),
         Index("ix_photo_attempts_cleanup", "cleaned_at", "terminal_at"),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)

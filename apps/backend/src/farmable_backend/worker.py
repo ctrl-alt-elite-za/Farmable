@@ -15,23 +15,27 @@ async def run() -> None:
     settings = Settings()
     configure_logging(settings.log_level)
     app = create_task_app(settings)
-    database = Database(settings)
-    photos = PhotoWorker(database.sessions, lambda: create_gcs_photos(settings))
+    database = None
+    photos = None
     photo_task = None
     try:
         async with app.open_async():
             if settings.photo_bucket:
+                database = Database(settings)
+                photos = PhotoWorker(database.sessions, lambda: create_gcs_photos(settings))
                 photo_task = asyncio.create_task(photos.run())
             await app.run_worker_async(queues=["default"], update_heartbeat_interval=5.0)
     finally:
-        photos.stop.set()
+        if photos is not None:
+            photos.stop.set()
         try:
             if photo_task is not None:
                 await photo_task
-            else:
+            elif photos is not None:
                 photos.executor.shutdown(wait=True)
         finally:
-            database.close()
+            if database is not None:
+                database.close()
 
 
 if __name__ == "__main__":

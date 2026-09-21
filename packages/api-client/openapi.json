@@ -671,9 +671,27 @@
         "title": "UploadCreate",
         "type": "object"
       },
+      "UploadRetry": {
+        "additionalProperties": false,
+        "properties": {
+          "failed_attempt_id": {
+            "format": "uuid",
+            "title": "Failed Attempt Id",
+            "type": "string"
+          }
+        },
+        "required": ["failed_attempt_id"],
+        "title": "UploadRetry",
+        "type": "object"
+      },
       "UploadView": {
         "additionalProperties": false,
         "properties": {
+          "attempt_id": {
+            "format": "uuid",
+            "title": "Attempt Id",
+            "type": "string"
+          },
           "cloud_media_id": {
             "anyOf": [
               {
@@ -694,6 +712,12 @@
           "error_code": {
             "anyOf": [
               {
+                "enum": [
+                  "temporarily_unavailable",
+                  "invalid_photo",
+                  "target_unavailable",
+                  "upload_failed"
+                ],
                 "type": "string"
               },
               {
@@ -727,6 +751,10 @@
             "title": "Owner Id",
             "type": "string"
           },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          },
           "state": {
             "enum": ["awaiting_upload", "queued", "processing", "ready", "failed", "expired"],
             "title": "State",
@@ -738,7 +766,16 @@
             "type": "string"
           }
         },
-        "required": ["upload_id", "mutation_id", "entity_id", "owner_id", "farm_id", "state"],
+        "required": [
+          "upload_id",
+          "attempt_id",
+          "retryable",
+          "mutation_id",
+          "entity_id",
+          "owner_id",
+          "farm_id",
+          "state"
+        ],
         "title": "UploadView",
         "type": "object"
       },
@@ -2178,6 +2215,148 @@
           }
         ],
         "summary": "Complete Photo"
+      }
+    },
+    "/farms/{farm_id}/photo-uploads/{upload_id}/retry": {
+      "post": {
+        "operationId": "retryPhotoUpload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "farm_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Farm Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "upload_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Upload Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRetry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "SessionBearer": []
+          }
+        ],
+        "summary": "Retry Photo"
       }
     },
     "/farms/{farm_id}/sections": {

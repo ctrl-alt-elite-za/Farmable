@@ -3,7 +3,7 @@
 import asyncio
 import hashlib
 import threading
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from io import BytesIO
 from types import SimpleNamespace
 from uuid import uuid4
@@ -169,7 +169,7 @@ def observation_payload(ids):
         "section_id": str(ids.section),
         "type": "health",
         "note": "Checked leaves",
-        "created_at": "2026-09-21T08:00:00+02:00",
+        "created_at": datetime.now(timezone(timedelta(hours=2))).isoformat(),
     }
 
 
@@ -253,7 +253,9 @@ def test_observation_replay_conflict_and_get(records):
     path = f"/farms/{records.ids.farm}/observations"
     first = records.client.post(path, json=payload)
     assert first.status_code == 200, first.text
-    payload["created_at"] = "2026-09-21T06:00:00Z"
+    payload["created_at"] = (
+        datetime.fromisoformat(payload["created_at"]).astimezone(UTC).isoformat()
+    )
     replay = records.client.post(path, json=payload)
     assert replay.json() == first.json()
     payload["note"] = "Changed"

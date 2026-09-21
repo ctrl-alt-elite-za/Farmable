@@ -4,6 +4,12 @@ Date: 2026-09-21
 
 Status: written specification approved by the user on 2026-09-21.
 
+The approved [PR49 review amendment](2026-09-21-pr49-review-fixes-design.md)
+adds explicit recovery of temporarily failed photo attempts, bounds new observation
+timestamps, and narrows public failure codes. It supersedes conflicting original
+terminal-failure wording below; ordinary reservation/completion replays still cannot
+reset a failed attempt.
+
 Baseline: `origin/main` at `e32a53e` (backend authentication from PR 44).
 Implementation branch: `issue-17-authenticated-sync-api`.
 

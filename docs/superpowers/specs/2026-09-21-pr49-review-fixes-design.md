@@ -1,6 +1,6 @@
 # PR49 review fixes
 
-Status: approach approved; written specification awaiting confirmation.
+Status: written specification approved by the user on 2026-09-21.
 Baseline: `72220646d4e0281a5c7fbe980a8ecd5311b9b59d`.
 Review: https://github.com/ctrl-alt-elite-za/Farmable/pull/49#issuecomment-5765425776
 
@@ -88,7 +88,7 @@ migration approval and real GCS staging acceptance outstanding.
 - [x] Inspect review, affected code, CI logs and required-check configuration.
 - [x] Compare recovery approaches; confirm scope and timestamp policy with user.
 - [x] Write specification and self-review for scope, replay and cleanup ambiguity.
-- [ ] User confirms this written specification.
+- [x] User confirms this written specification.
 - [ ] Write implementation plan, implement regressions/fixes, verify and push PR49.
 
 No visual design is involved. The writing-plans skill is unavailable in this

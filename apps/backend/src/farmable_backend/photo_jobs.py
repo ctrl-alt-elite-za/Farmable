@@ -8,10 +8,9 @@ from sqlalchemy import or_, select
 
 from farmable_backend.gcs_photos import clean_key
 from farmable_backend.models import Farm, Media, PhotoAttempt, PhotoUpload, Section, SyncChange
+from farmable_backend.photo_policy import MAX_CLAIMS, RETRY_DELAYS
 from farmable_backend.record_access import ApiError, db_now, utc
 from farmable_backend.records_service import current_attempt
-
-RETRY_DELAYS = (5, 30, 120)
 
 
 class PhotoJobs:
@@ -82,7 +81,7 @@ class PhotoJobs:
                 return None
             if utc(attempt.next_attempt_at) > now:
                 return None
-            if not self.active(upload, farm, section) or attempt.attempt_count >= 4:
+            if not self.active(upload, farm, section) or attempt.attempt_count >= MAX_CLAIMS:
                 upload.state = "failed"
                 upload.error_code = (
                     "scope_unavailable"
@@ -186,7 +185,7 @@ class PhotoJobs:
             if not self.owns(upload, attempt, token, now):
                 return
             upload.error_code = code
-            if transient and attempt.attempt_count < 4:
+            if transient and attempt.attempt_count < MAX_CLAIMS:
                 upload.state = "queued"
                 attempt.next_attempt_at = now + timedelta(
                     seconds=RETRY_DELAYS[attempt.attempt_count - 1]
