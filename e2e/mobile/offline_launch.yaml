@@ -11,9 +11,14 @@ name: App launches into Home and reports Offline when the API is unreachable
 - launchApp:
     clearState: true
 # The farm still appears. Nothing here depends on the network.
+# First launch wipes app data, so the local database is created and seeded
+# before anything renders. Measured at 23s on a warm local emulator with a
+# debug build; CI's emulator is cold and software-rendered, so 30s was
+# marginal and flaked. Only this first wait is generous — once the farm is on
+# screen the connectivity chip is already there.
 - extendedWaitUntil:
     visible: 'Hello, Sipho'
-    timeout: 30000
+    timeout: 120000
 - assertVisible:
     id: 'sync-status'
 - extendedWaitUntil:
