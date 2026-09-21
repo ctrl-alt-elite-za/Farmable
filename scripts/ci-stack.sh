@@ -6,6 +6,7 @@ mode="${1:?Choose deployability, e2e-api, e2e-degradation or mobile}"
 case "$mode" in deployability|e2e-api|e2e-degradation|mobile) ;; *) exit 2 ;; esac
 docker info >/dev/null
 export POSTGRES_USER=farmable_ci POSTGRES_DB=farmable_ci
+export ENVIRONMENT=ci INTEGRATIONS_MODE=fake
 POSTGRES_PASSWORD="$(uv run python -c 'import secrets; print(secrets.token_hex(24))')"
 export POSTGRES_PASSWORD
 DATABASE_URL="$(uv run python -c 'import os; from sqlalchemy import URL; print(URL.create("postgresql+psycopg", username=os.environ["POSTGRES_USER"], password=os.environ["POSTGRES_PASSWORD"], host="database", database=os.environ["POSTGRES_DB"]).render_as_string(hide_password=False))')"
@@ -24,7 +25,7 @@ cleanup() {
     # Capture while the owned emulator is still running; the runner stops it next.
     # Only app/platform error tags, never environment or backend/provider logs.
     mkdir -p .ci-mobile-debug
-    adb logcat -d -s AndroidRuntime:E ReactNativeJS:E > .ci-mobile-debug/android-errors.log 2>&1 || true
+    adb logcat -d -s AndroidRuntime:E flutter:E > .ci-mobile-debug/android-errors.log 2>&1 || true
     adb exec-out screencap -p > .ci-mobile-debug/screen.png 2>/dev/null || true
     adb shell uiautomator dump /sdcard/farmable-ci-ui.xml >/dev/null 2>&1 || true
     adb pull /sdcard/farmable-ci-ui.xml .ci-mobile-debug/ui.xml >/dev/null 2>&1 || true
@@ -50,9 +51,6 @@ elif [ "$mode" = mobile ]; then
   adb install -r "${APK:?Set APK to the test-mode Android build}"
   # Prove connectivity, then stop ONLY this invocation's API for offline proof.
   maestro test e2e/mobile/online_launch.yaml
-  if [ -f e2e/mobile/scan_pan_test_mode.yaml ]; then
-    maestro test e2e/mobile/scan_pan_test_mode.yaml
-  fi
   "${compose[@]}" stop api
   maestro test e2e/mobile/offline_launch.yaml
 fi

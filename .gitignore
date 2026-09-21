@@ -30,11 +30,14 @@ node_modules/
 .pnpm-store/
 dist/
 build/
-.expo/
-apps/mobile/android/
-apps/mobile/ios/
 *.ipa
 *.apk
+
+# The Flutter app's android/ and ios/ are committed source, not generated
+# output as they were under Expo's `expo prebuild`. Ignoring them silently
+# dropped a new Android resource and broke the release build; apps/mobile's
+# own .gitignore (and android/.gitignore, ios/.gitignore) cover the real
+# build artifacts.
 .next/
 coverage/
 
@@ -67,3 +70,6 @@ mlruns/
 .ci-reports/
 .ci-mobile-debug/
 .ci-tmp/
+
+# Private local prototype state (never the production database).
+.farmable-demo/
