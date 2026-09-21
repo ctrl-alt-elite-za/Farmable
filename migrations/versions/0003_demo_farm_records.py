@@ -38,7 +38,7 @@ def owned_record_columns() -> list[sa.Column]:
             "owner_id", sa.Uuid(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
         ),
         *timestamps(),
-        sa.Column("version", sa.Integer(), server_default="1", nullable=False),
+        sa.Column("version", sa.BigInteger(), server_default="1", nullable=False),
         sa.Column("sync_state", sa.Text(), server_default="pending", nullable=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     ]
@@ -71,7 +71,7 @@ def upgrade() -> None:
         ),
         sa.Column("name", sa.Text(), nullable=False),
         *timestamps(),
-        sa.Column("version", sa.Integer(), server_default="1", nullable=False),
+        sa.Column("version", sa.BigInteger(), server_default="1", nullable=False),
         sa.Column("sync_state", sa.Text(), server_default="pending", nullable=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sync_check("farms"),
@@ -249,7 +249,7 @@ def upgrade() -> None:
         sa.Column("record_type", sa.Text(), nullable=False),
         sa.Column("record_id", sa.Uuid(), nullable=False),
         sa.Column("operation", sa.Text(), nullable=False),
-        sa.Column("version", sa.Integer(), nullable=False),
+        sa.Column("version", sa.BigInteger(), nullable=False),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),

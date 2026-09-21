@@ -15,7 +15,6 @@ from sqlalchemy import (
     ForeignKey,
     Identity,
     Index,
-    Integer,
     Numeric,
     Text,
     UniqueConstraint,
@@ -94,7 +93,7 @@ class Farm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -117,7 +116,7 @@ class Section(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -142,7 +141,7 @@ class Planting(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -170,7 +169,7 @@ class Media(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -201,7 +200,7 @@ class Observation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -229,7 +228,7 @@ class FarmTask(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -264,7 +263,7 @@ class FinancialRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -290,7 +289,7 @@ class SavedPlan(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -332,7 +331,7 @@ class SyncChange(Base):
     record_type: Mapped[str] = mapped_column(Text)
     record_id: Mapped[UUID] = mapped_column(Uuid)
     operation: Mapped[str] = mapped_column(Text)
-    version: Mapped[int] = mapped_column(Integer)
+    version: Mapped[int] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
