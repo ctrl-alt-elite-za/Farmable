@@ -11,8 +11,25 @@ from farmable_backend.tasks import create_task_app
 from pydantic import SecretStr, ValidationError
 
 
-def test_only_vision_registry_tables_are_registered():
-    assert set(Base.metadata.tables) == {"detector_models", "weight_formulas"}
+def test_only_owned_application_tables_are_registered():
+    assert set(Base.metadata.tables) == {
+        "detector_models",
+        "weight_formulas",
+        "users",
+        "farms",
+        "sections",
+        "plantings",
+        "media",
+        "observations",
+        "farm_tasks",
+        "financial_records",
+        "saved_plans",
+        "sync_mutations",
+        "sync_changes",
+        "verification_challenges",
+        "auth_sessions",
+        "auth_identities",
+    }
 
 
 def test_query_timeout(settings):
@@ -23,6 +40,15 @@ def test_query_timeout(settings):
         "options": "-c statement_timeout=5000 -c search_path=public",
     }
     assert create.call_args.kwargs["hide_parameters"] is True
+
+
+def test_migration_connections_bound_lock_waits(settings):
+    with patch("farmable_backend.database.create_engine") as create:
+        make_engine(settings, migration=True)
+    assert create.call_args.kwargs["connect_args"] == {
+        "connect_timeout": 5,
+        "options": "-c statement_timeout=5000 -c search_path=public -c lock_timeout=1000",
+    }
 
 
 @pytest.mark.parametrize(

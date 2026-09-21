@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Every run owns a unique Compose project and disposable volume; never touches the dev DB.
 set -euo pipefail
+export ENVIRONMENT=ci INTEGRATIONS_MODE=fake
 cd "$(dirname "$0")/.."
 command -v docker >/dev/null || { echo "Docker is required" >&2; exit 1; }
 docker info >/dev/null || { echo "Start Docker Desktop/the Docker engine first" >&2; exit 1; }
@@ -21,7 +22,7 @@ trap cleanup EXIT
 "${compose[@]}" run --rm migrate
 "${compose[@]}" run --rm queue-schema
 "${compose[@]}" up -d api worker
-"${compose[@]}" run --rm tests pytest apps/backend/tests/integration -m integration -q -k 'healthy or models_match_migrations or vision_registry'
+"${compose[@]}" run --rm tests pytest apps/backend/tests/integration -m integration -q -k 'healthy or models_match_migrations or vision_registry or farm_records or auth'
 "${compose[@]}" stop worker
 # Readiness must reject stale heartbeats, not just the absence of job failures.
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration -m integration -q -k worker_down

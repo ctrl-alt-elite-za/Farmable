@@ -17,15 +17,86 @@ accuracy report, may miss local varieties and conditions, and does not provide
 the issue's custom condition label or measured weight functionality. Do not
 describe it as satisfying the training and evaluation acceptance criteria.
 
-Measure the complete camera path on physical devices and record it with:
+Issue #16 records detector measurements (not the complete camera path; that is
+Issue #18) on physical devices. First collect a JSON array of at least 20 warm inference
+milliseconds, for example `ios-warm.json`, then record the report with:
 
 ```bash
 python apps/ml-service/vision/benchmark.py --platform ios \
-  --device "iPhone 12 Pro" --model v1.mlpackage --detector-ms 12.4 \
-  --measurement-source physical_device \
-  --output apps/ml-service/vision/reports/v1-ios.json
+  --device "iPhone 12 Pro" --os-version "<exact iOS version>" \
+  --runtime "Core ML" --precision fp16 --model-version demo1 \
+  --artifact-sha256 "<manifest SHA-256>" --artifact-bytes "<manifest bytes>" \
+  --cold-load-ms "<measured>" --first-inference-ms "<measured>" \
+  --warm-samples-file ios-warm.json --warmup-iterations 10 \
+  --peak-memory-mb "<measured>" --measurement-source physical_device \
+  --output apps/ml-service/vision/reports/demo1-ios.json
 ```
 
-Replace `12.4` with the median steady-state detector time measured on the device.
-The command fails when the iPhone result exceeds 20 ms. Android results are
-recorded by device because Android performance varies by chipset.
+The tool computes warm p50 and p95 and rejects missing, non-positive, non-finite
+or non-physical measurements. Android uses the same fields with the exact
+target device/runtime. The old 20 ms iPhone value is a useful stretch target,
+not a release gate by itself.
+
+After both reports exist, produce a separate selected release manifest only
+after the fixed fixture report is complete:
+
+```bash
+python apps/ml-service/vision/release.py \
+  --manifest apps/ml-service/vision/models/demo1.json \
+  --ios-report apps/ml-service/vision/reports/demo1-ios.json \
+  --android-report apps/ml-service/vision/reports/demo1-android.json \
+  --fixtures apps/ml-service/vision/reports/demo1-fixtures.json \
+  --accepted-license '<exact license value approved by the project>' \
+  --output apps/ml-service/vision/models/demo1.release.json
+```
+
+The fixture report uses `schema_version: 1`. Its `fixture_set` records a
+unique `fixture_id`, the file's `fixture_sha256`, and `expected_crop`
+(`cabbage`, `tomato`, `spinach`, or `null` for a negative). Its `runs`
+object contains exactly `ios` and `android`; each run records the matching
+manifest `artifact_sha256` and one result for every fixture:
+
+```json
+{
+  "schema_version": 1,
+  "model_version": "demo1",
+  "fixture_set": [
+    {
+      "fixture_id": "cabbage-1",
+      "fixture_sha256": "<lowercase SHA-256>",
+      "expected_crop": "cabbage"
+    }
+  ],
+  "runs": {
+    "ios": {
+      "artifact_sha256": "<Core ML manifest SHA-256>",
+      "results": [
+        {
+          "fixture_id": "cabbage-1",
+          "detected": true,
+          "raw_label": "cabbage plant",
+          "confidence": 0.9
+        }
+      ]
+    },
+    "android": {
+      "artifact_sha256": "<TFLite manifest SHA-256>",
+      "results": [
+        {
+          "fixture_id": "cabbage-1",
+          "detected": true,
+          "raw_label": "cabbage plant",
+          "confidence": 0.9
+        }
+      ]
+    }
+  }
+}
+```
+
+The complete set must include at least two fixtures for each required crop and
+at least two negatives. Both platforms must produce at least two matching
+detections per crop at confidence 0.5 or higher. Any detection on a negative
+fixture fails the gate. For `detected: false`, both `raw_label` and
+`confidence` must be `null`. This remains qualitative demo evidence, not an
+accuracy percentage.

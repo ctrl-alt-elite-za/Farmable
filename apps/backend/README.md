@@ -23,6 +23,15 @@ No migrations are run by API or worker startup. Deployment/migration orchestrati
 is #6. Queue schema changes must use Procrastinate's vendor migration tooling;
 never copy its SQL into this repository or rerun initial schema installation.
 
+After applying application migrations, seed the deterministic fictional demo farm
+explicitly when needed:
+
+```bash
+uv run python -m farmable_backend.seed_demo
+```
+
+The command is idempotent and never runs during API startup.
+
 The database has no published port by default. If running the API on the host,
 forward a local-only database port with a Compose override and export `DATABASE_URL`
 from the environment (the app never reads `.env` itself). Credentials with URL
@@ -85,3 +94,11 @@ liveness stays healthy. The runner never touches the development database.
 `make client` generates the schema and typed `openapi-fetch` wrapper from the
 actual app without connecting to a database. Generated files must not be edited.
 `apps/mobile/tests/api-contract.ts` is a compile-time consumer; the Expo UI is #4.
+
+## Local hackathon prototype
+
+A separate, synthetic-data map-to-plan API can run without Postgres or provider
+keys. It is **not** mounted into the production API above. See
+[the provisional demo API handoff](../../docs/local-demo-api.md) for startup,
+frontend shapes, session isolation, local saving/reset and the three-run HTTP
+rehearsal. The production feature issues remain open.

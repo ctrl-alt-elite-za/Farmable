@@ -8,6 +8,8 @@ COPY apps/backend apps/backend
 COPY migrations migrations
 COPY scripts scripts
 COPY e2e e2e
+COPY infra/cloudrun-entrypoint.sh /app/cloudrun-entrypoint.sh
+COPY infra/cloudrun-migrate.sh /app/cloudrun-migrate.sh
 COPY conftest.py ./
 RUN uv sync --locked --no-dev && useradd --create-home farmable
 

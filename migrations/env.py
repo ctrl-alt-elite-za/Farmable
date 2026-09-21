@@ -30,7 +30,7 @@ def run_migrations() -> None:
         with context.begin_transaction():
             context.run_migrations()
         return
-    engine = make_engine(Settings())
+    engine = make_engine(Settings(), migration=True)
     try:
         with engine.connect() as connection:
             context.configure(
@@ -38,6 +38,7 @@ def run_migrations() -> None:
                 target_metadata=Base.metadata,
                 include_name=include_name,
                 compare_type=True,
+                version_table_schema=context.config.attributes.get("version_table_schema"),
             )
             with context.begin_transaction():
                 context.run_migrations()

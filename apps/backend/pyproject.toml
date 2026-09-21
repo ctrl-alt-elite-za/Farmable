@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Farmable API and background worker"
 requires-python = ">=3.12"
 dependencies = [
+    "argon2-cffi>=23.1,<24",
+    "email-validator>=2.2,<3",
     "fastapi>=0.115,<1",
     "boto3>=1.35,<2",
     "Pillow>=12.3,<13",
@@ -14,6 +16,7 @@ dependencies = [
     "alembic>=1.14,<2",
     "psycopg[binary]>=3.2,<4",
     "procrastinate>=3.2,<4",
+    "httpx>=0.28,<0.29",
 ]
 
 [build-system]

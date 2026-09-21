@@ -1,0 +1,82 @@
+{
+  "provenance": "Synthetic, documentation-derived examples. Not captured account responses; live contract recordings remain pending.",
+  "success": {
+    "twilio": {
+      "sid": "VE00000000000000000000000000000000",
+      "status": "pending",
+      "channel": "sms"
+    },
+    "turnstile": {
+      "success": true,
+      "hostname": "farmable.test",
+      "action": "sign_up",
+      "error-codes": []
+    },
+    "azure_stt": { "RecognitionStatus": "Success", "DisplayText": "Farmable smoke test." },
+    "gemini": {
+      "candidates": [
+        {
+          "content": { "role": "model", "parts": [{ "text": "Farmable smoke test." }] },
+          "finishReason": "STOP"
+        }
+      ]
+    },
+    "crop_health": {
+      "status": "COMPLETED",
+      "result": {
+        "is_plant": { "binary": true, "probability": 0.99, "threshold": 0.5 },
+        "crop": {
+          "suggestions": [
+            {
+              "id": "fixture-tomato",
+              "name": "tomato",
+              "scientific_name": "Solanum lycopersicum",
+              "probability": 0.98,
+              "similar_images": [],
+              "details": {}
+            }
+          ]
+        },
+        "disease": {
+          "suggestions": [
+            {
+              "id": "fixture-disease",
+              "name": "Early blight",
+              "scientific_name": "Alternaria solani",
+              "probability": 0.8,
+              "similar_images": [],
+              "details": {}
+            }
+          ]
+        }
+      }
+    },
+    "soilgrids": {
+      "type": "Feature",
+      "properties": {
+        "layers": [
+          {
+            "name": "phh2o",
+            "unit_measure": { "mapped_units": "pH*10", "target_units": "pH", "d_factor": 10 },
+            "depths": [{ "label": "0-5cm", "values": { "mean": 65 } }]
+          }
+        ]
+      }
+    },
+    "open_meteo": {
+      "latitude": -26.2,
+      "longitude": 28.0,
+      "timezone": "GMT",
+      "daily": { "time": ["2026-09-17"], "temperature_2m_max": [25.0], "precipitation_sum": [0.0] }
+    },
+    "maps": {
+      "results": [
+        {
+          "formattedAddress": "Johannesburg, South Africa",
+          "location": { "latitude": -26.2, "longitude": 28.0 }
+        }
+      ]
+    }
+  },
+  "error": { "error": { "code": 503, "message": "Synthetic provider unavailable" } }
+}

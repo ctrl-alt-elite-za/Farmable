@@ -2,13 +2,13 @@
 #
 # Run it against an emulator with a development build installed and no API running:
 #   maestro test e2e/mobile/offline_launch.yaml
-appId: za.co.almanac.app
+appId: za.co.ctrlaltelite.farmable
 name: App launches and reports Offline when the API is unreachable
 ---
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: 'Almanac'
+    visible: 'Farmable'
     timeout: 30000
 - assertVisible:
     id: 'api-status'
