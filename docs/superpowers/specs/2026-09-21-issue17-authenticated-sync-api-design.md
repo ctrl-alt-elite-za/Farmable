@@ -2,7 +2,7 @@
 
 Date: 2026-09-21
 
-Status: approach approved; written specification awaiting user review.
+Status: written specification approved by the user on 2026-09-21.
 
 Baseline: `origin/main` at `e32a53e` (backend authentication from PR 44).
 Implementation branch: `issue-17-authenticated-sync-api`.

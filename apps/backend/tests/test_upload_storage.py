@@ -1,6 +1,6 @@
 import base64
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -133,9 +133,11 @@ def offline_client():
 
 def test_signed_policy_constrains_one_object_type_size_encryption_and_five_minutes():
     spec = PhotoSpec(uuid4(), uuid4(), "image/jpeg", 123)
-    before = datetime.now(UTC)
-    upload = PhotoStorage(offline_client(), "private-photos").prepare(spec)
-    after = datetime.now(UTC)
+    issued_at = datetime(2026, 9, 21, tzinfo=UTC)
+    # Exercise real SDK policy generation with a deterministic issuance clock;
+    # client startup or a busy runner must not widen the expiry assertion.
+    with patch("botocore.signers.get_current_datetime", return_value=issued_at):
+        upload = PhotoStorage(offline_client(), "private-photos").prepare(spec)
     policy = json.loads(base64.b64decode(upload.fields["policy"]))
     conditions = policy["conditions"]
     assert {"key": spec.incoming_key} in conditions
@@ -145,8 +147,7 @@ def test_signed_policy_constrains_one_object_type_size_encryption_and_five_minut
     assert upload.fields["x-amz-server-side-encryption"] == "AES256"
     assert not any(isinstance(c, list) and c[0] == "starts-with" for c in conditions)
     expiry = datetime.fromisoformat(policy["expiration"].replace("Z", "+00:00"))
-    assert 299 <= (expiry - before).total_seconds() <= 301
-    assert 299 <= (expiry - after).total_seconds() <= 301
+    assert expiry == issued_at + timedelta(seconds=300)
     assert upload.expires_in == 300
     assert "policy" not in repr(upload)
     assert "storage.example" not in repr(upload)

@@ -1,5 +1,11 @@
 # Upload storage: independent slice of issue #17
 
+The S3 boundary described below is retained for compatibility. The new
+[authenticated observation/photo API](authenticated-sync-api.md) targets Google
+Cloud Storage and reuses the same pixel sanitizer. Its upload/worker state,
+configuration prerequisites, and acceptance limits are documented separately.
+Do not use this S3 signing contract or SSE-S3 headers with the GCS API.
+
 This is a storage/photo-validation boundary, **not the completed issue**. No
 authentication endpoints, database models, migrations, worker jobs, or phone
 queue are added. It deliberately leaves those shared surfaces untouched while

@@ -70,6 +70,11 @@ class JsonFormatter(logging.Formatter):
         if record.name.startswith("procrastinate"):
             # Vendor messages embed job argument reprs. Never let those enter our logs.
             message = "Queue event"
+        if record.name.startswith(("google.", "urllib3")):
+            # Cloud retry/debug messages can contain object URLs, signed
+            # credentials and provider response bodies. Keep them opaque even
+            # when an operator enables debug logging.
+            message = "Storage transport event"
         data = {
             "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname.lower(),
