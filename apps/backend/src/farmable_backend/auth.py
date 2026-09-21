@@ -18,6 +18,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from farmable_backend.models import AuthSession, User, VerificationChallenge
 
 PASSWORD_HASHER = PasswordHasher()  # argon2-cffi defaults are Argon2id.
+# Unknown accounts must still pay the same Argon2 verification cost as known
+# accounts; otherwise login latency becomes an account-enumeration oracle.
+DUMMY_PASSWORD_HASH = PASSWORD_HASHER.hash(secrets.token_urlsafe(32))
 OTP_TTL = timedelta(minutes=10)
 SESSION_TTL = timedelta(days=30)
 MAX_OTP_ATTEMPTS = 5
@@ -209,11 +212,13 @@ class AuthService:
             user = session.scalar(
                 select(User).where((User.email == identifier.lower()) | (User.phone == identifier))
             )
-            if (
-                user is None
-                or user.password_hash is None
-                or not self._verify_password(user.password_hash, password)
-            ):
+            password_hash = (
+                user.password_hash
+                if user is not None and user.password_hash is not None
+                else DUMMY_PASSWORD_HASH
+            )
+            password_valid = self._verify_password(password_hash, password)
+            if user is None or user.password_hash is None or not password_valid:
                 raise AuthError("invalid_credentials", 401)
             if not (user.phone_verified and user.email_verified):
                 raise AuthError("invalid_credentials", 401)
@@ -221,19 +226,24 @@ class AuthService:
 
     def refresh(self, refresh_token: str) -> SessionTokens:
         with self.sessions.begin() as session:
-            record = session.scalar(
-                select(AuthSession).where(
+            # Consume the token in the same statement that decides whether it
+            # is valid. A select followed by a write lets two concurrent
+            # requests both mint a replacement session from one refresh token.
+            user_id = session.scalar(
+                update(AuthSession)
+                .where(
                     AuthSession.refresh_token_hash == _hash_token(refresh_token),
                     AuthSession.revoked_at.is_(None),
                     AuthSession.expires_at > _now(),
                 )
+                .values(revoked_at=_now())
+                .returning(AuthSession.user_id)
             )
-            if record is None:
+            if user_id is None:
                 raise AuthError("invalid_session", 401)
-            user = session.get(User, record.user_id)
+            user = session.get(User, user_id)
             if user is None or not (user.phone_verified and user.email_verified):
                 raise AuthError("invalid_session", 401)
-            record.revoked_at = _now()
             return self._new_session(session, user)
 
     def _send(self, session: Session, user: User, channel: Channel) -> None:

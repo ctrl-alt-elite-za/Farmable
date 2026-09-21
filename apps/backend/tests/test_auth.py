@@ -1,5 +1,6 @@
 import pytest
 from farmable_backend.auth import (
+    DUMMY_PASSWORD_HASH,
     MAX_OTP_ATTEMPTS,
     AuthError,
     AuthService,
@@ -97,6 +98,21 @@ def test_unverified_account_cannot_log_in_and_errors_are_generic(settings):
         "error": {"code": "invalid_credentials", "message": "Unable to log in with those details"}
     }
     test_client.close()
+
+
+def test_missing_account_still_performs_password_verification(monkeypatch):
+    _sessions, service = _database_auth()
+    verified_hashes: list[str] = []
+
+    def reject(password_hash: str, password: str) -> bool:
+        verified_hashes.append(password_hash)
+        return False
+
+    monkeypatch.setattr(service, "_verify_password", reject)
+    with pytest.raises(AuthError, match="invalid_credentials"):
+        service.login("missing@example.com", PASSWORD)
+
+    assert verified_hashes == [DUMMY_PASSWORD_HASH]
 
 
 def test_refresh_rotates_a_session(settings):
