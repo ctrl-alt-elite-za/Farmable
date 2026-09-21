@@ -266,14 +266,18 @@ LITERAL_ENV = (
 )
 
 
+def _service_spec(env_json: str) -> str:
+    """The `spec` half of a Knative v1 service, as the single source of that nesting."""
+    return '{"spec":{"template":{"spec":{"containers":[{"env":[' + env_json + "]}]}}}}"
+
+
 def _describe_body(env_json: str) -> str:
     """Knative v1 nests containers under spec.template.spec, per run_v1_messages:
     ServiceSpec.template -> RevisionTemplate -> RevisionSpec.containers. Writing the
     real path matters even though gcp-secret-smoke.sh searches with `..`: a fixture
     on a made-up path cannot catch a regression that makes the query path-sensitive.
     """
-    payload = '{"spec":{"template":{"spec":{"containers":[{"env":[' + env_json + "]}]}}}}"
-    return "cat <<'FAKEJSON'\n" + payload + "\nFAKEJSON\n"
+    return "cat <<'FAKEJSON'\n" + _service_spec(env_json) + "\nFAKEJSON\n"
 
 
 def _secret_env(tmp_path: Path) -> dict:
@@ -386,8 +390,10 @@ def test_rollout_treats_not_found_as_a_first_deployment(tmp_path: Path) -> None:
         "exit 0\n",
     )
     result = _run("infra/gcp-rollout.sh", _rollout_env(tmp_path))
-    assert result.returncode != 0
-    assert "run deploy" in log.read_text(encoding="utf-8")
+    # Deliberately no assertion on returncode: the fake chooses that exit code, so
+    # asserting it would test the fixture rather than the script. Reaching the deploy
+    # is the behaviour under test.
+    assert "run deploy" in log.read_text(encoding="utf-8"), result.stderr
 
 
 # A `gcloud run services list --format='value(a,b)'` prints the requested fields in
@@ -459,6 +465,16 @@ def test_deploy_freeze_is_documented_as_a_repository_variable() -> None:
     assert "protected environment" not in readme
 
 
+def _backup_env(tmp_path: Path) -> dict:
+    return {
+        **os.environ,
+        "PATH": _path(tmp_path),
+        "GCP_PROJECT": "farmable-project",
+        "CLOUD_SQL_INSTANCE": "farmable-staging",
+        "COMMIT_SHA": "0123456789abcdef0123456789abcdef01234567",
+    }
+
+
 def test_backup_does_not_pass_unsupported_flags_to_sql_operations(tmp_path: Path) -> None:
     """`gcloud sql operations wait|describe` take OPERATION plus wide flags only --
     verified against gcloud 585.0.0, whose synopsis is
@@ -491,16 +507,7 @@ def test_backup_does_not_pass_unsupported_flags_to_sql_operations(tmp_path: Path
         "fi\n"
         "exit 0\n",
     )
-    result = _run(
-        "infra/gcp-backup.sh",
-        {
-            **os.environ,
-            "PATH": _path(tmp_path),
-            "GCP_PROJECT": "farmable-project",
-            "CLOUD_SQL_INSTANCE": "farmable-staging",
-            "COMMIT_SHA": "0123456789abcdef0123456789abcdef01234567",
-        },
-    )
+    result = _run("infra/gcp-backup.sh", _backup_env(tmp_path))
     assert result.returncode == 0, result.stderr
     assert "unrecognized arguments" not in result.stderr
 
@@ -564,17 +571,18 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     """
     log = tmp_path / "calls.log"
     sha = "0123456789abcdef0123456789abcdef01234567"
+    # Reuse the one place the Knative v1 container/env nesting is spelled out, so a
+    # correction there cannot leave a stale second copy here.
     service_json = (
         '{"status":{"traffic":[{"tag":"sha-' + sha + '",'
         '"url":"https://sha-' + sha[:8] + '---farmable.run.app",'
-        '"revisionName":"farmable-00002"}]},'
-        '"spec":{"template":{"spec":{"containers":[{"env":[' + REFERENCE_ENV_V1 + "]}]}}}}"
+        '"revisionName":"farmable-00002"}]},' + _service_spec(REFERENCE_ENV_V1)[1:]
     )
     _fake_gcloud(
         tmp_path,
-        'printf \'%s\n\' "$*" >>"' + str(log) + '"\n'
+        _log_calls(log)
         # First deploy: no existing service.
-        'if [[ "$*" == *"run services list"* ]]; then exit 0; fi\n'
+        + 'if [[ "$*" == *"run services list"* ]]; then exit 0; fi\n'
         'if [[ "$*" == *"latestCreatedRevisionName"* ]]; then\n'
         "  printf '%s\\n' 'farmable-00002'; exit 0\n"
         "fi\n"
