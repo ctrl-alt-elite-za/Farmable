@@ -356,10 +356,13 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
 
 def test_mobile_maestro_flows_wait_for_release_app_startup():
     repo = Path(__file__).resolve().parents[2]
-    for name, expected in (("online_launch.yaml", "Online"), ("offline_launch.yaml", "Offline")):
+    for name, expected in (("online_launch.yaml", "Synced"), ("offline_launch.yaml", "Offline")):
         flow = (repo / "e2e/mobile" / name).read_text()
         assert "extendedWaitUntil:" in flow
-        assert "visible: 'Almanac'" in flow
+        # The greeting proves Home rendered the SEEDED farm from local storage,
+        # not merely that some screen drew. Home is the launch destination.
+        assert "visible: 'Hello, Sipho'" in flow
+        assert "id: 'sync-status'" in flow
         assert "timeout: 30000" in flow
         assert f"visible: '{expected}'" in flow
 

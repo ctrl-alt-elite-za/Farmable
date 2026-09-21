@@ -1,14 +1,17 @@
 # The isolated CI API must be running before this flow starts.
 appId: za.co.almanac.app
-name: App launches and reaches the isolated API
+name: App launches into Home and reports Synced when the API is reachable
 ---
 - launchApp:
     clearState: true
+# Home renders from the local database, so the farm appears without waiting on
+# the network. The greeting proves the seeded farm loaded, not just that some
+# screen drew.
 - extendedWaitUntil:
-    visible: 'Almanac'
+    visible: 'Hello, Sipho'
     timeout: 30000
 - assertVisible:
-    id: 'api-status'
+    id: 'sync-status'
 - extendedWaitUntil:
-    visible: 'Online'
+    visible: 'Synced'
     timeout: 30000

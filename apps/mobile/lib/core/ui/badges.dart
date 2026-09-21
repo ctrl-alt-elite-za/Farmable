@@ -165,11 +165,17 @@ class SyncIndicator extends StatelessWidget {
       ),
     };
 
-    return _Pill(
-      icon: icon,
-      text: text,
-      background: background,
-      foreground: foreground,
+    return Semantics(
+      // The E2E flows in e2e/mobile/ target this to prove the app reports its
+      // connectivity honestly on launch. Keep the identifier stable.
+      identifier: 'sync-status',
+      container: true,
+      child: _Pill(
+        icon: icon,
+        text: text,
+        background: background,
+        foreground: foreground,
+      ),
     );
   }
 }

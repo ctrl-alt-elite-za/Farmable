@@ -27,7 +27,14 @@ def main() -> int:
     flutter = shutil.which("flutter")
     if flutter is None:
         raise RuntimeError("Flutter must be installed to run the contract suite")
-    with tempfile.TemporaryDirectory(prefix="farmable-mobile-contract-") as directory:
+    # Windows keeps the SQLite handle open briefly after Uvicorn exits, so the
+    # cleanup can raise PermissionError *after* every test has already passed.
+    # A leaked temp file is a far smaller problem than a green suite reporting
+    # failure, so cleanup errors are ignored rather than allowed to set the
+    # exit code. Harmless on POSIX, where cleanup succeeds anyway.
+    with tempfile.TemporaryDirectory(
+        prefix="farmable-mobile-contract-", ignore_cleanup_errors=True
+    ) as directory:
         env = {**os.environ, "FARMABLE_DEMO_DB": str(Path(directory) / "state.sqlite3")}
         subprocess.run(  # noqa: S603 - fixed module and arguments, no shell
             [sys.executable, "-m", "farmable_backend.demo_api.init"],
