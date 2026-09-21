@@ -4,6 +4,7 @@ import '../../app/config.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.g.dart';
 import '../../data/health_service.dart';
+import '../scan/scan_screen.dart';
 
 /// The app's first screen while the real Home dashboard is being built.
 ///
@@ -61,6 +62,14 @@ class _StatusScreenState extends State<StatusScreen> {
               FilledButton(
                 onPressed: _status == Reachability.checking ? null : _refresh,
                 child: const Text('Check again'),
+              ),
+              const SizedBox(height: AlmanacDimens.sp3),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const ScanScreen()),
+                ),
+                icon: const Icon(Icons.center_focus_strong_rounded),
+                label: const Text('Scan crops'),
               ),
               const Spacer(),
               Text(
