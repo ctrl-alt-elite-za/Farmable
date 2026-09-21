@@ -60,6 +60,9 @@ apps/ml-service/vision/reports/*
 checkpoints/
 .ipynb_checkpoints/
 mlruns/
+# Ultralytics downloads this prompt encoder beside the checkpoint during
+# YOLOE prompt baking; it is a disposable cache, never a mobile artifact.
+/mobileclip2_b.ts
 
 # Editors / OS
 .DS_Store
