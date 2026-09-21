@@ -1,5 +1,6 @@
 """Security and failure behaviour of CI helpers, without GitHub writes or real outages."""
 
+import base64
 import io
 import json
 import re
@@ -40,7 +41,7 @@ def test_shared_changes_check_all_consumers(path):
 
 
 def test_mobile_only_does_not_build_backend():
-    assert scopes(["apps/mobile/app.tsx"]) == {
+    assert scopes(["apps/mobile/lib/main.dart"]) == {
         "backend": False,
         "mobile": True,
         "any": True,
@@ -309,6 +310,21 @@ def test_every_remote_action_is_sha_pinned_and_jobs_are_bounded():
                     assert re.fullmatch(r"[^@]+@[0-9a-f]{40}", action), (path, action)
 
 
+def test_pr_checks_use_tested_merge_parent_instead_of_stale_event_base():
+    repo = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
+    scope_step = next(s for s in workflow["jobs"]["scopes"]["steps"] if s.get("id") == "paths")
+    check_step = next(
+        s for s in workflow["jobs"]["checks"]["steps"] if "CI_BASE" in s.get("env", {})
+    )
+    expected = (
+        "${{ github.event_name == 'pull_request' && 'HEAD^1' "
+        "|| github.event.before || 'HEAD^' }}"
+    )
+    assert scope_step["env"]["BASE"] == expected
+    assert check_step["env"]["CI_BASE"] == expected
+
+
 def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     repo = Path(__file__).resolve().parents[2]
     workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
@@ -316,17 +332,21 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     java = next(step for step in steps if step.get("uses", "").startswith("actions/setup-java@"))
     assert (repo / java["with"]["cache-dependency-path"]).is_file()
     build = (repo / "scripts/ci-mobile.sh").read_text()
-    assert "assembleRelease" in build and "assembleDebug" not in build
-    assert "-PreactNativeArchitectures=x86_64" in build
-    assert "expo prebuild --platform android --no-install --clean" in build
+    # A release build, because a debug build needs a Dart VM service the E2E
+    # harness does not provide; x86_64 only, because the CI emulator is x86_64.
+    assert "flutter build apk --release" in build and "--debug" not in build
+    assert "--target-platform android-x64" in build
+    # Test mode replays recorded frames so camera screens run without a camera.
+    assert "--dart-define=TEST_MODE=true" in build
     device_workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
     device_steps = device_workflow["jobs"]["android-build"]["steps"]
     device_build = next(step for step in device_steps if step.get("name") == "Build the APK")
-    assert "-PreactNativeArchitectures=arm64-v8a" in device_build["run"]
+    # Physical test phones are ARM64; the emulator build above is separate.
+    assert "--target-platform android-arm64" in device_build["run"]
     assert device_workflow["jobs"]["android-build"]["timeout-minutes"] == 30
     for step in steps:
         if "APK=" in step.get("with", {}).get("script", ""):
-            assert "apk/release/app-release.apk" in step["with"]["script"]
+            assert "flutter-apk/app-release.apk" in step["with"]["script"]
     stack = (repo / "scripts/ci-stack.sh").read_text()
     online = stack.index("maestro test e2e/mobile/online_launch.yaml")
     stop = stack.index('"${compose[@]}" stop api')
@@ -339,9 +359,46 @@ def test_mobile_maestro_flows_wait_for_release_app_startup():
     for name, expected in (("online_launch.yaml", "Online"), ("offline_launch.yaml", "Offline")):
         flow = (repo / "e2e/mobile" / name).read_text()
         assert "extendedWaitUntil:" in flow
-        assert "visible: 'Farmable'" in flow
+        assert "visible: 'Almanac'" in flow
         assert "timeout: 30000" in flow
         assert f"visible: '{expected}'" in flow
+
+
+def test_release_manifest_grants_network_access_and_scopes_cleartext():
+    """A release APK must be able to reach the network, and only over HTTPS.
+
+    `flutter create` declares INTERNET only in the debug and profile manifests,
+    so a release build silently has no network at all while debug builds work.
+    That failure mode reaches a real phone before anyone notices, so it is
+    asserted here rather than left to the E2E job to rediscover.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    manifest = (repo / "apps/mobile/android/app/src/main/AndroidManifest.xml").read_text()
+    assert 'android:name="android.permission.INTERNET"' in manifest
+
+    # Cleartext is permitted only for the emulator's route to its host, never
+    # globally: a farmer's phone must not be able to talk HTTP to anything.
+    assert 'android:usesCleartextTraffic="true"' not in manifest
+    assert 'android:networkSecurityConfig="@xml/network_security_config"' in manifest
+
+    config = repo / "apps/mobile/android/app/src/main/res/xml/network_security_config.xml"
+    assert config.is_file(), "referenced by the manifest, so it must be committed"
+    policy = config.read_text()
+    assert '<base-config cleartextTrafficPermitted="false" />' in policy
+    assert "10.0.2.2" in policy
+
+
+def test_flutter_native_sources_are_not_gitignored():
+    """android/ and ios/ are committed source for Flutter, unlike under Expo.
+
+    Ignoring them hides only *new* native files, because gitignore does not
+    apply to already-tracked ones — so the repository looks healthy right up
+    until someone adds a resource and the release build breaks in CI.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    ignored = (repo / ".gitignore").read_text()
+    assert "apps/mobile/android/" not in ignored
+    assert "apps/mobile/ios/" not in ignored
 
 
 def test_privileged_reporter_never_checks_out_pr_code():
@@ -352,24 +409,11 @@ def test_privileged_reporter_never_checks_out_pr_code():
     assert checkout["with"]["persist-credentials"] is False
 
 
-def test_live_scan_maestro_flow_is_included_in_mobile_e2e():
-    repo = Path(__file__).resolve().parents[2]
-    assert (repo / "e2e/mobile/scan_pan_test_mode.yaml").is_file()
-    flow = (repo / "e2e/mobile/scan_pan_test_mode.yaml").read_text()
-    assert "extendedWaitUntil:" in flow and "visible: 'Farmable'" in flow
-    stack = (repo / "scripts/ci-stack.sh").read_text()
-    assert (
-        stack.index("maestro test e2e/mobile/online_launch.yaml")
-        < stack.index("maestro test e2e/mobile/scan_pan_test_mode.yaml")
-        < stack.index('"${compose[@]}" stop api')
-    )
-
-
 def test_mobile_launch_failure_keeps_diagnostics_before_emulator_shutdown():
     repo = Path(__file__).resolve().parents[2]
     stack = (repo / "scripts/ci-stack.sh").read_text()
     assert 'if [ "$mode" = mobile ] && [ "$status" -ne 0 ]' in stack
-    assert "AndroidRuntime:E ReactNativeJS:E" in stack
+    assert "AndroidRuntime:E flutter:E" in stack
     assert "adb exec-out screencap -p" in stack
     assert "uiautomator dump" in stack
     workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
@@ -393,6 +437,58 @@ def test_status_check_activation_defaults_to_read_only(monkeypatch, capsys):
     required_checks.main()
     assert "Plan only" in capsys.readouterr().out
     api.assert_not_called()
+
+
+@pytest.mark.parametrize("flutter_app", [True, False])
+def test_status_check_activation_recognizes_flutter_and_preserves_checks(monkeypatch, flutter_app):
+    import required_checks
+
+    required = json.loads(Path(".github/required-checks.json").read_text())
+    prefix = "/repos/example/repo"
+    endpoint = prefix + "/branches/main/protection/required_status_checks"
+    pubspec = "dependencies:\n  flutter:\n    sdk: flutter\n" if flutter_app else "dependencies: {}"
+    replies = {
+        prefix: {"permissions": {"admin": True}},
+        prefix + "/issues/4": {"state": "closed"},
+        prefix + "/contents/apps/mobile/pubspec.yaml?ref=main": {
+            "content": base64.b64encode(pubspec.encode()).decode()
+        },
+        prefix + "/contents/e2e/mobile?ref=main": [{"name": "online.yaml", "type": "file"}],
+        prefix + "/branches/main": {"commit": {"sha": "main-sha"}},
+        endpoint: {"checks": [{"context": "existing-review", "app_id": 17}], "contexts": []},
+    }
+    writes = []
+
+    def api(path, method="GET", payload=None):
+        if method == "PATCH":
+            writes.append((path, payload))
+            return {}
+        return replies[path]
+
+    monkeypatch.setenv("GITHUB_REPOSITORY", "example/repo")
+    monkeypatch.setattr("sys.argv", ["required_checks.py", "--apply"])
+    monkeypatch.setattr(required_checks, "request_json", api)
+    monkeypatch.setattr(
+        required_checks,
+        "all_pages",
+        lambda *args: [
+            {"id": index, "name": name, "conclusion": "success", "app": {"id": 99}}
+            for index, name in enumerate(required)
+        ],
+    )
+    if not flutter_app:
+        with pytest.raises(RuntimeError, match="Flutter app"):
+            required_checks.main()
+        assert writes == []
+        return
+
+    required_checks.main()
+    assert len(writes) == 1
+    path, payload = writes[0]
+    assert path == endpoint
+    assert payload["strict"] is True
+    assert {"context": "existing-review", "app_id": 17} in payload["checks"]
+    assert all({"context": name, "app_id": 99} in payload["checks"] for name in required)
 
 
 @pytest.mark.parametrize("approved", [False, True])
