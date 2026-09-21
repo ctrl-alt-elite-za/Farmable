@@ -47,7 +47,7 @@ Reusable constraints enforce:
 - nonnegative financial amounts and expected costs;
 - allowed sync/task/plan/financial states;
 - nonblank farm/section names and task titles bounded to 200 characters;
-- crop, category, record-type, operation, status, health, and media-type values bounded to 100 characters;
+- crop, category, record-type, health, and media-type values bounded to 100 characters, with operations and statuses bounded to 20;
 - local media IDs bounded to 255 characters, object keys to 1,024 characters, and notes/descriptions/actions to 10,000 characters;
 - at most one nondeleted current planting per section;
 - one globally unique mutation ID and a valid SHA-256 request fingerprint.

@@ -2,7 +2,7 @@
 
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
-from farmable_backend.farm_records import seed_demo_farm
+from farmable_backend.demo_seed import seed_demo_farm
 
 
 def main() -> None:

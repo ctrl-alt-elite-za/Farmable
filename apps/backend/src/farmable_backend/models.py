@@ -13,8 +13,10 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Identity,
     Index,
+    Integer,
     Numeric,
     Text,
     UniqueConstraint,
@@ -22,6 +24,7 @@ from sqlalchemy import (
     column,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Spinach is sold by bunch or kilogram, so only these crops get a per-plant formula (#16).
@@ -30,6 +33,50 @@ SYNC_STATES = ("pending", "synced", "conflict")
 TASK_STATUSES = ("pending", "in_progress", "done", "cancelled")
 FINANCIAL_TYPES = ("expense", "income")
 PLAN_STATUSES = ("saved", "approved", "rejected")
+
+JSON_DOCUMENT = JSON().with_variant(JSONB(), "postgresql")
+CHANGE_CURSOR = BigInteger().with_variant(Integer(), "sqlite")
+
+
+def _owned_constraints(table: str) -> tuple[CheckConstraint, ...]:
+    return (
+        CheckConstraint(column("version") > 0, name=f"ck_{table}_version_positive"),
+        CheckConstraint(column("sync_state").in_(SYNC_STATES), name=f"ck_{table}_sync_state"),
+        _max_length("sync_state", table, 20),
+    )
+
+
+def _farm_owner_fk(table: str) -> ForeignKeyConstraint:
+    return ForeignKeyConstraint(
+        ("farm_id", "owner_id"),
+        ("farms.id", "farms.owner_id"),
+        name=f"fk_{table}_farm_owner",
+        ondelete="CASCADE",
+    )
+
+
+def _section_owner_fk(table: str) -> ForeignKeyConstraint:
+    return ForeignKeyConstraint(
+        ("section_id", "farm_id", "owner_id"),
+        ("sections.id", "sections.farm_id", "sections.owner_id"),
+        name=f"fk_{table}_section_farm_owner",
+        deferrable=True,
+        initially="DEFERRED",
+    )
+
+
+def _nonblank(name: str, table: str) -> CheckConstraint:
+    return CheckConstraint(
+        func.length(func.trim(column(name))) > 0,
+        name=f"ck_{table}_{name}_nonblank",
+    )
+
+
+def _max_length(name: str, table: str, maximum: int) -> CheckConstraint:
+    return CheckConstraint(
+        func.length(column(name)) <= maximum,
+        name=f"ck_{table}_{name}_max_length",
+    )
 
 
 class Base(DeclarativeBase):
@@ -82,8 +129,11 @@ class User(Base):
 class Farm(Base):
     __tablename__ = "farms"
     __table_args__ = (
-        CheckConstraint(column("sync_state").in_(SYNC_STATES), name="ck_farms_sync_state"),
-        Index("ix_farms_owner_id", "owner_id"),
+        *_owned_constraints("farms"),
+        _nonblank("name", "farms"),
+        _max_length("name", "farms", 200),
+        UniqueConstraint("id", "owner_id", name="uq_farms_id_owner_id"),
+        Index("ix_farms_owner_active", "owner_id", "deleted_at"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -101,16 +151,23 @@ class Farm(Base):
 class Section(Base):
     __tablename__ = "sections"
     __table_args__ = (
-        CheckConstraint(column("sync_state").in_(SYNC_STATES), name="ck_sections_sync_state"),
-        Index("ix_sections_farm_id", "farm_id"),
-        Index("ix_sections_owner_id", "owner_id"),
+        *_owned_constraints("sections"),
+        _farm_owner_fk("sections"),
+        _nonblank("name", "sections"),
+        _max_length("name", "sections", 200),
+        CheckConstraint(
+            (column("area_m2").is_(None)) | (column("area_m2") > 0),
+            name="ck_sections_area_positive",
+        ),
+        UniqueConstraint("id", "farm_id", "owner_id", name="uq_sections_id_farm_owner"),
+        Index("ix_sections_owner_farm_active", "owner_id", "farm_id", "deleted_at"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    farm_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("farms.id", ondelete="CASCADE"))
-    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
     name: Mapped[str] = mapped_column(Text)
-    boundary: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    boundary: Mapped[dict[str, Any] | None] = mapped_column(JSON_DOCUMENT)
     area_m2: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -124,16 +181,25 @@ class Section(Base):
 class Planting(Base):
     __tablename__ = "plantings"
     __table_args__ = (
-        CheckConstraint(column("sync_state").in_(SYNC_STATES), name="ck_plantings_sync_state"),
-        Index("ix_plantings_farm_id", "farm_id"),
-        Index("ix_plantings_owner_id", "owner_id"),
-        Index("ix_plantings_section_id", "section_id"),
+        *_owned_constraints("plantings"),
+        _farm_owner_fk("plantings"),
+        _section_owner_fk("plantings"),
+        _nonblank("crop", "plantings"),
+        _max_length("crop", "plantings", 100),
+        Index("ix_plantings_owner_farm_active", "owner_id", "farm_id", "deleted_at"),
+        Index(
+            "uq_plantings_current_section",
+            "section_id",
+            unique=True,
+            postgresql_where=column("is_current").is_(True) & column("deleted_at").is_(None),
+            sqlite_where=column("is_current").is_(True) & column("deleted_at").is_(None),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    farm_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("farms.id", ondelete="CASCADE"))
-    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
-    section_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("sections.id", ondelete="CASCADE"))
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
     crop: Mapped[str] = mapped_column(Text)
     planted_on: Mapped[date | None] = mapped_column(Date)
     is_current: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
@@ -149,19 +215,28 @@ class Planting(Base):
 class Media(Base):
     __tablename__ = "media"
     __table_args__ = (
-        CheckConstraint(column("sync_state").in_(SYNC_STATES), name="ck_media_sync_state"),
+        *_owned_constraints("media"),
+        _farm_owner_fk("media"),
+        _section_owner_fk("media"),
+        _nonblank("local_id", "media"),
+        _nonblank("media_type", "media"),
+        _max_length("local_id", "media", 255),
+        _max_length("object_key", "media", 1024),
+        _max_length("media_type", "media", 100),
+        CheckConstraint(
+            (column("object_key").is_(None)) | (func.length(func.trim(column("object_key"))) > 0),
+            name="ck_media_object_key_nonblank",
+        ),
+        UniqueConstraint("id", "farm_id", "owner_id", name="uq_media_id_farm_owner"),
         UniqueConstraint("owner_id", "local_id", name="uq_media_owner_local_id"),
-        Index("ix_media_farm_id", "farm_id"),
-        Index("ix_media_owner_id", "owner_id"),
+        Index("ix_media_owner_farm_active", "owner_id", "farm_id", "deleted_at"),
         Index("ix_media_section_id", "section_id"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    farm_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("farms.id", ondelete="CASCADE"))
-    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
-    section_id: Mapped[UUID | None] = mapped_column(
-        Uuid, ForeignKey("sections.id", ondelete="SET NULL")
-    )
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID | None] = mapped_column(Uuid)
     local_id: Mapped[str] = mapped_column(Text)
     object_key: Mapped[str | None] = mapped_column(Text)
     media_type: Mapped[str] = mapped_column(Text)
@@ -177,24 +252,41 @@ class Media(Base):
 class Observation(Base):
     __tablename__ = "observations"
     __table_args__ = (
-        CheckConstraint(column("sync_state").in_(SYNC_STATES), name="ck_observations_sync_state"),
-        Index("ix_observations_farm_id", "farm_id"),
-        Index("ix_observations_owner_id", "owner_id"),
-        Index("ix_observations_section_id", "section_id"),
-        Index("ix_observations_local_media_id", "local_media_id"),
+        *_owned_constraints("observations"),
+        _farm_owner_fk("observations"),
+        _section_owner_fk("observations"),
+        ForeignKeyConstraint(
+            ("local_media_id", "farm_id", "owner_id"),
+            ("media.id", "media.farm_id", "media.owner_id"),
+            name="fk_observations_media_farm_owner",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        _nonblank("type", "observations"),
+        _nonblank("note", "observations"),
+        _max_length("type", "observations", 100),
+        _max_length("note", "observations", 10000),
+        _max_length("health_status", "observations", 100),
+        _max_length("action_taken", "observations", 10000),
+        Index("ix_observations_owner_farm_active", "owner_id", "farm_id", "deleted_at"),
+        Index(
+            "ix_observations_section_created",
+            "owner_id",
+            "farm_id",
+            "section_id",
+            "created_at",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    farm_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("farms.id", ondelete="CASCADE"))
-    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
-    section_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("sections.id", ondelete="CASCADE"))
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
     type: Mapped[str] = mapped_column(Text)
     note: Mapped[str] = mapped_column(Text)
     health_status: Mapped[str | None] = mapped_column(Text)
     action_taken: Mapped[str | None] = mapped_column(Text)
-    local_media_id: Mapped[UUID | None] = mapped_column(
-        Uuid, ForeignKey("media.id", ondelete="SET NULL")
-    )
+    local_media_id: Mapped[UUID | None] = mapped_column(Uuid)
     created_by_voice: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -208,17 +300,32 @@ class Observation(Base):
 class FarmTask(Base):
     __tablename__ = "farm_tasks"
     __table_args__ = (
+        *_owned_constraints("farm_tasks"),
+        _farm_owner_fk("farm_tasks"),
+        _section_owner_fk("farm_tasks"),
         CheckConstraint(column("status").in_(TASK_STATUSES), name="ck_farm_tasks_status"),
-        CheckConstraint(column("sync_state").in_(SYNC_STATES), name="ck_farm_tasks_sync_state"),
-        Index("ix_farm_tasks_farm_id", "farm_id"),
-        Index("ix_farm_tasks_owner_id", "owner_id"),
-        Index("ix_farm_tasks_section_id", "section_id"),
+        CheckConstraint(
+            (column("expected_cost_cents").is_(None)) | (column("expected_cost_cents") >= 0),
+            name="ck_farm_tasks_expected_cost_nonnegative",
+        ),
+        _nonblank("title", "farm_tasks"),
+        _max_length("title", "farm_tasks", 200),
+        _max_length("description", "farm_tasks", 10000),
+        _max_length("status", "farm_tasks", 20),
+        Index("ix_farm_tasks_owner_farm_active", "owner_id", "farm_id", "deleted_at"),
+        Index(
+            "ix_farm_tasks_section_due",
+            "owner_id",
+            "farm_id",
+            "section_id",
+            "due_date",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    farm_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("farms.id", ondelete="CASCADE"))
-    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
-    section_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("sections.id", ondelete="CASCADE"))
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
     title: Mapped[str] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
     due_date: Mapped[date] = mapped_column(Date)
@@ -236,24 +343,31 @@ class FarmTask(Base):
 class FinancialRecord(Base):
     __tablename__ = "financial_records"
     __table_args__ = (
+        *_owned_constraints("financial_records"),
+        _farm_owner_fk("financial_records"),
+        _section_owner_fk("financial_records"),
         CheckConstraint(column("type").in_(FINANCIAL_TYPES), name="ck_financial_records_type"),
         CheckConstraint(
             column("amount_cents") >= 0, name="ck_financial_records_amount_nonnegative"
         ),
-        CheckConstraint(
-            column("sync_state").in_(SYNC_STATES), name="ck_financial_records_sync_state"
+        _nonblank("category", "financial_records"),
+        _max_length("type", "financial_records", 20),
+        _max_length("category", "financial_records", 100),
+        _max_length("note", "financial_records", 10000),
+        Index("ix_financial_records_owner_farm_active", "owner_id", "farm_id", "deleted_at"),
+        Index(
+            "ix_financial_records_section_date",
+            "owner_id",
+            "farm_id",
+            "section_id",
+            "date",
         ),
-        Index("ix_financial_records_farm_id", "farm_id"),
-        Index("ix_financial_records_owner_id", "owner_id"),
-        Index("ix_financial_records_section_id", "section_id"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    farm_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("farms.id", ondelete="CASCADE"))
-    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
-    section_id: Mapped[UUID | None] = mapped_column(
-        Uuid, ForeignKey("sections.id", ondelete="SET NULL")
-    )
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID | None] = mapped_column(Uuid)
     type: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(Text)
     amount_cents: Mapped[int] = mapped_column(BigInteger)
@@ -271,19 +385,21 @@ class FinancialRecord(Base):
 class SavedPlan(Base):
     __tablename__ = "saved_plans"
     __table_args__ = (
+        *_owned_constraints("saved_plans"),
+        _farm_owner_fk("saved_plans"),
+        _section_owner_fk("saved_plans"),
         CheckConstraint(column("status").in_(PLAN_STATUSES), name="ck_saved_plans_status"),
-        CheckConstraint(column("sync_state").in_(SYNC_STATES), name="ck_saved_plans_sync_state"),
-        Index("ix_saved_plans_farm_id", "farm_id"),
-        Index("ix_saved_plans_owner_id", "owner_id"),
+        _max_length("status", "saved_plans", 20),
+        Index("ix_saved_plans_owner_farm_active", "owner_id", "farm_id", "deleted_at"),
         Index("ix_saved_plans_section_id", "section_id"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    farm_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("farms.id", ondelete="CASCADE"))
-    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
-    section_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("sections.id", ondelete="CASCADE"))
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
     status: Mapped[str] = mapped_column(Text, default="saved", server_default="saved")
-    plan: Mapped[dict[str, Any]] = mapped_column(JSON)
+    plan: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -297,34 +413,48 @@ class SavedPlan(Base):
 class SyncMutation(Base):
     __tablename__ = "sync_mutations"
     __table_args__ = (
+        _farm_owner_fk("sync_mutations"),
+        CheckConstraint(
+            column("request_fingerprint").regexp_match("^[0-9a-f]{64}$"),
+            name="ck_sync_mutations_request_fingerprint_hex",
+        ),
+        _nonblank("operation", "sync_mutations"),
+        _nonblank("record_type", "sync_mutations"),
+        _max_length("operation", "sync_mutations", 20),
+        _max_length("record_type", "sync_mutations", 100),
         UniqueConstraint("mutation_id", name="uq_sync_mutations_mutation_id"),
-        Index("ix_sync_mutations_farm_id", "farm_id"),
-        Index("ix_sync_mutations_owner_id", "owner_id"),
-        Index("ix_sync_mutations_record_id", "record_id"),
+        Index("ix_sync_mutations_owner_farm", "owner_id", "farm_id"),
+        Index("ix_sync_mutations_record", "record_type", "record_id"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     mutation_id: Mapped[UUID] = mapped_column(Uuid)
-    farm_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("farms.id", ondelete="CASCADE"))
-    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
     operation: Mapped[str] = mapped_column(Text)
     record_type: Mapped[str] = mapped_column(Text)
     record_id: Mapped[UUID] = mapped_column(Uuid)
+    request_fingerprint: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class SyncChange(Base):
     __tablename__ = "sync_changes"
     __table_args__ = (
-        Index("ix_sync_changes_farm_id", "farm_id"),
-        Index("ix_sync_changes_owner_id", "owner_id"),
+        _farm_owner_fk("sync_changes"),
+        CheckConstraint(column("version") > 0, name="ck_sync_changes_version_positive"),
+        _nonblank("operation", "sync_changes"),
+        _nonblank("record_type", "sync_changes"),
+        _max_length("operation", "sync_changes", 20),
+        _max_length("record_type", "sync_changes", 100),
+        Index("ix_sync_changes_owner_farm_cursor", "owner_id", "farm_id", "id"),
         Index("ix_sync_changes_mutation_id", "mutation_id"),
-        Index("ix_sync_changes_record_id", "record_id"),
+        Index("ix_sync_changes_record", "record_type", "record_id"),
     )
 
-    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    farm_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("farms.id", ondelete="CASCADE"))
-    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    id: Mapped[int] = mapped_column(CHANGE_CURSOR, Identity(), primary_key=True)
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
     mutation_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("sync_mutations.id", ondelete="CASCADE")
     )
