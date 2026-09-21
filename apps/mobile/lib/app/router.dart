@@ -14,6 +14,7 @@ library;
 
 import 'package:go_router/go_router.dart';
 
+import '../features/auth/auth_gate.dart';
 import '../features/home/home_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
 import '../features/shell/bottom_nav_island.dart';
@@ -28,51 +29,60 @@ GoRouter buildRouter() => GoRouter(
 
     GoRoute(
       path: '/farm',
-      builder: (_, _) => const NotBuiltYetScreen(
-        destination: NavDestination.farm,
-        title: 'Farm',
-        body:
-            'The map and the full list of sections live here. For now, open '
-            'a section from the carousel on Home.',
+      builder: (_, _) => const AuthGate(
+        child: NotBuiltYetScreen(
+          destination: NavDestination.farm,
+          title: 'Farm',
+          body:
+              'The map and the full list of sections live here. For now, open '
+              'a section from the carousel on Home.',
+        ),
       ),
       routes: [
         GoRoute(
           path: 'map',
-          builder: (_, _) => const NotBuiltYetScreen(
-            destination: NavDestination.farm,
-            title: 'Farm map',
-            body:
-                'Walking your boundaries with the camera is being built. '
-                'Your sections and their areas are already saved on this '
-                'phone.',
+          builder: (_, _) => const AuthGate(
+            child: NotBuiltYetScreen(
+              destination: NavDestination.farm,
+              title: 'Farm map',
+              body:
+                  'Walking your boundaries with the camera is being built. '
+                  'Your sections and their areas are already saved on this '
+                  'phone.',
+            ),
           ),
         ),
         GoRoute(
           path: 'zone/:zoneId',
-          builder: (context, state) =>
-              ZoneScreen(sectionId: state.pathParameters['zoneId']!),
+          builder: (context, state) => AuthGate(
+            child: ZoneScreen(sectionId: state.pathParameters['zoneId']!),
+          ),
         ),
       ],
     ),
 
     GoRoute(
       path: '/insights',
-      builder: (_, _) => const NotBuiltYetScreen(
-        destination: NavDestination.insights,
-        title: 'Insights',
-        body:
-            'Health, money and market prices over time. Every record you '
-            'add now is what these will be built from.',
+      builder: (_, _) => const AuthGate(
+        child: NotBuiltYetScreen(
+          destination: NavDestination.insights,
+          title: 'Insights',
+          body:
+              'Health, money and market prices over time. Every record you '
+              'add now is what these will be built from.',
+        ),
       ),
     ),
     GoRoute(
       path: '/profile',
-      builder: (_, _) => const NotBuiltYetScreen(
-        destination: NavDestination.profile,
-        title: 'Profile',
-        body:
-            'Your details, your privacy choices and what the app is allowed '
-            'to use. Being built.',
+      builder: (_, _) => const AuthGate(
+        child: NotBuiltYetScreen(
+          destination: NavDestination.profile,
+          title: 'Profile',
+          body:
+              'Your details, your privacy choices and what the app is allowed '
+              'to use. Being built.',
+        ),
       ),
     ),
 

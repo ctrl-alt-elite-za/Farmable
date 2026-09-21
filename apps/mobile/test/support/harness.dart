@@ -19,6 +19,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'auth_harness.dart';
+
 /// A fixed Sunday, matching the design's "Sunday, 20 September". Pinned so
 /// assertions about overdue steps and "92 days" do not rot overnight.
 final pinnedToday = DateTime(2026, 9, 20, 9, 42);
@@ -69,9 +71,9 @@ Future<FarmHarness> pumpFarmApp(
   /// floor to check the width the type scale was actually set for.
   Size surface = phoneSize,
 
-  /// The account, for tests that care about one. Left out, the app runs signed
-  /// out — which is the state `e2e/mobile/offline_launch.yaml` launches in on
-  /// a real device, and the state every pre-existing screen test assumes.
+  /// The account, for tests that care about one. Existing screen tests default
+  /// to a valid in-memory session so protected route tests remain focused on
+  /// their screens; auth tests pass their own store explicitly.
   SessionStore? sessionStore,
   AuthApi? authApi,
 }) async {
@@ -97,6 +99,15 @@ Future<FarmHarness> pumpFarmApp(
       if (sessionStore != null)
         sessionStoreProvider.overrideWithValue(sessionStore),
       if (authApi != null) authApiProvider.overrideWith((ref) => authApi),
+      if (sessionStore == null)
+        sessionStoreProvider.overrideWithValue(
+          InMemorySessionStore(
+            session: sessionFor(
+              FakeAccount.verified(),
+              expiresAt: pinnedToday.add(const Duration(days: 30)),
+            ),
+          ),
+        ),
     ],
   );
 

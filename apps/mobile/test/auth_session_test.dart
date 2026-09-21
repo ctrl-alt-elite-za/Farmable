@@ -106,4 +106,22 @@ void main() {
     );
     expectNoFailureLanguage(tester);
   });
+
+  testWidgets('an unverified account cannot open the farm route', (
+    tester,
+  ) async {
+    await pumpFarmApp(
+      tester,
+      location: '/farm',
+      sessionStore: InMemorySessionStore(
+        pending: const PendingSignup(
+          userId: 'pending-user',
+          nextStep: VerificationChannel.phone,
+        ),
+      ),
+    );
+
+    expect(find.text('Your farm is protected'), findsOneWidget);
+    expect(find.text('Farm'), findsNothing);
+  });
 }
