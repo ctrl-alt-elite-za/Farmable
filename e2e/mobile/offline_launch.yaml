@@ -1,17 +1,9 @@
-# Maestro flow: with the API stopped, the app must still open and say Offline.
-#
-# Run it against an emulator with a development build installed and no API running:
-#   maestro test e2e/mobile/offline_launch.yaml
 appId: za.co.ctrlaltelite.farmable
-name: App launches and reports Offline when the API is unreachable
+name: A verified local session reopens with the API stopped
 ---
 - launchApp:
-    clearState: true
+    clearState: false
 - extendedWaitUntil:
-    visible: 'Farmable'
+    visible: 'Hello, Sipho'
     timeout: 30000
-- assertVisible:
-    id: 'api-status'
-- extendedWaitUntil:
-    visible: 'Offline'
-    timeout: 30000
+- assertVisible: 'Your verified session is available offline.*'

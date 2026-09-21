@@ -26,10 +26,10 @@ def main() -> None:
         raise RuntimeError("A repository administrator must configure branch protection")
     if request_json(prefix + "/issues/4")["state"] != "closed":
         raise RuntimeError("Refusing to activate incomplete mobile checks before #4 is verified")
-    package = request_json(prefix + "/contents/apps/mobile/package.json?ref=main")
-    mobile = json.loads(base64.b64decode(package["content"]))
-    if "expo" not in mobile.get("dependencies", {}):
-        raise RuntimeError("Main does not contain #4's Expo app")
+    manifest = request_json(prefix + "/contents/apps/mobile/pubspec.yaml?ref=main")
+    mobile = base64.b64decode(manifest["content"]).decode("utf-8")
+    if "name: farmable_mobile" not in mobile or "flutter:" not in mobile:
+        raise RuntimeError("Main does not contain #4's Flutter app")
     flows = request_json(prefix + "/contents/e2e/mobile?ref=main")
     if not any(item["name"].endswith(".yaml") and item["type"] == "file" for item in flows):
         raise RuntimeError("Main does not contain real Maestro flows")

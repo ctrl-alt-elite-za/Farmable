@@ -316,17 +316,16 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     java = next(step for step in steps if step.get("uses", "").startswith("actions/setup-java@"))
     assert (repo / java["with"]["cache-dependency-path"]).is_file()
     build = (repo / "scripts/ci-mobile.sh").read_text()
-    assert "assembleRelease" in build and "assembleDebug" not in build
-    assert "-PreactNativeArchitectures=x86_64" in build
-    assert "expo prebuild --platform android --no-install --clean" in build
+    assert "flutter build apk --release" in build
+    assert "expo" not in build.lower()
     device_workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
     device_steps = device_workflow["jobs"]["android-build"]["steps"]
-    device_build = next(step for step in device_steps if step.get("name") == "Build the APK")
-    assert "-PreactNativeArchitectures=arm64-v8a" in device_build["run"]
+    device_build = next(step for step in device_steps if "flutter build apk" in step.get("run", ""))
+    assert "--release" in device_build["run"]
     assert device_workflow["jobs"]["android-build"]["timeout-minutes"] == 30
     for step in steps:
         if "APK=" in step.get("with", {}).get("script", ""):
-            assert "apk/release/app-release.apk" in step["with"]["script"]
+            assert "flutter-apk/app-release.apk" in step["with"]["script"]
     stack = (repo / "scripts/ci-stack.sh").read_text()
     online = stack.index("maestro test e2e/mobile/online_launch.yaml")
     stop = stack.index('"${compose[@]}" stop api')
@@ -336,12 +335,16 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
 
 def test_mobile_maestro_flows_wait_for_release_app_startup():
     repo = Path(__file__).resolve().parents[2]
-    for name, expected in (("online_launch.yaml", "Online"), ("offline_launch.yaml", "Offline")):
+    for name in ("online_launch.yaml", "offline_launch.yaml"):
         flow = (repo / "e2e/mobile" / name).read_text()
         assert "extendedWaitUntil:" in flow
-        assert "visible: 'Farmable'" in flow
-        assert "timeout: 30000" in flow
-        assert f"visible: '{expected}'" in flow
+        assert "visible: 'Hello, Sipho'" in flow
+    online = (repo / "e2e/mobile/online_launch.yaml").read_text()
+    assert "inputText: '111111'" in online
+    assert "inputText: '222222'" in online
+    offline = (repo / "e2e/mobile/offline_launch.yaml").read_text()
+    assert "clearState: false" in offline
+    assert "verified session is available offline" in offline
 
 
 def test_privileged_reporter_never_checks_out_pr_code():
@@ -356,7 +359,7 @@ def test_mobile_launch_failure_keeps_diagnostics_before_emulator_shutdown():
     repo = Path(__file__).resolve().parents[2]
     stack = (repo / "scripts/ci-stack.sh").read_text()
     assert 'if [ "$mode" = mobile ] && [ "$status" -ne 0 ]' in stack
-    assert "AndroidRuntime:E ReactNativeJS:E" in stack
+    assert "AndroidRuntime:E flutter:E" in stack
     assert "adb exec-out screencap -p" in stack
     assert "uiautomator dump" in stack
     workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())

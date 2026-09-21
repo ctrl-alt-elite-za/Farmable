@@ -9,13 +9,54 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
+from farmable_backend.auth import (
+    AuthError,
+    AuthService,
+    AuthUser,
+    Channel,
+    DeterministicFakeOtpProvider,
+    SessionTokens,
+)
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
 from farmable_backend.middleware import RateLimiter, SafeDefaultsMiddleware, error_response
-from farmable_backend.schemas import ErrorResponse, LiveResponse, ReadyResponse
+from farmable_backend.schemas import (
+    AuthProgressResponse,
+    ErrorResponse,
+    LiveResponse,
+    LoginRequest,
+    ReadyResponse,
+    RefreshRequest,
+    ResendOtpRequest,
+    SessionResponse,
+    SignUpRequest,
+    UserResponse,
+    VerifyOtpRequest,
+)
+
+
+def _user_response(user: AuthUser) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        first_name=user.first_name,
+        surname=user.surname,
+        phone=user.phone,
+        email=user.email,
+        phone_verified=user.phone_verified,
+        email_verified=user.email_verified,
+    )
+
+
+def _session_response(tokens: SessionTokens) -> SessionResponse:
+    return SessionResponse(
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        expires_at=tokens.expires_at,
+        user=_user_response(tokens.user),
+    )
 
 
 def create_app(
@@ -28,7 +69,8 @@ def create_app(
     async def lifespan(app: FastAPI):
         config = settings or Settings()
         configure_logging(config.log_level)
-        services = ServiceRegistry(service_settings or ServiceSettings())
+        integration_config = service_settings or ServiceSettings()
+        services = ServiceRegistry(integration_config)
         app.state.services = services
         app.state.sha = config.commit_sha
         database = None
@@ -38,6 +80,12 @@ def create_app(
                 app.state.readiness = readiness
             elif database is not None:
                 app.state.readiness = database.readiness
+                provider = (
+                    DeterministicFakeOtpProvider()
+                    if integration_config.integrations_mode == "fake"
+                    else None
+                )
+                app.state.auth = AuthService(database.sessions, provider)
             yield
         finally:
             try:
@@ -74,6 +122,59 @@ def create_app(
         except ValueError:
             message = "Request failed"
         return error_response(exc.status_code, "http_error", message, headers=exc.headers)
+
+    @app.exception_handler(AuthError)
+    async def auth_error(request: Request, exc: AuthError) -> JSONResponse:
+        messages = {
+            "invalid_credentials": "Unable to log in with those details",
+            "account_unverified": "Verify your phone and email before logging in",
+            "account_exists": "An account already uses those details",
+            "otp_rate_limited": "Please wait before requesting another code",
+            "invalid_verification": "That verification code is not valid",
+            "invalid_session": "Your session has expired",
+            "provider_unavailable": "Verification is temporarily unavailable",
+            "provider_error": "Verification is temporarily unavailable",
+        }
+        return error_response(exc.status_code, exc.code, messages.get(exc.code, "Request failed"))
+
+    def auth(request: Request):
+        service = getattr(request.app.state, "auth", None)
+        if service is None:
+            raise HTTPException(503)
+        return service
+
+    @app.post("/auth/signup", response_model=AuthProgressResponse, operation_id="authSignup")
+    async def signup(request: Request, payload: SignUpRequest) -> AuthProgressResponse:
+        user = auth(request).signup(
+            payload.first_name, payload.surname, payload.phone, str(payload.email), payload.password
+        )
+        return AuthProgressResponse(user_id=user.id, next_step="phone")
+
+    @app.post(
+        "/auth/verify/phone", response_model=AuthProgressResponse, operation_id="authVerifyPhone"
+    )
+    async def verify_phone(request: Request, payload: VerifyOtpRequest) -> AuthProgressResponse:
+        auth(request).verify(payload.user_id, Channel.PHONE, payload.code)
+        return AuthProgressResponse(user_id=payload.user_id, next_step="email")
+
+    @app.post("/auth/verify/email", response_model=SessionResponse, operation_id="authVerifyEmail")
+    async def verify_email(request: Request, payload: VerifyOtpRequest) -> SessionResponse:
+        tokens = auth(request).verify(payload.user_id, Channel.EMAIL, payload.code)
+        if not isinstance(tokens, SessionTokens):
+            raise HTTPException(400)
+        return _session_response(tokens)
+
+    @app.post("/auth/otp/resend", status_code=204, operation_id="authResendOtp")
+    async def resend_otp(request: Request, payload: ResendOtpRequest) -> None:
+        auth(request).resend(payload.user_id, Channel(payload.channel))
+
+    @app.post("/auth/login", response_model=SessionResponse, operation_id="authLogin")
+    async def login(request: Request, payload: LoginRequest) -> SessionResponse:
+        return _session_response(auth(request).login(payload.identifier, payload.password))
+
+    @app.post("/auth/refresh", response_model=SessionResponse, operation_id="authRefresh")
+    async def refresh(request: Request, payload: RefreshRequest) -> SessionResponse:
+        return _session_response(auth(request).refresh(payload.refresh_token))
 
     @app.get("/health/live", response_model=LiveResponse, operation_id="healthLive")
     async def live(request: Request) -> LiveResponse:

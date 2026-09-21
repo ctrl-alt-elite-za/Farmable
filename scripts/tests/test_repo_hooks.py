@@ -140,6 +140,7 @@ def test_parallel_setup_reports_dependency_failures(
         """
 uv() { return "$TASK_UV_STATUS"; }
 pnpm() { return "$TASK_PNPM_STATUS"; }
+flutter() { return 0; }
 """
         + recipe,
         env={"TASK_UV_STATUS": str(uv_status), "TASK_PNPM_STATUS": str(pnpm_status)},

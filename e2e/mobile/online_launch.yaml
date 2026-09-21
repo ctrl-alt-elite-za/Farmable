@@ -1,14 +1,35 @@
-# The isolated CI API must be running before this flow starts.
 appId: za.co.ctrlaltelite.farmable
-name: App launches and reaches the isolated API
+name: Sign up, verify both channels and enter the farm shell
 ---
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: 'Farmable'
+    visible: 'Log in'
     timeout: 30000
-- assertVisible:
-    id: 'api-status'
+- tapOn: 'Create an account'
+- tapOn: 'Name'
+- inputText: 'Sipho'
+- tapOn: 'Surname'
+- inputText: 'Dlamini'
+- tapOn: 'Phone number'
+- inputText: '+27123456789'
+- tapOn: 'Email'
+- inputText: 'sipho@example.com'
+- tapOn: 'Password (15+ characters)'
+- inputText: 'correct horse battery staple'
+- tapOn: 'Create account'
 - extendedWaitUntil:
-    visible: 'Online'
-    timeout: 30000
+    visible: 'Verify phone'
+    timeout: 15000
+- tapOn: '6-digit code'
+- inputText: '111111'
+- tapOn: 'Verify phone'
+- extendedWaitUntil:
+    visible: 'Verify email'
+    timeout: 15000
+- tapOn: '6-digit code'
+- inputText: '222222'
+- tapOn: 'Verify email'
+- extendedWaitUntil:
+    visible: 'Hello, Sipho'
+    timeout: 15000

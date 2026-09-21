@@ -26,6 +26,8 @@ def test_only_owned_application_tables_are_registered():
         "saved_plans",
         "sync_mutations",
         "sync_changes",
+        "verification_challenges",
+        "auth_sessions",
     }
 
 

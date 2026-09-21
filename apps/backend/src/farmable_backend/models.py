@@ -118,12 +118,65 @@ class WeightFormula(Base):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("email", name="uq_users_email"),
+        UniqueConstraint("phone", name="uq_users_phone"),
+        _nonblank("first_name", "users"),
+        _nonblank("surname", "users"),
+        _max_length("first_name", "users", 100),
+        _max_length("surname", "users", 100),
+        _max_length("phone", "users", 32),
+        _max_length("email", "users", 320),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    # Nullable only for records created before authentication landed in migration 0004.
+    # Every account created through AuthService supplies all five values.
+    first_name: Mapped[str | None] = mapped_column(Text)
+    surname: Mapped[str | None] = mapped_column(Text)
+    phone: Mapped[str | None] = mapped_column(Text)
+    email: Mapped[str | None] = mapped_column(Text)
+    password_hash: Mapped[str | None] = mapped_column(Text)
+    phone_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class VerificationChallenge(Base):
+    __tablename__ = "verification_challenges"
+    __table_args__ = (
+        CheckConstraint(column("channel").in_(("phone", "email")), name="ck_verification_channel"),
+        Index("ix_verification_challenges_user_channel", "user_id", "channel", "expires_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    channel: Mapped[str] = mapped_column(Text)
+    code_hash: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+    __table_args__ = (
+        Index("ix_auth_sessions_access_token_hash", "access_token_hash", unique=True),
+        Index("ix_auth_sessions_refresh_token_hash", "refresh_token_hash", unique=True),
+        Index("ix_auth_sessions_user_active", "user_id", "revoked_at", "expires_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    access_token_hash: Mapped[str] = mapped_column(Text)
+    refresh_token_hash: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Farm(Base):

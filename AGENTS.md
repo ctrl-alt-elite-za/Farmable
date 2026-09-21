@@ -12,8 +12,8 @@ make setup
 
 `make setup` installs `uv` if missing, syncs Python dependencies (`uv sync`),
 enables Corepack (installing its shims into `$HOME/.local/bin`, so it never
-needs write access to a system-owned Node directory), installs Node
-dependencies (`pnpm install`), and installs the git hooks. Make sure
+needs write access to a system-owned Node directory), installs Node and Flutter
+dependencies (`pnpm install`, `flutter pub get`), and installs the git hooks. Make sure
 `$HOME/.local/bin` is on your `PATH` — see the README for details. It works on Windows via WSL, macOS and Linux from a fresh
 clone. Tool versions are pinned in `.python-version`, `.nvmrc`,
 `package.json`'s `packageManager`, and `.pre-commit-config.yaml`.
@@ -47,7 +47,7 @@ and `#4` add code.
 ## Conventions
 
 - **Monorepo layout:** `apps/backend/` (Python API + worker), `apps/mobile/`
-  (Expo app), `apps/ml-service/` (forecast/backtest),
+  (Flutter app), `apps/ml-service/` (forecast/backtest),
   `packages/api-client/` (generated, never hand-edited),
   `packages/geo/` (pure TS geometry library),
   `infra/` (deploy config), `e2e/` (end-to-end tests), `docs/decisions/`
