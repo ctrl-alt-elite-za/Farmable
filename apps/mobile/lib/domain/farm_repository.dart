@@ -20,19 +20,26 @@ abstract interface class FarmRepository {
 
   Future<Section> section(String sectionId);
 
-  Future<Section> createSection({required String name, required String areaM2});
+  /// Persist one [mutationId] per user action and reuse it for every retry,
+  /// including retries after app restart. A new action needs a new ID.
+  Future<Section> createSection({
+    required String mutationId,
+    required String name,
+    required String areaM2,
+  });
 
   /// [expectedRevision] is required: the backend rejects a blind write. A
   /// mismatch throws [RevisionConflict] so the UI can reload rather than
   /// silently clobbering an edit.
   Future<Section> updateSection({
+    required String mutationId,
     required String sectionId,
     required int expectedRevision,
     required String name,
     required String areaM2,
   });
 
-  Future<void> deleteSection(String sectionId);
+  Future<void> deleteSection(String sectionId, {required String mutationId});
 
   /// Runs the planner without persisting anything — this is what populates the
   /// recommendation cards. A result with `feasible == false` is a *success*,
@@ -41,17 +48,25 @@ abstract interface class FarmRepository {
 
   /// Persists a previewed plan. The result comes back `proposed` — it
   /// changes nothing about the section until [approvePlan].
-  Future<SavedPlan> savePlan(String sectionId, PlanRequest request);
+  Future<SavedPlan> savePlan(
+    String sectionId,
+    PlanRequest request, {
+    required String mutationId,
+  });
 
   /// Re-plans an existing plan under new constraints, returning a new version
   /// that links back to it via [SavedPlan.parentPlanId].
-  Future<SavedPlan> replan(String planId, PlanRequest request);
+  Future<SavedPlan> replan(
+    String planId,
+    PlanRequest request, {
+    required String mutationId,
+  });
 
   Future<SavedPlan> plan(String planId);
 
   /// Commits a saved plan to the section. The design requires an explicit
   /// confirmation step before this is ever called — no AI-initiated mutation.
-  Future<SavedPlan> approvePlan(String planId);
+  Future<SavedPlan> approvePlan(String planId, {required String mutationId});
 
   /// The current session token, if one is active, for persisting across
   /// launches. Never put this in a URL or a log.
@@ -85,7 +100,8 @@ class LimitReached extends FarmRepositoryException {
   const LimitReached(super.message);
 }
 
-/// The request never reached the backend.
+/// No response was received. A mutation may already have been committed;
+/// retry it with the same mutation ID.
 ///
 /// Distinct from every other failure on purpose: the design treats offline as
 /// a normal operating state, so the UI answers this with "You're offline. Your

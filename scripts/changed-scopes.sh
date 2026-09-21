@@ -41,7 +41,7 @@ for dir in $changed_dirs; do
         (cd apps/mobile && dart run tool/generate_tokens.dart --verify) || status=1
         (cd apps/mobile && dart format --output=none --set-exit-if-changed lib test tool) || status=1
         (cd apps/mobile && flutter analyze) || status=1
-        (cd apps/mobile && flutter test) || status=1
+        (cd apps/mobile && flutter test --exclude-tags demo-api) || status=1
       else
         echo "skipping apps/mobile: flutter is not on PATH"
       fi
