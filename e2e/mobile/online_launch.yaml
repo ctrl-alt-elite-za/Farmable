@@ -21,13 +21,15 @@ name: Sign up, verify both channels and enter the farm shell
 - extendedWaitUntil:
     visible: 'Verify phone'
     timeout: 15000
-- tapOn: '6-digit code'
+- tapOn:
+    id: 'verification-code-input'
 - inputText: '111111'
 - tapOn: 'Verify phone'
 - extendedWaitUntil:
     visible: 'Verify email'
     timeout: 15000
-- tapOn: '6-digit code'
+- tapOn:
+    id: 'verification-code-input'
 - inputText: '222222'
 - tapOn: 'Verify email'
 - extendedWaitUntil:

@@ -340,6 +340,7 @@ def test_mobile_maestro_flows_wait_for_release_app_startup():
         assert "extendedWaitUntil:" in flow
         assert "visible: 'Hello, Sipho'" in flow
     online = (repo / "e2e/mobile/online_launch.yaml").read_text()
+    assert online.count("id: 'verification-code-input'") == 2
     assert "inputText: '111111'" in online
     assert "inputText: '222222'" in online
     offline = (repo / "e2e/mobile/offline_launch.yaml").read_text()

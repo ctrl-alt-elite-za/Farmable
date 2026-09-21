@@ -40,12 +40,15 @@ class _VerifyPageState extends ConsumerState<VerifyPage> {
                 : 'Step 2 of 2. Enter the 6-digit email code.',
           ),
           const SizedBox(height: 20),
-          TextField(
-            controller: _code,
-            keyboardType: TextInputType.number,
-            autofillHints: const [AutofillHints.oneTimeCode],
-            maxLength: 6,
-            decoration: const InputDecoration(labelText: '6-digit code'),
+          Semantics(
+            identifier: 'verification-code-input',
+            child: TextField(
+              controller: _code,
+              keyboardType: TextInputType.number,
+              autofillHints: const [AutofillHints.oneTimeCode],
+              maxLength: 6,
+              decoration: const InputDecoration(labelText: '6-digit code'),
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
