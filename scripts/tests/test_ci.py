@@ -615,7 +615,10 @@ def test_the_guard_runs_against_the_values_the_device_builds_compile_in():
     assert workflow["env"]["TEST_MODE"] == "false"
     assert workflow["env"]["DEMO_MODE"] == "false"
 
-    for job, name in (("ios-unsigned-build", "Build without signing"), ("android-build", "Build the APK")):
+    for job, name in (
+        ("ios-unsigned-build", "Build without signing"),
+        ("android-build", "Build the APK"),
+    ):
         steps = workflow["jobs"][job]["steps"]
         build = next(step for step in steps if step.get("name") == name)
         run = build["run"]
