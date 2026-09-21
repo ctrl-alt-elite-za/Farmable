@@ -10,6 +10,8 @@ library;
 import 'package:almanac/app/providers.dart';
 import 'package:almanac/app/router.dart';
 import 'package:almanac/app/theme/app_theme.dart';
+import 'package:almanac/data/auth/auth_api.dart';
+import 'package:almanac/data/auth/session_store.dart';
 import 'package:almanac/data/health_service.dart';
 import 'package:almanac/data/local/database.dart';
 import 'package:almanac/data/local/seed.dart';
@@ -66,6 +68,12 @@ Future<FarmHarness> pumpFarmApp(
   /// The logical screen. Defaults to the design set's frame; pass the 360dp
   /// floor to check the width the type scale was actually set for.
   Size surface = phoneSize,
+
+  /// The account, for tests that care about one. Left out, the app runs signed
+  /// out — which is the state `e2e/mobile/offline_launch.yaml` launches in on
+  /// a real device, and the state every pre-existing screen test assumes.
+  SessionStore? sessionStore,
+  AuthApi? authApi,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = surface;
@@ -86,6 +94,10 @@ Future<FarmHarness> pumpFarmApp(
       healthServiceProvider.overrideWithValue(
         _FixedHealth(online ? Reachability.online : Reachability.offline),
       ),
+      if (sessionStore != null)
+        sessionStoreProvider.overrideWithValue(sessionStore),
+      if (authApi != null)
+        authApiProvider.overrideWith((ref) => authApi),
     ],
   );
 

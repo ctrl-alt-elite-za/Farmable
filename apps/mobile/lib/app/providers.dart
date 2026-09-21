@@ -8,12 +8,16 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/auth/auth_api.dart';
+import '../data/auth/session_store.dart';
 import '../data/health_service.dart';
 import '../data/local/database.dart' show AlmanacDatabase;
 import '../data/local/local_farm_repository.dart';
 import '../data/local/seed.dart';
+import '../domain/auth.dart';
 import '../domain/farm_records.dart';
 import '../domain/farm_records_repository.dart';
+import '../features/auth/auth_controller.dart';
 
 /// The local database. Opened once for the life of the app.
 final databaseProvider = Provider<AlmanacDatabase>((ref) {
@@ -76,4 +80,19 @@ final healthServiceProvider = Provider<HealthService>((ref) => HealthService());
 
 final reachabilityProvider = FutureProvider<Reachability>(
   (ref) => ref.watch(healthServiceProvider).check(),
+);
+
+/// Where session tokens live. Overridden in tests with a map; on a phone this
+/// is the platform keystore and nothing else, per issue #9.
+final sessionStoreProvider = Provider<SessionStore>(
+  (ref) => SecureSessionStore(),
+);
+
+final authApiProvider = Provider<AuthApi>((ref) => AuthApi());
+
+/// The account. Deliberately *not* wired into any farm read path — Home and
+/// Zone render identically signed in or out, which is what keeps
+/// `e2e/mobile/offline_launch.yaml` honest on a phone with cleared state.
+final authControllerProvider = AsyncNotifierProvider<AuthController, AuthState>(
+  AuthController.new,
 );

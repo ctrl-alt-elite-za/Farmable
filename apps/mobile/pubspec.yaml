@@ -41,6 +41,7 @@ dependencies:
   drift_flutter: ^0.3.1
   path_provider: ^2.1.6
   lucide_icons_flutter: ^3.1.20
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:
