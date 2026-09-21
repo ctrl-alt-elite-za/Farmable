@@ -6,6 +6,15 @@
 # missing guardrail, and it cost the team a day.
 #
 # Last match wins, so the catch-all is first and the lanes follow.
+#
+# Every lane names TWO people, and that is deliberate. GitHub never lets you
+# approve your own pull request, so a lane with a single owner cannot be
+# merged by the person who owns it — they would be locked out of their own
+# work. The second name is the reviewer of last resort, not a co-author.
+#
+# The protection still holds where it matters: whoever opens the pull request
+# cannot approve it, so a change to someone else's lane always needs a pair of
+# eyes from outside it.
 
 # Anything not claimed below still needs a second pair of eyes.
 *                       @TshegofatsoMkhabela @Kea-nhlapo @lungilemooketsi @bandilleee
@@ -13,10 +22,10 @@
 # ---------------------------------------------------------------------------
 # Frontend, CI and cloud — Bandile
 # ---------------------------------------------------------------------------
-/apps/mobile/           @bandilleee
-/e2e/mobile/            @bandilleee
-/.github/               @bandilleee
-/infra/                 @bandilleee
+/apps/mobile/           @bandilleee @TshegofatsoMkhabela
+/e2e/mobile/            @bandilleee @TshegofatsoMkhabela
+/.github/               @bandilleee @TshegofatsoMkhabela
+/infra/                 @bandilleee @TshegofatsoMkhabela
 
 # ---------------------------------------------------------------------------
 # Backend — Tshego and Kea
@@ -28,7 +37,7 @@
 # ---------------------------------------------------------------------------
 # ML — Lungile
 # ---------------------------------------------------------------------------
-/apps/ml-service/       @lungilemooketsi
+/apps/ml-service/       @lungilemooketsi @TshegofatsoMkhabela
 
 # ---------------------------------------------------------------------------
 # Shared ground. These are where the two halves meet, so both sides review:
