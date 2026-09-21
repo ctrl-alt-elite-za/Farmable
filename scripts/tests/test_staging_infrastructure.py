@@ -7,6 +7,15 @@ import pytest
 
 ROOT = Path(__file__).parents[2]
 
+# The deployment scripts require jq. Skipping locally is a convenience; skipping in
+# CI would let these assertions silently not run, which is the same failure mode --
+# a check that reports green without exercising anything -- that the substring greps
+# these tests replaced had.
+requires_jq = pytest.mark.skipif(
+    shutil.which("jq") is None and not os.environ.get("GITHUB_ACTIONS"),
+    reason="jq is required by the deployment scripts; install it to run this locally",
+)
+
 
 def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
@@ -84,7 +93,7 @@ def test_nightly_smoke_resolves_and_checks_the_live_ready_revision() -> None:
     assert 'database == "ok" and .worker == "ok"' in smoke
 
 
-@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is required by deployment scripts")
+@requires_jq
 def test_live_config_emits_the_ready_traffic_revision(tmp_path: Path) -> None:
     fake_gcloud = tmp_path / "gcloud"
     fake_gcloud.write_text(
@@ -269,7 +278,7 @@ def _secret_env(tmp_path: Path) -> dict:
     }
 
 
-@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is required by deployment scripts")
+@requires_jq
 @pytest.mark.parametrize(
     "env_json", [REFERENCE_ENV_V1, REFERENCE_ENV_V2], ids=["knative-v1", "admin-v2"]
 )
@@ -286,7 +295,7 @@ def test_secret_smoke_accepts_either_cloud_run_api_shape(tmp_path: Path, env_jso
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is required by deployment scripts")
+@requires_jq
 def test_secret_smoke_rejects_plaintext_secret_env_vars(tmp_path: Path) -> None:
     _fake_gcloud(tmp_path, _describe_body(LITERAL_ENV))
     result = _run("infra/gcp-secret-smoke.sh", _secret_env(tmp_path))
@@ -363,14 +372,86 @@ def test_rollout_treats_not_found_as_a_first_deployment(tmp_path: Path) -> None:
     _fake_gcloud(
         tmp_path,
         'printf \'%s\\n\' "$*" >>"' + str(log) + '"\n'
-        # An absent service is empty output and a zero exit, not an error.
-        'if [[ "$*" == *"run services list"* ]]; then exit 0; fi\n'
+        # An absent service is empty stdout and a zero exit, not an error -- but real
+        # gcloud still writes notices to stderr, so a probe that merged the streams
+        # would read this service as present and never reach the deploy.
+        'if [[ "$*" == *"run services list"* ]]; then\n'
+        "  echo 'Updates are available for some Google Cloud CLI components.' >&2\n"
+        "  exit 0\n"
+        "fi\n"
         'if [[ "$*" == *"run deploy"* ]]; then exit 42; fi\n'
         "exit 0\n",
     )
     result = _run("infra/gcp-rollout.sh", _rollout_env(tmp_path))
     assert result.returncode != 0
     assert "run deploy" in log.read_text(encoding="utf-8")
+
+
+# A `gcloud run services list --format='value(a,b)'` prints the requested fields in
+# order, tab separated, leaving a field blank when the resource does not carry it.
+# Honouring --format rather than printing a canned row is what lets these tests catch
+# a probe that asks for the wrong identifier field: under the encoding that does not
+# populate it, the output is blank, which reads as "the service does not exist".
+_LIST_STUB = r"""
+fmt=""
+for arg in "$@"; do
+  case "$arg" in --format=*) fmt="${arg#--format=}" ;; esac
+done
+if [[ "$*" == *"run services list"* ]]; then
+  # Real gcloud writes component-update notices to stderr on successful calls. If the
+  # probe ever merges stderr into the value it captures, this chatter makes an absent
+  # service look present, so emitting it here keeps that regression visible.
+  echo 'Updates are available for some Google Cloud CLI components.' >&2
+  fields="${fmt#value(}"; fields="${fields%)}"
+  row=""
+  IFS=',' read -ra want <<<"$fields"
+  for f in "${want[@]}"; do
+    case "$f" in
+      metadata.name) row+="${FAKE_V1_NAME:-}" ;;
+      name) row+="${FAKE_V2_NAME:-}" ;;
+    esac
+    row+=$'\t'
+  done
+  printf '%s\n' "$row"
+  exit 0
+fi
+"""
+
+
+@requires_jq
+@pytest.mark.parametrize(
+    ("v1_name", "v2_name"),
+    [
+        ("farmable", ""),
+        ("", "projects/farmable-project/locations/africa-south1/services/farmable"),
+    ],
+    ids=["knative-v1", "admin-v2"],
+)
+def test_rollout_reads_existing_traffic_under_either_api_shape(
+    tmp_path: Path, v1_name: str, v2_name: str
+) -> None:
+    """The "service exists" branch is where a misread is dangerous: concluding
+    absence here is what arms `gcloud run services delete`. The probe must recognise
+    the service whether the API populates metadata.name or name. Split traffic is the
+    cheapest observable proof that the branch was entered and traffic was parsed --
+    if the probe reads the service as absent, the script deploys instead and this
+    assertion fails.
+    """
+    _fake_gcloud(
+        tmp_path,
+        _LIST_STUB + 'if [[ "$*" == *"run services describe"* ]]; then\n'
+        "  cat <<'FAKEJSON'\n"
+        '{"status":{"traffic":[{"revisionName":"farmable-00001","percent":50},'
+        '{"revisionName":"farmable-00002","percent":50}]}}\n'
+        "FAKEJSON\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    environment = {**_rollout_env(tmp_path), "FAKE_V1_NAME": v1_name, "FAKE_V2_NAME": v2_name}
+    result = _run("infra/gcp-rollout.sh", environment)
+    assert result.returncode != 0
+    assert "must route 100% traffic to one revision" in result.stderr
 
 
 def test_terraform_state_is_ignored() -> None:
