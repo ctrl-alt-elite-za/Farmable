@@ -35,6 +35,8 @@ SYNC_STATES = ("pending", "synced", "conflict")
 TASK_STATUSES = ("pending", "in_progress", "done", "cancelled")
 FINANCIAL_TYPES = ("expense", "income")
 PLAN_STATUSES = ("saved", "approved", "rejected")
+ACCOUNT_LANGUAGES = ("en", "af", "nso", "st", "xh", "zu")
+DEFAULT_ACCOUNT_LANGUAGE = "en"
 
 JSON_DOCUMENT = JSON().with_variant(JSONB(), "postgresql")
 CHANGE_CURSOR = BigInteger().with_variant(Integer(), "sqlite")
@@ -195,6 +197,34 @@ class AuthSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AccountProfile(Base):
+    """Account preferences.
+
+    A separate table, not new columns on auth_identities: migration 0004 is
+    already deployed and immutable, and tests/test_auth_migration.py asserts
+    that its CREATE TABLE text still matches the ORM exactly.
+    """
+
+    __tablename__ = "account_profiles"
+    __table_args__ = (
+        CheckConstraint(
+            column("preferred_language").in_(ACCOUNT_LANGUAGES),
+            name="ck_account_profiles_preferred_language",
+        ),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE"), primary_key=True
+    )
+    preferred_language: Mapped[str] = mapped_column(
+        Text, default=DEFAULT_ACCOUNT_LANGUAGE, server_default=DEFAULT_ACCOUNT_LANGUAGE
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Farm(Base):
