@@ -458,6 +458,23 @@ void main() {
         hasLength(2),
         reason: 'Both decisions are kept; only the planting is superseded',
       );
+
+      // And the schedule goes with the planting. The confirmation sheet says
+      // accepting "will replace that planting and its schedule"; before this
+      // was fixed the second accept left both schedules on the timeline, so
+      // the section had twelve steps due and no way to tell which plan they
+      // belonged to.
+      final live = (await harness.db.select(harness.db.farmTasks).get())
+          .where((t) => t.sectionId == northPlot && t.deletedAt == null)
+          .toList();
+      final due = live.where((t) => t.status == 'pending').toList();
+      expect(due, hasLength(6), reason: 'One schedule, not two');
+      expect(due.map((t) => t.planId).toSet(), hasLength(1));
+      expect(
+        due.first.planId,
+        isNotNull,
+        reason: 'Generated steps carry the plan that generated them',
+      );
     });
   });
 

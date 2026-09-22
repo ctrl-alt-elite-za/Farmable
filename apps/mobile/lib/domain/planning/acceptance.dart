@@ -61,6 +61,17 @@ class PlanAcceptance {
   /// accepting a plan that plants everything. They are never the whole-section
   /// figures for a partly-funded plan — that would tell a farmer who can only
   /// afford three blocks what four would have earned.
+  ///
+  /// **Throws for a plan this app cannot record whole.** A section carries one
+  /// current planting — `uq_plantings_current_section`, here and on the server
+  /// — so a plan that allocates two crops has no home. Building an acceptance
+  /// from one anyway would write the selected crop's cost, projection and
+  /// schedule and drop the rest, leaving the farm record saying "spinach"
+  /// where the plan was two-thirds cabbage. The farm record is the product: a
+  /// lender or a buyer reads it, and a confidently wrong one is worse than
+  /// none. The screens do not offer such a plan for acceptance
+  /// ([CropRecommendation.acceptable]); this is the backstop that makes the
+  /// half-write impossible rather than merely unlikely.
   factory PlanAcceptance.from(
     CropRecommendation recommendation, {
     required String sectionId,
@@ -71,6 +82,15 @@ class PlanAcceptance {
     final funded = recommendation.funded;
     final plan = recommendation.proposal;
     final constraints = recommendation.constraints;
+
+    final others = recommendation.otherCropsInPlan;
+    if (others.isNotEmpty) {
+      throw StateError(
+        'This plan also plants ${others.map((c) => c.label.toLowerCase()).join(', ')}, '
+        'and a section records one crop. Accepting it would save only '
+        '${recommendation.crop.label.toLowerCase()} and drop the rest.',
+      );
+    }
 
     return PlanAcceptance(
       sectionId: sectionId,

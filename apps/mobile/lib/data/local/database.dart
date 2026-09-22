@@ -44,7 +44,7 @@ class AlmanacDatabase extends _$AlmanacDatabase {
   AlmanacDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,6 +72,14 @@ class AlmanacDatabase extends _$AlmanacDatabase {
         'CREATE INDEX IF NOT EXISTS ix_financial_records_section_date '
         'ON financial_records (section_id, date)',
       );
+    },
+    onUpgrade: (m, from, to) async {
+      // v2 gives `farm_tasks` the plan that generated it, so accepting a plan
+      // can retire the schedule it supersedes without touching the tasks a
+      // farmer wrote. Every task that predates the column is null — which is
+      // the honest answer: nothing recorded which plan they came from, and
+      // treating them as plan steps would let a replan delete them.
+      if (from < 2) await m.addColumn(farmTasks, farmTasks.planId);
     },
     beforeOpen: (details) async {
       // Drift does not turn these on for us, and both matter here: without

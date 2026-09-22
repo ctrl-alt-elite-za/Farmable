@@ -17,8 +17,8 @@ import '../../../core/ui/buttons.dart';
 import '../../../core/ui/layout.dart';
 import '../../../core/utils/dates.dart';
 import '../../../domain/models.dart';
-import '../../../domain/money.dart';
 import '../../../domain/planning/recommendations.dart';
+import '../budget_input.dart';
 
 /// The chips above the cards: budget, water, deadline, planting date, share.
 class ConstraintsCard extends StatelessWidget {
@@ -132,6 +132,11 @@ class _ConstraintsFormState extends State<_ConstraintsForm> {
     text: (widget.initial.budget.value ~/ 100).toString(),
   );
 
+  /// What the field currently holds, read in full. Recomputed on every
+  /// keystroke so the farmer is told while they are still looking at the
+  /// field, not after the planner has run on a number they did not type.
+  late BudgetInput _parsed = BudgetInput.parse(_budget.text);
+
   @override
   void dispose() {
     _budget.dispose();
@@ -190,9 +195,15 @@ class _ConstraintsFormState extends State<_ConstraintsForm> {
                   controller: _budget,
                   keyboardType: TextInputType.number,
                   style: text.bodyLarge,
-                  decoration: const InputDecoration(
+                  onChanged: (value) =>
+                      setState(() => _parsed = BudgetInput.parse(value)),
+                  decoration: InputDecoration(
                     prefixText: 'R ',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
+                    // Said on the field, in words that name the amount to type
+                    // instead. An amount this app will not plan with is never
+                    // quietly turned into one it will.
+                    errorText: _parsed.error,
                   ),
                 ),
 
@@ -286,9 +297,14 @@ class _ConstraintsFormState extends State<_ConstraintsForm> {
                 AppPrimaryButton(
                   label: 'Work it out again',
                   icon: LucideIcons.refreshCw,
-                  onPressed: () =>
-                      Navigator.of(context)
-                          .pop(_draft.copyWith(budget: _parsedBudget())),
+                  // Nothing reruns while the budget is unreadable. The
+                  // alternative — rerunning on the last good number — would
+                  // answer a question the farmer did not ask.
+                  onPressed: _parsed.isValid
+                      ? () =>
+                            Navigator.of(context)
+                                .pop(_draft.copyWith(budget: _parsed.value))
+                      : null,
                 ),
                 const SizedBox(height: AlmanacDimens.sp2),
                 AppTonalButton(
@@ -307,16 +323,6 @@ class _ConstraintsFormState extends State<_ConstraintsForm> {
     if (value.isBefore(widget.windowStart)) return widget.windowStart;
     if (value.isAfter(widget.windowEnd)) return widget.windowEnd;
     return value;
-  }
-
-  /// Whole rand in, integer cents out. A budget that will not parse keeps the
-  /// one already in use rather than silently becoming zero, which would make
-  /// every crop unaffordable for no reason the farmer could see.
-  Cents _parsedBudget() {
-    final rand = int.tryParse(_budget.text.replaceAll(RegExp(r'[^0-9]'), ''));
-    if (rand == null) return _draft.budget;
-    // The schema caps the budget at R10,000,000.
-    return Cents((rand * 100).clamp(0, 1000000000));
   }
 }
 

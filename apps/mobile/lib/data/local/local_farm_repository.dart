@@ -968,6 +968,46 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
             ),
           );
 
+      // The confirmation sheet says accepting "will replace that planting and
+      // its schedule". Retiring the superseded steps in the same transaction
+      // is what makes that sentence true — without it the timeline and the
+      // Next-up queries return both schedules, and the farmer is looking at
+      // two plans for one section with nothing to say which is live.
+      //
+      // Only pending work, and only steps a plan generated. A task the farmer
+      // typed carries no plan id and is never touched by a replan; anything
+      // done or cancelled is history and stays on the timeline.
+      final superseded =
+          await (db.select(db.farmTasks)..where(
+                (t) =>
+                    t.sectionId.equals(section.id) &
+                    t.planId.isNotNull() &
+                    t.deletedAt.isNull() &
+                    t.status.isIn(const ['pending', 'in_progress']),
+              ))
+              .get();
+
+      for (final task in superseded) {
+        await (db.update(
+          db.farmTasks,
+        )..where((t) => t.id.equals(task.id))).write(
+          FarmTasksCompanion(
+            deletedAt: Value(at),
+            version: Value(task.version + 1),
+            syncState: const Value('pending'),
+            updatedAt: Value(at),
+          ),
+        );
+        await _enqueue(
+          farmId: task.farmId,
+          ownerId: task.ownerId,
+          operation: 'delete',
+          recordType: 'farm_task',
+          recordId: task.id,
+          at: at,
+        );
+      }
+
       for (final step in acceptance.timeline) {
         final taskId = newUuid();
         await db
@@ -982,6 +1022,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
                 description: Value(step.note),
                 dueDate: _day(step.due),
                 expectedCostCents: Value(step.expectedCost?.value),
+                // Whose schedule this is, so the next acceptance can retire it
+                // without guessing from the title.
+                planId: Value(planId),
                 createdAt: at,
                 updatedAt: at,
               ),

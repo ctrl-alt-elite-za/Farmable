@@ -398,6 +398,7 @@ class _ActionBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.semantic;
     final fundable = recommendation.proposal != null;
+    final acceptable = recommendation.acceptable;
 
     return Container(
       decoration: BoxDecoration(
@@ -415,13 +416,24 @@ class _ActionBar extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!fundable)
+            if (!acceptable)
               Padding(
                 padding: const EdgeInsets.only(bottom: AlmanacDimens.sp3),
                 child: Text(
-                  'Your budget does not cover a single block of this yet, so '
-                  'there is nothing to plan. The figures above are what it '
-                  'would take.',
+                  fundable
+                      // A plan a stated minimum share has forced into a mix.
+                      // Saying so is the fix for it: a section records one
+                      // crop, so accepting would file this plan under this
+                      // crop alone and quietly lose the rest of it.
+                      ? 'Every plan that includes this also plants '
+                            '${cropList(recommendation.otherCropsInPlan)}, and a '
+                            'section can only be recorded as one crop for now. '
+                            'Drop the minimum share, or plan '
+                            '${cropList(recommendation.otherCropsInPlan)} here '
+                            'instead.'
+                      : 'Your budget does not cover a single block of this '
+                            'yet, so there is nothing to plan. The figures '
+                            'above are what it would take.',
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: c.onSurfaceVariant),
                   textAlign: TextAlign.center,
@@ -430,7 +442,7 @@ class _ActionBar extends ConsumerWidget {
             AppPrimaryButton(
               label: 'Accept and plan ${section.name}',
               icon: LucideIcons.check,
-              onPressed: fundable ? () => _accept(context, ref) : null,
+              onPressed: acceptable ? () => _accept(context, ref) : null,
             ),
             const SizedBox(height: AlmanacDimens.sp2),
             Row(

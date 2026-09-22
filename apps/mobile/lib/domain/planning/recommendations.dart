@@ -213,6 +213,33 @@ class CropRecommendation {
     required this.constraints,
   });
 
+  /// The other crops [proposal] would plant alongside this one.
+  ///
+  /// Normally empty: a card asks "should I plant cabbage here?", and the plan
+  /// it offers is cabbage. It is non-empty only when a stated minimum share
+  /// forces a mix — "keep half as cabbage" makes every spinach plan a cabbage
+  /// plan too — and that is the one case where accepting would commit the
+  /// farmer to planting something this card never showed them.
+  List<Crop> get otherCropsInPlan {
+    final others = <Crop>[];
+    for (final allocation in proposal?.allocations ?? const <Allocation>[]) {
+      if (allocation.crop != crop && !others.contains(allocation.crop)) {
+        others.add(allocation.crop);
+      }
+    }
+    return others;
+  }
+
+  /// Whether accepting this would record the whole of it.
+  ///
+  /// A section holds one crop: `plantings` allows exactly one current row per
+  /// section, locally and on the server. So a mixed plan has nowhere to be
+  /// written in full, and writing part of it would leave the farm record
+  /// claiming a section is spinach when the plan it came from was mostly
+  /// cabbage. Such a plan is shown, costed and explained — and not offered as
+  /// accept-ready. See [PlanAcceptance.from], which refuses it outright.
+  bool get acceptable => proposal != null && otherCropsInPlan.isEmpty;
+
   /// The allocation for this crop inside [proposal].
   Allocation? get allocation {
     for (final a in proposal?.allocations ?? const <Allocation>[]) {
@@ -340,17 +367,35 @@ List<CropRecommendation> recommendationsFrom(
 /// `result.plans` is already ranked by margin, then cost, then block order, so
 /// scanning it in order and keeping the first plan at each new maximum breaks
 /// ties the same way the planner would.
+///
+/// **A plan of this crop alone wins over a mixed plan that grows more of it.**
+/// A section records one crop, so a mixed plan cannot be saved whole (see
+/// [CropRecommendation.acceptable]); offering the farmer a plan the app would
+/// have to dismember to store would be offering them a record of something
+/// they did not agree to. Where a stated minimum share leaves no single-crop
+/// plan at all — "keep half as cabbage" leaves none containing spinach — the
+/// mixed plan is still returned, with its figures, and the screen says plainly
+/// that it cannot be accepted as it stands.
 CandidatePlan? _bestPlanFor(PlanningResult result, Crop crop) {
   CandidatePlan? best;
+  CandidatePlan? bestAlone;
   var most = 0;
+  var mostAlone = 0;
+
   for (final plan in result.plans) {
     final blocks = plan.blocks.where((block) => block == crop).length;
     if (blocks > most) {
       most = blocks;
       best = plan;
     }
+    final alone = plan.allocations.every((a) => a.crop == crop);
+    if (alone && blocks > mostAlone) {
+      mostAlone = blocks;
+      bestAlone = plan;
+    }
   }
-  return best;
+
+  return bestAlone ?? best;
 }
 
 /// The one or two short reasons on a card (guide §31).
@@ -411,17 +456,38 @@ List<ReasonChip> chipsFor(CropRecommendation r) {
         'No blocks fit this budget',
       ),
     );
-  } else if (!r.plantsWholeSection) {
-    chips.add(
-      ReasonChip(
-        ReasonIcon.layers,
-        ChipToneName.warn,
-        'Fits ${r.fundedBlocks} of ${r.constraints.blockCount} blocks',
-      ),
-    );
+  } else {
+    if (!r.plantsWholeSection) {
+      chips.add(
+        ReasonChip(
+          ReasonIcon.layers,
+          ChipToneName.warn,
+          'Fits ${r.fundedBlocks} of ${r.constraints.blockCount} blocks',
+        ),
+      );
+    }
+    if (!r.acceptable) {
+      // The one chip here that is not a figure. It earns its space: without
+      // it the card reads as a plan the farmer can take, and the first they
+      // would hear otherwise is a button that does nothing.
+      chips.add(
+        ReasonChip(
+          ReasonIcon.layers,
+          ChipToneName.warn,
+          'Only alongside ${cropList(r.otherCropsInPlan)} — cannot be saved yet',
+        ),
+      );
+    }
   }
 
   return chips;
+}
+
+/// "cabbage" / "cabbage and spinach" — crop names in a sentence.
+String cropList(List<Crop> crops) {
+  final names = [for (final crop in crops) crop.label.toLowerCase()];
+  if (names.length < 2) return names.join();
+  return '${names.take(names.length - 1).join(', ')} and ${names.last}';
 }
 
 /// The plain-language paragraph under the four numbers (guide §32).

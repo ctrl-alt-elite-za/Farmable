@@ -3411,6 +3411,15 @@ class $FarmTasksTable extends FarmTasks
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<String> planId = GeneratedColumn<String>(
+    'plan_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3427,6 +3436,7 @@ class $FarmTasksTable extends FarmTasks
     dueDate,
     status,
     expectedCostCents,
+    planId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3543,6 +3553,12 @@ class $FarmTasksTable extends FarmTasks
         ),
       );
     }
+    if (data.containsKey('plan_id')) {
+      context.handle(
+        _planIdMeta,
+        planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta),
+      );
+    }
     return context;
   }
 
@@ -3608,6 +3624,10 @@ class $FarmTasksTable extends FarmTasks
         DriftSqlType.int,
         data['${effectivePrefix}expected_cost_cents'],
       ),
+      planId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plan_id'],
+      ),
     );
   }
 
@@ -3634,6 +3654,17 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
   final DateTime dueDate;
   final String status;
   final int? expectedCostCents;
+
+  /// LOCAL-ONLY. The `saved_plans` row whose acceptance generated this step,
+  /// or null for a task a person created.
+  ///
+  /// The server's `farm_tasks` has no such column, and the distinction it
+  /// carries is not cosmetic: accepting a new plan retires the schedule the
+  /// last one generated, and it has to be able to tell those steps apart from
+  /// the reminder the farmer typed themselves. Without it the choice is
+  /// between leaving two schedules on the timeline and deleting the farmer's
+  /// own reminder, and both are wrong.
+  final String? planId;
   const FarmTask({
     required this.id,
     required this.farmId,
@@ -3649,6 +3680,7 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
     required this.dueDate,
     required this.status,
     this.expectedCostCents,
+    this.planId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3672,6 +3704,9 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || expectedCostCents != null) {
       map['expected_cost_cents'] = Variable<int>(expectedCostCents);
+    }
+    if (!nullToAbsent || planId != null) {
+      map['plan_id'] = Variable<String>(planId);
     }
     return map;
   }
@@ -3698,6 +3733,9 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
       expectedCostCents: expectedCostCents == null && nullToAbsent
           ? const Value.absent()
           : Value(expectedCostCents),
+      planId: planId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planId),
     );
   }
 
@@ -3721,6 +3759,7 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
       dueDate: serializer.fromJson<DateTime>(json['dueDate']),
       status: serializer.fromJson<String>(json['status']),
       expectedCostCents: serializer.fromJson<int?>(json['expectedCostCents']),
+      planId: serializer.fromJson<String?>(json['planId']),
     );
   }
   @override
@@ -3741,6 +3780,7 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
       'dueDate': serializer.toJson<DateTime>(dueDate),
       'status': serializer.toJson<String>(status),
       'expectedCostCents': serializer.toJson<int?>(expectedCostCents),
+      'planId': serializer.toJson<String?>(planId),
     };
   }
 
@@ -3759,6 +3799,7 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
     DateTime? dueDate,
     String? status,
     Value<int?> expectedCostCents = const Value.absent(),
+    Value<String?> planId = const Value.absent(),
   }) => FarmTask(
     id: id ?? this.id,
     farmId: farmId ?? this.farmId,
@@ -3776,6 +3817,7 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
     expectedCostCents: expectedCostCents.present
         ? expectedCostCents.value
         : this.expectedCostCents,
+    planId: planId.present ? planId.value : this.planId,
   );
   FarmTask copyWithCompanion(FarmTasksCompanion data) {
     return FarmTask(
@@ -3797,6 +3839,7 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
       expectedCostCents: data.expectedCostCents.present
           ? data.expectedCostCents.value
           : this.expectedCostCents,
+      planId: data.planId.present ? data.planId.value : this.planId,
     );
   }
 
@@ -3816,7 +3859,8 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
           ..write('description: $description, ')
           ..write('dueDate: $dueDate, ')
           ..write('status: $status, ')
-          ..write('expectedCostCents: $expectedCostCents')
+          ..write('expectedCostCents: $expectedCostCents, ')
+          ..write('planId: $planId')
           ..write(')'))
         .toString();
   }
@@ -3837,6 +3881,7 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
     dueDate,
     status,
     expectedCostCents,
+    planId,
   );
   @override
   bool operator ==(Object other) =>
@@ -3855,7 +3900,8 @@ class FarmTask extends DataClass implements Insertable<FarmTask> {
           other.description == this.description &&
           other.dueDate == this.dueDate &&
           other.status == this.status &&
-          other.expectedCostCents == this.expectedCostCents);
+          other.expectedCostCents == this.expectedCostCents &&
+          other.planId == this.planId);
 }
 
 class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
@@ -3873,6 +3919,7 @@ class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
   final Value<DateTime> dueDate;
   final Value<String> status;
   final Value<int?> expectedCostCents;
+  final Value<String?> planId;
   final Value<int> rowid;
   const FarmTasksCompanion({
     this.id = const Value.absent(),
@@ -3889,6 +3936,7 @@ class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
     this.dueDate = const Value.absent(),
     this.status = const Value.absent(),
     this.expectedCostCents = const Value.absent(),
+    this.planId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   FarmTasksCompanion.insert({
@@ -3906,6 +3954,7 @@ class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
     required DateTime dueDate,
     this.status = const Value.absent(),
     this.expectedCostCents = const Value.absent(),
+    this.planId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        farmId = Value(farmId),
@@ -3930,6 +3979,7 @@ class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
     Expression<DateTime>? dueDate,
     Expression<String>? status,
     Expression<int>? expectedCostCents,
+    Expression<String>? planId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3947,6 +3997,7 @@ class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
       if (dueDate != null) 'due_date': dueDate,
       if (status != null) 'status': status,
       if (expectedCostCents != null) 'expected_cost_cents': expectedCostCents,
+      if (planId != null) 'plan_id': planId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3966,6 +4017,7 @@ class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
     Value<DateTime>? dueDate,
     Value<String>? status,
     Value<int?>? expectedCostCents,
+    Value<String?>? planId,
     Value<int>? rowid,
   }) {
     return FarmTasksCompanion(
@@ -3983,6 +4035,7 @@ class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
       dueDate: dueDate ?? this.dueDate,
       status: status ?? this.status,
       expectedCostCents: expectedCostCents ?? this.expectedCostCents,
+      planId: planId ?? this.planId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4032,6 +4085,9 @@ class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
     if (expectedCostCents.present) {
       map['expected_cost_cents'] = Variable<int>(expectedCostCents.value);
     }
+    if (planId.present) {
+      map['plan_id'] = Variable<String>(planId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4055,6 +4111,7 @@ class FarmTasksCompanion extends UpdateCompanion<FarmTask> {
           ..write('dueDate: $dueDate, ')
           ..write('status: $status, ')
           ..write('expectedCostCents: $expectedCostCents, ')
+          ..write('planId: $planId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8787,6 +8844,7 @@ typedef $$FarmTasksTableCreateCompanionBuilder = FarmTasksCompanion Function({
   required DateTime dueDate,
   Value<String> status,
   Value<int?> expectedCostCents,
+  Value<String?> planId,
   Value<int> rowid,
 });
 typedef $$FarmTasksTableUpdateCompanionBuilder = FarmTasksCompanion Function({
@@ -8804,6 +8862,7 @@ typedef $$FarmTasksTableUpdateCompanionBuilder = FarmTasksCompanion Function({
   Value<DateTime> dueDate,
   Value<String> status,
   Value<int?> expectedCostCents,
+  Value<String?> planId,
   Value<int> rowid,
 });
 
@@ -8883,6 +8942,11 @@ class $$FarmTasksTableFilterComposer
 
   ColumnFilters<int> get expectedCostCents => $composableBuilder(
     column: $table.expectedCostCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get planId => $composableBuilder(
+    column: $table.planId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -8965,6 +9029,11 @@ class $$FarmTasksTableOrderingComposer
     column: $table.expectedCostCents,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get planId => $composableBuilder(
+    column: $table.planId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$FarmTasksTableAnnotationComposer
@@ -9021,6 +9090,9 @@ class $$FarmTasksTableAnnotationComposer
     column: $table.expectedCostCents,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get planId =>
+      $composableBuilder(column: $table.planId, builder: (column) => column);
 }
 
 class $$FarmTasksTableTableManager
@@ -9068,6 +9140,7 @@ class $$FarmTasksTableTableManager
                 Value<DateTime> dueDate = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int?> expectedCostCents = const Value.absent(),
+                Value<String?> planId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FarmTasksCompanion(
                 id: id,
@@ -9084,6 +9157,7 @@ class $$FarmTasksTableTableManager
                 dueDate: dueDate,
                 status: status,
                 expectedCostCents: expectedCostCents,
+                planId: planId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9102,6 +9176,7 @@ class $$FarmTasksTableTableManager
                 required DateTime dueDate,
                 Value<String> status = const Value.absent(),
                 Value<int?> expectedCostCents = const Value.absent(),
+                Value<String?> planId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FarmTasksCompanion.insert(
                 id: id,
@@ -9118,6 +9193,7 @@ class $$FarmTasksTableTableManager
                 dueDate: dueDate,
                 status: status,
                 expectedCostCents: expectedCostCents,
+                planId: planId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
