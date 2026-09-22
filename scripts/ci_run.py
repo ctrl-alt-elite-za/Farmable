@@ -38,6 +38,7 @@ def main() -> int:
         "integration-tests": "test-integration",
         "client-up-to-date": "client-check",
         "no-raw-sql": "check-no-raw-sql",
+        "mobile-test": "mobile-checks",
     }
     target = targets.get(args.check, args.check)
     reports = Path(".ci-reports")

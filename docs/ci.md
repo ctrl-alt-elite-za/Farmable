@@ -128,22 +128,35 @@ prints the same local command:
 
 ### Flutter
 
-`make mobile-checks` runs the same commands the `mobile-test` job runs, from
-`apps/mobile`:
+The `mobile-test` job runs entirely through `make mobile-checks` (invoked by
+`ci_run.py`, same as every other required check), so this is the exact
+command that reproduces every failure the job can report, in order, from the
+repository root:
 
-- `dart format --output=none --set-exit-if-changed .`
-- `flutter analyze`
-- `flutter test --exclude-tags demo-api`
+- `node --test scripts/tests/mobile-api.test.mjs` — physical-device API
+  configuration policy.
+- `bash scripts/check-test-mode.sh` — test mode and demo mode must not both
+  be set.
+- `flutter pub get --enforce-lockfile` (from `apps/mobile`).
+- `dart run tool/generate_tokens.dart --verify` (from `apps/mobile`) — the
+  Dart theme must match `design/tokens.css`.
+- `dart format --output=none --set-exit-if-changed .` (from `apps/mobile`).
+- `flutter analyze` (from `apps/mobile`).
+- `flutter test --exclude-tags demo-api` (from `apps/mobile`).
 - `flutter test --plain-name 'renders the farm with no network and no spinner' test/home_screen_test.dart`
-
-The last one is the offline-launch smoke: it renders Home from local storage
-with no backend reachable.
+  (from `apps/mobile`) — the offline-launch smoke: it renders Home from
+  local storage with no backend reachable.
+- `uv run python scripts/test_mobile_contract.py` — exercises the Flutter
+  client against the demo API.
 
 `mobile.yml` carries no pull-request path filter. A workflow that never starts
 cannot report a required check, and an unreported required check stays pending
 and blocks every unrelated pull request. The `mobile-test` job gates itself on
 `scripts/ci_scopes.py` instead, so an unaffected pull request reports
-`skipped`, which branch protection accepts as success.
+`skipped`, which branch protection accepts as success. If the `scopes` job
+itself fails, `mobile-test` runs anyway rather than being skipped — a skipped
+required check is reported as success, so failing open on a broken scopes job
+would let mobile changes bypass the gate.
 
 The emulator-level proof stays in `e2e-mobile`: `scripts/ci-stack.sh` runs
 `e2e/mobile/online_launch.yaml`, stops the API container, then runs

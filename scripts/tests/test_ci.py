@@ -636,7 +636,8 @@ def test_flutter_analysis_and_unit_tests_block_a_pull_request():
     A path-filtered workflow never starts on an unrelated pull request, so a
     required check named after it would stay pending forever instead of
     reporting. The job gates itself on scopes instead, and a skipped job is
-    reported and counts as success.
+    reported and counts as success. If scopes itself fails, the job must run
+    anyway rather than fail open by skipping (also silently reported success).
     """
     repo = Path(__file__).resolve().parents[2]
     workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
@@ -644,12 +645,17 @@ def test_flutter_analysis_and_unit_tests_block_a_pull_request():
     assert "paths" not in triggers["pull_request"]
     job = workflow["jobs"]["mobile-test"]
     assert job["needs"] == "scopes"
-    assert job["if"] == "needs.scopes.outputs.mobile == 'true'"
+    assert job["if"] == "needs.scopes.result != 'success' || needs.scopes.outputs.mobile == 'true'"
     assert workflow["jobs"]["scopes"]["outputs"]["mobile"] == "${{ steps.paths.outputs.mobile }}"
+    # The job runs the check through ci_run.py, same as every other required
+    # check, so a failure produces the artifact the reporter workflow reads.
     commands = [step.get("run", "") for step in job["steps"]]
-    assert "dart format --output=none --set-exit-if-changed ." in commands
-    assert "flutter analyze" in commands
-    assert any(command.startswith("flutter test") for command in commands)
+    assert any(step.get("env", {}).get("CHECK") == "mobile-test" for step in job["steps"])
+    assert 'python scripts/ci_run.py "$CHECK"' in " ".join(commands)
+    uploads = [step for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact")]
+    upload = next(step for step in uploads if step["with"]["name"] == "ci-result-mobile-test")
+    assert upload["with"]["path"] == ".ci-reports/mobile-test.json"
+    assert upload["if"] == "always()"
     required = json.loads((repo / ".github/required-checks.json").read_text())
     assert "mobile-test" in required
     # The pre-push hook and CI must check the same files, or one of them lies.
@@ -657,7 +663,38 @@ def test_flutter_analysis_and_unit_tests_block_a_pull_request():
     assert "dart format --output=none --set-exit-if-changed ." in hook
     makefile = (repo / "Makefile").read_text()
     assert "\nmobile-checks:\n" in makefile
+    mobile_checks = makefile.split("\nmobile-checks:\n", 1)[1].split("\n\n", 1)[0]
+    assert "dart format --output=none --set-exit-if-changed ." in mobile_checks
+    assert "flutter analyze" in mobile_checks
+    assert "flutter test --exclude-tags demo-api" in mobile_checks
     assert CHECKS["mobile-test"][0] == "make mobile-checks"
+
+
+def test_mobile_test_reproduction_command_matches_ci_run_target():
+    """#5: `ci_run.py mobile-test` must run `make mobile-checks`, not a target that doesn't exist.
+
+    Every other required check follows this pattern (`ci_run.py <check>` maps
+    to a Makefile target); mobile-test must not be the exception that fails
+    with a missing-target error the moment someone runs it that way.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    source = (repo / "scripts/ci_run.py").read_text()
+    assert '"mobile-test": "mobile-checks"' in source
+
+
+def test_mobile_workflow_is_covered_by_the_failure_explanation_reporter():
+    """#5: a failed mobile-test must reach the same PR-comment reporter as backend checks.
+
+    The reporter only reads artifacts from workflow runs whose name is in its
+    allowlist; a mobile-test failure that never reaches it gets no explanation
+    and no reproduction command on the PR.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    report_workflow = yaml.safe_load((repo / ".github/workflows/ci-report.yml").read_text())
+    triggers = report_workflow.get("on", report_workflow.get(True, {}))
+    assert "mobile" in triggers["workflow_run"]["workflows"]
+    reporter_source = (repo / "scripts/ci_report.py").read_text()
+    assert '"mobile"' in reporter_source
 
 
 def test_backend_lint_and_test_failures_block_a_pull_request():
@@ -710,14 +747,11 @@ def test_offline_launch_smoke_runs_with_backend_networking_disabled():
     stop = stack.index('"${compose[@]}" stop api')
     offline = stack.index("maestro test e2e/mobile/offline_launch.yaml")
     assert online < stop < offline
-    workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
-    steps = workflow["jobs"]["mobile-test"]["steps"]
-    smoke = next(step for step in steps if step.get("name") == "Flutter offline-launch smoke")
-    assert smoke["run"] == (
-        "flutter test --plain-name "
-        "'renders the farm with no network and no spinner' test/home_screen_test.dart"
+    makefile = (repo / "Makefile").read_text()
+    assert (
+        "flutter test --plain-name 'renders the farm with no network and no spinner' "
+        "test/home_screen_test.dart" in makefile
     )
-    assert smoke["working-directory"] == "apps/mobile"
     launch = (repo / "apps/mobile/test/home_screen_test.dart").read_text()
     assert "renders the farm with no network and no spinner" in launch
 

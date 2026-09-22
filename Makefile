@@ -101,10 +101,15 @@ queue-schema:
 	uv run python -m farmable_backend.manage queue-schema
 
 mobile-checks:
+	node --test scripts/tests/mobile-api.test.mjs
+	bash scripts/check-test-mode.sh
+	cd apps/mobile && flutter pub get --enforce-lockfile
+	cd apps/mobile && dart run tool/generate_tokens.dart --verify
 	cd apps/mobile && dart format --output=none --set-exit-if-changed .
 	cd apps/mobile && flutter analyze
 	cd apps/mobile && flutter test --exclude-tags demo-api
 	cd apps/mobile && flutter test --plain-name 'renders the farm with no network and no spinner' test/home_screen_test.dart
+	uv run python scripts/test_mobile_contract.py
 
 demo-regression:
 	uv run python -m farmable_backend.demo_api.rehearse
