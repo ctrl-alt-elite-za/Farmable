@@ -8,6 +8,7 @@ import re
 import runpy
 import shutil
 import subprocess
+import tomllib
 import zipfile
 from pathlib import Path
 from unittest.mock import Mock
@@ -15,6 +16,7 @@ from unittest.mock import Mock
 import pytest
 import yaml
 from audit_dependencies import node_high, python_high, severity
+from ci_checks import CHECKS
 from ci_report import read_artifact, render, safe_result
 from ci_run import diagnostics
 from ci_scopes import scopes
@@ -626,3 +628,126 @@ def test_the_guard_runs_against_the_values_the_device_builds_compile_in():
         assert '--dart-define=TEST_MODE="$TEST_MODE"' in run
         assert '--dart-define=DEMO_MODE="$DEMO_MODE"' in run
         assert run.index("check-test-mode.sh") < run.index("flutter build")
+
+
+def test_flutter_analysis_and_unit_tests_block_a_pull_request():
+    """#5: Flutter format/analyze/test must fail a check branch protection requires.
+
+    A path-filtered workflow never starts on an unrelated pull request, so a
+    required check named after it would stay pending forever instead of
+    reporting. The job gates itself on scopes instead, and a skipped job is
+    reported and counts as success.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
+    triggers = workflow.get("on", workflow.get(True, {}))
+    assert "paths" not in triggers["pull_request"]
+    job = workflow["jobs"]["mobile-test"]
+    assert job["needs"] == "scopes"
+    assert job["if"] == "needs.scopes.outputs.mobile == 'true'"
+    assert workflow["jobs"]["scopes"]["outputs"]["mobile"] == "${{ steps.paths.outputs.mobile }}"
+    commands = [step.get("run", "") for step in job["steps"]]
+    assert "dart format --output=none --set-exit-if-changed ." in commands
+    assert "flutter analyze" in commands
+    assert any(command.startswith("flutter test") for command in commands)
+    required = json.loads((repo / ".github/required-checks.json").read_text())
+    assert "mobile-test" in required
+    # The pre-push hook and CI must check the same files, or one of them lies.
+    hook = (repo / "scripts/changed-scopes.sh").read_text()
+    assert "dart format --output=none --set-exit-if-changed ." in hook
+    makefile = (repo / "Makefile").read_text()
+    assert "\nmobile-checks:\n" in makefile
+    assert CHECKS["mobile-test"][0] == "make mobile-checks"
+
+
+def test_backend_lint_and_test_failures_block_a_pull_request():
+    """#5: the backend commands the issue names are required, not advisory."""
+    repo = Path(__file__).resolve().parents[2]
+    required = json.loads((repo / ".github/required-checks.json").read_text())
+    workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
+    include = workflow["jobs"]["checks"]["strategy"]["matrix"]["include"]
+    matrix = {entry["check"] for entry in include}
+    documentation = (repo / "docs/ci.md").read_text()
+    for name in ("lint", "unit-tests", "integration-tests", "migration-safety", "no-raw-sql"):
+        assert name in required, name
+        assert name in matrix, name
+        assert f"`{CHECKS[name][0]}`" in documentation, name
+
+
+def test_a_committed_secret_fixture_is_blocked_by_gitleaks():
+    """#5: an AWS key committed anywhere must fail the required gitleaks check.
+
+    The fixture is assembled at runtime so this test file is not itself a
+    committed secret. The rule under test is the repository's own strict rule,
+    which deliberately overrides gitleaks' example-key allowlist.
+    """
+    repo = Path(__file__).resolve().parents[2]
+    config = tomllib.loads((repo / ".gitleaks.toml").read_text())
+    rule = next(item for item in config["rules"] if item["id"] == "aws-access-key-strict")
+    fixture = "AKIA" + "IOSFODNN7EXAMPLE"
+    assert re.search(rule["regex"], fixture)
+    workflow = yaml.safe_load((repo / ".github/workflows/gitleaks.yml").read_text())
+    steps = workflow["jobs"]["gitleaks"]["steps"]
+    checkout = steps[0]
+    assert checkout["uses"].startswith("actions/checkout@")
+    assert checkout["with"]["fetch-depth"] == 0
+    scan = next(step for step in steps if step.get("name") == "Run gitleaks scan")
+    # History, not just HEAD: committing and then deleting a secret still leaks.
+    assert '--log-opts="--all"' in scan["run"]
+    assert "--config /repo/.gitleaks.toml" in scan["run"]
+    hooks = yaml.safe_load((repo / ".pre-commit-config.yaml").read_text())
+    assert any(h["id"] == "gitleaks" for source in hooks["repos"] for h in source["hooks"])
+    required = json.loads((repo / ".github/required-checks.json").read_text())
+    assert "gitleaks" in required
+    assert f"`{CHECKS['gitleaks'][0]}`" in (repo / "docs/ci.md").read_text()
+
+
+def test_offline_launch_smoke_runs_with_backend_networking_disabled():
+    """#5: one Flutter launch test with no backend, plus the emulator smoke."""
+    repo = Path(__file__).resolve().parents[2]
+    stack = (repo / "scripts/ci-stack.sh").read_text()
+    online = stack.index("maestro test e2e/mobile/online_launch.yaml")
+    stop = stack.index('"${compose[@]}" stop api')
+    offline = stack.index("maestro test e2e/mobile/offline_launch.yaml")
+    assert online < stop < offline
+    workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
+    steps = workflow["jobs"]["mobile-test"]["steps"]
+    smoke = next(step for step in steps if step.get("name") == "Flutter offline-launch smoke")
+    assert smoke["run"] == (
+        "flutter test --plain-name "
+        "'renders the farm with no network and no spinner' test/home_screen_test.dart"
+    )
+    assert smoke["working-directory"] == "apps/mobile"
+    launch = (repo / "apps/mobile/test/home_screen_test.dart").read_text()
+    assert "renders the farm with no network and no spinner" in launch
+
+
+def test_demo_regression_commands_run_in_pull_request_checks():
+    """#5: the demo journey the hackathon shows is replayed on every backend PR."""
+    repo = Path(__file__).resolve().parents[2]
+    required = json.loads((repo / ".github/required-checks.json").read_text())
+    assert "demo-regression" in required
+    workflow = yaml.safe_load((repo / ".github/workflows/pr-checks.yml").read_text())
+    include = workflow["jobs"]["checks"]["strategy"]["matrix"]["include"]
+    assert {"check": "demo-regression", "backend": True} in include
+    assert CHECKS["demo-regression"][0] == "make demo-regression"
+    makefile = (repo / "Makefile").read_text()
+    assert "\ndemo-regression:\n" in makefile
+    # Section load, preview, replan with a minimum crop share, and approval.
+    assert "uv run python -m farmable_backend.demo_api.rehearse" in makefile
+    demo_tests = "apps/backend/tests/test_demo_planner.py apps/backend/tests/test_demo_api.py"
+    assert demo_tests in makefile
+
+
+def test_every_required_check_documents_its_local_reproduction():
+    """#5: a failed check is actionable only if its exact command is written down."""
+    repo = Path(__file__).resolve().parents[2]
+    required = json.loads((repo / ".github/required-checks.json").read_text())
+    documentation = (repo / "docs/ci.md").read_text()
+    assert "## Required checks and local reproduction" in documentation
+    for name in required:
+        assert name in CHECKS, name
+        command, guidance = CHECKS[name]
+        assert f"`{name}`" in documentation, name
+        assert f"`{command}`" in documentation, name
+        assert guidance, name
