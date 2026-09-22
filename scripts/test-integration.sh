@@ -23,6 +23,8 @@ trap cleanup EXIT
 "${compose[@]}" run --rm queue-schema
 "${compose[@]}" up -d api worker
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration -m integration -q -k 'healthy or models_match_migrations or vision_registry or farm_records or auth'
+# Explicitly selected: these locking/recovery tests must not disappear behind -k.
+"${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_photo_sync_postgres.py -m integration -q
 "${compose[@]}" stop worker
 # Readiness must reject stale heartbeats, not just the absence of job failures.
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration -m integration -q -k worker_down

@@ -13,6 +13,11 @@ Docker commands create random credentials, a unique project and a disposable
 volume. Cleanup never targets the developer stack. Production images omit
 development dependencies; the separate testing target contains pytest.
 
+The existing required `integration-tests` job explicitly runs the full PostgreSQL
+photo-sync suite (`apps/backend/tests/integration/test_photo_sync_postgres.py`)
+before dependency-failure phases. It is not part of `make test`'s SQLite/unit run
+and must not be hidden behind the general integration harness's name filter.
+
 ## Automatic changes and explanations
 
 autofix.ci applies Ruff, Prettier, ESLint and client generation. The installed
