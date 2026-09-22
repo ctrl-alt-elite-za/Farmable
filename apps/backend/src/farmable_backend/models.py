@@ -27,6 +27,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from farmable_backend.photo_policy import MAX_CLAIMS
+
 # Spinach is sold by bunch or kilogram, so only these crops get a per-plant formula (#16).
 WEIGHED_CROPS = ("cabbage", "tomato")
 SYNC_STATES = ("pending", "synced", "conflict")
@@ -537,6 +539,89 @@ class SyncChange(Base):
     operation: Mapped[str] = mapped_column(Text)
     version: Mapped[int] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PhotoUpload(Base):
+    """Immutable logical media mutation; state is not the generic sync_state."""
+
+    __tablename__ = "photo_uploads"
+    __table_args__ = (
+        _farm_owner_fk("photo_uploads"),
+        _section_owner_fk("photo_uploads"),
+        ForeignKeyConstraint(
+            ("mutation_row_id", "farm_id", "owner_id"),
+            ("sync_mutations.id", "sync_mutations.farm_id", "sync_mutations.owner_id"),
+            name="fk_photo_uploads_mutation_scope",
+        ),
+        UniqueConstraint("owner_id", "local_media_id", name="uq_photo_uploads_local"),
+        UniqueConstraint("mutation_row_id", name="uq_photo_uploads_mutation"),
+        UniqueConstraint("media_id", name="uq_photo_uploads_media"),
+        CheckConstraint(
+            column("content_type").in_(("image/jpeg", "image/png")), name="ck_photo_uploads_type"
+        ),
+        CheckConstraint(column("byte_length").between(1, 5_000_000), name="ck_photo_uploads_size"),
+        CheckConstraint(
+            column("state").in_(
+                ("awaiting_upload", "queued", "processing", "ready", "failed", "expired")
+            ),
+            name="ck_photo_uploads_state",
+        ),
+        CheckConstraint(column("sequence") > 0, name="ck_photo_uploads_sequence"),
+        Index("ix_photo_uploads_due", "state", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
+    mutation_row_id: Mapped[UUID] = mapped_column(Uuid)
+    media_id: Mapped[UUID] = mapped_column(Uuid, default=uuid4)
+    local_media_id: Mapped[UUID] = mapped_column(Uuid)
+    content_type: Mapped[str] = mapped_column(Text)
+    byte_length: Mapped[int] = mapped_column(BigInteger)
+    state: Mapped[str] = mapped_column(Text, default="awaiting_upload")
+    sequence: Mapped[int] = mapped_column(BigInteger, default=1)
+    error_code: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PhotoAttempt(Base):
+    """Retained attempt keys let cleanup avoid broad bucket scans."""
+
+    __tablename__ = "photo_attempts"
+    __table_args__ = (
+        UniqueConstraint("upload_id", "sequence", name="uq_photo_attempts_sequence"),
+        CheckConstraint(column("sequence") > 0, name="ck_photo_attempts_sequence"),
+        CheckConstraint(
+            column("attempt_count").between(0, MAX_CLAIMS), name="ck_photo_attempts_count"
+        ),
+        Index("ix_photo_attempts_cleanup", "cleaned_at", "terminal_at"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    upload_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("photo_uploads.id"))
+    sequence: Mapped[int] = mapped_column(BigInteger)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    form_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempt_count: Mapped[int] = mapped_column(BigInteger, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_generation: Mapped[str | None] = mapped_column(Text)
+    clean_generation: Mapped[str | None] = mapped_column(Text)
+    clean_sha256: Mapped[str | None] = mapped_column(Text)
+    clean_size: Mapped[int | None] = mapped_column(BigInteger)
+    width: Mapped[int | None] = mapped_column(BigInteger)
+    height: Mapped[int | None] = mapped_column(BigInteger)
+    terminal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleanup_token: Mapped[UUID | None] = mapped_column(Uuid)
+    cleanup_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleaned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PhotoRate(Base):
+    __tablename__ = "photo_rates"
+    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id"), primary_key=True)
+    hits: Mapped[list[float]] = mapped_column(JSON_DOCUMENT)
 
 
 # Reusable ORM field annotations for future models (#8), not feature tables.
