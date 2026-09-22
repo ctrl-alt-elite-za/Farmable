@@ -652,7 +652,9 @@ def test_flutter_analysis_and_unit_tests_block_a_pull_request():
     commands = [step.get("run", "") for step in job["steps"]]
     assert any(step.get("env", {}).get("CHECK") == "mobile-test" for step in job["steps"])
     assert 'python scripts/ci_run.py "$CHECK"' in " ".join(commands)
-    uploads = [step for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact")]
+    uploads = [
+        step for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact")
+    ]
     upload = next(step for step in uploads if step["with"]["name"] == "ci-result-mobile-test")
     assert upload["with"]["path"] == ".ci-reports/mobile-test.json"
     assert upload["if"] == "always()"
