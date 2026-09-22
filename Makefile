@@ -12,7 +12,7 @@ SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
 
 .PHONY: setup lint format typecheck test test-integration hooks check-no-raw-sql client db-migrate queue-schema
 .PHONY: client-check security-audit migration-safety deployability e2e-api e2e-degradation e2e-mobile mobile-test-build
-.PHONY: smoke
+.PHONY: smoke mobile-checks demo-regression
 
 smoke:
 	uv run python -m farmable_backend.integrations.smoke $(SMOKE_ARGS)
@@ -99,3 +99,13 @@ db-migrate:
 
 queue-schema:
 	uv run python -m farmable_backend.manage queue-schema
+
+mobile-checks:
+	cd apps/mobile && dart format --output=none --set-exit-if-changed .
+	cd apps/mobile && flutter analyze
+	cd apps/mobile && flutter test --exclude-tags demo-api
+	cd apps/mobile && flutter test --plain-name 'renders the farm with no network and no spinner' test/home_screen_test.dart
+
+demo-regression:
+	uv run python -m farmable_backend.demo_api.rehearse
+	uv run pytest apps/backend/tests/test_demo_planner.py apps/backend/tests/test_demo_api.py -q
