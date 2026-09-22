@@ -124,12 +124,14 @@ def _share(clause: str) -> tuple[str, int] | None:
     quantity = match[1]
     if quantity == "half":
         return match[2], 50
-    percent = re.fullmatch(r"(.+?)(?: percent|%)", quantity)
-    if percent is None:
+    # Fixed suffixes avoid backtracking over untrusted transcript text.
+    if quantity.endswith(" percent"):
+        amount = quantity.removesuffix(" percent")
+    elif quantity.endswith("%"):
+        amount = quantity.removesuffix("%")
+    else:
         return None
-    value = (
-        int(percent[1]) if re.fullmatch(r"[0-9]{1,3}", percent[1]) else _spoken_integer(percent[1])
-    )
+    value = int(amount) if re.fullmatch(r"[0-9]{1,3}", amount) else _spoken_integer(amount)
     if value is None or not 0 <= value <= 100:
         return None
     return match[2], value

@@ -56,6 +56,8 @@ def test_money_commands_are_exact(text, cents):
         ("I want to plant cabbage", "cabbage", 100),
         ("Plant only spinach", "spinach", 100),
         ("Keep zero percent cabbage", "cabbage", 0),
+        ("Keep 100% of the section as spinach", "spinach", 100),
+        ("Keep one hundred percent cabbage", "cabbage", 100),
     ],
 )
 def test_share_commands(text, crop, percent):
@@ -114,6 +116,14 @@ def test_combined_command_respects_both_constraints(text):
         "Reset my farm",
         "Keep ² percent cabbage",
         "Keep 99999999999999999999999999 percent cabbage",
+        "Keep percent cabbage",
+        "Keep % cabbage",
+        "Keep 50 percent percent cabbage",
+        "Keep 50%% spinach",
+        "Keep 50 percent extra cabbage",
+        "Keep 50% extra spinach",
+        "Keep " + "a" * 279 + " percent cabbage",
+        "Keep " + "a" * 286 + "% cabbage",
         "<script>alert(1)</script>",
     ],
 )
