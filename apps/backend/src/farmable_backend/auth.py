@@ -16,7 +16,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from farmable_backend.models import AuthIdentity, AuthSession, User, VerificationChallenge
+from farmable_backend.models import AuthIdentity, AuthSession, Farm, User, VerificationChallenge
 
 PASSWORD_HASHER = PasswordHasher()  # argon2-cffi defaults are Argon2id.
 # Unknown accounts must still pay the same Argon2 verification cost as known
@@ -27,6 +27,7 @@ SESSION_TTL = timedelta(days=30)
 MAX_OTP_ATTEMPTS = 5
 OTP_SEND_WINDOW = timedelta(minutes=10)
 MAX_OTP_SENDS = 3
+DEFAULT_FARM_NAME = "My farm"
 
 
 class AuthError(Exception):
@@ -159,6 +160,11 @@ class AuthService:
                 session.add(user)
                 # Claim the unique credentials before delivering an OTP. On a
                 # conflict the entire transaction, including owner, rolls back.
+                session.flush()
+                # Issue #9: every account owns exactly one empty farm from
+                # sign-up, so the account API always has a subject. The insert
+                # shares this transaction, so a credential conflict rolls it back.
+                session.add(Farm(owner_id=owner.id, name=DEFAULT_FARM_NAME))
                 session.flush()
                 self._send(session, user, Channel.PHONE)
                 return _user(user)
