@@ -26,7 +26,7 @@ snapshot across pages.
 | `GET /farms/{farm_id}/sections`                            | Active sections                                                      |
 | `GET /farms/{farm_id}/observations`                        | Active observations; optional `section_id`                           |
 | `GET /farms/{farm_id}/observations/{observation_id}`       | One observation                                                      |
-| `GET /farms/{farm_id}/changes` | Ordered change feed for #17 (see `docs/farm-records-api.md`) |
+| `GET /farms/{farm_id}/changes`                             | Ordered change feed for #17 (see `docs/farm-records-api.md`)         |
 | `POST /farms/{farm_id}/observations`                       | Idempotent create; first and replay return 200                       |
 | `POST /farms/{farm_id}/photo-uploads`                      | Reserve/replay one logical photo mutation                            |
 | `POST /farms/{farm_id}/photo-uploads/{upload_id}/complete` | Accept durable processing intent (202), or return ready result (200) |

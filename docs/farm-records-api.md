@@ -20,15 +20,15 @@ number and date.
 `{resource}` is one of `sections`, `plantings`, `observations`, `tasks`,
 `financials`, `plans`, `media`.
 
-| Path                                             | Methods                                             |
-| ------------------------------------------------ | --------------------------------------------------- |
-| `/farms`                                         | `GET` owned farms                                   |
-| `/farms/{farm_id}/{resource}`                    | `GET` list (optional `section_id`), `POST` create   |
-| `/farms/{farm_id}/{resource}/{record_id}`        | `GET` one record, `PUT` update                      |
-| `/farms/{farm_id}/{resource}/{record_id}/delete` | `POST` tombstone                                    |
-| `/farms/{farm_id}/sections/{record_id}`          | `GET` returns the section detail below              |
-| `/farms/{farm_id}/changes`                       | `GET` ordered change feed (`since`, `limit`)        |
-| `/farms/{farm_id}/observations`                  | `POST` keeps the #17 create contract with `media_id`|
+| Path                                             | Methods                                              |
+| ------------------------------------------------ | ---------------------------------------------------- |
+| `/farms`                                         | `GET` owned farms                                    |
+| `/farms/{farm_id}/{resource}`                    | `GET` list (optional `section_id`), `POST` create    |
+| `/farms/{farm_id}/{resource}/{record_id}`        | `GET` one record, `PUT` update                       |
+| `/farms/{farm_id}/{resource}/{record_id}/delete` | `POST` tombstone                                     |
+| `/farms/{farm_id}/sections/{record_id}`          | `GET` returns the section detail below               |
+| `/farms/{farm_id}/changes`                       | `GET` ordered change feed (`since`, `limit`)         |
+| `/farms/{farm_id}/observations`                  | `POST` keeps the #17 create contract with `media_id` |
 
 `sections` has no generic `GET` list item route: `GET /farms/{farm_id}/sections`
 lists sections and `GET /farms/{farm_id}/sections/{record_id}` returns the

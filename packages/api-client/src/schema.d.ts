@@ -123,6 +123,129 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/farms/{farm_id}/changes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Changes */
+    get: operations['listChanges'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/financials': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Records */
+    get: operations['listFinancials'];
+    put?: never;
+    /** Create Record */
+    post: operations['createFinancial'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/financials/{record_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Record */
+    get: operations['getFinancial'];
+    /** Update Record */
+    put: operations['updateFinancial'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/financials/{record_id}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Delete Record */
+    post: operations['deleteFinancial'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/media': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Records */
+    get: operations['listMediaItems'];
+    put?: never;
+    /** Create Record */
+    post: operations['createMediaItem'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/media/{record_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Record */
+    get: operations['getMediaItem'];
+    /** Update Record */
+    put: operations['updateMediaItem'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/media/{record_id}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Delete Record */
+    post: operations['deleteMediaItem'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/farms/{farm_id}/observations': {
     parameters: {
       query?: never;
@@ -141,7 +264,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/farms/{farm_id}/observations/{observation_id}': {
+  '/farms/{farm_id}/observations/{record_id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -150,8 +273,26 @@ export interface paths {
     };
     /** Observation */
     get: operations['getObservation'];
-    put?: never;
+    /** Update Record */
+    put: operations['updateObservation'];
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/observations/{record_id}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Delete Record */
+    post: operations['deleteObservation'];
     delete?: never;
     options?: never;
     head?: never;
@@ -226,6 +367,112 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/farms/{farm_id}/plans': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Records */
+    get: operations['listPlans'];
+    put?: never;
+    /** Create Record */
+    post: operations['createPlan'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/plans/{record_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Record */
+    get: operations['getPlan'];
+    /** Update Record */
+    put: operations['updatePlan'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/plans/{record_id}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Delete Record */
+    post: operations['deletePlan'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/plantings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Records */
+    get: operations['listPlantings'];
+    put?: never;
+    /** Create Record */
+    post: operations['createPlanting'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/plantings/{record_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Record */
+    get: operations['getPlanting'];
+    /** Update Record */
+    put: operations['updatePlanting'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/plantings/{record_id}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Delete Record */
+    post: operations['deletePlanting'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/farms/{farm_id}/sections': {
     parameters: {
       query?: never;
@@ -236,7 +483,96 @@ export interface paths {
     /** Sections */
     get: operations['listSections'];
     put?: never;
+    /** Create Record */
+    post: operations['createSection'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/sections/{record_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Section Detail */
+    get: operations['getSection'];
+    /** Update Record */
+    put: operations['updateSection'];
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/sections/{record_id}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Delete Record */
+    post: operations['deleteSection'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/tasks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Records */
+    get: operations['listTasks'];
+    put?: never;
+    /** Create Record */
+    post: operations['createTask'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/tasks/{record_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Record */
+    get: operations['getTask'];
+    /** Update Record */
+    put: operations['updateTask'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/tasks/{record_id}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Delete Record */
+    post: operations['deleteTask'];
     delete?: never;
     options?: never;
     head?: never;
@@ -294,6 +630,34 @@ export interface components {
        */
       user_id: string;
     };
+    /** ChangePage */
+    ChangePage: {
+      /** Items */
+      items: components['schemas']['ChangeView'][];
+      /** Next Cursor */
+      next_cursor: number | null;
+    };
+    /** ChangeView */
+    ChangeView: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Cursor */
+      cursor: number;
+      /** Operation */
+      operation: string;
+      /**
+       * Record Id
+       * Format: uuid
+       */
+      record_id: string;
+      /** Record Type */
+      record_type: string;
+      /** Version */
+      version: number;
+    };
     /** Error */
     Error: {
       /** Code */
@@ -332,6 +696,138 @@ export interface components {
       /** Version */
       version: number;
     };
+    /**
+     * FinancialCreate
+     * @example {
+     *       "amount_cents": 4200,
+     *       "category": "seed",
+     *       "date": "2026-09-01",
+     *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "section_id": "3f1d4b2a-0000-4000-8000-000000000003",
+     *       "type": "expense"
+     *     }
+     */
+    FinancialCreate: {
+      /** Amount Cents */
+      amount_cents: number;
+      /** Category */
+      category: string;
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Note */
+      note?: string | null;
+      /** Section Id */
+      section_id?: string | null;
+      /**
+       * Type
+       * @enum {string}
+       */
+      type: 'expense' | 'income';
+    };
+    /** FinancialSummary */
+    FinancialSummary: {
+      /** Expense Cents */
+      expense_cents: number;
+      /** Income Cents */
+      income_cents: number;
+      /** Net Cents */
+      net_cents: number;
+    };
+    /**
+     * FinancialUpdate
+     * @example {
+     *       "amount_cents": 9900,
+     *       "category": "sale",
+     *       "date": "2026-09-02",
+     *       "expected_version": 1,
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "type": "income"
+     *     }
+     */
+    FinancialUpdate: {
+      /** Amount Cents */
+      amount_cents: number;
+      /** Category */
+      category: string;
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /** Expected Version */
+      expected_version: number;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Note */
+      note?: string | null;
+      /**
+       * Type
+       * @enum {string}
+       */
+      type: 'expense' | 'income';
+    };
+    /** FinancialView */
+    FinancialView: {
+      /** Amount Cents */
+      amount_cents: number;
+      /** Category */
+      category: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Note */
+      note: string | null;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      /** Section Id */
+      section_id: string | null;
+      /** Type */
+      type: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Version */
+      version: number;
+    };
     /** LiveResponse */
     LiveResponse: {
       /** Sha */
@@ -349,6 +845,91 @@ export interface components {
       identifier: string;
       /** Password */
       password: string;
+    };
+    /**
+     * MediaCreate
+     * @example {
+     *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
+     *       "local_id": "device-photo-1",
+     *       "media_type": "image/png",
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "section_id": "3f1d4b2a-0000-4000-8000-000000000003"
+     *     }
+     */
+    MediaCreate: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Local Id */
+      local_id: string;
+      /** Media Type */
+      media_type: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Section Id */
+      section_id?: string | null;
+    };
+    /**
+     * MediaUpdate
+     * @example {
+     *       "expected_version": 1,
+     *       "media_type": "image/jpeg",
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001"
+     *     }
+     */
+    MediaUpdate: {
+      /** Expected Version */
+      expected_version: number;
+      /** Media Type */
+      media_type: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Section Id */
+      section_id?: string | null;
+    };
+    /** MediaView */
+    MediaView: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Local Id */
+      local_id: string;
+      /** Media Type */
+      media_type: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      /** Section Id */
+      section_id: string | null;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Version */
+      version: number;
     };
     /** ObservationAck */
     ObservationAck: {
@@ -414,6 +995,33 @@ export interface components {
       /** Type */
       type: string;
     };
+    /**
+     * ObservationUpdate
+     * @example {
+     *       "expected_version": 1,
+     *       "health_status": "fair",
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "note": "Leaves recovering",
+     *       "type": "health"
+     *     }
+     */
+    ObservationUpdate: {
+      /** Action Taken */
+      action_taken?: string | null;
+      /** Expected Version */
+      expected_version: number;
+      /** Health Status */
+      health_status?: string | null;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Note */
+      note: string;
+      /** Type */
+      type: string;
+    };
     /** ObservationView */
     ObservationView: {
       /** Action Taken */
@@ -468,10 +1076,38 @@ export interface components {
       /** Next Cursor */
       next_cursor: string | null;
     };
+    /** Page[FinancialView] */
+    Page_FinancialView_: {
+      /** Items */
+      items: components['schemas']['FinancialView'][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** Page[MediaView] */
+    Page_MediaView_: {
+      /** Items */
+      items: components['schemas']['MediaView'][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
     /** Page[ObservationView] */
     Page_ObservationView_: {
       /** Items */
       items: components['schemas']['ObservationView'][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** Page[PlanView] */
+    Page_PlanView_: {
+      /** Items */
+      items: components['schemas']['PlanView'][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /** Page[PlantingView] */
+    Page_PlantingView_: {
+      /** Items */
+      items: components['schemas']['PlantingView'][];
       /** Next Cursor */
       next_cursor: string | null;
     };
@@ -481,6 +1117,227 @@ export interface components {
       items: components['schemas']['SectionView'][];
       /** Next Cursor */
       next_cursor: string | null;
+    };
+    /** Page[TaskView] */
+    Page_TaskView_: {
+      /** Items */
+      items: components['schemas']['TaskView'][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /**
+     * PlanCreate
+     * @example {
+     *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "plan": {
+     *         "steps": []
+     *       },
+     *       "section_id": "3f1d4b2a-0000-4000-8000-000000000003",
+     *       "status": "saved"
+     *     }
+     */
+    PlanCreate: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Plan */
+      plan: {
+        [key: string]: unknown;
+      };
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+      /**
+       * Status
+       * @default saved
+       * @enum {string}
+       */
+      status: 'saved' | 'approved' | 'rejected';
+    };
+    /**
+     * PlanUpdate
+     * @example {
+     *       "expected_version": 1,
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "plan": {
+     *         "steps": []
+     *       },
+     *       "status": "approved"
+     *     }
+     */
+    PlanUpdate: {
+      /** Expected Version */
+      expected_version: number;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Plan */
+      plan: {
+        [key: string]: unknown;
+      };
+      /**
+       * Status
+       * @default saved
+       * @enum {string}
+       */
+      status: 'saved' | 'approved' | 'rejected';
+    };
+    /** PlanView */
+    PlanView: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      /** Plan */
+      plan: {
+        [key: string]: unknown;
+      };
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+      /** Status */
+      status: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Version */
+      version: number;
+    };
+    /**
+     * PlantingCreate
+     * @example {
+     *       "crop": "cabbage",
+     *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "planted_on": "2026-08-01",
+     *       "section_id": "3f1d4b2a-0000-4000-8000-000000000003"
+     *     }
+     */
+    PlantingCreate: {
+      /** Crop */
+      crop: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Is Current
+       * @default true
+       */
+      is_current: boolean;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Planted On */
+      planted_on?: string | null;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+    };
+    /**
+     * PlantingUpdate
+     * @example {
+     *       "crop": "tomato",
+     *       "expected_version": 1,
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "planted_on": "2026-08-02"
+     *     }
+     */
+    PlantingUpdate: {
+      /** Crop */
+      crop: string;
+      /** Expected Version */
+      expected_version: number;
+      /**
+       * Is Current
+       * @default true
+       */
+      is_current: boolean;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Planted On */
+      planted_on?: string | null;
+    };
+    /** PlantingView */
+    PlantingView: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Crop */
+      crop: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Is Current */
+      is_current: boolean;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      /** Planted On */
+      planted_on: string | null;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Version */
+      version: number;
     };
     /** ReadyResponse */
     ReadyResponse: {
@@ -496,6 +1353,204 @@ export interface components {
        * @enum {string}
        */
       worker: 'ok' | 'down';
+    };
+    /** RecordAck[FinancialView] */
+    RecordAck_FinancialView_: {
+      /**
+       * Entity Id
+       * Format: uuid
+       */
+      entity_id: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      record: components['schemas']['FinancialView'];
+      /** Version */
+      version: number;
+    };
+    /** RecordAck[MediaView] */
+    RecordAck_MediaView_: {
+      /**
+       * Entity Id
+       * Format: uuid
+       */
+      entity_id: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      record: components['schemas']['MediaView'];
+      /** Version */
+      version: number;
+    };
+    /** RecordAck[ObservationView] */
+    RecordAck_ObservationView_: {
+      /**
+       * Entity Id
+       * Format: uuid
+       */
+      entity_id: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      record: components['schemas']['ObservationView'];
+      /** Version */
+      version: number;
+    };
+    /** RecordAck[PlanView] */
+    RecordAck_PlanView_: {
+      /**
+       * Entity Id
+       * Format: uuid
+       */
+      entity_id: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      record: components['schemas']['PlanView'];
+      /** Version */
+      version: number;
+    };
+    /** RecordAck[PlantingView] */
+    RecordAck_PlantingView_: {
+      /**
+       * Entity Id
+       * Format: uuid
+       */
+      entity_id: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      record: components['schemas']['PlantingView'];
+      /** Version */
+      version: number;
+    };
+    /** RecordAck[SectionView] */
+    RecordAck_SectionView_: {
+      /**
+       * Entity Id
+       * Format: uuid
+       */
+      entity_id: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      record: components['schemas']['SectionView'];
+      /** Version */
+      version: number;
+    };
+    /** RecordAck[TaskView] */
+    RecordAck_TaskView_: {
+      /**
+       * Entity Id
+       * Format: uuid
+       */
+      entity_id: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      record: components['schemas']['TaskView'];
+      /** Version */
+      version: number;
+    };
+    /**
+     * RecordDelete
+     * @example {
+     *       "expected_version": 1,
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001"
+     *     }
+     */
+    RecordDelete: {
+      /** Expected Version */
+      expected_version: number;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
     };
     /** RefreshRequest */
     RefreshRequest: {
@@ -514,6 +1569,74 @@ export interface components {
        * Format: uuid
        */
       user_id: string;
+    };
+    /**
+     * SectionCreate
+     * @example {
+     *       "area_m2": "1200.00",
+     *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "name": "North block"
+     *     }
+     */
+    SectionCreate: {
+      /** Area M2 */
+      area_m2?: number | string | null;
+      /** Boundary */
+      boundary?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Name */
+      name: string;
+    };
+    /** SectionDetail */
+    SectionDetail: {
+      current_plan: components['schemas']['PlanView'] | null;
+      current_planting: components['schemas']['PlantingView'] | null;
+      financials: components['schemas']['FinancialSummary'];
+      /** Latest Health Status */
+      latest_health_status: string | null;
+      /** Observations */
+      observations: components['schemas']['ObservationView'][];
+      section: components['schemas']['SectionView'];
+      /** Tasks */
+      tasks: components['schemas']['TaskView'][];
+    };
+    /**
+     * SectionUpdate
+     * @example {
+     *       "area_m2": "1250.00",
+     *       "expected_version": 1,
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "name": "North block"
+     *     }
+     */
+    SectionUpdate: {
+      /** Area M2 */
+      area_m2?: number | string | null;
+      /** Boundary */
+      boundary?: {
+        [key: string]: unknown;
+      } | null;
+      /** Expected Version */
+      expected_version: number;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /** Name */
+      name: string;
     };
     /** SectionView */
     SectionView: {
@@ -595,6 +1718,135 @@ export interface components {
       };
       /** Url */
       url: string;
+    };
+    /**
+     * TaskCreate
+     * @example {
+     *       "due_date": "2026-10-01",
+     *       "expected_cost_cents": 1500,
+     *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "section_id": "3f1d4b2a-0000-4000-8000-000000000003",
+     *       "status": "pending",
+     *       "title": "Weed the beds"
+     *     }
+     */
+    TaskCreate: {
+      /** Description */
+      description?: string | null;
+      /**
+       * Due Date
+       * Format: date
+       */
+      due_date: string;
+      /** Expected Cost Cents */
+      expected_cost_cents?: number | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+      /**
+       * Status
+       * @default pending
+       * @enum {string}
+       */
+      status: 'pending' | 'in_progress' | 'done' | 'cancelled';
+      /** Title */
+      title: string;
+    };
+    /**
+     * TaskUpdate
+     * @example {
+     *       "due_date": "2026-10-02",
+     *       "expected_version": 1,
+     *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
+     *       "status": "done",
+     *       "title": "Weed the beds"
+     *     }
+     */
+    TaskUpdate: {
+      /** Description */
+      description?: string | null;
+      /**
+       * Due Date
+       * Format: date
+       */
+      due_date: string;
+      /** Expected Cost Cents */
+      expected_cost_cents?: number | null;
+      /** Expected Version */
+      expected_version: number;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'pending' | 'in_progress' | 'done' | 'cancelled';
+      /** Title */
+      title: string;
+    };
+    /** TaskView */
+    TaskView: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Description */
+      description: string | null;
+      /**
+       * Due Date
+       * Format: date
+       */
+      due_date: string;
+      /** Expected Cost Cents */
+      expected_cost_cents: number | null;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+      /** Status */
+      status: string;
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Version */
+      version: number;
     };
     /** UploadCreate */
     UploadCreate: {
@@ -1124,6 +2376,1092 @@ export interface operations {
       };
     };
   };
+  listChanges: {
+    parameters: {
+      query?: {
+        since?: number;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ChangePage'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  listFinancials: {
+    parameters: {
+      query?: {
+        section_id?: string | null;
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Page_FinancialView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  createFinancial: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FinancialCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_FinancialView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getFinancial: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FinancialView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  updateFinancial: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FinancialUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_FinancialView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  deleteFinancial: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecordDelete'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_FinancialView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  listMediaItems: {
+    parameters: {
+      query?: {
+        section_id?: string | null;
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Page_MediaView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  createMediaItem: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MediaCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_MediaView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getMediaItem: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MediaView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  updateMediaItem: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MediaUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_MediaView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  deleteMediaItem: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecordDelete'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_MediaView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
   listObservations: {
     parameters: {
       query?: {
@@ -1328,7 +3666,7 @@ export interface operations {
       header?: never;
       path: {
         farm_id: string;
-        observation_id: string;
+        record_id: string;
       };
       cookie?: never;
     };
@@ -1341,6 +3679,206 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ObservationView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  updateObservation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ObservationUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_ObservationView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  deleteObservation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecordDelete'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_ObservationView_'];
         };
       };
       /** @description Unauthorized */
@@ -1818,6 +4356,994 @@ export interface operations {
       };
     };
   };
+  listPlans: {
+    parameters: {
+      query?: {
+        section_id?: string | null;
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Page_PlanView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  createPlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_PlanView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getPlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlanView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  updatePlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_PlanView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  deletePlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecordDelete'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_PlanView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  listPlantings: {
+    parameters: {
+      query?: {
+        section_id?: string | null;
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Page_PlantingView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  createPlanting: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlantingCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_PlantingView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getPlanting: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlantingView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  updatePlanting: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlantingUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_PlantingView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  deletePlanting: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecordDelete'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_PlantingView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
   listSections: {
     parameters: {
       query?: {
@@ -1839,6 +5365,895 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Page_SectionView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  createSection: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SectionCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_SectionView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getSection: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SectionDetail'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  updateSection: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SectionUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_SectionView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  deleteSection: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecordDelete'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_SectionView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  listTasks: {
+    parameters: {
+      query?: {
+        section_id?: string | null;
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Page_TaskView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  createTask: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_TaskView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getTask: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TaskView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  updateTask: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TaskUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_TaskView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  deleteTask: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        record_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecordDelete'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecordAck_TaskView_'];
         };
       };
       /** @description Unauthorized */

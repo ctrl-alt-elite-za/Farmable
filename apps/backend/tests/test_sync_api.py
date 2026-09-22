@@ -555,9 +555,7 @@ def test_put_bodies_are_bounded(records):
     assert response.status_code == 413
 
 
-@pytest.mark.parametrize(
-    "model", EXAMPLE_MODELS, ids=[model.__name__ for model in EXAMPLE_MODELS]
-)
+@pytest.mark.parametrize("model", EXAMPLE_MODELS, ids=[model.__name__ for model in EXAMPLE_MODELS])
 def test_openapi_request_examples_validate(records, model):
     schema = records.app.openapi()["components"]["schemas"][model.__name__]
     assert schema["examples"], f"{model.__name__} has no OpenAPI example"
