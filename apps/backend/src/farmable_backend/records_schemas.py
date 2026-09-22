@@ -161,7 +161,7 @@ class RecordDelete(StrictModel):
     model_config = examples(mutation_id=EXAMPLE_MUTATION, expected_version=1)
 
     mutation_id: UUID
-    expected_version: Version | None = None
+    expected_version: Version
 
 
 class SectionCreate(StrictModel):
@@ -269,7 +269,7 @@ class TaskUpdate(StrictModel):
     title: Short
     description: OptionalNote | None = None
     due_date: DateValue
-    status: TaskStatus = "pending"
+    status: TaskStatus
     expected_cost_cents: Cents | None = None
 
 
