@@ -124,6 +124,10 @@ void main() {
       }
       // An unexpected column forces a failure late in the migration.
       await db.customStatement('DROP TABLE local_photos');
+      // A v1 database predates plan_id too. Leaving it behind would make
+      // the v3 step fail on a duplicate column and roll the whole
+      // migration back.
+      await db.customStatement('ALTER TABLE farm_tasks DROP COLUMN plan_id');
       await db.customStatement('PRAGMA user_version = 1');
       await db.close();
       db = AlmanacDatabase(
@@ -267,6 +271,10 @@ void main() {
       );
     }
     await db.customStatement('DROP TABLE local_photos');
+    // A v1 database predates plan_id too. Leaving it behind would make
+    // the v3 step fail on a duplicate column and roll the whole
+    // migration back.
+    await db.customStatement('ALTER TABLE farm_tasks DROP COLUMN plan_id');
     await db.customStatement('PRAGMA user_version = 1');
     await db.close();
     db = AlmanacDatabase(NativeDatabase(File('${directory.path}/farm.sqlite')));
