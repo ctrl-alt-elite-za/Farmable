@@ -227,9 +227,7 @@ def test_export_never_contains_credential_or_session_material(accounts):
         challenges = session.scalars(
             select(VerificationChallenge).where(VerificationChallenge.user_id == owner_id)
         ).all()
-        stored = session.scalars(
-            select(AuthSession).where(AuthSession.user_id == owner_id)
-        ).all()
+        stored = session.scalars(select(AuthSession).where(AuthSession.user_id == owner_id)).all()
         assert challenges and stored
         material = [identity.password_hash]
         material += [item.code_hash for item in challenges]
@@ -253,9 +251,7 @@ def test_zip_export_is_deterministic_and_uses_a_safe_entry_name(accounts):
     response = accounts.client.get("/account/export?format=zip", headers=alice)
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/zip"
-    assert response.headers["content-disposition"] == (
-        'attachment; filename="farmable-export.zip"'
-    )
+    assert response.headers["content-disposition"] == ('attachment; filename="farmable-export.zip"')
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
         assert archive.namelist() == ["export.json"]
         document = json.loads(archive.read("export.json"))
@@ -402,8 +398,6 @@ def test_unverified_sessions_cannot_reach_account_routes(accounts):
                 expires_at=datetime.now(UTC) + timedelta(hours=1),
             )
         )
-    response = accounts.client.get(
-        "/account/profile", headers={"Authorization": f"Bearer {token}"}
-    )
+    response = accounts.client.get("/account/profile", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "invalid_session"

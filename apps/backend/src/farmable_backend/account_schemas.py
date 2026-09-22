@@ -43,6 +43,7 @@ class AccountFarmResponse(StrictModel):
     name: str
     preferred_language: Language
 
+
 """
 Email and phone are deliberately not updatable here: changing either would need a
 fresh OTP verification round, which stays with the existing /auth/verify routes.
