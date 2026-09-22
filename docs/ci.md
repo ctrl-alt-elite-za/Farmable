@@ -100,3 +100,61 @@ silently create/overwrite the entire branch-protection object. No branch
 rules are changed while this foundation is still awaiting dependencies.
 Both `codeql` (workflow execution) and `CodeQL` (Advanced Security findings)
 are required; a scanner executing successfully does not override its findings.
+
+## Required checks and local reproduction
+
+`.github/required-checks.json` is the exact list branch protection enforces.
+Each check below blocks the pull request when it fails, and its job summary
+prints the same local command:
+
+- `lint` — `make lint`
+- `typecheck` — `make typecheck`
+- `unit-tests` — `make test`
+- `integration-tests` — `make test-integration`
+- `client-up-to-date` — `make client-check`
+- `security-audit` — `make security-audit`
+- `gitleaks` — `gitleaks git --redact`
+- `codeql` — `See the CodeQL job's analysis`
+- `CodeQL` — `See the CodeQL job's analysis`
+- `deployability` — `make deployability`
+- `migration-safety` — `make migration-safety CI_BASE=<base-sha>`
+- `no-raw-sql` — `make check-no-raw-sql`
+- `e2e-api` — `make e2e-api`
+- `e2e-mobile` — `make e2e-mobile APK=<test-apk>`
+- `e2e-degradation` — `make e2e-degradation`
+- `assistant-evals` — `make eval-assistant SET=dev`
+- `mobile-test` — `make mobile-checks`
+- `demo-regression` — `make demo-regression`
+
+### Flutter
+
+`make mobile-checks` runs the same commands the `mobile-test` job runs, from
+`apps/mobile`:
+
+- `dart format --output=none --set-exit-if-changed .`
+- `flutter analyze`
+- `flutter test --exclude-tags demo-api`
+- `flutter test --plain-name 'renders the farm with no network and no spinner' test/home_screen_test.dart`
+
+The last one is the offline-launch smoke: it renders Home from local storage
+with no backend reachable.
+
+`mobile.yml` carries no pull-request path filter. A workflow that never starts
+cannot report a required check, and an unreported required check stays pending
+and blocks every unrelated pull request. The `mobile-test` job gates itself on
+`scripts/ci_scopes.py` instead, so an unaffected pull request reports
+`skipped`, which branch protection accepts as success.
+
+The emulator-level proof stays in `e2e-mobile`: `scripts/ci-stack.sh` runs
+`e2e/mobile/online_launch.yaml`, stops the API container, then runs
+`e2e/mobile/offline_launch.yaml` against the stopped backend.
+
+### Demo regression
+
+`make demo-regression` replays the existing demo journey on every backend pull
+request — local section load, planning preview, replan with a minimum crop
+constraint, and plan approval — through
+`uv run python -m farmable_backend.demo_api.rehearse`, then runs the existing
+planner and demo-API suites. It fixes no product behaviour: a defect it exposes
+belongs to the owning frontend or backend issue, or to a narrowly scoped
+follow-up.
