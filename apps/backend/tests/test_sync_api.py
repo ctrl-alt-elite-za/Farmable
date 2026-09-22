@@ -197,7 +197,48 @@ def test_a_cross_owner_primary_key_collision_is_reported_as_record_conflict(reco
     colliding = create_body(records, "tasks", str(record_id))
     response = records.client.post(base, json=colliding)
     assert response.status_code == 409
-    assert response.json()["error"]["code"] == "record_conflict"
+    body = response.json()
+    assert body["error"]["code"] == "record_conflict"
+    assert body["error"].keys() == {"code", "message"}
+    assert str(records.ids.other) not in response.text
+    assert "Not yours" not in response.text
+
+
+def test_cross_owner_collision_is_not_reported_as_record_exists(records):
+    """A same-owner id clash still reports record_exists (that leaks nothing new:
+    it is telling the caller about their own data). A cross-owner clash must never
+    be conflated with that code, or a client could tell owned ids from unowned ones
+    by the error code alone."""
+    from datetime import date
+
+    from farmable_backend.models import FarmTask
+
+    base = f"/farms/{records.ids.farm}/tasks"
+
+    own_id = uuid4()
+    own = create_body(records, "tasks", str(own_id))
+    assert records.client.post(base, json=own).status_code == 200
+    own_again = create_body(records, "tasks", str(own_id))
+    own_response = records.client.post(base, json=own_again)
+    assert own_response.status_code == 409
+    assert own_response.json()["error"]["code"] == "record_exists"
+
+    foreign_id = uuid4()
+    with records.sessions.begin() as session:
+        session.add(
+            FarmTask(
+                id=foreign_id,
+                farm_id=records.ids.foreign,
+                owner_id=records.ids.other,
+                section_id=records.ids.foreign_section,
+                title="Not yours",
+                due_date=date(2026, 10, 1),
+            )
+        )
+    foreign_colliding = create_body(records, "tasks", str(foreign_id))
+    foreign_response = records.client.post(base, json=foreign_colliding)
+    assert foreign_response.status_code == 409
+    assert foreign_response.json()["error"]["code"] == "record_conflict"
 
 
 def test_delete_enforces_optimistic_concurrency(records):
