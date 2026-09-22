@@ -29,6 +29,26 @@ const testMode = bool.fromEnvironment('TEST_MODE');
 /// watching could tell. `scripts/check-test-mode.sh` fails such a build.
 const demoMode = bool.fromEnvironment('DEMO_MODE');
 
+/// Which screen a cold launch opens on.
+///
+/// The default is `/home` on purpose, and changing it is a product decision
+/// rather than a tidying-up. The seeded demo farm has no user attached to it,
+/// `e2e/mobile/*.yaml` assert that a freshly installed app reaches Home with
+/// no taps, and Home and Zone Detail are required to work without a session.
+/// Putting onboarding in front of a cold launch breaks all three at once.
+///
+/// To walk the launch journey — brand intro, onboarding, auth choice — build
+/// with:
+///
+///     flutter run --dart-define=LAUNCH_ROUTE=/splash
+///
+/// Every auth route is deep-linkable, so this changes where the app starts
+/// and nothing else.
+const launchRoute = String.fromEnvironment(
+  'LAUNCH_ROUTE',
+  defaultValue: '/home',
+);
+
 /// Stamped by CI so a report can be traced back to the build that produced it.
 const buildSha = String.fromEnvironment('BUILD_SHA', defaultValue: 'unknown');
 
