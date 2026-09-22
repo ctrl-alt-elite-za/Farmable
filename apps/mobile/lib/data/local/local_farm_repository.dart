@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
@@ -8,6 +9,8 @@ import '../../domain/farm_records_repository.dart';
 import '../../domain/farm_repository.dart';
 import '../../domain/models.dart' as demo;
 import '../../domain/money.dart';
+import '../../domain/planning/acceptance.dart';
+import '../../domain/planning/planner.dart';
 import 'database.dart';
 
 /// The farm, read from and written to the phone.
@@ -23,8 +26,10 @@ import 'database.dart';
 /// * [FarmRecordsRepository] — what the screens use. Modelled on the real
 ///   backend tables.
 /// * [FarmRepository] — the `demo_api` contract, so the app can still be
-///   pointed at the prototype API without a screen knowing which it got. The
-///   planner methods on it cannot be served locally; see [preview].
+///   pointed at the prototype API without a screen knowing which it got.
+///   [preview] is served from the ported planner on this phone; the plan
+///   *persistence* methods on that contract still belong to the server, and
+///   the local equivalent is [acceptPlan].
 class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   final AlmanacDatabase db;
 
@@ -863,17 +868,152 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     });
   }
 
-  /// The planner runs on the server. It is not reimplemented here.
+  /// Runs the planner on this phone.
   ///
-  /// [Unreachable] rather than a generic failure on purpose: it is the one
-  /// exception the UI is built to render as a calm state rather than an
-  /// error, which is the truthful reading — the farm still works, this one
-  /// answer needs a connection.
+  /// Issue #22's runtime requirement: the farmer must be able to ask for a
+  /// recommendation with no network round trip. `planSection` is a port of the
+  /// backend's engine, checked against 26 responses captured from it in
+  /// `test/planner_oracle_test.dart`, so the answer here is the answer the
+  /// server would have given — it just does not need the server to give it.
+  ///
+  /// A result with `feasible == false` comes back as a *value*, not an
+  /// exception. It carries the reason and, where money is the obstacle, the
+  /// budget that would clear it.
   @override
   Future<demo.PlanningResult> preview(
     String sectionId,
     demo.PlanRequest request,
-  ) async => throw const Unreachable('Planning needs a connection');
+  ) async {
+    final section = await _requireSection(sectionId);
+    final area = section.areaM2;
+    if (area == null) {
+      throw const RequestRejected(
+        'section_area_unknown',
+        'This section has no measured area to plan over',
+      );
+    }
+    return planSection(areaM2: DecimalString(area), request: request);
+  }
+
+  @override
+  Future<void> acceptPlan(PlanAcceptance acceptance) async {
+    final section = await _requireSection(acceptance.sectionId);
+    final at = now();
+    final planId = newUuid();
+
+    await db.transaction(() async {
+      await db
+          .into(db.savedPlans)
+          .insert(
+            SavedPlansCompanion.insert(
+              id: planId,
+              farmId: section.farmId,
+              ownerId: section.ownerId,
+              sectionId: section.id,
+              // Approved, because this write only happens after the farmer
+              // confirmed. Nothing reaches storage in the `proposed` state —
+              // an unconfirmed recommendation lives on the screen and nowhere
+              // else, which is what makes cancelling it free.
+              status: const Value('approved'),
+              plan: jsonEncode(acceptance.record),
+              approvedAt: Value(at),
+              createdAt: at,
+              updatedAt: at,
+            ),
+          );
+
+      // One current planting per section, enforced by a partial unique index.
+      // Standing the old one down before raising the new one is what keeps a
+      // re-plan from violating it.
+      await (db.update(db.plantings)..where(
+            (t) =>
+                t.sectionId.equals(section.id) &
+                t.isCurrent.equals(true) &
+                t.deletedAt.isNull(),
+          ))
+          .write(
+            PlantingsCompanion(
+              isCurrent: const Value(false),
+              syncState: const Value('pending'),
+              updatedAt: Value(at),
+            ),
+          );
+
+      final plantingId = newUuid();
+      await db
+          .into(db.plantings)
+          .insert(
+            PlantingsCompanion.insert(
+              id: plantingId,
+              farmId: section.farmId,
+              ownerId: section.ownerId,
+              sectionId: section.id,
+              crop: acceptance.crop.name,
+              plantedOn: Value(_day(acceptance.plantingDate)),
+              createdAt: at,
+              updatedAt: at,
+            ),
+          );
+
+      await db
+          .into(db.sectionProjections)
+          .insertOnConflictUpdate(
+            SectionProjectionsCompanion.insert(
+              sectionId: section.id,
+              expectedProfitCents: acceptance.expectedProfit.value,
+              expectedCostCents: acceptance.expectedCost.value,
+              harvestStart: _day(acceptance.harvestStart),
+              harvestEnd: _day(acceptance.harvestEnd),
+              planId: Value(planId),
+            ),
+          );
+
+      for (final step in acceptance.timeline) {
+        final taskId = newUuid();
+        await db
+            .into(db.farmTasks)
+            .insert(
+              FarmTasksCompanion.insert(
+                id: taskId,
+                farmId: section.farmId,
+                ownerId: section.ownerId,
+                sectionId: section.id,
+                title: step.title,
+                description: Value(step.note),
+                dueDate: _day(step.due),
+                expectedCostCents: Value(step.expectedCost?.value),
+                createdAt: at,
+                updatedAt: at,
+              ),
+            );
+        await _enqueue(
+          farmId: section.farmId,
+          ownerId: section.ownerId,
+          operation: 'create',
+          recordType: 'farm_task',
+          recordId: taskId,
+          at: at,
+        );
+      }
+
+      await _enqueue(
+        farmId: section.farmId,
+        ownerId: section.ownerId,
+        operation: 'create',
+        recordType: 'planting',
+        recordId: plantingId,
+        at: at,
+      );
+      await _enqueue(
+        farmId: section.farmId,
+        ownerId: section.ownerId,
+        operation: 'approve',
+        recordType: 'saved_plan',
+        recordId: planId,
+        at: at,
+      );
+    });
+  }
 
   @override
   Future<demo.SavedPlan> savePlan(

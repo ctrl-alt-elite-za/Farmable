@@ -1,0 +1,763 @@
+{
+  "name": "recurring_thirds",
+  "note": "Three blocks over 400 m2: the division recurs and must not drift.",
+  "area_m2": "400.00",
+  "request": {
+    "crops": [
+      "cabbage",
+      "spinach"
+    ],
+    "block_count": 3,
+    "min_crop_shares": [],
+    "max_results": 10,
+    "planting_date": "2026-09-18",
+    "budget_cents": 300000
+  },
+  "response": {
+    "request": {
+      "section_id": "fixture-demo",
+      "area_m2": "400.00",
+      "planting_date": "2026-09-18",
+      "budget_cents": 300000,
+      "crops": [
+        "cabbage",
+        "spinach"
+      ],
+      "block_count": 3,
+      "min_crop_shares": [],
+      "max_results": 10
+    },
+    "scenario": {
+      "scenario_id": "hammanskraal-september-2026",
+      "data_version": "sample-v1",
+      "label": "Prototype using sample crop and market data. Not a live forecast.",
+      "planting_start": "2026-09-01",
+      "planting_end": "2026-09-30",
+      "crops": [
+        {
+          "crop": "cabbage",
+          "yield_kg_per_m2": "2",
+          "price_cents_per_kg": 500,
+          "costs": [
+            {
+              "category": "seed",
+              "cents_per_m2": 120
+            },
+            {
+              "category": "fertiliser",
+              "cents_per_m2": 180
+            },
+            {
+              "category": "water",
+              "cents_per_m2": 90
+            },
+            {
+              "category": "labour",
+              "cents_per_m2": 210
+            },
+            {
+              "category": "transport_packaging",
+              "cents_per_m2": 150
+            }
+          ],
+          "harvest_days_min": 90,
+          "harvest_days_max": 110
+        },
+        {
+          "crop": "spinach",
+          "yield_kg_per_m2": "1.5",
+          "price_cents_per_kg": 800,
+          "costs": [
+            {
+              "category": "seed",
+              "cents_per_m2": 80
+            },
+            {
+              "category": "fertiliser",
+              "cents_per_m2": 120
+            },
+            {
+              "category": "water",
+              "cents_per_m2": 80
+            },
+            {
+              "category": "labour",
+              "cents_per_m2": 170
+            },
+            {
+              "category": "transport_packaging",
+              "cents_per_m2": 150
+            }
+          ],
+          "harvest_days_min": 35,
+          "harvest_days_max": 50
+        }
+      ],
+      "assumptions": [
+        "All yields, prices, costs and growth durations are invented demonstration inputs.",
+        "Quantity = allocated square metres multiplied by sample kilograms per square metre.",
+        "Sales = quantity multiplied by sample price; margin subtracts only the listed costs.",
+        "Budget means total listed spending fits starting cash; this is not a cash-flow forecast.",
+        "Market/agent commissions, losses, taxes and unlisted overheads are not included.",
+        "No soil suitability, irrigation availability or weather risk has been assessed.",
+        "Allocation uses equal blocks; unplanted blocks are allowed and earn no sales.",
+        "Harvest dates are illustrative windows, not promised yields or payment dates."
+      ]
+    },
+    "soil_information": "unknown",
+    "feasible": true,
+    "comparisons": [
+      {
+        "crop": "spinach",
+        "area_m2": "400.00",
+        "estimated_quantity_kg": "600.000",
+        "price_cents_per_kg": 800,
+        "sales_cents": 480000,
+        "costs": [
+          {
+            "category": "seed",
+            "cost_cents": 32000
+          },
+          {
+            "category": "fertiliser",
+            "cost_cents": 48000
+          },
+          {
+            "category": "water",
+            "cost_cents": 32000
+          },
+          {
+            "category": "labour",
+            "cost_cents": 68000
+          },
+          {
+            "category": "transport_packaging",
+            "cost_cents": 60000
+          }
+        ],
+        "total_cost_cents": 240000,
+        "margin_cents": 240000,
+        "harvest_start": "2026-10-23",
+        "harvest_end": "2026-11-07"
+      },
+      {
+        "crop": "cabbage",
+        "area_m2": "400.00",
+        "estimated_quantity_kg": "800.00",
+        "price_cents_per_kg": 500,
+        "sales_cents": 400000,
+        "costs": [
+          {
+            "category": "seed",
+            "cost_cents": 48000
+          },
+          {
+            "category": "fertiliser",
+            "cost_cents": 72000
+          },
+          {
+            "category": "water",
+            "cost_cents": 36000
+          },
+          {
+            "category": "labour",
+            "cost_cents": 84000
+          },
+          {
+            "category": "transport_packaging",
+            "cost_cents": 60000
+          }
+        ],
+        "total_cost_cents": 300000,
+        "margin_cents": 100000,
+        "harvest_start": "2026-12-17",
+        "harvest_end": "2027-01-06"
+      }
+    ],
+    "plans": [
+      {
+        "blocks": [
+          "spinach",
+          "spinach",
+          "spinach"
+        ],
+        "allocations": [
+          {
+            "crop": "spinach",
+            "block_count": 3,
+            "share_percent": "100.00",
+            "estimate": {
+              "crop": "spinach",
+              "area_m2": "400.00",
+              "estimated_quantity_kg": "600.000",
+              "price_cents_per_kg": 800,
+              "sales_cents": 480000,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 32000
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 48000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 32000
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 68000
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 60000
+                }
+              ],
+              "total_cost_cents": 240000,
+              "margin_cents": 240000,
+              "harvest_start": "2026-10-23",
+              "harvest_end": "2026-11-07"
+            }
+          }
+        ],
+        "unplanted_area_m2": "0.00",
+        "sales_cents": 480000,
+        "total_cost_cents": 240000,
+        "margin_cents": 240000,
+        "remaining_budget_cents": 60000
+      },
+      {
+        "blocks": [
+          "cabbage",
+          "spinach",
+          "spinach"
+        ],
+        "allocations": [
+          {
+            "crop": "cabbage",
+            "block_count": 1,
+            "share_percent": "33.33",
+            "estimate": {
+              "crop": "cabbage",
+              "area_m2": "133.33333333333333333333333333333",
+              "estimated_quantity_kg": "266.66666666666666666666666666667",
+              "price_cents_per_kg": 500,
+              "sales_cents": 133333,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 16000
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 24000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 12000
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 28000
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 20000
+                }
+              ],
+              "total_cost_cents": 100000,
+              "margin_cents": 33333,
+              "harvest_start": "2026-12-17",
+              "harvest_end": "2027-01-06"
+            }
+          },
+          {
+            "crop": "spinach",
+            "block_count": 2,
+            "share_percent": "66.67",
+            "estimate": {
+              "crop": "spinach",
+              "area_m2": "266.66666666666666666666666666667",
+              "estimated_quantity_kg": "400.000",
+              "price_cents_per_kg": 800,
+              "sales_cents": 320000,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 21333
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 32000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 21333
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 45333
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 40000
+                }
+              ],
+              "total_cost_cents": 159999,
+              "margin_cents": 160001,
+              "harvest_start": "2026-10-23",
+              "harvest_end": "2026-11-07"
+            }
+          }
+        ],
+        "unplanted_area_m2": "0.00",
+        "sales_cents": 453333,
+        "total_cost_cents": 259999,
+        "margin_cents": 193334,
+        "remaining_budget_cents": 40001
+      },
+      {
+        "blocks": [
+          "spinach",
+          "spinach",
+          null
+        ],
+        "allocations": [
+          {
+            "crop": "spinach",
+            "block_count": 2,
+            "share_percent": "66.67",
+            "estimate": {
+              "crop": "spinach",
+              "area_m2": "266.66666666666666666666666666667",
+              "estimated_quantity_kg": "400.000",
+              "price_cents_per_kg": 800,
+              "sales_cents": 320000,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 21333
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 32000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 21333
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 45333
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 40000
+                }
+              ],
+              "total_cost_cents": 159999,
+              "margin_cents": 160001,
+              "harvest_start": "2026-10-23",
+              "harvest_end": "2026-11-07"
+            }
+          }
+        ],
+        "unplanted_area_m2": "133.33333333333333333333333333333",
+        "sales_cents": 320000,
+        "total_cost_cents": 159999,
+        "margin_cents": 160001,
+        "remaining_budget_cents": 140001
+      },
+      {
+        "blocks": [
+          "cabbage",
+          "cabbage",
+          "spinach"
+        ],
+        "allocations": [
+          {
+            "crop": "cabbage",
+            "block_count": 2,
+            "share_percent": "66.67",
+            "estimate": {
+              "crop": "cabbage",
+              "area_m2": "266.66666666666666666666666666667",
+              "estimated_quantity_kg": "533.33333333333333333333333333333",
+              "price_cents_per_kg": 500,
+              "sales_cents": 266667,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 32000
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 48000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 24000
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 56000
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 40000
+                }
+              ],
+              "total_cost_cents": 200000,
+              "margin_cents": 66667,
+              "harvest_start": "2026-12-17",
+              "harvest_end": "2027-01-06"
+            }
+          },
+          {
+            "crop": "spinach",
+            "block_count": 1,
+            "share_percent": "33.33",
+            "estimate": {
+              "crop": "spinach",
+              "area_m2": "133.33333333333333333333333333333",
+              "estimated_quantity_kg": "200.000",
+              "price_cents_per_kg": 800,
+              "sales_cents": 160000,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 10667
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 16000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 10667
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 22667
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 20000
+                }
+              ],
+              "total_cost_cents": 80001,
+              "margin_cents": 79999,
+              "harvest_start": "2026-10-23",
+              "harvest_end": "2026-11-07"
+            }
+          }
+        ],
+        "unplanted_area_m2": "0.00",
+        "sales_cents": 426667,
+        "total_cost_cents": 280001,
+        "margin_cents": 146666,
+        "remaining_budget_cents": 19999
+      },
+      {
+        "blocks": [
+          "cabbage",
+          "spinach",
+          null
+        ],
+        "allocations": [
+          {
+            "crop": "cabbage",
+            "block_count": 1,
+            "share_percent": "33.33",
+            "estimate": {
+              "crop": "cabbage",
+              "area_m2": "133.33333333333333333333333333333",
+              "estimated_quantity_kg": "266.66666666666666666666666666667",
+              "price_cents_per_kg": 500,
+              "sales_cents": 133333,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 16000
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 24000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 12000
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 28000
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 20000
+                }
+              ],
+              "total_cost_cents": 100000,
+              "margin_cents": 33333,
+              "harvest_start": "2026-12-17",
+              "harvest_end": "2027-01-06"
+            }
+          },
+          {
+            "crop": "spinach",
+            "block_count": 1,
+            "share_percent": "33.33",
+            "estimate": {
+              "crop": "spinach",
+              "area_m2": "133.33333333333333333333333333333",
+              "estimated_quantity_kg": "200.000",
+              "price_cents_per_kg": 800,
+              "sales_cents": 160000,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 10667
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 16000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 10667
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 22667
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 20000
+                }
+              ],
+              "total_cost_cents": 80001,
+              "margin_cents": 79999,
+              "harvest_start": "2026-10-23",
+              "harvest_end": "2026-11-07"
+            }
+          }
+        ],
+        "unplanted_area_m2": "133.33333333333333333333333333333",
+        "sales_cents": 293333,
+        "total_cost_cents": 180001,
+        "margin_cents": 113332,
+        "remaining_budget_cents": 119999
+      },
+      {
+        "blocks": [
+          "cabbage",
+          "cabbage",
+          "cabbage"
+        ],
+        "allocations": [
+          {
+            "crop": "cabbage",
+            "block_count": 3,
+            "share_percent": "100.00",
+            "estimate": {
+              "crop": "cabbage",
+              "area_m2": "400.00",
+              "estimated_quantity_kg": "800.00",
+              "price_cents_per_kg": 500,
+              "sales_cents": 400000,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 48000
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 72000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 36000
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 84000
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 60000
+                }
+              ],
+              "total_cost_cents": 300000,
+              "margin_cents": 100000,
+              "harvest_start": "2026-12-17",
+              "harvest_end": "2027-01-06"
+            }
+          }
+        ],
+        "unplanted_area_m2": "0.00",
+        "sales_cents": 400000,
+        "total_cost_cents": 300000,
+        "margin_cents": 100000,
+        "remaining_budget_cents": 0
+      },
+      {
+        "blocks": [
+          "spinach",
+          null,
+          null
+        ],
+        "allocations": [
+          {
+            "crop": "spinach",
+            "block_count": 1,
+            "share_percent": "33.33",
+            "estimate": {
+              "crop": "spinach",
+              "area_m2": "133.33333333333333333333333333333",
+              "estimated_quantity_kg": "200.000",
+              "price_cents_per_kg": 800,
+              "sales_cents": 160000,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 10667
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 16000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 10667
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 22667
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 20000
+                }
+              ],
+              "total_cost_cents": 80001,
+              "margin_cents": 79999,
+              "harvest_start": "2026-10-23",
+              "harvest_end": "2026-11-07"
+            }
+          }
+        ],
+        "unplanted_area_m2": "266.66666666666666666666666666667",
+        "sales_cents": 160000,
+        "total_cost_cents": 80001,
+        "margin_cents": 79999,
+        "remaining_budget_cents": 219999
+      },
+      {
+        "blocks": [
+          "cabbage",
+          "cabbage",
+          null
+        ],
+        "allocations": [
+          {
+            "crop": "cabbage",
+            "block_count": 2,
+            "share_percent": "66.67",
+            "estimate": {
+              "crop": "cabbage",
+              "area_m2": "266.66666666666666666666666666667",
+              "estimated_quantity_kg": "533.33333333333333333333333333333",
+              "price_cents_per_kg": 500,
+              "sales_cents": 266667,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 32000
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 48000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 24000
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 56000
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 40000
+                }
+              ],
+              "total_cost_cents": 200000,
+              "margin_cents": 66667,
+              "harvest_start": "2026-12-17",
+              "harvest_end": "2027-01-06"
+            }
+          }
+        ],
+        "unplanted_area_m2": "133.33333333333333333333333333333",
+        "sales_cents": 266667,
+        "total_cost_cents": 200000,
+        "margin_cents": 66667,
+        "remaining_budget_cents": 100000
+      },
+      {
+        "blocks": [
+          "cabbage",
+          null,
+          null
+        ],
+        "allocations": [
+          {
+            "crop": "cabbage",
+            "block_count": 1,
+            "share_percent": "33.33",
+            "estimate": {
+              "crop": "cabbage",
+              "area_m2": "133.33333333333333333333333333333",
+              "estimated_quantity_kg": "266.66666666666666666666666666667",
+              "price_cents_per_kg": 500,
+              "sales_cents": 133333,
+              "costs": [
+                {
+                  "category": "seed",
+                  "cost_cents": 16000
+                },
+                {
+                  "category": "fertiliser",
+                  "cost_cents": 24000
+                },
+                {
+                  "category": "water",
+                  "cost_cents": 12000
+                },
+                {
+                  "category": "labour",
+                  "cost_cents": 28000
+                },
+                {
+                  "category": "transport_packaging",
+                  "cost_cents": 20000
+                }
+              ],
+              "total_cost_cents": 100000,
+              "margin_cents": 33333,
+              "harvest_start": "2026-12-17",
+              "harvest_end": "2027-01-06"
+            }
+          }
+        ],
+        "unplanted_area_m2": "266.66666666666666666666666666667",
+        "sales_cents": 133333,
+        "total_cost_cents": 100000,
+        "margin_cents": 33333,
+        "remaining_budget_cents": 200000
+      }
+    ],
+    "reason": null
+  }
+}

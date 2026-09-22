@@ -16,12 +16,15 @@ import 'package:go_router/go_router.dart';
 
 import '../features/home/home_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
+import '../features/recommendations/recommendation_detail_screen.dart';
+import '../features/recommendations/recommendations_screen.dart';
 import '../features/shell/bottom_nav_island.dart';
 import '../features/status/status_screen.dart';
 import '../features/zone/zone_screen.dart';
+import 'config.dart';
 
 GoRouter buildRouter() => GoRouter(
-  initialLocation: '/home',
+  initialLocation: initialRoute,
   routes: [
     GoRoute(path: '/', redirect: (_, _) => '/home'),
     GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
@@ -51,6 +54,26 @@ GoRouter buildRouter() => GoRouter(
           path: 'zone/:zoneId',
           builder: (context, state) =>
               ZoneScreen(sectionId: state.pathParameters['zoneId']!),
+          routes: [
+            // "What should I plant here?" — deep-linkable like every other
+            // screen. The planner is pure and the section is on disk, so
+            // arriving cold at this URL with no network still answers.
+            GoRoute(
+              path: 'plant',
+              builder: (context, state) => RecommendationsScreen(
+                sectionId: state.pathParameters['zoneId']!,
+              ),
+              routes: [
+                GoRoute(
+                  path: ':crop',
+                  builder: (context, state) => RecommendationDetailScreen(
+                    sectionId: state.pathParameters['zoneId']!,
+                    cropName: state.pathParameters['crop']!,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     ),

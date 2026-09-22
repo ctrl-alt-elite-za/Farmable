@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../app/theme/tokens.g.dart';
 import '../../core/ui/layout.dart';
+import '../recommendations/widgets/plant_prompt.dart';
 import '../shell/almanac_scaffold.dart';
 import '../shell/bottom_nav_island.dart';
 import 'widgets/observation_list.dart';
@@ -79,6 +80,17 @@ class _Zone extends StatelessWidget {
             children: [
               const SizedBox(height: AlmanacDimens.sp4),
               ZoneDescription(description: section.section.description),
+
+              // Empty ground is the one thing on this screen a farmer can act
+              // on immediately, so it leads — above the metrics, which for an
+              // unplanted section are four honest dashes.
+              if (section.isAvailable) ...[
+                PlantPromptCard(
+                  sectionName: section.name,
+                  onAsk: () => context.go('/farm/zone/${section.id}/plant'),
+                ),
+                const SizedBox(height: AlmanacDimens.sp2),
+              ],
 
               ZoneMetrics(section: section, today: view.today),
 
