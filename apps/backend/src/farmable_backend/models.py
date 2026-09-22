@@ -643,7 +643,7 @@ class ForecastRun(Base):
 class ForecastState(Base):
     __tablename__ = "forecast_state"
     __table_args__ = (CheckConstraint(column("id") == 1, name="ck_forecast_state_singleton"),)
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     active_run_id: Mapped[str | None] = mapped_column(Text, ForeignKey("forecast_runs.id"))
 
 

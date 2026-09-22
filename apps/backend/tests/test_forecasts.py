@@ -348,6 +348,7 @@ def test_migration_matches_orm_and_seeds_singleton():
     command.upgrade(Config("alembic.ini", output_buffer=output), "0006:0007", sql=True)
     sql = output.getvalue()
     assert "ALTER TABLE" not in sql and "DROP TABLE" not in sql
+    assert "SERIAL" not in sql  # The singleton is explicitly id=1, not a sequence.
     for table in ("forecast_runs", "forecast_state"):
         assert _table_elements(sql, table) == _table_elements(_orm_sql(table), table)
         assert _index_statements(sql, table) == _index_statements(_orm_sql(table), table)

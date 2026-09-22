@@ -44,7 +44,7 @@ def upgrade() -> None:
     )
     state = op.create_table(
         "forecast_state",
-        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("id", sa.BigInteger(), autoincrement=False, nullable=False),
         sa.Column("active_run_id", sa.Text(), nullable=True),
         sa.CheckConstraint(sa.column("id") == 1, name="ck_forecast_state_singleton"),
         sa.ForeignKeyConstraint(["active_run_id"], ["forecast_runs.id"]),
