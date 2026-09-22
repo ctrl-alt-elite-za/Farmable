@@ -133,10 +133,7 @@ class SyncRecordRepository:
         if record is None:
             raise ApiError(404, "not_found")
         if operation == "delete":
-            # RecordDelete.expected_version is a required field, so this is always set;
-            # comparing unconditionally keeps the concurrency check from silently
-            # reopening if that schema is ever relaxed back to optional.
-            if expected_version != record.version:
+            if expected_version is not None and expected_version != record.version:
                 raise ApiError(409, "revision_conflict")
             if record.deleted_at is None:
                 record.deleted_at = db_now(self.session)
