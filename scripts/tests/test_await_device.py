@@ -74,6 +74,8 @@ def run(tmp_path: Path, script: str, *, timeout_seconds: str = "6") -> subproces
         "AWAIT_DEVICE_PROBE_TIMEOUT": "2",
     }
     command = 'PATH="' + _bash_path(tmp_path) + ':$PATH" exec bash "' + _bash_path(HELPER) + '"'
+    if BASH is None:  # pragma: no cover - pytestmark already skips the module
+        pytest.skip("needs a POSIX bash")
     return subprocess.run(  # noqa: S603 - fixed interpreter and script path
         [BASH, "-lc", command],
         cwd=ROOT,
