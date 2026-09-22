@@ -166,6 +166,40 @@ def test_replaying_a_mutation_creates_one_logical_record(records):
         assert session.scalar(select(func.count()).select_from(SyncChange)) == 1
 
 
+def test_a_real_constraint_violation_is_reported_as_record_conflict(records):
+    base = f"/farms/{records.ids.farm}/plantings"
+    first = records.client.post(base, json=create_body(records, "plantings"))
+    assert first.status_code == 200, first.text
+    second_payload = create_body(records, "plantings")
+    second = records.client.post(base, json=second_payload)
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "record_conflict"
+
+
+def test_a_cross_owner_primary_key_collision_is_reported_as_record_conflict(records):
+    from datetime import date
+
+    from farmable_backend.models import FarmTask
+
+    base = f"/farms/{records.ids.farm}/tasks"
+    record_id = uuid4()
+    with records.sessions.begin() as session:
+        session.add(
+            FarmTask(
+                id=record_id,
+                farm_id=records.ids.foreign,
+                owner_id=records.ids.other,
+                section_id=records.ids.foreign_section,
+                title="Not yours",
+                due_date=date(2026, 10, 1),
+            )
+        )
+    colliding = create_body(records, "tasks", str(record_id))
+    response = records.client.post(base, json=colliding)
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "record_conflict"
+
+
 def test_mutation_id_reuse_with_different_work_conflicts(records):
     base = f"/farms/{records.ids.farm}/tasks"
     payload = create_body(records, "tasks")

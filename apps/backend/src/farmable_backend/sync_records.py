@@ -206,6 +206,8 @@ class SyncRecordRepository:
         except IntegrityError:
             replay = self._mutation(payload.mutation_id)
             if replay is None:
+                raise ApiError(409, "record_conflict") from None
+            if replay.request_fingerprint != fingerprint:
                 raise ApiError(409, "mutation_conflict") from None
             return self._replay(
                 replay,
