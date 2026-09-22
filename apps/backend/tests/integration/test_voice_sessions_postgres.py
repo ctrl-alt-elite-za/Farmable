@@ -39,9 +39,11 @@ def test_upgrade_downgrade_preserves_authentication(request):
     database = request.getfixturevalue("pg")
     command.upgrade(database.config, "0006")
     admit(database.sessions, database.ids.authorization, True)
-    assert "voice_session_rates" in inspect(database.engine).get_table_names()
+    assert "voice_session_rates" in inspect(database.engine).get_table_names(schema=database.schema)
     command.downgrade(database.config, "0005")
-    assert "voice_session_rates" not in inspect(database.engine).get_table_names()
+    assert "voice_session_rates" not in inspect(database.engine).get_table_names(
+        schema=database.schema
+    )
     with database.sessions() as session:
         assert session.get(AuthIdentity, database.ids.owner).phone_verified
     command.upgrade(database.config, "0006")
