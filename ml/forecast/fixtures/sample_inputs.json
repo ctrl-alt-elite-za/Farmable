@@ -1,0 +1,31 @@
+{
+  "notice": "All values are invented test inputs. Not market observations, researched cost budgets, yield guidance, or crop suitability evidence.",
+  "price_basis_year": 2025,
+  "currency": "ZAR",
+  "crops": {
+    "butternut": {
+      "price": 6,
+      "cost_per_ha": 50000,
+      "yield_kg_per_ha": 20000,
+      "growing_months": 4
+    },
+    "cabbage": { "price": 5, "cost_per_ha": 75000, "yield_kg_per_ha": 20000, "growing_months": 3 },
+    "carrots": { "price": 7, "cost_per_ha": 55000, "yield_kg_per_ha": 18000, "growing_months": 4 },
+    "green_beans": {
+      "price": 12,
+      "cost_per_ha": 45000,
+      "yield_kg_per_ha": 10000,
+      "growing_months": 3
+    },
+    "onions": { "price": 6, "cost_per_ha": 65000, "yield_kg_per_ha": 20000, "growing_months": 5 },
+    "potatoes": {
+      "price": 8,
+      "cost_per_ha": 100000,
+      "yield_kg_per_ha": 22000,
+      "growing_months": 4
+    },
+    "spinach": { "price": 8, "cost_per_ha": 60000, "yield_kg_per_ha": 15000, "growing_months": 2 },
+    "tomatoes": { "price": 10, "cost_per_ha": 90000, "yield_kg_per_ha": 16000, "growing_months": 4 }
+  },
+  "fixture_rule": "For month m, p50 = base price + (m - 1) * 0.10, p10 = 0.8 * p50, p90 = 1.2 * p50. This is a deterministic test pattern, NOT a seasonal model."
+}

@@ -29,6 +29,12 @@ def test_only_owned_application_tables_are_registered():
         "verification_challenges",
         "auth_sessions",
         "auth_identities",
+        "photo_uploads",
+        "photo_attempts",
+        "photo_rates",
+        "voice_session_rates",
+        "forecast_runs",
+        "forecast_state",
     }
 
 

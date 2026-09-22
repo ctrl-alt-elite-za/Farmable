@@ -29,6 +29,7 @@ part 'database.g.dart';
     SectionDetails,
     SyncMutations,
     SeedState,
+    LocalPhotos,
   ],
 )
 class AlmanacDatabase extends _$AlmanacDatabase {
@@ -44,10 +45,29 @@ class AlmanacDatabase extends _$AlmanacDatabase {
   AlmanacDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from != 1 || to != 2) {
+        throw StateError('unsupported_schema');
+      }
+      await transaction(() async {
+        await m.addColumn(syncMutations, syncMutations.payload);
+        await m.addColumn(syncMutations, syncMutations.recordVersion);
+        await m.addColumn(syncMutations, syncMutations.dependencyId);
+        await m.addColumn(syncMutations, syncMutations.deliveryState);
+        await m.addColumn(syncMutations, syncMutations.attemptCount);
+        await m.addColumn(syncMutations, syncMutations.budgetCount);
+        await m.addColumn(syncMutations, syncMutations.nextAttemptAt);
+        await m.addColumn(syncMutations, syncMutations.errorCode);
+        await m.createTable(localPhotos);
+        // Drift normally updates this after onUpgrade. Include it in our
+        // transaction so a process kill cannot leave v2 columns tagged as v1.
+        await customStatement('PRAGMA user_version = 2');
+      });
+    },
     onCreate: (m) async {
       await m.createAll();
       // The server enforces one current planting per section with a partial
@@ -74,6 +94,10 @@ class AlmanacDatabase extends _$AlmanacDatabase {
       );
     },
     beforeOpen: (details) async {
+      if (details.versionBefore != null &&
+          details.versionBefore! > schemaVersion) {
+        throw StateError('unsupported_schema');
+      }
       // Drift does not turn these on for us, and both matter here: without
       // foreign keys a section delete leaves orphaned observations, and the
       // default rollback journal makes a write block every open read.
