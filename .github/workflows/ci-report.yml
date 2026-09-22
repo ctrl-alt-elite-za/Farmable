@@ -1,7 +1,7 @@
 name: Farmable check explanations
 on:
   workflow_run:
-    workflows: [Farmable PR checks, gitleaks, autofix.ci, CodeQL]
+    workflows: [Farmable PR checks, mobile, gitleaks, autofix.ci, CodeQL]
     types: [completed]
 
 permissions:

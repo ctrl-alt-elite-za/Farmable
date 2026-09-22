@@ -6525,6 +6525,98 @@ class $SyncMutationsTable extends SyncMutations
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _recordVersionMeta = const VerificationMeta(
+    'recordVersion',
+  );
+  @override
+  late final GeneratedColumn<int> recordVersion = GeneratedColumn<int>(
+    'record_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dependencyIdMeta = const VerificationMeta(
+    'dependencyId',
+  );
+  @override
+  late final GeneratedColumn<String> dependencyId = GeneratedColumn<String>(
+    'dependency_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deliveryStateMeta = const VerificationMeta(
+    'deliveryState',
+  );
+  @override
+  late final GeneratedColumn<String> deliveryState = GeneratedColumn<String>(
+    'delivery_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _attemptCountMeta = const VerificationMeta(
+    'attemptCount',
+  );
+  @override
+  late final GeneratedColumn<int> attemptCount = GeneratedColumn<int>(
+    'attempt_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _budgetCountMeta = const VerificationMeta(
+    'budgetCount',
+  );
+  @override
+  late final GeneratedColumn<int> budgetCount = GeneratedColumn<int>(
+    'budget_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _nextAttemptAtMeta = const VerificationMeta(
+    'nextAttemptAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextAttemptAt =
+      GeneratedColumn<DateTime>(
+        'next_attempt_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _errorCodeMeta = const VerificationMeta(
+    'errorCode',
+  );
+  @override
+  late final GeneratedColumn<String> errorCode = GeneratedColumn<String>(
+    'error_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     mutationId,
@@ -6535,6 +6627,14 @@ class $SyncMutationsTable extends SyncMutations
     recordId,
     createdAt,
     syncedAt,
+    payload,
+    recordVersion,
+    dependencyId,
+    deliveryState,
+    attemptCount,
+    budgetCount,
+    nextAttemptAt,
+    errorCode,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6610,6 +6710,72 @@ class $SyncMutationsTable extends SyncMutations
         syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
       );
     }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    }
+    if (data.containsKey('record_version')) {
+      context.handle(
+        _recordVersionMeta,
+        recordVersion.isAcceptableOrUnknown(
+          data['record_version']!,
+          _recordVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dependency_id')) {
+      context.handle(
+        _dependencyIdMeta,
+        dependencyId.isAcceptableOrUnknown(
+          data['dependency_id']!,
+          _dependencyIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('delivery_state')) {
+      context.handle(
+        _deliveryStateMeta,
+        deliveryState.isAcceptableOrUnknown(
+          data['delivery_state']!,
+          _deliveryStateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('attempt_count')) {
+      context.handle(
+        _attemptCountMeta,
+        attemptCount.isAcceptableOrUnknown(
+          data['attempt_count']!,
+          _attemptCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('budget_count')) {
+      context.handle(
+        _budgetCountMeta,
+        budgetCount.isAcceptableOrUnknown(
+          data['budget_count']!,
+          _budgetCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('next_attempt_at')) {
+      context.handle(
+        _nextAttemptAtMeta,
+        nextAttemptAt.isAcceptableOrUnknown(
+          data['next_attempt_at']!,
+          _nextAttemptAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('error_code')) {
+      context.handle(
+        _errorCodeMeta,
+        errorCode.isAcceptableOrUnknown(data['error_code']!, _errorCodeMeta),
+      );
+    }
     return context;
   }
 
@@ -6651,6 +6817,38 @@ class $SyncMutationsTable extends SyncMutations
         DriftSqlType.dateTime,
         data['${effectivePrefix}synced_at'],
       ),
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      ),
+      recordVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}record_version'],
+      ),
+      dependencyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dependency_id'],
+      ),
+      deliveryState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}delivery_state'],
+      )!,
+      attemptCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}attempt_count'],
+      )!,
+      budgetCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}budget_count'],
+      )!,
+      nextAttemptAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_attempt_at'],
+      ),
+      errorCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_code'],
+      ),
     );
   }
 
@@ -6672,6 +6870,14 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
   /// Null until the server has acknowledged it. The count of nulls is what
   /// "3 changes waiting" shows.
   final DateTime? syncedAt;
+  final String? payload;
+  final int? recordVersion;
+  final String? dependencyId;
+  final String deliveryState;
+  final int attemptCount;
+  final int budgetCount;
+  final DateTime? nextAttemptAt;
+  final String? errorCode;
   const SyncMutation({
     required this.mutationId,
     required this.farmId,
@@ -6681,6 +6887,14 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
     required this.recordId,
     required this.createdAt,
     this.syncedAt,
+    this.payload,
+    this.recordVersion,
+    this.dependencyId,
+    required this.deliveryState,
+    required this.attemptCount,
+    required this.budgetCount,
+    this.nextAttemptAt,
+    this.errorCode,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6694,6 +6908,24 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || syncedAt != null) {
       map['synced_at'] = Variable<DateTime>(syncedAt);
+    }
+    if (!nullToAbsent || payload != null) {
+      map['payload'] = Variable<String>(payload);
+    }
+    if (!nullToAbsent || recordVersion != null) {
+      map['record_version'] = Variable<int>(recordVersion);
+    }
+    if (!nullToAbsent || dependencyId != null) {
+      map['dependency_id'] = Variable<String>(dependencyId);
+    }
+    map['delivery_state'] = Variable<String>(deliveryState);
+    map['attempt_count'] = Variable<int>(attemptCount);
+    map['budget_count'] = Variable<int>(budgetCount);
+    if (!nullToAbsent || nextAttemptAt != null) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
+    }
+    if (!nullToAbsent || errorCode != null) {
+      map['error_code'] = Variable<String>(errorCode);
     }
     return map;
   }
@@ -6710,6 +6942,24 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
       syncedAt: syncedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(syncedAt),
+      payload: payload == null && nullToAbsent
+          ? const Value.absent()
+          : Value(payload),
+      recordVersion: recordVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recordVersion),
+      dependencyId: dependencyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dependencyId),
+      deliveryState: Value(deliveryState),
+      attemptCount: Value(attemptCount),
+      budgetCount: Value(budgetCount),
+      nextAttemptAt: nextAttemptAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAttemptAt),
+      errorCode: errorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorCode),
     );
   }
 
@@ -6727,6 +6977,14 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
       recordId: serializer.fromJson<String>(json['recordId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       syncedAt: serializer.fromJson<DateTime?>(json['syncedAt']),
+      payload: serializer.fromJson<String?>(json['payload']),
+      recordVersion: serializer.fromJson<int?>(json['recordVersion']),
+      dependencyId: serializer.fromJson<String?>(json['dependencyId']),
+      deliveryState: serializer.fromJson<String>(json['deliveryState']),
+      attemptCount: serializer.fromJson<int>(json['attemptCount']),
+      budgetCount: serializer.fromJson<int>(json['budgetCount']),
+      nextAttemptAt: serializer.fromJson<DateTime?>(json['nextAttemptAt']),
+      errorCode: serializer.fromJson<String?>(json['errorCode']),
     );
   }
   @override
@@ -6741,6 +6999,14 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
       'recordId': serializer.toJson<String>(recordId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'syncedAt': serializer.toJson<DateTime?>(syncedAt),
+      'payload': serializer.toJson<String?>(payload),
+      'recordVersion': serializer.toJson<int?>(recordVersion),
+      'dependencyId': serializer.toJson<String?>(dependencyId),
+      'deliveryState': serializer.toJson<String>(deliveryState),
+      'attemptCount': serializer.toJson<int>(attemptCount),
+      'budgetCount': serializer.toJson<int>(budgetCount),
+      'nextAttemptAt': serializer.toJson<DateTime?>(nextAttemptAt),
+      'errorCode': serializer.toJson<String?>(errorCode),
     };
   }
 
@@ -6753,6 +7019,14 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
     String? recordId,
     DateTime? createdAt,
     Value<DateTime?> syncedAt = const Value.absent(),
+    Value<String?> payload = const Value.absent(),
+    Value<int?> recordVersion = const Value.absent(),
+    Value<String?> dependencyId = const Value.absent(),
+    String? deliveryState,
+    int? attemptCount,
+    int? budgetCount,
+    Value<DateTime?> nextAttemptAt = const Value.absent(),
+    Value<String?> errorCode = const Value.absent(),
   }) => SyncMutation(
     mutationId: mutationId ?? this.mutationId,
     farmId: farmId ?? this.farmId,
@@ -6762,6 +7036,18 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
     recordId: recordId ?? this.recordId,
     createdAt: createdAt ?? this.createdAt,
     syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
+    payload: payload.present ? payload.value : this.payload,
+    recordVersion: recordVersion.present
+        ? recordVersion.value
+        : this.recordVersion,
+    dependencyId: dependencyId.present ? dependencyId.value : this.dependencyId,
+    deliveryState: deliveryState ?? this.deliveryState,
+    attemptCount: attemptCount ?? this.attemptCount,
+    budgetCount: budgetCount ?? this.budgetCount,
+    nextAttemptAt: nextAttemptAt.present
+        ? nextAttemptAt.value
+        : this.nextAttemptAt,
+    errorCode: errorCode.present ? errorCode.value : this.errorCode,
   );
   SyncMutation copyWithCompanion(SyncMutationsCompanion data) {
     return SyncMutation(
@@ -6777,6 +7063,26 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
       recordId: data.recordId.present ? data.recordId.value : this.recordId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      recordVersion: data.recordVersion.present
+          ? data.recordVersion.value
+          : this.recordVersion,
+      dependencyId: data.dependencyId.present
+          ? data.dependencyId.value
+          : this.dependencyId,
+      deliveryState: data.deliveryState.present
+          ? data.deliveryState.value
+          : this.deliveryState,
+      attemptCount: data.attemptCount.present
+          ? data.attemptCount.value
+          : this.attemptCount,
+      budgetCount: data.budgetCount.present
+          ? data.budgetCount.value
+          : this.budgetCount,
+      nextAttemptAt: data.nextAttemptAt.present
+          ? data.nextAttemptAt.value
+          : this.nextAttemptAt,
+      errorCode: data.errorCode.present ? data.errorCode.value : this.errorCode,
     );
   }
 
@@ -6790,7 +7096,15 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
           ..write('recordType: $recordType, ')
           ..write('recordId: $recordId, ')
           ..write('createdAt: $createdAt, ')
-          ..write('syncedAt: $syncedAt')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('payload: $payload, ')
+          ..write('recordVersion: $recordVersion, ')
+          ..write('dependencyId: $dependencyId, ')
+          ..write('deliveryState: $deliveryState, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('budgetCount: $budgetCount, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('errorCode: $errorCode')
           ..write(')'))
         .toString();
   }
@@ -6805,6 +7119,14 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
     recordId,
     createdAt,
     syncedAt,
+    payload,
+    recordVersion,
+    dependencyId,
+    deliveryState,
+    attemptCount,
+    budgetCount,
+    nextAttemptAt,
+    errorCode,
   );
   @override
   bool operator ==(Object other) =>
@@ -6817,7 +7139,15 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
           other.recordType == this.recordType &&
           other.recordId == this.recordId &&
           other.createdAt == this.createdAt &&
-          other.syncedAt == this.syncedAt);
+          other.syncedAt == this.syncedAt &&
+          other.payload == this.payload &&
+          other.recordVersion == this.recordVersion &&
+          other.dependencyId == this.dependencyId &&
+          other.deliveryState == this.deliveryState &&
+          other.attemptCount == this.attemptCount &&
+          other.budgetCount == this.budgetCount &&
+          other.nextAttemptAt == this.nextAttemptAt &&
+          other.errorCode == this.errorCode);
 }
 
 class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
@@ -6829,6 +7159,14 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
   final Value<String> recordId;
   final Value<DateTime> createdAt;
   final Value<DateTime?> syncedAt;
+  final Value<String?> payload;
+  final Value<int?> recordVersion;
+  final Value<String?> dependencyId;
+  final Value<String> deliveryState;
+  final Value<int> attemptCount;
+  final Value<int> budgetCount;
+  final Value<DateTime?> nextAttemptAt;
+  final Value<String?> errorCode;
   final Value<int> rowid;
   const SyncMutationsCompanion({
     this.mutationId = const Value.absent(),
@@ -6839,6 +7177,14 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
     this.recordId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.syncedAt = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.recordVersion = const Value.absent(),
+    this.dependencyId = const Value.absent(),
+    this.deliveryState = const Value.absent(),
+    this.attemptCount = const Value.absent(),
+    this.budgetCount = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.errorCode = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SyncMutationsCompanion.insert({
@@ -6850,6 +7196,14 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
     required String recordId,
     required DateTime createdAt,
     this.syncedAt = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.recordVersion = const Value.absent(),
+    this.dependencyId = const Value.absent(),
+    this.deliveryState = const Value.absent(),
+    this.attemptCount = const Value.absent(),
+    this.budgetCount = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.errorCode = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : mutationId = Value(mutationId),
        farmId = Value(farmId),
@@ -6867,6 +7221,14 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
     Expression<String>? recordId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? syncedAt,
+    Expression<String>? payload,
+    Expression<int>? recordVersion,
+    Expression<String>? dependencyId,
+    Expression<String>? deliveryState,
+    Expression<int>? attemptCount,
+    Expression<int>? budgetCount,
+    Expression<DateTime>? nextAttemptAt,
+    Expression<String>? errorCode,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -6878,6 +7240,14 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
       if (recordId != null) 'record_id': recordId,
       if (createdAt != null) 'created_at': createdAt,
       if (syncedAt != null) 'synced_at': syncedAt,
+      if (payload != null) 'payload': payload,
+      if (recordVersion != null) 'record_version': recordVersion,
+      if (dependencyId != null) 'dependency_id': dependencyId,
+      if (deliveryState != null) 'delivery_state': deliveryState,
+      if (attemptCount != null) 'attempt_count': attemptCount,
+      if (budgetCount != null) 'budget_count': budgetCount,
+      if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
+      if (errorCode != null) 'error_code': errorCode,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -6891,6 +7261,14 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
     Value<String>? recordId,
     Value<DateTime>? createdAt,
     Value<DateTime?>? syncedAt,
+    Value<String?>? payload,
+    Value<int?>? recordVersion,
+    Value<String?>? dependencyId,
+    Value<String>? deliveryState,
+    Value<int>? attemptCount,
+    Value<int>? budgetCount,
+    Value<DateTime?>? nextAttemptAt,
+    Value<String?>? errorCode,
     Value<int>? rowid,
   }) {
     return SyncMutationsCompanion(
@@ -6902,6 +7280,14 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
       recordId: recordId ?? this.recordId,
       createdAt: createdAt ?? this.createdAt,
       syncedAt: syncedAt ?? this.syncedAt,
+      payload: payload ?? this.payload,
+      recordVersion: recordVersion ?? this.recordVersion,
+      dependencyId: dependencyId ?? this.dependencyId,
+      deliveryState: deliveryState ?? this.deliveryState,
+      attemptCount: attemptCount ?? this.attemptCount,
+      budgetCount: budgetCount ?? this.budgetCount,
+      nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
+      errorCode: errorCode ?? this.errorCode,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6933,6 +7319,30 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
     if (syncedAt.present) {
       map['synced_at'] = Variable<DateTime>(syncedAt.value);
     }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (recordVersion.present) {
+      map['record_version'] = Variable<int>(recordVersion.value);
+    }
+    if (dependencyId.present) {
+      map['dependency_id'] = Variable<String>(dependencyId.value);
+    }
+    if (deliveryState.present) {
+      map['delivery_state'] = Variable<String>(deliveryState.value);
+    }
+    if (attemptCount.present) {
+      map['attempt_count'] = Variable<int>(attemptCount.value);
+    }
+    if (budgetCount.present) {
+      map['budget_count'] = Variable<int>(budgetCount.value);
+    }
+    if (nextAttemptAt.present) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
+    }
+    if (errorCode.present) {
+      map['error_code'] = Variable<String>(errorCode.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6950,6 +7360,14 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
           ..write('recordId: $recordId, ')
           ..write('createdAt: $createdAt, ')
           ..write('syncedAt: $syncedAt, ')
+          ..write('payload: $payload, ')
+          ..write('recordVersion: $recordVersion, ')
+          ..write('dependencyId: $dependencyId, ')
+          ..write('deliveryState: $deliveryState, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('budgetCount: $budgetCount, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('errorCode: $errorCode, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7208,6 +7626,481 @@ class SeedStateCompanion extends UpdateCompanion<SeedStateData> {
   }
 }
 
+class $LocalPhotosTable extends LocalPhotos
+    with TableInfo<$LocalPhotosTable, LocalPhoto> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalPhotosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerIdMeta = const VerificationMeta(
+    'ownerId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+    'owner_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _farmIdMeta = const VerificationMeta('farmId');
+  @override
+  late final GeneratedColumn<String> farmId = GeneratedColumn<String>(
+    'farm_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _relativePathMeta = const VerificationMeta(
+    'relativePath',
+  );
+  @override
+  late final GeneratedColumn<String> relativePath = GeneratedColumn<String>(
+    'relative_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentTypeMeta = const VerificationMeta(
+    'contentType',
+  );
+  @override
+  late final GeneratedColumn<String> contentType = GeneratedColumn<String>(
+    'content_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _byteLengthMeta = const VerificationMeta(
+    'byteLength',
+  );
+  @override
+  late final GeneratedColumn<int> byteLength = GeneratedColumn<int>(
+    'byte_length',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cloudIdMeta = const VerificationMeta(
+    'cloudId',
+  );
+  @override
+  late final GeneratedColumn<String> cloudId = GeneratedColumn<String>(
+    'cloud_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    ownerId,
+    farmId,
+    relativePath,
+    contentType,
+    byteLength,
+    cloudId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_photos';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalPhoto> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(
+        _ownerIdMeta,
+        ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('farm_id')) {
+      context.handle(
+        _farmIdMeta,
+        farmId.isAcceptableOrUnknown(data['farm_id']!, _farmIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_farmIdMeta);
+    }
+    if (data.containsKey('relative_path')) {
+      context.handle(
+        _relativePathMeta,
+        relativePath.isAcceptableOrUnknown(
+          data['relative_path']!,
+          _relativePathMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_relativePathMeta);
+    }
+    if (data.containsKey('content_type')) {
+      context.handle(
+        _contentTypeMeta,
+        contentType.isAcceptableOrUnknown(
+          data['content_type']!,
+          _contentTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentTypeMeta);
+    }
+    if (data.containsKey('byte_length')) {
+      context.handle(
+        _byteLengthMeta,
+        byteLength.isAcceptableOrUnknown(data['byte_length']!, _byteLengthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_byteLengthMeta);
+    }
+    if (data.containsKey('cloud_id')) {
+      context.handle(
+        _cloudIdMeta,
+        cloudId.isAcceptableOrUnknown(data['cloud_id']!, _cloudIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalPhoto map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalPhoto(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      ownerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_id'],
+      )!,
+      farmId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}farm_id'],
+      )!,
+      relativePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}relative_path'],
+      )!,
+      contentType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_type'],
+      )!,
+      byteLength: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}byte_length'],
+      )!,
+      cloudId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cloud_id'],
+      ),
+    );
+  }
+
+  @override
+  $LocalPhotosTable createAlias(String alias) {
+    return $LocalPhotosTable(attachedDatabase, alias);
+  }
+}
+
+class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
+  final String id;
+  final String ownerId;
+  final String farmId;
+  final String relativePath;
+  final String contentType;
+  final int byteLength;
+  final String? cloudId;
+  const LocalPhoto({
+    required this.id,
+    required this.ownerId,
+    required this.farmId,
+    required this.relativePath,
+    required this.contentType,
+    required this.byteLength,
+    this.cloudId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['farm_id'] = Variable<String>(farmId);
+    map['relative_path'] = Variable<String>(relativePath);
+    map['content_type'] = Variable<String>(contentType);
+    map['byte_length'] = Variable<int>(byteLength);
+    if (!nullToAbsent || cloudId != null) {
+      map['cloud_id'] = Variable<String>(cloudId);
+    }
+    return map;
+  }
+
+  LocalPhotosCompanion toCompanion(bool nullToAbsent) {
+    return LocalPhotosCompanion(
+      id: Value(id),
+      ownerId: Value(ownerId),
+      farmId: Value(farmId),
+      relativePath: Value(relativePath),
+      contentType: Value(contentType),
+      byteLength: Value(byteLength),
+      cloudId: cloudId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cloudId),
+    );
+  }
+
+  factory LocalPhoto.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalPhoto(
+      id: serializer.fromJson<String>(json['id']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      farmId: serializer.fromJson<String>(json['farmId']),
+      relativePath: serializer.fromJson<String>(json['relativePath']),
+      contentType: serializer.fromJson<String>(json['contentType']),
+      byteLength: serializer.fromJson<int>(json['byteLength']),
+      cloudId: serializer.fromJson<String?>(json['cloudId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'farmId': serializer.toJson<String>(farmId),
+      'relativePath': serializer.toJson<String>(relativePath),
+      'contentType': serializer.toJson<String>(contentType),
+      'byteLength': serializer.toJson<int>(byteLength),
+      'cloudId': serializer.toJson<String?>(cloudId),
+    };
+  }
+
+  LocalPhoto copyWith({
+    String? id,
+    String? ownerId,
+    String? farmId,
+    String? relativePath,
+    String? contentType,
+    int? byteLength,
+    Value<String?> cloudId = const Value.absent(),
+  }) => LocalPhoto(
+    id: id ?? this.id,
+    ownerId: ownerId ?? this.ownerId,
+    farmId: farmId ?? this.farmId,
+    relativePath: relativePath ?? this.relativePath,
+    contentType: contentType ?? this.contentType,
+    byteLength: byteLength ?? this.byteLength,
+    cloudId: cloudId.present ? cloudId.value : this.cloudId,
+  );
+  LocalPhoto copyWithCompanion(LocalPhotosCompanion data) {
+    return LocalPhoto(
+      id: data.id.present ? data.id.value : this.id,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      farmId: data.farmId.present ? data.farmId.value : this.farmId,
+      relativePath: data.relativePath.present
+          ? data.relativePath.value
+          : this.relativePath,
+      contentType: data.contentType.present
+          ? data.contentType.value
+          : this.contentType,
+      byteLength: data.byteLength.present
+          ? data.byteLength.value
+          : this.byteLength,
+      cloudId: data.cloudId.present ? data.cloudId.value : this.cloudId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPhoto(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('farmId: $farmId, ')
+          ..write('relativePath: $relativePath, ')
+          ..write('contentType: $contentType, ')
+          ..write('byteLength: $byteLength, ')
+          ..write('cloudId: $cloudId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    ownerId,
+    farmId,
+    relativePath,
+    contentType,
+    byteLength,
+    cloudId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalPhoto &&
+          other.id == this.id &&
+          other.ownerId == this.ownerId &&
+          other.farmId == this.farmId &&
+          other.relativePath == this.relativePath &&
+          other.contentType == this.contentType &&
+          other.byteLength == this.byteLength &&
+          other.cloudId == this.cloudId);
+}
+
+class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
+  final Value<String> id;
+  final Value<String> ownerId;
+  final Value<String> farmId;
+  final Value<String> relativePath;
+  final Value<String> contentType;
+  final Value<int> byteLength;
+  final Value<String?> cloudId;
+  final Value<int> rowid;
+  const LocalPhotosCompanion({
+    this.id = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.farmId = const Value.absent(),
+    this.relativePath = const Value.absent(),
+    this.contentType = const Value.absent(),
+    this.byteLength = const Value.absent(),
+    this.cloudId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalPhotosCompanion.insert({
+    required String id,
+    required String ownerId,
+    required String farmId,
+    required String relativePath,
+    required String contentType,
+    required int byteLength,
+    this.cloudId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       ownerId = Value(ownerId),
+       farmId = Value(farmId),
+       relativePath = Value(relativePath),
+       contentType = Value(contentType),
+       byteLength = Value(byteLength);
+  static Insertable<LocalPhoto> custom({
+    Expression<String>? id,
+    Expression<String>? ownerId,
+    Expression<String>? farmId,
+    Expression<String>? relativePath,
+    Expression<String>? contentType,
+    Expression<int>? byteLength,
+    Expression<String>? cloudId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (farmId != null) 'farm_id': farmId,
+      if (relativePath != null) 'relative_path': relativePath,
+      if (contentType != null) 'content_type': contentType,
+      if (byteLength != null) 'byte_length': byteLength,
+      if (cloudId != null) 'cloud_id': cloudId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalPhotosCompanion copyWith({
+    Value<String>? id,
+    Value<String>? ownerId,
+    Value<String>? farmId,
+    Value<String>? relativePath,
+    Value<String>? contentType,
+    Value<int>? byteLength,
+    Value<String?>? cloudId,
+    Value<int>? rowid,
+  }) {
+    return LocalPhotosCompanion(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      farmId: farmId ?? this.farmId,
+      relativePath: relativePath ?? this.relativePath,
+      contentType: contentType ?? this.contentType,
+      byteLength: byteLength ?? this.byteLength,
+      cloudId: cloudId ?? this.cloudId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (farmId.present) {
+      map['farm_id'] = Variable<String>(farmId.value);
+    }
+    if (relativePath.present) {
+      map['relative_path'] = Variable<String>(relativePath.value);
+    }
+    if (contentType.present) {
+      map['content_type'] = Variable<String>(contentType.value);
+    }
+    if (byteLength.present) {
+      map['byte_length'] = Variable<int>(byteLength.value);
+    }
+    if (cloudId.present) {
+      map['cloud_id'] = Variable<String>(cloudId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPhotosCompanion(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('farmId: $farmId, ')
+          ..write('relativePath: $relativePath, ')
+          ..write('contentType: $contentType, ')
+          ..write('byteLength: $byteLength, ')
+          ..write('cloudId: $cloudId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AlmanacDatabase extends GeneratedDatabase {
   _$AlmanacDatabase(QueryExecutor e) : super(e);
   $AlmanacDatabaseManager get managers => $AlmanacDatabaseManager(this);
@@ -7226,6 +8119,7 @@ abstract class _$AlmanacDatabase extends GeneratedDatabase {
   late final $SectionDetailsTable sectionDetails = $SectionDetailsTable(this);
   late final $SyncMutationsTable syncMutations = $SyncMutationsTable(this);
   late final $SeedStateTable seedState = $SeedStateTable(this);
+  late final $LocalPhotosTable localPhotos = $LocalPhotosTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7243,6 +8137,7 @@ abstract class _$AlmanacDatabase extends GeneratedDatabase {
     sectionDetails,
     syncMutations,
     seedState,
+    localPhotos,
   ];
 }
 
@@ -10441,6 +11336,14 @@ typedef $$SyncMutationsTableCreateCompanionBuilder =
       required String recordId,
       required DateTime createdAt,
       Value<DateTime?> syncedAt,
+      Value<String?> payload,
+      Value<int?> recordVersion,
+      Value<String?> dependencyId,
+      Value<String> deliveryState,
+      Value<int> attemptCount,
+      Value<int> budgetCount,
+      Value<DateTime?> nextAttemptAt,
+      Value<String?> errorCode,
       Value<int> rowid,
     });
 typedef $$SyncMutationsTableUpdateCompanionBuilder =
@@ -10453,6 +11356,14 @@ typedef $$SyncMutationsTableUpdateCompanionBuilder =
       Value<String> recordId,
       Value<DateTime> createdAt,
       Value<DateTime?> syncedAt,
+      Value<String?> payload,
+      Value<int?> recordVersion,
+      Value<String?> dependencyId,
+      Value<String> deliveryState,
+      Value<int> attemptCount,
+      Value<int> budgetCount,
+      Value<DateTime?> nextAttemptAt,
+      Value<String?> errorCode,
       Value<int> rowid,
     });
 
@@ -10502,6 +11413,46 @@ class $$SyncMutationsTableFilterComposer
 
   ColumnFilters<DateTime> get syncedAt => $composableBuilder(
     column: $table.syncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get recordVersion => $composableBuilder(
+    column: $table.recordVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dependencyId => $composableBuilder(
+    column: $table.dependencyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deliveryState => $composableBuilder(
+    column: $table.deliveryState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get attemptCount => $composableBuilder(
+    column: $table.attemptCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get budgetCount => $composableBuilder(
+    column: $table.budgetCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextAttemptAt => $composableBuilder(
+    column: $table.nextAttemptAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorCode => $composableBuilder(
+    column: $table.errorCode,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -10554,6 +11505,46 @@ class $$SyncMutationsTableOrderingComposer
     column: $table.syncedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get recordVersion => $composableBuilder(
+    column: $table.recordVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dependencyId => $composableBuilder(
+    column: $table.dependencyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deliveryState => $composableBuilder(
+    column: $table.deliveryState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get attemptCount => $composableBuilder(
+    column: $table.attemptCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get budgetCount => $composableBuilder(
+    column: $table.budgetCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextAttemptAt => $composableBuilder(
+    column: $table.nextAttemptAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorCode => $composableBuilder(
+    column: $table.errorCode,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SyncMutationsTableAnnotationComposer
@@ -10592,6 +11583,42 @@ class $$SyncMutationsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get syncedAt =>
       $composableBuilder(column: $table.syncedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<int> get recordVersion => $composableBuilder(
+    column: $table.recordVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dependencyId => $composableBuilder(
+    column: $table.dependencyId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deliveryState => $composableBuilder(
+    column: $table.deliveryState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get attemptCount => $composableBuilder(
+    column: $table.attemptCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get budgetCount => $composableBuilder(
+    column: $table.budgetCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextAttemptAt => $composableBuilder(
+    column: $table.nextAttemptAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get errorCode =>
+      $composableBuilder(column: $table.errorCode, builder: (column) => column);
 }
 
 class $$SyncMutationsTableTableManager
@@ -10639,6 +11666,14 @@ class $$SyncMutationsTableTableManager
                 Value<String> recordId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> syncedAt = const Value.absent(),
+                Value<String?> payload = const Value.absent(),
+                Value<int?> recordVersion = const Value.absent(),
+                Value<String?> dependencyId = const Value.absent(),
+                Value<String> deliveryState = const Value.absent(),
+                Value<int> attemptCount = const Value.absent(),
+                Value<int> budgetCount = const Value.absent(),
+                Value<DateTime?> nextAttemptAt = const Value.absent(),
+                Value<String?> errorCode = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncMutationsCompanion(
                 mutationId: mutationId,
@@ -10649,6 +11684,14 @@ class $$SyncMutationsTableTableManager
                 recordId: recordId,
                 createdAt: createdAt,
                 syncedAt: syncedAt,
+                payload: payload,
+                recordVersion: recordVersion,
+                dependencyId: dependencyId,
+                deliveryState: deliveryState,
+                attemptCount: attemptCount,
+                budgetCount: budgetCount,
+                nextAttemptAt: nextAttemptAt,
+                errorCode: errorCode,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -10661,6 +11704,14 @@ class $$SyncMutationsTableTableManager
                 required String recordId,
                 required DateTime createdAt,
                 Value<DateTime?> syncedAt = const Value.absent(),
+                Value<String?> payload = const Value.absent(),
+                Value<int?> recordVersion = const Value.absent(),
+                Value<String?> dependencyId = const Value.absent(),
+                Value<String> deliveryState = const Value.absent(),
+                Value<int> attemptCount = const Value.absent(),
+                Value<int> budgetCount = const Value.absent(),
+                Value<DateTime?> nextAttemptAt = const Value.absent(),
+                Value<String?> errorCode = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncMutationsCompanion.insert(
                 mutationId: mutationId,
@@ -10671,6 +11722,14 @@ class $$SyncMutationsTableTableManager
                 recordId: recordId,
                 createdAt: createdAt,
                 syncedAt: syncedAt,
+                payload: payload,
+                recordVersion: recordVersion,
+                dependencyId: dependencyId,
+                deliveryState: deliveryState,
+                attemptCount: attemptCount,
+                budgetCount: budgetCount,
+                nextAttemptAt: nextAttemptAt,
+                errorCode: errorCode,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -10872,6 +11931,259 @@ typedef $$SeedStateTableProcessedTableManager =
       SeedStateData,
       PrefetchHooks Function()
     >;
+typedef $$LocalPhotosTableCreateCompanionBuilder =
+    LocalPhotosCompanion Function({
+      required String id,
+      required String ownerId,
+      required String farmId,
+      required String relativePath,
+      required String contentType,
+      required int byteLength,
+      Value<String?> cloudId,
+      Value<int> rowid,
+    });
+typedef $$LocalPhotosTableUpdateCompanionBuilder =
+    LocalPhotosCompanion Function({
+      Value<String> id,
+      Value<String> ownerId,
+      Value<String> farmId,
+      Value<String> relativePath,
+      Value<String> contentType,
+      Value<int> byteLength,
+      Value<String?> cloudId,
+      Value<int> rowid,
+    });
+
+class $$LocalPhotosTableFilterComposer
+    extends Composer<_$AlmanacDatabase, $LocalPhotosTable> {
+  $$LocalPhotosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get farmId => $composableBuilder(
+    column: $table.farmId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get byteLength => $composableBuilder(
+    column: $table.byteLength,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cloudId => $composableBuilder(
+    column: $table.cloudId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalPhotosTableOrderingComposer
+    extends Composer<_$AlmanacDatabase, $LocalPhotosTable> {
+  $$LocalPhotosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get farmId => $composableBuilder(
+    column: $table.farmId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get byteLength => $composableBuilder(
+    column: $table.byteLength,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cloudId => $composableBuilder(
+    column: $table.cloudId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalPhotosTableAnnotationComposer
+    extends Composer<_$AlmanacDatabase, $LocalPhotosTable> {
+  $$LocalPhotosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get farmId =>
+      $composableBuilder(column: $table.farmId, builder: (column) => column);
+
+  GeneratedColumn<String> get relativePath => $composableBuilder(
+    column: $table.relativePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get byteLength => $composableBuilder(
+    column: $table.byteLength,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get cloudId =>
+      $composableBuilder(column: $table.cloudId, builder: (column) => column);
+}
+
+class $$LocalPhotosTableTableManager
+    extends
+        RootTableManager<
+          _$AlmanacDatabase,
+          $LocalPhotosTable,
+          LocalPhoto,
+          $$LocalPhotosTableFilterComposer,
+          $$LocalPhotosTableOrderingComposer,
+          $$LocalPhotosTableAnnotationComposer,
+          $$LocalPhotosTableCreateCompanionBuilder,
+          $$LocalPhotosTableUpdateCompanionBuilder,
+          (
+            LocalPhoto,
+            BaseReferences<_$AlmanacDatabase, $LocalPhotosTable, LocalPhoto>,
+          ),
+          LocalPhoto,
+          PrefetchHooks Function()
+        > {
+  $$LocalPhotosTableTableManager(_$AlmanacDatabase db, $LocalPhotosTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalPhotosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalPhotosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalPhotosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> ownerId = const Value.absent(),
+                Value<String> farmId = const Value.absent(),
+                Value<String> relativePath = const Value.absent(),
+                Value<String> contentType = const Value.absent(),
+                Value<int> byteLength = const Value.absent(),
+                Value<String?> cloudId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalPhotosCompanion(
+                id: id,
+                ownerId: ownerId,
+                farmId: farmId,
+                relativePath: relativePath,
+                contentType: contentType,
+                byteLength: byteLength,
+                cloudId: cloudId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String ownerId,
+                required String farmId,
+                required String relativePath,
+                required String contentType,
+                required int byteLength,
+                Value<String?> cloudId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalPhotosCompanion.insert(
+                id: id,
+                ownerId: ownerId,
+                farmId: farmId,
+                relativePath: relativePath,
+                contentType: contentType,
+                byteLength: byteLength,
+                cloudId: cloudId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalPhotosTable, LocalPhoto>(table),
+                  BaseReferences<
+                    _$AlmanacDatabase,
+                    $LocalPhotosTable,
+                    LocalPhoto
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalPhotosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AlmanacDatabase,
+      $LocalPhotosTable,
+      LocalPhoto,
+      $$LocalPhotosTableFilterComposer,
+      $$LocalPhotosTableOrderingComposer,
+      $$LocalPhotosTableAnnotationComposer,
+      $$LocalPhotosTableCreateCompanionBuilder,
+      $$LocalPhotosTableUpdateCompanionBuilder,
+      (
+        LocalPhoto,
+        BaseReferences<_$AlmanacDatabase, $LocalPhotosTable, LocalPhoto>,
+      ),
+      LocalPhoto,
+      PrefetchHooks Function()
+    >;
 
 class $AlmanacDatabaseManager {
   final _$AlmanacDatabase _db;
@@ -10900,4 +12212,6 @@ class $AlmanacDatabaseManager {
       $$SyncMutationsTableTableManager(_db, _db.syncMutations);
   $$SeedStateTableTableManager get seedState =>
       $$SeedStateTableTableManager(_db, _db.seedState);
+  $$LocalPhotosTableTableManager get localPhotos =>
+      $$LocalPhotosTableTableManager(_db, _db.localPhotos);
 }

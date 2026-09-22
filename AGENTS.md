@@ -47,7 +47,7 @@ and `#4` add code.
 ## Conventions
 
 - **Monorepo layout:** `apps/backend/` (Python API + worker), `apps/mobile/`
-  (Expo app), `apps/ml-service/` (forecast/backtest),
+  (Flutter app), `apps/ml-service/` (forecast/backtest),
   `packages/api-client/` (generated, never hand-edited),
   `packages/geo/` (pure TS geometry library),
   `infra/` (deploy config), `e2e/` (end-to-end tests), `docs/decisions/`
@@ -72,6 +72,12 @@ and `#4` add code.
   `git push` whenever `apps/backend/` or
   `migrations/` changed (see `scripts/changed-scopes.sh`), and becomes a
   required CI check on `main` in #5.
+- **Approved mobile-only exception (#17):** `apps/mobile/lib/data/local/` and
+  its tests use Drift/SQLite for phone-local persistence. Fixed schema
+  statements and parameter-bound queries are allowed within the storage
+  adapter; never interpolate user input or user-selected identifiers into SQL.
+  UI components must use the local service, not database calls. This exception
+  does not apply to the backend, Python, Alembic, or their raw-SQL guards.
 - Formatting and simple lint issues are auto-fixed on commit (pre-commit
   hooks) and, if any slip through, on the PR itself (autofix.ci) — never
   hand-format to match a linter.

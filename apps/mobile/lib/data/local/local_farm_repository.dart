@@ -12,6 +12,7 @@ import '../../domain/money.dart';
 import '../../domain/planning/acceptance.dart';
 import '../../domain/planning/planner.dart';
 import 'database.dart';
+import 'sync_outbox.dart';
 
 /// The farm, read from and written to the phone.
 ///
@@ -328,12 +329,12 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required rec.HealthState healthStatus,
     String? actionTaken,
   }) async {
-    final existing = await (db.select(
-      db.observations,
-    )..where((t) => t.id.equals(observationId))).getSingle();
     final at = now();
 
     await db.transaction(() async {
+      final existing = await (db.select(
+        db.observations,
+      )..where((t) => t.id.equals(observationId))).getSingle();
       await (db.update(
         db.observations,
       )..where((t) => t.id.equals(observationId))).write(
@@ -365,12 +366,12 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
 
   @override
   Future<void> deleteObservation(String observationId) async {
-    final existing = await (db.select(
-      db.observations,
-    )..where((t) => t.id.equals(observationId))).getSingle();
     final at = now();
 
     await db.transaction(() async {
+      final existing = await (db.select(
+        db.observations,
+      )..where((t) => t.id.equals(observationId))).getSingle();
       // A tombstone, not a row removal: a delete performed in airplane mode
       // has to be able to sync, and a deleted row has nothing to sync from.
       await (db.update(
@@ -531,19 +532,25 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required String recordType,
     required String recordId,
     required DateTime at,
-  }) => db
-      .into(db.syncMutations)
-      .insert(
-        SyncMutationsCompanion.insert(
-          mutationId: newUuid(),
-          farmId: farmId,
-          ownerId: ownerId,
-          operation: operation,
-          recordType: recordType,
-          recordId: recordId,
-          createdAt: at,
-        ),
-      );
+  }) async {
+    if (recordType == 'observation') {
+      await enqueueObservation(db, recordId, operation, at);
+      return;
+    }
+    await db
+        .into(db.syncMutations)
+        .insert(
+          SyncMutationsCompanion.insert(
+            mutationId: newUuid(),
+            farmId: farmId,
+            ownerId: ownerId,
+            operation: operation,
+            recordType: recordType,
+            recordId: recordId,
+            createdAt: at,
+          ),
+        );
+  }
 
   // ------------------------------------------------------------- plumbing
 
