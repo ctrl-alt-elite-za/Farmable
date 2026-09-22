@@ -2,9 +2,11 @@
 
 This backend slice does not close #17. It provides authenticated reads for
 existing farms/sections, observation create/read, and durable photo processing.
-It does not create farms/sections, edit/delete observations, provide cloud-photo
-download URLs, or connect the phone-local queue in PR 47. Accounts with no farms
-see an empty list. Tasks, finance, plans, and device acceptance remain separate.
+#11 extends it with owner-scoped CRUD for sections, plantings, tasks, financial
+records, saved plans and media metadata, observation edit/delete, and the ordered
+change feed - see `docs/farm-records-api.md`. It still does not create farms,
+provide cloud-photo download URLs, or connect the phone-local queue in PR 47.
+Accounts with no farms see an empty list. Device acceptance remains separate.
 
 ## Request contract
 
@@ -24,6 +26,7 @@ snapshot across pages.
 | `GET /farms/{farm_id}/sections`                            | Active sections                                                      |
 | `GET /farms/{farm_id}/observations`                        | Active observations; optional `section_id`                           |
 | `GET /farms/{farm_id}/observations/{observation_id}`       | One observation                                                      |
+| `GET /farms/{farm_id}/changes` | Ordered change feed for #17 (see `docs/farm-records-api.md`) |
 | `POST /farms/{farm_id}/observations`                       | Idempotent create; first and replay return 200                       |
 | `POST /farms/{farm_id}/photo-uploads`                      | Reserve/replay one logical photo mutation                            |
 | `POST /farms/{farm_id}/photo-uploads/{upload_id}/complete` | Accept durable processing intent (202), or return ready result (200) |
