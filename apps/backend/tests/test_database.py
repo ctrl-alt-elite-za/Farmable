@@ -32,6 +32,9 @@ def test_only_owned_application_tables_are_registered():
         "photo_uploads",
         "photo_attempts",
         "photo_rates",
+        "voice_session_rates",
+        "forecast_runs",
+        "forecast_state",
     }
 
 
