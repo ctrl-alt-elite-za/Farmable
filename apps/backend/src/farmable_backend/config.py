@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     database_url: SecretStr
     log_level: Literal["debug", "info", "warning", "error", "critical"] = "info"
     commit_sha: str = "unknown"
+    photo_bucket: str | None = None
+    photo_signer_email: str | None = None
 
     @field_validator("database_url")
     @classmethod

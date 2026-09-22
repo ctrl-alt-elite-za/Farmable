@@ -1,5 +1,8 @@
 # Issue 17 implementation plan
 
+> Historical Expo plan, superseded by the Flutter port after PR #47 review.
+> See [offline-queue.md](../../offline-queue.md) for the current implementation.
+
 Approved spec: `../specs/2026-09-21-issue17-durable-mobile-queue-design.md`.
 The writing-plans skill is unavailable; this is the explicit fallback plan.
 

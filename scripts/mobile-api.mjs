@@ -41,7 +41,7 @@ if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {
     }
     appendFileSync(
       env.GITHUB_ENV,
-      `EXPO_PUBLIC_API_URL=${config.url}\nMOBILE_ARTIFACT_KIND=${config.artifactKind}\n`,
+      `MOBILE_API_BASE_URL=${config.url}\nMOBILE_ARTIFACT_KIND=${config.artifactKind}\n`,
     );
   } catch {
     // Never echo the supplied value: someone may accidentally put a token in it.

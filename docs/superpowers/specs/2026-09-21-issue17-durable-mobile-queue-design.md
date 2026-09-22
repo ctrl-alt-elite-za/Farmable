@@ -1,5 +1,8 @@
 # Issue 17: durable mobile observation and photo queue
 
+> Historical Expo design, superseded by the Flutter port after PR #47 review.
+> See [offline-queue.md](../../offline-queue.md) for the current implementation.
+
 ## Scope and approved decisions
 
 Implement the first, independently useful slice of issue #17 on the current
