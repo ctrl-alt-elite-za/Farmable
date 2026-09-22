@@ -121,4 +121,16 @@ abstract class AuthService {
   /// Forgets the session. Never touches the farm database — the farmer's
   /// records are theirs whether or not they are signed in.
   Future<void> signOut();
+
+  /// Gives up on the signup that is currently awaiting verification.
+  ///
+  /// The mirror image of [signOut], not a variant of it: sign-out keeps the
+  /// account and drops the session, this drops the half-finished account and
+  /// leaves every session alone. Its email and phone go back to being free,
+  /// so someone who mistyped their number can sign up again with the same
+  /// address instead of meeting [AuthFailure.accountExists] forever.
+  ///
+  /// Never removes an account that has completed verification, whatever the
+  /// stored record claims is pending.
+  Future<void> abandonSignup();
 }

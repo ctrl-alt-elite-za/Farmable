@@ -136,7 +136,19 @@ class AuthViewModel extends AsyncNotifier<AuthStanding> {
 
   /// Abandons a half-finished signup, so the verify screen can offer a way
   /// out that is not "reinstall the app".
-  Future<AuthFailure?> abandonSignup() => signOut();
+  ///
+  /// Not [signOut], which this used to delegate to. Sign-out drops the
+  /// session and keeps the account, which on the verify screen meant the
+  /// pending signup vanished while its unverified account stayed — and a
+  /// farmer correcting a mistyped phone number then met "there is already an
+  /// account with this email" with nothing left to try. Abandonment drops
+  /// the unfinished account instead and leaves every session alone.
+  Future<AuthFailure?> abandonSignup() => _attempt(() async {
+    await _service.abandonSignup();
+    // Read back rather than assuming: a verified account on the same phone
+    // keeps its session, and only the record knows whether there is one.
+    state = AsyncData(await _service.restore());
+  });
 
   PendingSignup? get _pending => switch (state.value) {
     AwaitingVerification(pending: final pending) => pending,
@@ -183,6 +195,10 @@ String authAdvice(AuthFailure failure) => switch (failure) {
     'Wait a minute before asking for another code.',
   AuthFailure.invalidSession =>
     'Start the sign-up again — this one has been closed.',
+  // Not "try again": the same tap on a full phone fails the same way. The
+  // instruction has to be the one that changes the outcome.
+  AuthFailure.storageUnavailable =>
+    'This phone could not save that. Free up some space and try again.',
   // Offline is not a failure in this product, so it does not get failure
   // language. It gets the one honest instruction: this particular step is the
   // one thing that needs a signal.

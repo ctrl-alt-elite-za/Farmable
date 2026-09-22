@@ -160,6 +160,12 @@ enum AuthFailure {
   invalidVerification,
   tooManyAttempts,
   invalidSession,
+
+  /// The phone would not keep the change — no space, or a documents directory
+  /// that will not take a write. Distinct from [unknown] because the farmer
+  /// can do something about it and because "try again" is the wrong advice
+  /// for a disk that is full.
+  storageUnavailable,
   offline,
   unknown,
 }

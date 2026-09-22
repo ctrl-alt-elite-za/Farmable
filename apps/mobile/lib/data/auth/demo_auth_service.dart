@@ -294,6 +294,27 @@ class DemoAuthService implements AuthService {
     await _write(record, session: null, pending: null);
   }
 
+  @override
+  Future<void> abandonSignup() async {
+    await _settle();
+    final record = await _read();
+    final pending = record['pending'];
+    final userId = pending is Map ? pending['user_id'] : null;
+
+    // Only the account this pending signup created, and only while it is
+    // still unfinished. A verified account is somebody's way back into their
+    // farm; nothing on this path may take it away.
+    final accounts = _accounts(record)
+      ..removeWhere((a) => a['id'] == userId && !_fullyVerified(a));
+
+    // The session is deliberately left as it is. Abandoning a signup is not
+    // a reason to sign anybody out.
+    await _write(record, accounts: accounts, pending: null);
+  }
+
+  bool _fullyVerified(Map<String, Object?> account) =>
+      account['phone_verified'] == true && account['email_verified'] == true;
+
   // ------------------------------------------------------------------ guts
 
   Future<void> _settle() => settleDelay == Duration.zero
@@ -321,16 +342,27 @@ class DemoAuthService implements AuthService {
   /// was there; passing an explicit null clears it. That is why they are
   /// sentinel-defaulted rather than plain nullable parameters — the two cases
   /// are different and a nullable parameter cannot tell them apart.
+  ///
+  /// A storage failure arrives here as [SessionStorageException] and leaves as
+  /// [AuthFailure.storageUnavailable]. Translating it at this boundary is what
+  /// keeps the view model free of any idea that a file is involved, and what
+  /// stops a call that persisted nothing from returning as though it had.
   Future<void> _write(
     Map<String, Object?> record, {
     List<Map<String, Object?>>? accounts,
     Object? pending = _unchanged,
     Object? session = _unchanged,
-  }) => _storage.write({
-    'accounts': accounts ?? _accounts(record),
-    'pending': identical(pending, _unchanged) ? record['pending'] : pending,
-    'session': identical(session, _unchanged) ? record['session'] : session,
-  });
+  }) async {
+    try {
+      await _storage.write({
+        'accounts': accounts ?? _accounts(record),
+        'pending': identical(pending, _unchanged) ? record['pending'] : pending,
+        'session': identical(session, _unchanged) ? record['session'] : session,
+      });
+    } on SessionStorageException {
+      throw const AuthException(AuthFailure.storageUnavailable);
+    }
+  }
 
   String _salt() =>
       base64Url.encode(List<int>.generate(24, (_) => _random.nextInt(256)));

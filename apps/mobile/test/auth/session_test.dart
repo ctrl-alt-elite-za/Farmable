@@ -215,6 +215,83 @@ void main() {
       expect(second, isA<VerificationComplete>());
     });
 
+    test(
+      'abandoning a signup frees its email and keeps every session',
+      () async {
+        // Signed in as one account, half-way through creating another. The
+        // first one's session has nothing to do with the second one's mistake.
+        final session = await service.logIn(
+          mode: LoginMode.email,
+          identifier: 'thandi@gmail.com',
+          password: goodPassphrase,
+        );
+
+        await service.signUp(
+          firstName: 'Sipho',
+          surname: 'Dlamini',
+          phone: '+27825550123',
+          email: 'sipho@gmail.com',
+          password: goodPassphrase,
+        );
+        await service.abandonSignup();
+
+        // Nothing pending, the session untouched, and the email free again —
+        // which is the whole point: the farmer mistyped their phone number and
+        // is about to type the same address a second time.
+        final standing = await service.restore();
+        expect(standing, isA<SignedIn>());
+        expect((standing as SignedIn).session.token, session.token);
+        expect(
+          await service.signUp(
+            firstName: 'Sipho',
+            surname: 'Dlamini',
+            phone: '+27825559876',
+            email: 'sipho@gmail.com',
+            password: goodPassphrase,
+          ),
+          isA<PendingSignup>(),
+        );
+      },
+    );
+
+    test(
+      'abandoning never removes an account that finished verifying',
+      () async {
+        final pending = await service.signUp(
+          firstName: 'Sipho',
+          surname: 'Dlamini',
+          phone: '+27825550123',
+          email: 'sipho@gmail.com',
+          password: goodPassphrase,
+        );
+        await service.verify(
+          userId: pending.userId,
+          channel: VerificationChannel.phone,
+          code: '492731',
+        );
+        await service.verify(
+          userId: pending.userId,
+          channel: VerificationChannel.email,
+          code: '718240',
+        );
+
+        // A stale `pending` pointing at a now-verified account. Abandonment
+        // clears the pointer and leaves the account where it is.
+        final record = (await storage.read())!;
+        await storage.write({...record, 'pending': pending.toJson()});
+        await service.abandonSignup();
+
+        expect(
+          await service.logIn(
+            mode: LoginMode.email,
+            identifier: 'sipho@gmail.com',
+            password: goodPassphrase,
+          ),
+          isA<AuthSession>(),
+        );
+      },
+    );
+
     test('an existing email cannot sign up twice', () async {
       Future<void> attempt() => service.signUp(
         firstName: 'Sipho',

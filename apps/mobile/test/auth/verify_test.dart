@@ -170,6 +170,88 @@ void main() {
       expectNoFailureLanguage(tester);
     });
 
+    testWidgets('Start again lets the same email finish on a new number', (
+      tester,
+    ) async {
+      // The farmer mistyped their phone number and noticed it on the verify
+      // screen. "Start again" has to leave them able to sign up again with
+      // the details they meant — including the email they already typed,
+      // which is the one thing the abandoned account was holding.
+      final harness = await signUpTo(tester);
+      expect(find.byType(OtpSlots), findsOneWidget);
+
+      await tapFooterLink(tester, 'Start again');
+      expect(find.text('Create account'), findsOneWidget);
+
+      await enterField(tester, 'Name', 'Sipho');
+      await enterField(tester, 'Surname', 'Dlamini');
+      await enterField(tester, 'Phone number', '82 555 9876');
+      await enterField(tester, 'Email', 'sipho.dlamini@gmail.com');
+      await enterField(tester, 'Password', goodPassphrase);
+      await enterField(tester, 'Confirm password', goodPassphrase);
+      await tapLabel(tester, 'Create account', settle: false);
+
+      expect(
+        find.textContaining('already an account with this email'),
+        findsNothing,
+        reason:
+            'abandoning a signup used to delegate to sign-out, which dropped '
+            'the pending signup and left its unverified account behind. The '
+            'corrected number then collided with the abandoned email and the '
+            'farmer had no way forward at all.',
+      );
+      expect(find.byType(OtpSlots), findsOneWidget);
+
+      // And the corrected signup finishes: phone, then email, then Home.
+      await enterCode(tester, '492731');
+      await enterCode(tester, '718240');
+      expect(find.byType(HomeScreen), findsOneWidget);
+
+      final standing = await harness.standing();
+      expect(standing, isA<SignedIn>());
+      expect(
+        (standing as SignedIn).session.user.phone,
+        '+27825559876',
+        reason: 'the session belongs to the corrected number, not the typo',
+      );
+    });
+
+    testWidgets('Start again never touches an account that is verified', (
+      tester,
+    ) async {
+      // A verified account and a half-finished signup can coexist on one
+      // phone. Abandoning the second must not delete the first.
+      final harness = await pumpAuthApp(tester, location: '/auth/login');
+      await enterField(tester, 'Email', 'thandi@gmail.com');
+      await enterField(tester, 'Password', goodPassphrase);
+      await tapLabel(tester, 'Log in');
+      expect(find.byType(HomeScreen), findsOneWidget);
+
+      await pumpAuthApp(
+        tester,
+        location: '/auth/signup',
+        session: harness.storage,
+        storage: harness.db,
+      );
+      await enterField(tester, 'Name', 'Sipho');
+      await enterField(tester, 'Surname', 'Dlamini');
+      await enterField(tester, 'Phone number', '82 555 0123');
+      await enterField(tester, 'Email', 'sipho.dlamini@gmail.com');
+      await enterField(tester, 'Password', goodPassphrase);
+      await enterField(tester, 'Confirm password', goodPassphrase);
+      await tapLabel(tester, 'Create account', settle: false);
+      await tapFooterLink(tester, 'Start again');
+
+      // Thandi's account is untouched: the same password still logs in.
+      final record = (await harness.storage.read())!;
+      final accounts = (record['accounts']! as List).cast<Map>();
+      expect(accounts.map((a) => a['email']), contains('thandi@gmail.com'));
+      expect(
+        accounts.map((a) => a['email']),
+        isNot(contains('sipho.dlamini@gmail.com')),
+      );
+    });
+
     testWidgets('renders offline in both themes without failure language', (
       tester,
     ) async {

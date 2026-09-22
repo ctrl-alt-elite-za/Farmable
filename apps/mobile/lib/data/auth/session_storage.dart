@@ -19,6 +19,22 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+/// A write or a clear that did not happen.
+///
+/// Read failures are deliberately not reported this way — see
+/// [FileSessionStorage.read] for why launch is the one place that swallows.
+class SessionStorageException implements Exception {
+  /// What was being attempted, for a message that is not a stack trace.
+  final String operation;
+
+  const SessionStorageException(this.operation);
+
+  /// Carries no part of the record, because the record holds a digest and a
+  /// session token and this string reaches logs.
+  @override
+  String toString() => 'SessionStorageException($operation)';
+}
+
 abstract class SessionStorage {
   /// The whole record, or null if nothing has been written.
   Future<Map<String, Object?>?> read();
@@ -32,12 +48,21 @@ abstract class SessionStorage {
 class FileSessionStorage implements SessionStorage {
   static const _fileName = 'almanac_demo_auth.json';
 
+  /// Where the file lives. Defaults to the app's documents directory, and is
+  /// injectable so a test can point it at a real directory it controls — the
+  /// failure tests need a genuine [FileSessionStorage] over a path they can
+  /// make unwritable, not a stand-in that only pretends to be one.
+  final Future<Directory> Function() _directory;
+
+  FileSessionStorage({Future<Directory> Function()? directory})
+    : _directory = directory ?? getApplicationDocumentsDirectory;
+
   File? _cached;
 
   Future<File> _file() async {
     final existing = _cached;
     if (existing != null) return existing;
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await _directory();
     return _cached = File('${dir.path}/$_fileName');
   }
 
@@ -57,13 +82,34 @@ class FileSessionStorage implements SessionStorage {
     }
   }
 
+  /// Writes the record whole, or not at all, and says which.
+  ///
+  /// Staged in a sibling file and renamed over the live one, so a write that
+  /// is interrupted — by the phone dying mid-signup, which is the ordinary
+  /// case this product is built for — leaves the previous record intact
+  /// rather than a truncated file the next launch cannot read.
+  ///
+  /// Failure is thrown, not swallowed. Every caller is in the middle of
+  /// telling the farmer something worked: a sign-out that did not persist is
+  /// the previous session standing again on the next launch, which on a
+  /// shared phone is someone else reading this farm's money.
   @override
   Future<void> write(Map<String, Object?> value) async {
+    File? staged;
     try {
-      await (await _file()).writeAsString(jsonEncode(value), flush: true);
+      final file = await _file();
+      staged = File('${file.path}.tmp');
+      await staged.writeAsString(jsonEncode(value), flush: true);
+      await staged.rename(file.path);
     } on Object {
-      // Losing the session costs one login. Crashing costs the session and
-      // whatever the farmer was doing.
+      // Best-effort tidy-up. The record that matters is the old one, and it
+      // is still where it was.
+      try {
+        if (staged?.existsSync() ?? false) staged!.deleteSync();
+      } on Object {
+        // Nothing further to do, and nothing here may mask the real failure.
+      }
+      throw const SessionStorageException('write');
     }
   }
 
@@ -73,7 +119,7 @@ class FileSessionStorage implements SessionStorage {
       final file = await _file();
       if (file.existsSync()) await file.delete();
     } on Object {
-      // Same reasoning as write.
+      throw const SessionStorageException('clear');
     }
   }
 }

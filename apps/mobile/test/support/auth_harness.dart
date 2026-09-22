@@ -21,6 +21,7 @@ import 'package:almanac/data/health_service.dart';
 import 'package:almanac/data/local/database.dart';
 import 'package:almanac/data/local/seed.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
+import 'package:almanac/features/auth/widgets/auth_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,7 +56,7 @@ class AuthHarness {
 
   /// The record on "disk". Survives [restart], which is what makes the
   /// session-restore test a real one rather than a re-read of memory.
-  final InMemorySessionStorage storage;
+  final SessionStorage storage;
 
   final ProviderContainer container;
 
@@ -91,7 +92,7 @@ Future<AuthHarness> pumpAuthApp(
 
   /// Reuse the session record from an earlier pump — how a test restarts the
   /// app without wiping the phone.
-  InMemorySessionStorage? session,
+  SessionStorage? session,
   AlmanacDatabase? storage,
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -206,6 +207,32 @@ Future<void> tapLabel(
   final finder = find.text(label);
   await tester.ensureVisible(finder.first);
   await tester.pumpAndSettle();
+  await tester.tap(finder.first);
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await pumpBriefly(tester);
+  }
+}
+
+/// Taps the footer link whose link half reads [linkLabel].
+///
+/// `AuthFooterLink` paints its two halves as one `Text.rich`, so there is no
+/// `Text` widget carrying the link words on their own and `find.text` misses
+/// it entirely. Matching the widget by its `linkLabel` is what makes "Start
+/// again" tappable from a test at all.
+///
+/// [settle] goes false on screens that animate forever — see [pumpBriefly].
+Future<void> tapFooterLink(
+  WidgetTester tester,
+  String linkLabel, {
+  bool settle = true,
+}) async {
+  final finder = find.byWidgetPredicate(
+    (w) => w is AuthFooterLink && w.linkLabel == linkLabel,
+  );
+  await tester.ensureVisible(finder.first);
+  await pumpBriefly(tester);
   await tester.tap(finder.first);
   if (settle) {
     await tester.pumpAndSettle();
