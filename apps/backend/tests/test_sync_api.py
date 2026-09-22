@@ -1,6 +1,6 @@
 """REST and sync contract for #11: owner scope, idempotency and change polling."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from farmable_backend.models import FarmTask, SyncChange
@@ -212,6 +212,52 @@ def test_delete_enforces_optimistic_concurrency(records):
     assert stale.status_code == 409
     assert stale.json()["error"]["code"] == "revision_conflict"
     assert records.client.get(f"{base}/{record_id}").status_code == 200
+
+
+def test_replaying_an_update_mutation_does_not_double_apply(records):
+    base = f"/farms/{records.ids.farm}/tasks"
+    record_id = str(uuid4())
+    created = records.client.post(base, json=create_body(records, "tasks", record_id))
+    assert created.status_code == 200, created.text
+    payload = update_body(records, "tasks")
+    first = records.client.put(f"{base}/{record_id}", json=payload)
+    assert first.status_code == 200, first.text
+    assert first.json()["version"] == 2
+    replay = records.client.put(f"{base}/{record_id}", json=payload)
+    assert replay.status_code == 200, replay.text
+    assert replay.json() == first.json()
+    assert records.client.get(f"{base}/{record_id}").json()["version"] == 2
+    with records.sessions() as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SyncChange)
+                .where(SyncChange.record_id == UUID(record_id), SyncChange.operation == "update")
+            )
+            == 1
+        )
+
+
+def test_replaying_a_delete_mutation_does_not_double_apply(records):
+    base = f"/farms/{records.ids.farm}/tasks"
+    record_id = str(uuid4())
+    created = records.client.post(base, json=create_body(records, "tasks", record_id))
+    assert created.status_code == 200, created.text
+    delete_payload = {"mutation_id": str(uuid4())}
+    first = records.client.post(f"{base}/{record_id}/delete", json=delete_payload)
+    assert first.status_code == 200, first.text
+    replay = records.client.post(f"{base}/{record_id}/delete", json=delete_payload)
+    assert replay.status_code == 200, replay.text
+    assert replay.json() == first.json()
+    with records.sessions() as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SyncChange)
+                .where(SyncChange.record_id == UUID(record_id), SyncChange.operation == "delete")
+            )
+            == 1
+        )
 
 
 def test_mutation_id_reuse_with_different_work_conflicts(records):
