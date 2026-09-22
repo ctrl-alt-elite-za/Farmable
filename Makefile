@@ -73,6 +73,15 @@ check-no-raw-sql:
 client:
 	uv run python scripts/generate_client.py
 
+# Explicitly run after migrations. No fixture directory is scanned by default.
+FORECAST_DIR ?= ml/forecast/results
+.PHONY: forecast-import-latest forecast-activate
+forecast-import-latest:
+	uv run python -m farmable_backend.forecast_cli import-latest --root "$(FORECAST_DIR)"
+
+forecast-activate:
+	uv run python -m farmable_backend.forecast_cli activate --run "$(RUN)"
+
 client-check: client
 	@git diff --exit-code -- packages/api-client || { echo 'client-stale: run make client and commit its output'; exit 1; }
 
