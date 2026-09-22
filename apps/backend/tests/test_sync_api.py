@@ -200,6 +200,20 @@ def test_a_cross_owner_primary_key_collision_is_reported_as_record_conflict(reco
     assert response.json()["error"]["code"] == "record_conflict"
 
 
+def test_delete_enforces_optimistic_concurrency(records):
+    base = f"/farms/{records.ids.farm}/tasks"
+    record_id = str(uuid4())
+    created = records.client.post(base, json=create_body(records, "tasks", record_id))
+    assert created.status_code == 200, created.text
+    stale = records.client.post(
+        f"{base}/{record_id}/delete",
+        json={"mutation_id": str(uuid4()), "expected_version": 2},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "revision_conflict"
+    assert records.client.get(f"{base}/{record_id}").status_code == 200
+
+
 def test_mutation_id_reuse_with_different_work_conflicts(records):
     base = f"/farms/{records.ids.farm}/tasks"
     payload = create_body(records, "tasks")

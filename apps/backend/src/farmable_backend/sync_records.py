@@ -134,6 +134,8 @@ class SyncRecordRepository:
             raise ApiError(404, "not_found")
         if operation == "delete":
             if record.deleted_at is None:
+                if expected_version is not None and expected_version != record.version:
+                    raise ApiError(409, "revision_conflict")
                 record.deleted_at = db_now(self.session)
                 record.version += 1
                 record.sync_state = "synced"

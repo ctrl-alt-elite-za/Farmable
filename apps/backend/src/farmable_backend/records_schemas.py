@@ -158,9 +158,10 @@ def examples(**fields: Any) -> ConfigDict:
 
 
 class RecordDelete(StrictModel):
-    model_config = examples(mutation_id=EXAMPLE_MUTATION)
+    model_config = examples(mutation_id=EXAMPLE_MUTATION, expected_version=1)
 
     mutation_id: UUID
+    expected_version: Version | None = None
 
 
 class SectionCreate(StrictModel):
