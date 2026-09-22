@@ -5,6 +5,18 @@ implemented; real-account acceptance is **not complete**. No accounts, keys,
 quotas, Android restrictions, or Fraud Guard settings have been provisioned or
 verified by this change. Do not close #7 on unit-test results alone.
 
+## Authenticated Gemini Live credentials (#7 follow-up)
+
+`POST /voice/live-session` now provisions a single-use, short-lived credential for
+a verified Farmable user. It is separately disabled by default. See
+[the endpoint contract and acceptance handoff](voice-live.md) for configuration,
+quotas, failure behavior, and the remaining real-provider/Flutter checks.
+This is backend credential provisioning, not a working microphone or voice UI.
+
+The current #7 demo scope prioritizes SMS/email OTP and Gemini/Gemini Live;
+the older PR #36 provider checklist below is historical, not a requirement to
+activate Azure, soil scanning, or every optional provider before the demo.
+
 ## PR #36 scope and acceptance handoff
 
 PR #36 is a **partial adapter foundation**, not completion of issue #7. Its

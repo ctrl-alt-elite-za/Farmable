@@ -100,6 +100,50 @@
         "title": "LiveResponse",
         "type": "object"
       },
+      "LiveSessionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "api_version": {
+            "const": "v1beta",
+            "title": "Api Version",
+            "type": "string"
+          },
+          "credential": {
+            "description": "Ephemeral secret; keep in memory only.",
+            "title": "Credential",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "mode": {
+            "enum": ["live", "fake"],
+            "title": "Mode",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "new_session_expires_at": {
+            "format": "date-time",
+            "title": "New Session Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential",
+          "expires_at",
+          "new_session_expires_at",
+          "model",
+          "api_version",
+          "mode"
+        ],
+        "title": "LiveSessionResponse",
+        "type": "object"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2628,6 +2672,86 @@
           }
         },
         "summary": "Ready"
+      }
+    },
+    "/voice/live-session": {
+      "post": {
+        "operationId": "createLiveSession",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveSessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "SessionBearer": []
+          }
+        ],
+        "summary": "Live Session"
       }
     }
   }

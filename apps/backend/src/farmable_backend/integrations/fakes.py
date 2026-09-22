@@ -72,6 +72,8 @@ class FakeTransport(httpx.AsyncBaseTransport):
                 200, content=example_audio(), headers={"content-type": "audio/wav"}
             )
         payload = self.fixtures["success"][service]
+        if service == "gemini" and request.url.path == "/v1beta/auth_tokens":
+            return httpx.Response(200, json={"name": "auth_tokens/fixture-only-not-a-live-token"})
         if service == "gemini" and request.url.path.endswith(":streamGenerateContent"):
             # Preserve the raw thought/signature part; it is not visible first text.
             thought = {

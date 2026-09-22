@@ -45,6 +45,7 @@ from farmable_backend.schemas import (
     UserResponse,
     VerifyOtpRequest,
 )
+from farmable_backend.voice_api import router as voice_router
 
 
 def _user_response(user: AuthUser) -> UserResponse:
@@ -141,6 +142,7 @@ def create_app(
     app.add_middleware(RecordBodyLimit)
     app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
     app.include_router(records_router)
+    app.include_router(voice_router)
 
     @app.exception_handler(ApiError)
     async def record_error(request: Request, exc: ApiError) -> JSONResponse:
