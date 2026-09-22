@@ -361,6 +361,17 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     offline = stack.index("maestro test e2e/mobile/offline_launch.yaml")
     assert online < stop < offline
 
+    # Maestro drives the device over adb, and stopping the API while the machine
+    # is busy has dropped that connection — the offline flow then dies before
+    # running a command, which looks like a product failure when the app is fine.
+    # The wait must sit between the stop and the offline flow specifically;
+    # anywhere else and it proves nothing about the moment it is needed.
+    assert "await_device()" in stack, "no adb readiness helper"
+    recovery = stack.rindex("await_device")
+    assert stop < recovery < offline, "the wait must sit between the stop and the offline flow"
+    assert "adb wait-for-device" in stack
+    assert "sys.boot_completed" in stack
+
 
 def test_mobile_maestro_flows_wait_for_release_app_startup():
     repo = Path(__file__).resolve().parents[2]
