@@ -48,31 +48,13 @@ if [ "$mode" = e2e-degradation ]; then
   "${compose[@]}" stop database
   "${compose[@]}" run --rm --no-deps tests pytest e2e/degradation -m integration -q -k database_down -p no:cacheprovider
 elif [ "$mode" = mobile ]; then
-  # Maestro drives the emulator over adb. Stopping the API while the machine is
-  # already busy has dropped that connection mid-run: the offline flow then died
-  # with "Command failed (tcp:NNNNN): closed" before executing a single command,
-  # while a screenshot taken at the same moment showed the app running perfectly.
-  #
-  # That reads as a product failure when nothing is wrong with the product, which
-  # is the worst kind of flake — it teaches the team to ignore a red e2e. So wait
-  # for the device to answer again rather than assuming it still can.
-  await_device() {
-    adb wait-for-device
-    for _ in $(seq 1 30); do
-      if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '')" = "1" ]; then
-        return 0
-      fi
-      sleep 2
-    done
-    echo 'e2e-mobile: emulator did not answer adb within 60s' >&2
-    return 1
-  }
-
-  await_device
+  # Every wait is bounded inside the helper — see scripts/await-device.sh
+  # for why adb wait-for-device and each probe each need their own limit.
+  bash scripts/await-device.sh
   adb install -r "${APK:?Set APK to the test-mode Android build}"
   # Prove connectivity, then stop ONLY this invocation's API for offline proof.
   maestro test e2e/mobile/online_launch.yaml
   "${compose[@]}" stop api
-  await_device
+  bash scripts/await-device.sh
   maestro test e2e/mobile/offline_launch.yaml
 fi
