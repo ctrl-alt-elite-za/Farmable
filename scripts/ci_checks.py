@@ -30,6 +30,14 @@ CHECKS = {
     ),
     "codeql": ("See the CodeQL job's analysis", "Resolve the code-scanning finding."),
     "autofix": ("make format && make client", "Apply and commit mechanical changes."),
+    "mobile-test": (
+        "make mobile-checks",
+        "Fix Flutter formatting, analysis, widget tests or the offline-launch smoke.",
+    ),
+    "demo-regression": (
+        "make demo-regression",
+        "Fix the demo journey: section load, preview, replan, approval.",
+    ),
 }
 
 DIAGNOSTICS = {
