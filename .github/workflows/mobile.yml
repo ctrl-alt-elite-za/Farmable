@@ -1,18 +1,12 @@
 name: mobile
 
 on:
+  # No path filter: a workflow that never starts cannot report a required
+  # check, and an unreported required check stays pending and blocks every
+  # unrelated pull request. The mobile-test job gates itself on scopes
+  # instead, and a skipped job is reported and counts as success.
   pull_request:
-    paths:
-      - 'apps/mobile/**'
-      - 'scripts/check-test-mode.sh'
-      - 'scripts/check-arcore-device.sh'
-      - 'scripts/mobile-api.mjs'
-      - 'scripts/test_mobile_contract.py'
-      - 'apps/backend/src/farmable_backend/demo_api/**'
-      - 'apps/backend/src/farmable_backend/planning/**'
-      - 'uv.lock'
-      - 'scripts/tests/mobile-api.test.mjs'
-      - '.github/workflows/mobile.yml'
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -47,6 +41,23 @@ env:
   DEMO_MODE: 'false'
 
 jobs:
+  scopes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      mobile: ${{ steps.paths.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: paths
+        env:
+          # Checkout tests GitHub's synthetic PR merge; its first parent is the
+          # actual tested base, which the event's base SHA can lag behind.
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before || 'HEAD^' }}
+        run: python scripts/ci_scopes.py --base "$BASE"
+
   native-changes:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -77,6 +88,8 @@ jobs:
           fi
 
   mobile-test:
+    needs: scopes
+    if: needs.scopes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -101,11 +114,16 @@ jobs:
         # contrast-verified design.
         run: dart run tool/generate_tokens.dart --verify
         working-directory: apps/mobile
-      - run: dart format --output=none --set-exit-if-changed lib test tool
+      - run: dart format --output=none --set-exit-if-changed .
         working-directory: apps/mobile
       - run: flutter analyze
         working-directory: apps/mobile
       - run: flutter test --exclude-tags demo-api
+        working-directory: apps/mobile
+      - name: Flutter offline-launch smoke
+        # The one launch test that proves Home renders the stored farm with no
+        # backend reachable, named so a failure has an exact local command.
+        run: flutter test --plain-name 'renders the farm with no network and no spinner' test/home_screen_test.dart
         working-directory: apps/mobile
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
