@@ -120,7 +120,9 @@ class FakeStorage:
         assert self.published[attempt.id] == clean.data
         return "42"
 
-    def cleanup(self, upload, attempt, *, keep_clean):
+    def cleanup(self, upload, attempt, *, keep_clean, should_stop=lambda: False):
+        if should_stop():
+            return False
         self.cleaned.append((upload.id, attempt.id, keep_clean))
         return True
 
@@ -535,6 +537,7 @@ def test_storage_disabled_does_not_block_photo_free_writes(records):
         f"/farms/{records.ids.farm}/photo-uploads", json=upload_payload(records)
     )
     assert response.status_code == 503
+    assert response.json()["error"]["code"] == "photo_storage_disabled"
     response = records.client.post(
         f"/farms/{records.ids.farm}/observations", json=observation_payload(records.ids)
     )

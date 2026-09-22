@@ -100,8 +100,14 @@ Internal fixed codes remain in the database for authorized diagnostics.
 
 Photo write admission is 30 requests per authenticated owner per rolling minute,
 shared through PostgreSQL; status reads do not consume that quota. Existing
-peer-IP protection remains. The API admits at most eight synchronous record
-operations per process and holds admission until cancelled work actually finishes.
+peer-IP protection remains. Each API process admits eight synchronous record
+operations and two photo reservations in separate pools. Slow credential discovery,
+bucket checks or signing cannot occupy the record pool. Both pools hold admission
+until cancelled work actually finishes. Credential discovery has one in-flight
+initializer; other reservations receive a retryable 503 immediately. Failed
+initialization is retried only after a 30-second cooldown. Disabled storage is
+cached until restart and returns `photo_storage_disabled`; ordinary records remain
+available.
 
 Two photo slots in the existing worker process discover committed intents at
 startup and repeatedly. No client resend or successful broker notification is
@@ -109,6 +115,10 @@ needed after a worker restart. Claims use 120-second leases, renewed every 30
 seconds. Stale claims cannot finalize. Transient errors have three retries after
 the first attempt (5, 30, 120 seconds); crashed claims consume the same persisted
 budget. Failed status records remain visible to their owner.
+Signer configuration, credential-kind and bucket-privacy configuration failures
+are recoverable deployment failures. Privacy checks still reject all unsafe
+operations; after correcting the deployment, explicit retry preserves the same
+logical photo identity even if its processing budget was exhausted.
 
 The worker pins the incoming object generation, decodes and sanitizes actual
 pixels, then creates a separate private clean object. Replayed forms cannot write
@@ -122,6 +132,10 @@ or completion and until issued forms are expired. It preserves referenced ready
 clean objects and database idempotency history. Each storage cleanup handles at
 most 100 generations before yielding for a later pass. Bucket-wide versioning
 and retention policies are not changed.
+Shutdown stops admission of further cleanup attempts and generation deletions.
+The current SDK call may still finish within its transport/retry budget; this is
+cooperative cancellation, not a guaranteed container-grace-period deadline.
+An interrupted cleanup remains unfinished and can resume on a later worker pass.
 
 ## Configuration and rollout prerequisites
 

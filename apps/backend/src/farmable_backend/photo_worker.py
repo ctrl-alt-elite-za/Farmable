@@ -101,15 +101,27 @@ class PhotoWorker:
             await self.pause(5)
 
     def clean_batch(self):
+        if self.stop.is_set():
+            return
         for upload_id, attempt_id in self.jobs.cleanup_candidates():
+            if self.stop.is_set():
+                break
             claimed = self.jobs.cleanup_claim(upload_id, attempt_id)
             if claimed is None:
                 continue
             upload, attempt, keep_clean = claimed
             try:
+                if self.stop.is_set():
+                    self.jobs.cleanup_finish(upload.id, attempt.id, attempt.cleanup_token, False)
+                    break
                 storage = self.get_storage()
+                if self.stop.is_set():
+                    self.jobs.cleanup_finish(upload.id, attempt.id, attempt.cleanup_token, False)
+                    break
                 storage.private()
-                done = storage.cleanup(upload, attempt, keep_clean=keep_clean)
+                done = storage.cleanup(
+                    upload, attempt, keep_clean=keep_clean, should_stop=self.stop.is_set
+                )
                 self.jobs.cleanup_finish(upload.id, attempt.id, attempt.cleanup_token, done)
             except Exception:
                 logger.error("Photo cleanup deferred")

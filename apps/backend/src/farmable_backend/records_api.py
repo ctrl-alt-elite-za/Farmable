@@ -2,6 +2,7 @@
 
 import asyncio
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from functools import partial
@@ -40,19 +41,30 @@ class RecordRuntime:
         self.storage_factory = storage_factory
         self.storage = None
         self.storage_lock = threading.Lock()
+        self.storage_initialized = False
+        self.storage_initializing = False
+        self.storage_retry_at = 0.0
         self.slots = threading.BoundedSemaphore(8)
         self.executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="farmable-records")
+        self.photo_slots = threading.BoundedSemaphore(2)
+        self.photo_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="farmable-forms")
 
     async def call(self, function, *args, **kwargs):
-        if not self.slots.acquire(blocking=False):
+        return await self._call(self.executor, self.slots, function, *args, **kwargs)
+
+    async def call_photo(self, function, *args, **kwargs):
+        return await self._call(self.photo_executor, self.photo_slots, function, *args, **kwargs)
+
+    async def _call(self, executor, slots, function, *args, **kwargs):
+        if not slots.acquire(blocking=False):
             raise ApiError(503, "capacity_unavailable", 1)
         try:
-            future = self.executor.submit(partial(copy_context().run, function, *args, **kwargs))
+            future = executor.submit(partial(copy_context().run, function, *args, **kwargs))
         except BaseException:
-            self.slots.release()
+            slots.release()
             raise
         # Cancellation does not release a slot while its thread is still running.
-        future.add_done_callback(lambda _: self.slots.release())
+        future.add_done_callback(lambda _: slots.release())
         try:
             return await asyncio.wrap_future(future)
         except RecordNotFoundError:
@@ -62,16 +74,41 @@ class RecordRuntime:
         except (OperationalError, DatabaseTimeout, UploadError):
             raise ApiError(503, "dependency_unavailable", 5) from None
 
+    def get_storage(self):
+        # Never hold this lock across credential discovery/network I/O. Other
+        # reservations fail promptly while one bootstrap is pending or cooling down.
+        with self.storage_lock:
+            if self.storage_initialized:
+                if self.storage is None:
+                    raise ApiError(503, "photo_storage_disabled")
+                return self.storage
+            if self.storage_initializing:
+                raise ApiError(503, "dependency_unavailable", 1)
+            if time.monotonic() < self.storage_retry_at:
+                raise ApiError(503, "dependency_unavailable", 30)
+            self.storage_initializing = True
+        try:
+            storage = self.storage_factory()
+        except Exception:
+            with self.storage_lock:
+                self.storage_retry_at = time.monotonic() + 30
+            raise ApiError(503, "dependency_unavailable", 30) from None
+        else:
+            with self.storage_lock:
+                self.storage = storage
+                self.storage_initialized = True
+        finally:
+            with self.storage_lock:
+                self.storage_initializing = False
+        if storage is None:
+            raise ApiError(503, "photo_storage_disabled")
+        return storage
+
     def reserve(self, authorization, farm_id, payload):
         view, upload, attempt = self.service.reserve(authorization, farm_id, payload)
         if view.state != "awaiting_upload":
             return view
-        with self.storage_lock:
-            if self.storage is None:
-                self.storage = self.storage_factory()
-            storage = self.storage
-        if storage is None:
-            raise ApiError(503, "photo_storage_disabled")
+        storage = self.get_storage()
         form = storage.prepare(upload, attempt)
         self.service.upload(authorization, farm_id, upload.id, expected_attempt=attempt.id)
         view.form = SignedForm(url=form.url, fields=form.fields, expires_at=attempt.form_expires_at)
@@ -79,6 +116,7 @@ class RecordRuntime:
 
     def close(self):
         self.executor.shutdown(wait=True, cancel_futures=True)
+        self.photo_executor.shutdown(wait=True, cancel_futures=True)
         if self.storage is not None:
             self.storage.close()
 
@@ -217,7 +255,7 @@ async def create_observation(request: Request, farm_id: UUID, payload: Observati
 async def reserve_photo(request: Request, response: Response, farm_id: UUID, payload: UploadCreate):
     response.headers["Cache-Control"] = "no-store"
     worker = runtime(request)
-    return await worker.call(worker.reserve, token(request), farm_id, payload)
+    return await worker.call_photo(worker.reserve, token(request), farm_id, payload)
 
 
 @router.get(

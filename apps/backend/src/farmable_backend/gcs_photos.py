@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -198,7 +199,9 @@ class GcsPhotos:
         except (cloud_errors.GoogleAPICallError, GoogleAuthError, RequestException):
             raise UploadError("storage_unavailable") from None
 
-    def cleanup(self, upload, attempt, *, keep_clean: bool) -> bool:
+    def cleanup(
+        self, upload, attempt, *, keep_clean: bool, should_stop: Callable[[], bool] = lambda: False
+    ) -> bool:
         """At most 100 generations; exact-name checks protect siblings/prefixes."""
         try:
             keys = [incoming_key(upload, attempt)]
@@ -206,6 +209,8 @@ class GcsPhotos:
                 keys.append(clean_key(upload, attempt))
             remaining = 100
             for key in keys:
+                if should_stop():
+                    return False
                 blobs = self.client.list_blobs(
                     self.bucket,
                     prefix=key,
@@ -216,6 +221,8 @@ class GcsPhotos:
                     retry=retry_policy(),
                 )
                 for blob in blobs:
+                    if should_stop():
+                        return False
                     if blob.name != key:
                         continue
                     if remaining == 0:

@@ -127,7 +127,7 @@ def test_retry_checks_scope_unknown_attempts_strict_input_and_quota(records):
         ("retry_exhausted", "temporarily_unavailable", True),
         ("scope_unavailable", "target_unavailable", False),
         ("photo_dimensions_too_large", "invalid_photo", False),
-        ("private_bucket_required", "upload_failed", False),
+        ("private_bucket_required", "temporarily_unavailable", True),
         ("provider-secret-detail", "upload_failed", False),
     ],
 )

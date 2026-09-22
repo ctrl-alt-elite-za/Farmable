@@ -3,6 +3,7 @@
 import base64
 import json
 import logging
+import threading
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -149,6 +150,26 @@ def test_cleanup_pages_are_bounded(gcs):
     gcs.client.list_blobs.return_value = objects
     assert not gcs.adapter.cleanup(gcs.upload, gcs.attempt, keep_clean=True)
     assert sum(blob.delete.call_count for blob in objects) == 100
+
+
+def test_cleanup_stop_does_not_delete_more_generations_or_list_other_keys(gcs):
+    stop = threading.Event()
+    first, second = Mock(), Mock()
+    first.name = second.name = incoming_key(gcs.upload, gcs.attempt)
+    first.generation, second.generation = 1, 2
+    first.delete.side_effect = lambda **kwargs: stop.set()
+    gcs.client.list_blobs.return_value = [first, second]
+    assert not gcs.adapter.cleanup(
+        gcs.upload, gcs.attempt, keep_clean=False, should_stop=stop.is_set
+    )
+    first.delete.assert_called_once()
+    second.delete.assert_not_called()
+    gcs.client.list_blobs.assert_called_once()
+    gcs.client.reset_mock()
+    assert not gcs.adapter.cleanup(
+        gcs.upload, gcs.attempt, keep_clean=False, should_stop=stop.is_set
+    )
+    gcs.client.list_blobs.assert_not_called()
 
 
 def test_missing_input_is_retryable_not_raw_sdk_error(gcs):

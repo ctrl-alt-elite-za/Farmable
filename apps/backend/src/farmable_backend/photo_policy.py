@@ -15,6 +15,7 @@ TRANSIENT_ERRORS = frozenset(
         "incoming_missing",
         "storage_unavailable",
         "private_bucket_unverified",
+        "private_bucket_required",
         "signer_required",
         "workload_credentials_required",
     }

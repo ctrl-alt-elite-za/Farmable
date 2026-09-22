@@ -2,8 +2,9 @@
 
 `create_gcs_photos` reports a bad `PHOTO_SIGNER_EMAIL` or the wrong credential
 kind by raising `UploadError`, the same channel the adapters use for storage
-faults. Those two codes describe the *deployment*, not the photo, and they are
-fixed by an operator editing configuration — so they must be retryable.
+faults and missing bucket privacy controls. These codes describe the *deployment*,
+not the photo, and are fixed by an operator editing configuration — so they must
+be retryable.
 
 Classifying them as permanent loses the photo twice over: the worker marks the
 upload `failed` on its first pass, and because the code is then absent from
@@ -16,19 +17,20 @@ the window in which this happens is first-time GCS setup.
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from farmable_backend.models import PhotoAttempt, PhotoUpload
+from farmable_backend.models import Media, PhotoAttempt, PhotoUpload
 from farmable_backend.photo_policy import (
     MAX_CLAIMS,
     RECOVERABLE_ERRORS,
     TRANSIENT_ERRORS,
     public_photo_error,
 )
+from sqlalchemy import func, select
 from test_records_api import process, queue, reserve
 
 pytest_plugins = ("test_records_api",)
 
-# Raised by create_gcs_photos: gcs_photos.py signer/credential validation.
-CONFIG_ERRORS = ("signer_required", "workload_credentials_required")
+# Raised by the GCS adapter's signer, credential and bucket privacy validation.
+CONFIG_ERRORS = ("signer_required", "workload_credentials_required", "private_bucket_required")
 
 
 @pytest.mark.parametrize("code", CONFIG_ERRORS)
@@ -58,7 +60,7 @@ def test_misconfigured_deployment_requeues_rather_than_failing(records, code):
 def test_photo_survives_a_whole_misconfigured_budget(records, code):
     """Even after every claim is spent, the farmer can still recover the photo
     once the operator fixes the configuration — the identity is not burned."""
-    _, _, upload, attempt = queue(records)
+    payload, _, upload, attempt = queue(records)
     records.storage.failure = code
     for _ in range(MAX_CLAIMS):
         process(records, records.jobs.claim(upload.id))
@@ -75,6 +77,21 @@ def test_photo_survives_a_whole_misconfigured_budget(records, code):
     recovered = records.client.post(f"{path}/retry", json={"failed_attempt_id": view["attempt_id"]})
     assert recovered.status_code == 200
     assert recovered.json()["state"] == "awaiting_upload"
+    for key in ("upload_id", "mutation_id", "entity_id", "owner_id", "farm_id"):
+        assert recovered.json()[key] == view[key]
+    records.storage.failure = None
+    replay, _, successor = records.service.reserve(
+        records.ids.authorization, records.ids.farm, payload
+    )
+    assert replay.attempt_id != attempt.id
+    assert successor.attempt_count == 0
+    records.service.upload(records.ids.authorization, records.ids.farm, upload.id, complete=True)
+    process(records, records.jobs.claim(upload.id))
+    ready = records.client.get(path).json()
+    assert ready["state"] == "ready"
+    assert ready["cloud_media_id"] == str(upload.media_id)
+    with records.sessions() as session:
+        assert session.scalar(select(func.count()).select_from(Media)) == 1
 
 
 @pytest.mark.parametrize("code", CONFIG_ERRORS)
