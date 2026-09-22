@@ -133,6 +133,28 @@ def test_refresh_rotates_a_session(settings):
     test_client.close()
 
 
+def test_logout_revokes_the_current_session_and_is_idempotent(settings):
+    test_client, _, session = verified_account(settings)
+
+    logout = test_client.post("/auth/logout", json={"refresh_token": session["refresh_token"]})
+    assert logout.status_code == 204
+    assert (
+        test_client.post(
+            "/auth/refresh", json={"refresh_token": session["refresh_token"]}
+        ).status_code
+        == 401
+    )
+
+    # Logout must not disclose whether a token was already revoked or unknown.
+    assert (
+        test_client.post(
+            "/auth/logout", json={"refresh_token": session["refresh_token"]}
+        ).status_code
+        == 204
+    )
+    test_client.close()
+
+
 def _database_auth():
     engine = create_engine("sqlite://")
     Base.metadata.create_all(

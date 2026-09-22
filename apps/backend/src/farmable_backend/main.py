@@ -32,6 +32,7 @@ from farmable_backend.schemas import (
     ErrorResponse,
     LiveResponse,
     LoginRequest,
+    LogoutRequest,
     ReadyResponse,
     RefreshRequest,
     ResendOtpRequest,
@@ -201,6 +202,10 @@ def create_app(
     @app.post("/auth/refresh", response_model=SessionResponse, operation_id="authRefresh")
     async def refresh(request: Request, payload: RefreshRequest) -> SessionResponse:
         return _session_response(await call_auth(auth(request).refresh, payload.refresh_token))
+
+    @app.post("/auth/logout", status_code=204, operation_id="authLogout")
+    async def logout(request: Request, payload: LogoutRequest) -> None:
+        await call_auth(auth(request).revoke, payload.refresh_token)
 
     @app.get("/health/live", response_model=LiveResponse, operation_id="healthLive")
     async def live(request: Request) -> LiveResponse:

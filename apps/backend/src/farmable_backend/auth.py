@@ -270,6 +270,22 @@ class AuthService:
                 raise AuthError("invalid_session", 401)
             return self._new_session(session, user)
 
+    def revoke(self, refresh_token: str) -> None:
+        """Revoke the session identified by a refresh token.
+
+        Logout is deliberately idempotent: an already-revoked, expired, or
+        unknown token must not reveal whether it was ever a valid session.
+        """
+        with self.sessions.begin() as session:
+            session.execute(
+                update(AuthSession)
+                .where(
+                    AuthSession.refresh_token_hash == _hash_token(refresh_token),
+                    AuthSession.revoked_at.is_(None),
+                )
+                .values(revoked_at=_now())
+            )
+
     def _send(self, session: Session, user: AuthIdentity, channel: Channel) -> None:
         recent = session.scalars(
             select(VerificationChallenge).where(
@@ -393,6 +409,9 @@ class InMemoryAuthService:
         if user_id is None:
             raise AuthError("invalid_session", 401)
         return self._new_session(user_id)
+
+    def revoke(self, refresh_token: str) -> None:
+        self.sessions.pop(_hash_token(refresh_token), None)
 
     def _new_session(self, user_id: UUID) -> SessionTokens:
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(48)

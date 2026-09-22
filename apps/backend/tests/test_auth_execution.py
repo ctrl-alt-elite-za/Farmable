@@ -36,7 +36,7 @@ class BlockingAuth:
             with self.lock:
                 self.active -= 1
 
-    signup = verify = resend = login = refresh = call
+    signup = verify = resend = login = refresh = revoke = call
 
 
 @pytest.mark.parametrize(
@@ -57,6 +57,7 @@ class BlockingAuth:
         ("otp/resend", {"user_id": str(uuid4()), "channel": "phone"}),
         ("login", {"identifier": "test@example.com", "password": "synthetic"}),
         ("refresh", {"refresh_token": "synthetic-refresh-token-for-test"}),
+        ("logout", {"refresh_token": "synthetic-refresh-token-for-test"}),
     ],
 )
 def test_health_stays_responsive_during_auth(settings, path, payload):

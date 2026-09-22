@@ -58,6 +58,10 @@ class RefreshRequest(StrictModel):
     refresh_token: str = Field(min_length=20, max_length=512)
 
 
+class LogoutRequest(StrictModel):
+    refresh_token: str = Field(min_length=20, max_length=512)
+
+
 class AuthProgressResponse(StrictModel):
     user_id: UUID
     next_step: Literal["phone", "email"]
