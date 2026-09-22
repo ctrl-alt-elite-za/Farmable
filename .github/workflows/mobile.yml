@@ -94,7 +94,7 @@ jobs:
     # skipped required check is reported as success, so a broken or failed
     # scopes job would silently let mobile changes through the gate. Running
     # the full check whenever scopes did not succeed removes that hole.
-    if: needs.scopes.result != 'success' || needs.scopes.outputs.mobile == 'true'
+    if: ${{ !cancelled() && (needs.scopes.result != 'success' || needs.scopes.outputs.mobile == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

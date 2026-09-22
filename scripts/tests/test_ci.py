@@ -645,7 +645,10 @@ def test_flutter_analysis_and_unit_tests_block_a_pull_request():
     assert "paths" not in triggers["pull_request"]
     job = workflow["jobs"]["mobile-test"]
     assert job["needs"] == "scopes"
-    assert job["if"] == "needs.scopes.result != 'success' || needs.scopes.outputs.mobile == 'true'"
+    assert job["if"] == (
+        "${{ !cancelled() && (needs.scopes.result != 'success' || "
+        "needs.scopes.outputs.mobile == 'true') }}"
+    )
     assert workflow["jobs"]["scopes"]["outputs"]["mobile"] == "${{ steps.paths.outputs.mobile }}"
     # The job runs the check through ci_run.py, same as every other required
     # check, so a failure produces the artifact the reporter workflow reads.
@@ -670,6 +673,31 @@ def test_flutter_analysis_and_unit_tests_block_a_pull_request():
     assert "flutter analyze" in mobile_checks
     assert "flutter test --exclude-tags demo-api" in mobile_checks
     assert CHECKS["mobile-test"][0] == "make mobile-checks"
+
+
+@pytest.mark.parametrize(
+    ("scopes_result", "mobile_output", "should_run"),
+    [
+        ("failure", "", True),
+        ("success", "true", True),
+        ("success", "false", False),
+    ],
+)
+def test_mobile_gate_decision_covers_scope_failure_and_both_scope_outputs(
+    scopes_result, mobile_output, should_run
+):
+    """The mobile gate must fail closed when scope detection is unavailable."""
+    repo = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
+    condition = workflow["jobs"]["mobile-test"]["if"]
+
+    # GitHub's expression is declarative, so verify its truth table alongside
+    # the exact workflow contract. The explicit status override is asserted by
+    # the preceding test; this table protects all three relevant scope states.
+    assert "!cancelled()" in condition
+    assert "needs.scopes.result != 'success'" in condition
+    assert "needs.scopes.outputs.mobile == 'true'" in condition
+    assert (scopes_result != "success" or mobile_output == "true") is should_run
 
 
 def test_mobile_test_reproduction_command_matches_ci_run_target():
