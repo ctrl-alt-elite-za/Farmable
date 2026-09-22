@@ -384,6 +384,121 @@
         "title": "ObservationView",
         "type": "object"
       },
+      "Outlook": {
+        "additionalProperties": false,
+        "properties": {
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "break_even_price_per_kg": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Break Even Price Per Kg",
+            "type": "string"
+          },
+          "cost_per_ha": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Per Ha",
+            "type": "string"
+          },
+          "crop": {
+            "enum": [
+              "butternut",
+              "cabbage",
+              "carrots",
+              "green_beans",
+              "onions",
+              "potatoes",
+              "spinach",
+              "tomatoes"
+            ],
+            "title": "Crop",
+            "type": "string"
+          },
+          "currency": {
+            "const": "ZAR",
+            "default": "ZAR",
+            "title": "Currency",
+            "type": "string"
+          },
+          "data_kind": {
+            "enum": ["synthetic", "historical"],
+            "title": "Data Kind",
+            "type": "string"
+          },
+          "forecast_as_of": {
+            "format": "date-time",
+            "title": "Forecast As Of",
+            "type": "string"
+          },
+          "harvest_month": {
+            "title": "Harvest Month",
+            "type": "integer"
+          },
+          "method": {
+            "enum": ["fixture", "historical_range", "lightgbm"],
+            "title": "Method",
+            "type": "string"
+          },
+          "plant_month": {
+            "title": "Plant Month",
+            "type": "integer"
+          },
+          "price_basis_year": {
+            "const": 2025,
+            "default": 2025,
+            "title": "Price Basis Year",
+            "type": "integer"
+          },
+          "price_range": {
+            "$ref": "#/components/schemas/PriceRange"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          },
+          "weather_risk": {
+            "$ref": "#/components/schemas/UnavailableWeather"
+          },
+          "yield_kg_per_ha": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Yield Kg Per Ha",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "data_kind",
+          "warning",
+          "forecast_as_of",
+          "crop",
+          "plant_month",
+          "harvest_month",
+          "price_range",
+          "method",
+          "cost_per_ha",
+          "yield_kg_per_ha",
+          "break_even_price_per_kg",
+          "weather_risk",
+          "assumptions"
+        ],
+        "title": "Outlook",
+        "type": "object"
+      },
       "Page_FarmView_": {
         "additionalProperties": false,
         "properties": {
@@ -463,6 +578,35 @@
         },
         "required": ["items", "next_cursor"],
         "title": "Page[SectionView]",
+        "type": "object"
+      },
+      "PriceRange": {
+        "additionalProperties": false,
+        "properties": {
+          "p10": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P10",
+            "type": "string"
+          },
+          "p50": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P50",
+            "type": "string"
+          },
+          "p90": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P90",
+            "type": "string"
+          },
+          "unit": {
+            "const": "ZAR/kg",
+            "default": "ZAR/kg",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": ["p10", "p50", "p90"],
+        "title": "PriceRange",
         "type": "object"
       },
       "ReadyResponse": {
@@ -679,6 +823,28 @@
         },
         "required": ["url", "fields", "expires_at"],
         "title": "SignedForm",
+        "type": "object"
+      },
+      "UnavailableWeather": {
+        "additionalProperties": false,
+        "properties": {
+          "reasons": {
+            "default": ["climatology_not_computed"],
+            "items": {
+              "const": "climatology_not_computed",
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "status": {
+            "const": "unavailable",
+            "default": "unavailable",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "UnavailableWeather",
         "type": "object"
       },
       "UploadCreate": {
@@ -2672,6 +2838,138 @@
           }
         },
         "summary": "Ready"
+      }
+    },
+    "/outlook": {
+      "get": {
+        "operationId": "getCropOutlook",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "section_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Section Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "crop",
+            "required": true,
+            "schema": {
+              "enum": [
+                "butternut",
+                "cabbage",
+                "carrots",
+                "green_beans",
+                "onions",
+                "potatoes",
+                "spinach",
+                "tomatoes"
+              ],
+              "title": "Crop",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "plant_month",
+            "required": true,
+            "schema": {
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Plant Month",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Outlook"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "SessionBearer": []
+          }
+        ],
+        "summary": "Get Outlook"
       }
     },
     "/voice/live-session": {
