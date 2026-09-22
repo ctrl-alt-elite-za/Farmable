@@ -277,6 +277,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/voice/live-session': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Live Session */
+    post: operations['createLiveSession'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -342,6 +359,36 @@ export interface components {
        * @constant
        */
       status: 'ok';
+    };
+    /** LiveSessionResponse */
+    LiveSessionResponse: {
+      /**
+       * Api Version
+       * @constant
+       */
+      api_version: 'v1beta';
+      /**
+       * Credential
+       * @description Ephemeral secret; keep in memory only.
+       */
+      credential: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Mode
+       * @enum {string}
+       */
+      mode: 'live' | 'fake';
+      /** Model */
+      model: string;
+      /**
+       * New Session Expires At
+       * Format: date-time
+       */
+      new_session_expires_at: string;
     };
     /** LoginRequest */
     LoginRequest: {
@@ -2017,6 +2064,72 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ReadyResponse'];
+        };
+      };
+    };
+  };
+  createLiveSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LiveSessionResponse'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
         };
       };
     };

@@ -618,6 +618,14 @@ class PhotoAttempt(Base):
     cleaned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class VoiceSessionRate(Base):
+    __tablename__ = "voice_session_rates"
+    owner_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    hits: Mapped[list[float]] = mapped_column(JSON_DOCUMENT)
+
+
 class PhotoRate(Base):
     __tablename__ = "photo_rates"
     owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id"), primary_key=True)

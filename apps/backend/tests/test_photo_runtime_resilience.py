@@ -18,11 +18,13 @@ pytest_plugins = ("test_records_api",)
 
 
 def test_slow_signed_forms_leave_record_http_routes_available(records, monkeypatch):
-    first, second, release = threading.Event(), threading.Event(), threading.Event()
+    first, second = threading.Event(), threading.Event()
+    release_first, release_second = threading.Event(), threading.Event()
     original = records.storage.prepare
 
     def blocked(*args):
-        (second if first.is_set() else first).set()
+        entered, release = (second, release_second) if first.is_set() else (first, release_first)
+        entered.set()
         assert release.wait(10)
         return original(*args)
 
@@ -45,10 +47,15 @@ def test_slow_signed_forms_leave_record_http_routes_available(records, monkeypat
                 f"/farms/{records.ids.farm}/observations", json=observation_payload(records.ids)
             )
             assert created.status_code == 200
+            # Both provider calls remain concurrent above. Serialize their DB
+            # completions too: this fixture shares one in-memory SQLite connection.
+            release_first.set()
+            assert a.result(timeout=5).status_code == 200
+            release_second.set()
+            assert b.result(timeout=5).status_code == 200
         finally:
-            release.set()
-        assert a.result(timeout=5).status_code == 200
-        assert b.result(timeout=5).status_code == 200
+            release_first.set()
+            release_second.set()
 
 
 def test_cancelled_photo_request_keeps_its_slot_until_the_thread_finishes():

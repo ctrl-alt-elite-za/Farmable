@@ -6,6 +6,7 @@ from .base import Adapter
 from .crop_health import CropHealth
 from .fakes import FakeMode, FakeTransport
 from .gemini import Gemini
+from .gemini_live import GeminiLive
 from .maps import Maps
 from .open_meteo import OpenMeteo
 from .settings import ServiceSettings
@@ -35,6 +36,7 @@ class ServiceRegistry:
         self.azure_stt = AzureStt("azure_stt", self.client, settings)
         self.azure_tts = AzureTts("azure_tts", self.client, settings)
         self.gemini = Gemini("gemini", self.client, settings)
+        self.gemini_live = GeminiLive(self.client, settings)
         self.crop_health = CropHealth("crop_health", self.client, settings)
         self.soilgrids = SoilGrids("soilgrids", self.client, settings)
         self.open_meteo = OpenMeteo("open_meteo", self.client, settings)

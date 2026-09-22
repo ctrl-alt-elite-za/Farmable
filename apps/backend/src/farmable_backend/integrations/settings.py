@@ -55,6 +55,10 @@ class ServiceSettings(BaseSettings):
     gemini_model: str | None = Field(
         default=None, pattern=r"^[a-zA-Z0-9._-]{1,128}$", max_length=128
     )
+    gemini_live_enabled: bool = False
+    gemini_live_model: str | None = Field(
+        default=None, pattern=r"^[a-zA-Z0-9._-]{1,128}$", max_length=128
+    )
     crop_health_api_key: SecretStr | None = Field(default=None, repr=False)
     maps_server_api_key: SecretStr | None = Field(default=None, repr=False)
 
