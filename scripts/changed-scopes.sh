@@ -39,7 +39,7 @@ for dir in $changed_dirs; do
       if command -v flutter >/dev/null; then
         # Generated from design/tokens.css — catch drift before it is pushed.
         (cd apps/mobile && dart run tool/generate_tokens.dart --verify) || status=1
-        (cd apps/mobile && dart format --output=none --set-exit-if-changed lib test tool) || status=1
+        (cd apps/mobile && dart format --output=none --set-exit-if-changed .) || status=1
         (cd apps/mobile && flutter analyze) || status=1
         (cd apps/mobile && flutter test --exclude-tags demo-api) || status=1
       else
