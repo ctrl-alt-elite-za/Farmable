@@ -664,6 +664,63 @@ export interface components {
        */
       user_id: string;
     };
+    /** AvailableWeather */
+    AvailableWeather: {
+      /**
+       * Basis
+       * @default historical_weather_exposure
+       * @constant
+       */
+      basis: 'historical_weather_exposure';
+      /**
+       * Computed At
+       * Format: date-time
+       */
+      computed_at: string;
+      /**
+       * Data Kind
+       * @enum {string}
+       */
+      data_kind: 'historical' | 'synthetic';
+      event_years: components['schemas']['WeatherEventYears'];
+      /** First Planting Year */
+      first_planting_year: number;
+      /** Growing Days */
+      growing_days: number;
+      /** Last Planting Year */
+      last_planting_year: number;
+      /** Policy Sha256 */
+      policy_sha256: string;
+      /** Policy Version */
+      policy_version: string;
+      /** Reasons */
+      reasons: ('frost' | 'heat_stress' | 'dry_spell')[];
+      shares: components['schemas']['WeatherShares'];
+      /**
+       * Source
+       * @enum {string}
+       */
+      source: 'Open-Meteo ERA5' | 'synthetic fixture';
+      /** Source Sha256 */
+      source_sha256: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      status: 'available';
+      /** Thresholds */
+      thresholds: {
+        [key: string]: number;
+      };
+      /** Warning */
+      warning: string;
+      /**
+       * Years Observed
+       * @default 15
+       * @constant
+       */
+      years_observed: 15;
+    };
     /** ChangePage */
     ChangePage: {
       /** Items */
@@ -1190,7 +1247,9 @@ export interface components {
       run_id: string;
       /** Warning */
       warning: string | null;
-      weather_risk: components['schemas']['UnavailableWeather'];
+      /** Weather Risk */
+      weather_risk:
+        components['schemas']['AvailableWeather'] | components['schemas']['UnavailableWeather'];
       /** Yield Kg Per Ha */
       yield_kg_per_ha: string;
     };
@@ -1998,9 +2057,8 @@ export interface components {
        */
       reasons: 'climatology_not_computed'[];
       /**
-       * Status
-       * @default unavailable
-       * @constant
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
        */
       status: 'unavailable';
     };
@@ -2116,6 +2174,24 @@ export interface components {
        * Format: uuid
        */
       user_id: string;
+    };
+    /** WeatherEventYears */
+    WeatherEventYears: {
+      /** Dry Spell */
+      dry_spell: number;
+      /** Frost */
+      frost: number;
+      /** Heat Stress */
+      heat_stress: number;
+    };
+    /** WeatherShares */
+    WeatherShares: {
+      /** Dry Spell */
+      dry_spell: number;
+      /** Frost */
+      frost: number;
+      /** Heat Stress */
+      heat_stress: number;
     };
   };
   responses: never;

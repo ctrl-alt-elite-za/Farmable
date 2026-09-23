@@ -18,10 +18,10 @@ from farmable_backend.forecast_contract import (
     Mode,
     Outlook,
     PriceRange,
-    UnavailableWeather,
 )
 from farmable_backend.models import Farm, ForecastRun, ForecastState, Section
 from farmable_backend.record_access import ApiError, authenticate, db_now
+from farmable_backend.weather_outlook import cached_weather
 
 MAX_BUNDLE_BYTES = 1_048_576
 
@@ -143,7 +143,13 @@ def activate(sessions, run_id: str, mode: Mode) -> None:
 
 
 def outlook(
-    sessions, authorization: str | None, section_id: UUID, crop: Crop, plant_month: int, mode: Mode
+    sessions,
+    authorization: str | None,
+    section_id: UUID,
+    crop: Crop,
+    plant_month: int,
+    mode: Mode,
+    integrations_mode: str = "disabled",
 ) -> Outlook:
     with sessions() as session:
         owner = authenticate(session, authorization)
@@ -195,6 +201,8 @@ def outlook(
             break_even_price_per_kg=(row.cost_per_ha / row.yield_kg_per_ha).quantize(
                 Decimal("0.0001"), rounding=ROUND_HALF_UP
             ),
-            weather_risk=UnavailableWeather(),
+            weather_risk=cached_weather(
+                session, section.boundary, crop, plant_month, integrations_mode
+            ),
             assumptions=bundle.assumptions,
         )

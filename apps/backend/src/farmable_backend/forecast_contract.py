@@ -6,6 +6,7 @@ from typing import Annotated, Literal, get_args
 from pydantic import AwareDatetime, Field, StrictInt, StringConstraints
 
 from farmable_backend.schemas import StrictModel
+from farmable_backend.weather_contract import AvailableWeather, UnavailableWeather
 
 Crop = Literal[
     "butternut", "cabbage", "carrots", "green_beans", "onions", "potatoes", "spinach", "tomatoes"
@@ -61,11 +62,6 @@ class PriceRange(StrictModel):
     unit: Literal["ZAR/kg"] = "ZAR/kg"
 
 
-class UnavailableWeather(StrictModel):
-    status: Literal["unavailable"] = "unavailable"
-    reasons: list[Literal["climatology_not_computed"]] = ["climatology_not_computed"]
-
-
 class Outlook(StrictModel):
     run_id: str
     data_kind: Kind
@@ -81,5 +77,5 @@ class Outlook(StrictModel):
     cost_per_ha: Decimal
     yield_kg_per_ha: Decimal
     break_even_price_per_kg: Decimal
-    weather_risk: UnavailableWeather
+    weather_risk: Annotated[AvailableWeather | UnavailableWeather, Field(discriminator="status")]
     assumptions: list[str]

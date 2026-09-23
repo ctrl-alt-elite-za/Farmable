@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from farmable_backend.models import Farm, FarmTask, Observation, Planting, Section, User
+from farmable_backend.weather_jobs import enqueue_weather
 
 DEMO_OWNER_ID = UUID("10000000-0000-4000-8000-000000000001")
 DEMO_FARM_ID = UUID("10000000-0000-4000-8000-000000000002")
@@ -27,6 +28,16 @@ def seed_demo_farm(session: Session) -> Farm:
     if existing is not None:
         if existing.owner_id != DEMO_OWNER_ID or existing.name != "Mahlangu Demo Farm":
             raise DemoSeedConflictError("the demo farm id is already in use")
+        for section_id in (DEMO_CABBAGE_SECTION_ID, DEMO_NORTH_SECTION_ID):
+            section = session.get(Section, section_id)
+            if (
+                section is not None
+                and section.owner_id == DEMO_OWNER_ID
+                and section.farm_id == DEMO_FARM_ID
+                and existing.deleted_at is None
+                and section.deleted_at is None
+            ):
+                enqueue_weather(session, section.boundary)
         return existing
 
     owner = session.get(User, DEMO_OWNER_ID)
@@ -45,6 +56,7 @@ def seed_demo_farm(session: Session) -> Farm:
         farm_id=farm.id,
         owner_id=DEMO_OWNER_ID,
         name="Cabbage Field",
+        boundary={"type": "Point", "coordinates": [28.3, -25.4]},
         area_m2=Decimal("400.00"),
         sync_state="synced",
     )
@@ -53,6 +65,7 @@ def seed_demo_farm(session: Session) -> Farm:
         farm_id=farm.id,
         owner_id=DEMO_OWNER_ID,
         name="North Plot",
+        boundary={"type": "Point", "coordinates": [28.3, -25.4]},
         area_m2=Decimal("300.00"),
         sync_state="synced",
     )
@@ -92,6 +105,8 @@ def seed_demo_farm(session: Session) -> Farm:
     session.flush()
     session.add_all((cabbage, north))
     session.flush()
+    enqueue_weather(session, cabbage.boundary)
+    enqueue_weather(session, north.boundary)
     session.add_all((planting, observation, task))
     session.flush()
     return farm

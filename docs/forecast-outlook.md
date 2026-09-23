@@ -3,7 +3,9 @@
 This slice removes the **development** dependency on #20, not the need for honest
 forecast evidence. It implements the import → validation → activation → authenticated
 outlook → rollback path using a committed synthetic snapshot. No public market data
-has been analysed, no model has been trained, and no weather risk has been computed.
+has been analysed and no model has been trained by this snapshot path.
+Location-triggered weather exposure is implemented separately; see
+[weather-risk.md](weather-risk.md) for its policy, warnings and operational limits.
 Keep #20 and #21 open until their remaining acceptance criteria are met.
 
 ## Scope and merge order
@@ -46,8 +48,9 @@ The snapshot includes:
   in `ZAR/kg`, **for harvest after the selected planting month**.
 - `cost_per_ha`, `yield_kg_per_ha`, `break_even_price_per_kg`, `currency=ZAR`,
   `price_basis_year=2025`, and the source assumptions.
-- `weather_risk.status=unavailable` with `climatology_not_computed`. Never display
-  this as zero risk, suitable land, or an inferred soil assessment.
+- `weather_risk.status=unavailable` with `climatology_not_computed` until a matching
+  weather cache exists, or `available` with labelled historical exposure shares.
+  Never display unavailable as zero risk or interpret exposure as crop suitability.
 
 Decimals are JSON strings, consistent with other backend Decimal DTOs. The fixture's
 January cabbage example gives `p50=5.0000`, cost `75000.0000`/ha, assumed yield
@@ -198,9 +201,9 @@ Still required for full #21:
 2. Verify real price, cost, yield and CPI sources and consume reviewed #20 output.
    A historical-range baseline can be built independently; publishing simulation
    results still requires the protocol-first process, with no invented statistics.
-3. Implement location-triggered, rounded-grid historical weather jobs, risk
-   thresholds, growing-window calculations, retries/cache reuse and real-provider
-   acceptance. Until then the explicit unavailable-weather fallback is intentional.
+3. Validate the weather screening policy agronomically and verify real-provider
+   operation in the deployment; the queue, calculation, cache and unavailable
+   fallback are documented in [weather-risk.md](weather-risk.md).
 4. Configure and verify the opt-in GitHub notifier in the trusted import job and
    wire the after-migration deployment step. No deployment permissions are changed here.
 5. Obtain passing evidence from the seeded PostgreSQL performance check and add
