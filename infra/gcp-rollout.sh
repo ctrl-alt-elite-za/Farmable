@@ -50,6 +50,14 @@ else
 fi
 cleanup_revision=""
 
+# Cloud Run only accepts --no-traffic when the service already exists. A new
+# service must receive its first revision's default traffic during creation;
+# the explicit promotion below still makes the final routing decision.
+deploy_traffic_args=()
+if [[ "$service_existed" == true ]]; then
+  deploy_traffic_args+=(--no-traffic)
+fi
+
 rollback() {
   status=$?
   trap - ERR
@@ -154,7 +162,7 @@ echo "Provider secrets skipped, no enabled version: ${skipped[*]:-none}"
 
 gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --project="$GCP_PROJECT" --region="$GCP_REGION" \
-  --image="$IMAGE" --platform=managed --no-traffic --tag="sha-${COMMIT_SHA}" \
+  --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="sha-${COMMIT_SHA}" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
   --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \

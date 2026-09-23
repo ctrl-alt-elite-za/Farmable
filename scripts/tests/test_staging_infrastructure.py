@@ -29,13 +29,16 @@ def test_gcp_stack_is_johannesburg_and_private() -> None:
         'default     = "africa-south1"',
         "google_artifact_registry_repository",
         "google_sql_database_instance",
+        'edition           = "ENTERPRISE"',
         "POSTGRES_16",
         "google_storage_bucket",
         'public_access_prevention    = "enforced"',
         "uniform_bucket_level_access = true",
+        'with_state                 = "ARCHIVED"',
         "days_since_noncurrent_time = 30",
         "google_secret_manager_secret",
         "google_iam_workload_identity_pool_provider",
+        "for_each  = local.provider_secrets",
         "token.actions.githubusercontent.com",
     ):
         assert marker in terraform
@@ -217,6 +220,8 @@ def test_shell_contracts_parse() -> None:
         "infra/gcp-rollout.sh",
         "infra/gcp-secret-smoke.sh",
         "infra/gcp-storage-smoke.sh",
+        "infra/gcp-required-config.sh",
+        "infra/gcp-verify-setup.sh",
     ):
         result = subprocess.run(  # noqa: S603 - fixed shell parser and repository paths
             [bash, "-n", str(ROOT / path)], capture_output=True, text=True
@@ -607,6 +612,8 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     assert result.returncode == 0, result.stderr + result.stdout
     calls = log.read_text(encoding="utf-8")
     assert "run deploy" in calls
+    deploy_call = calls.split("run deploy", 1)[1].split("\n", 1)[0]
+    assert "--no-traffic" not in deploy_call
     assert "update-traffic" in calls
     assert "farmable-00002=100" in calls
     assert "farmable-unrelated=100" not in calls
@@ -948,3 +955,212 @@ def test_entrypoint_keeps_the_api_serving_when_the_worker_keeps_crashing(
     assert observed.count("api") == 1
     assert observed.count("worker") > 1
     assert "restarting it and leaving the API serving" in output.read_text(encoding="utf-8")
+_REQUIRED_CONFIG_VARS = (
+    "GCP_PROJECT_ID",
+    "GCP_WORKLOAD_IDENTITY_PROVIDER",
+    "GCP_DEPLOYER_SERVICE_ACCOUNT",
+    "GCP_RUNTIME_SERVICE_ACCOUNT",
+    "GCP_ARTIFACT_REPOSITORY",
+    "GCP_CLOUD_SQL_INSTANCE",
+    "GCP_CLOUD_SQL_CONNECTION",
+    "GCP_MEDIA_BUCKET",
+    "GCP_DATABASE_SECRET",
+    "GCP_GEMINI_SECRET",
+)
+
+
+def _required_config_env(tmp_path: Path) -> dict:
+    """A clean environment: any GCP_* left in the ambient environment would mask
+    the very variable a case is trying to leave unset."""
+    environment = {name: value for name, value in os.environ.items() if not name.startswith("GCP_")}
+    environment["GITHUB_OUTPUT"] = str(tmp_path / "github-output")
+    for name in _REQUIRED_CONFIG_VARS:
+        environment[name] = f"value-for-{name}"
+    return environment
+
+
+def test_required_config_emits_every_deployment_output(tmp_path: Path) -> None:
+    environment = _required_config_env(tmp_path)
+    result = _run("infra/gcp-required-config.sh", environment)
+    assert result.returncode == 0, result.stderr
+    written = (tmp_path / "github-output").read_text(encoding="utf-8").splitlines()
+    assert written == [
+        "project=value-for-GCP_PROJECT_ID",
+        "repository=value-for-GCP_ARTIFACT_REPOSITORY",
+        "sql_instance=value-for-GCP_CLOUD_SQL_INSTANCE",
+        "sql_connection=value-for-GCP_CLOUD_SQL_CONNECTION",
+        "media_bucket=value-for-GCP_MEDIA_BUCKET",
+        "runtime_account=value-for-GCP_RUNTIME_SERVICE_ACCOUNT",
+        "database_secret=value-for-GCP_DATABASE_SECRET",
+        "gemini_secret=value-for-GCP_GEMINI_SECRET",
+    ]
+
+
+@pytest.mark.parametrize("unset", _REQUIRED_CONFIG_VARS)
+def test_required_config_names_the_variable_that_is_unset(tmp_path: Path, unset: str) -> None:
+    """A chained `test -n` exits 1 saying nothing about which of ten protected
+    variables an operator has not set. GCP_CLOUD_SQL_INSTANCE was not checked at
+    all, so it failed in the backup step -- after an image was built and pushed.
+    """
+    environment = _required_config_env(tmp_path)
+    environment[unset] = ""
+    result = _run("infra/gcp-required-config.sh", environment)
+    assert result.returncode != 0
+    assert unset in result.stderr
+    assert not (tmp_path / "github-output").exists()
+
+
+def test_required_config_runs_before_authentication_and_feeds_the_backup() -> None:
+    """GCP_CLOUD_SQL_INSTANCE reached gcp-backup.sh straight from `vars`, unchecked,
+    so an operator who had not set it lost a build and push before finding out. The
+    check now runs first, ahead of the Google Cloud auth step, and the backup step
+    consumes the validated output instead of the raw variable.
+    """
+    workflow = read(".github/workflows/deploy-staging.yml")
+    assert "bash infra/gcp-required-config.sh" in workflow
+    assert workflow.index("infra/gcp-required-config.sh") < workflow.index(
+        "google-github-actions/auth@"
+    )
+    assert "GCP_CLOUD_SQL_INSTANCE: ${{ vars.GCP_CLOUD_SQL_INSTANCE }}" in workflow
+    assert "CLOUD_SQL_INSTANCE: ${{ steps.config.outputs.sql_instance }}" in workflow
+    assert 'test -n "$PROJECT"' not in workflow
+    for name in _REQUIRED_CONFIG_VARS:
+        assert name in read("infra/gcp-required-config.sh"), name
+
+
+# `${VAR-default}`, not `${VAR:-default}`: a case that sets a fake value to the
+# empty string must remain a failing state rather than falling back to a default.
+_VERIFY_SETUP_STUB = r"""
+case "$*" in
+  *"services list"*)
+    printf '%s\n' "${FAKE_ENABLED_API-run.googleapis.com}" ;;
+  *"buckets describe"*)
+    case "$*" in
+      *public_access_prevention*) printf '%s\n' "${FAKE_PREVENTION-enforced}" ;;
+      *uniform_bucket_level_access*) printf '%s\n' "${FAKE_UNIFORM-True}" ;;
+    esac ;;
+  *"secrets versions describe latest"*)
+    printf '%s\n' "${FAKE_SECRET_STATE-ENABLED}" ;;
+  *"providers describe"*)
+    default_condition="assertion.repository == 'ctrl-alt-elite-za/Farmable' && "
+    default_condition+="assertion.ref == 'refs/heads/main'"
+    printf '%s\n' "${FAKE_CONDITION-$default_condition}" ;;
+esac
+exit 0
+"""
+
+
+def _verify_setup_env(tmp_path: Path) -> dict:
+    return {
+        **os.environ,
+        "PATH": _path(tmp_path),
+        "GCP_PROJECT": "farmable-project",
+        "GCS_BUCKET": "farmable-project-farmable-staging-media",
+    }
+
+
+def test_verify_setup_passes_when_the_live_project_matches_the_contract(
+    tmp_path: Path,
+) -> None:
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    result = _run("infra/gcp-verify-setup.sh", _verify_setup_env(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert "PASS: API enabled: run.googleapis.com" in result.stdout
+    assert "PASS: Media bucket blocks public access" in result.stdout
+    assert "FAIL" not in result.stdout + result.stderr
+
+
+def test_verify_setup_reports_every_unmet_check_not_only_the_first(tmp_path: Path) -> None:
+    """Terraform creates empty Secret Manager containers, so a disabled ``latest``
+    version is a likely first-deploy failure and must be named, not hidden behind
+    an earlier failing check. One run has to produce the operator's whole to-do list.
+    """
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    environment = {
+        **_verify_setup_env(tmp_path),
+        "FAKE_PREVENTION": "inherited",
+        "FAKE_SECRET_STATE": "DISABLED",
+        "FAKE_CONDITION": (
+            "assertion.repository == 'someone-else/Fork' && " "assertion.ref == 'refs/heads/main'"
+        ),
+    }
+    result = _run("infra/gcp-verify-setup.sh", environment)
+    assert result.returncode != 0
+    assert "FAIL: Media bucket public access prevention is 'inherited'" in result.stderr
+    assert (
+        "FAIL: Secret latest version is 'DISABLED', expected 'ENABLED': "
+        "farmable-staging-database-url" in result.stderr
+    )
+    assert (
+        "FAIL: Secret latest version is 'DISABLED', expected 'ENABLED': "
+        "farmable-staging-gemini-api-key" in result.stderr
+    )
+    assert "ctrl-alt-elite-za/Farmable" in result.stderr
+    assert "4 Google Cloud setup check(s) failed" in result.stderr
+    assert "PASS: Media bucket uses uniform bucket-level access" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "assertion.repository == 'ctrl-alt-elite-za/Farmable' || true",
+        (
+            "assertion.repository == 'ctrl-alt-elite-za/Farmable-other' && "
+            "assertion.ref == 'refs/heads/main'"
+        ),
+        "assertion.repository == 'ctrl-alt-elite-za/Farmable'",
+    ],
+)
+def test_verify_setup_rejects_unsafe_workload_identity_conditions(
+    tmp_path: Path, condition: str
+) -> None:
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    environment = {**_verify_setup_env(tmp_path), "FAKE_CONDITION": condition}
+    result = _run("infra/gcp-verify-setup.sh", environment)
+    assert result.returncode != 0
+    assert "Workload identity provider is not pinned" in result.stderr
+
+
+def test_verify_setup_checks_the_deployment_secret_latest_version(
+    tmp_path: Path,
+) -> None:
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    environment = {**_verify_setup_env(tmp_path), "FAKE_SECRET_STATE": "DISABLED"}
+    result = _run("infra/gcp-verify-setup.sh", environment)
+    assert result.returncode != 0
+    assert "Secret latest version is 'DISABLED'" in result.stderr
+
+
+def test_verify_setup_accepts_an_enabled_latest_version(tmp_path: Path) -> None:
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    result = _run("infra/gcp-verify-setup.sh", _verify_setup_env(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert "PASS: Secret latest version is enabled: farmable-staging-database-url" in result.stdout
+
+
+def test_operator_acceptance_evidence_is_documented() -> None:
+    """The repository work for issue #6 is merged; what is left is live evidence an
+    operator gathers by hand. Naming each piece, next to the command that produces
+    it, is what stops "deployed" from meaning only "the workflow went green".
+    """
+    doc = read("docs/deploy-staging-acceptance.md")
+    for marker in (
+        "africa-south1",
+        "infra/gcp-verify-setup.sh",
+        "infra/gcp-required-config.sh",
+        "DEPLOY_FREEZE",
+        "gcloud sql backups list",
+        "alembic current",
+        "gcloud run revisions list",
+        ".github/workflows/nightly-staging.yml",
+        "budget",
+        "PostGIS",
+        "rollback",
+        "Workload Identity Federation",
+    ):
+        assert marker in doc, marker
+    # Issue #6's body still describes a Cape Town EC2 deployment that was never
+    # built. The operator checklist must not reintroduce it.
+    lowered = doc.lower()
+    for stale in ("af-south-1", "aws", "ec2"):
+        assert stale not in lowered, stale
