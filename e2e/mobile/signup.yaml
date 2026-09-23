@@ -35,15 +35,29 @@ name: A farmer creates an account and verifies phone, then email
 - extendedWaitUntil:
     visible: '.*Create your account.*'
     timeout: 10000
+# Each field: keyboard down, scrolled into view, then typed into. The keyboard
+# left up by the previous field covers the next one on the CI emulator's
+# screen, and a covered field is not in the tree Maestro searches.
+- scrollUntilVisible:
+    element:
+      id: 'field-name'
 - tapOn:
     id: 'field-name'
 - inputText: 'Thandi'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-surname'
 - tapOn:
     id: 'field-surname'
 - inputText: 'Mokoena'
+- hideKeyboard
+# 82 plus seven digits: a nine-digit South African mobile, +2782xxxxxxx.
+- scrollUntilVisible:
+    element:
+      id: 'field-phone-number'
 - tapOn:
     id: 'field-phone-number'
-# 82 plus seven digits: a nine-digit South African mobile, +2782xxxxxxx.
 - inputText: '82${output.suffix}'
 - hideKeyboard
 - scrollUntilVisible:
@@ -91,4 +105,5 @@ name: A farmer creates an account and verifies phone, then email
 - tapOn:
     id: 'nav-profile'
 - assertVisible: '.*Thandi Mokoena.*'
-- assertVisible: 'Log out'
+- scrollUntilVisible:
+    element: 'Log out'

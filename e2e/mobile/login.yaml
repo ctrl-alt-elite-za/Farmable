@@ -10,7 +10,7 @@ name: A farmer logs out, logs back in, and is still signed in after a restart
 ---
 - evalScript: ${output.suffix = String(Date.now()).slice(-7)}
 - runFlow: signup.yaml
-# signup.yaml finishes on Profile, signed in.
+# signup.yaml finishes on Profile, signed in, with Log out scrolled into view.
 - tapOn: 'Log out'
 - extendedWaitUntil:
     visible: '.*Not logged in.*'
@@ -31,6 +31,10 @@ name: A farmer logs out, logs back in, and is still signed in after a restart
 - tapOn:
     id: 'field-email'
 - inputText: 'farmer${output.suffix}@example.com'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-password'
 - tapOn:
     id: 'field-password'
 - inputText: 'three blind field mice'
