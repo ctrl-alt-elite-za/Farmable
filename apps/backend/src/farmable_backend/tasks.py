@@ -1,6 +1,7 @@
 import logging
 
 import procrastinate
+from procrastinate.exceptions import AlreadyEnqueued
 from sqlalchemy.engine import make_url
 
 from farmable_backend.config import Settings
@@ -37,5 +38,11 @@ def create_task_app(settings: Settings) -> procrastinate.App:
         finally:
             database.close()
             request_id.reset(context)
+        try:
+            await retention_cleanup.configure(
+                queueing_lock="retention-cleanup", schedule_in={"hours": 1}
+            ).defer_async(request_id_value=request_id_value)
+        except AlreadyEnqueued:
+            pass
 
     return app

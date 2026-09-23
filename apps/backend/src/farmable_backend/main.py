@@ -28,7 +28,16 @@ from farmable_backend.config import Settings
 from farmable_backend.database import Database
 from farmable_backend.forecast_api import router as forecast_router
 from farmable_backend.gcs_photos import create_gcs_photos
-from farmable_backend.idempotency import IdempotencyConflict
+from farmable_backend.idempotency import (
+    IdempotencyConflict,
+    IdempotencyInProgress,
+)
+from farmable_backend.idempotency import (
+    abandon as idempotency_abandon,
+)
+from farmable_backend.idempotency import (
+    claim as idempotency_claim,
+)
 from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
 from farmable_backend.idempotency import replay as idempotency_replay
 from farmable_backend.idempotency import store as idempotency_store
@@ -201,6 +210,8 @@ def create_app(
             "idempotency_key_conflict": (
                 "This Idempotency-Key was already used with a different request"
             ),
+            "idempotency_in_progress": "The request is already being processed",
+            "idempotency_key_required": "Idempotency-Key is required",
             "consent_required": "Required consent has not been granted",
         }
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
@@ -226,7 +237,7 @@ def create_app(
         # meaningfully dedupe and are left alone.
         key = request.headers.get("Idempotency-Key")
         sessions = getattr(auth(request), "sessions", None)
-        if not key or sessions is None:
+        if not key or sessions is None or not hasattr(sessions, "begin"):
             return None
         fp = idempotency_fingerprint(body)
         try:
@@ -241,12 +252,47 @@ def create_app(
         except IdempotencyConflict:
             raise AuthError("idempotency_key_conflict", 409) from None
 
+    async def require_idempotency_key(request: Request) -> str:
+        key = request.headers.get("Idempotency-Key", "").strip()
+        if len(key) < 16 or len(key) > 200:
+            raise AuthError("idempotency_key_required", 400)
+        return key
+
+    async def idempotent_claim(
+        request: Request, route: str, body: dict, *, scope: str
+    ) -> tuple[str, tuple[int, dict] | None]:
+        sessions = getattr(auth(request), "sessions", None)
+        if sessions is None or not hasattr(sessions, "begin"):
+            return "", None
+        key = await require_idempotency_key(request)
+        try:
+            result = await run_in_threadpool(
+                idempotency_claim,
+                sessions,
+                route=route,
+                scope=scope,
+                key=key,
+                request_fingerprint=idempotency_fingerprint(body),
+            )
+        except IdempotencyConflict:
+            raise AuthError("idempotency_key_conflict", 409) from None
+        except IdempotencyInProgress:
+            raise AuthError("idempotency_in_progress", 409, 1) from None
+        return key, result
+
+    async def idempotent_abandon(request: Request, route: str, *, scope: str, key: str) -> None:
+        sessions = getattr(auth(request), "sessions", None)
+        if sessions is not None and hasattr(sessions, "begin"):
+            await run_in_threadpool(
+                idempotency_abandon, sessions, route=route, scope=scope, key=key
+            )
+
     async def idempotent_store(
         request: Request, route: str, body: dict, status_code: int, response: dict, *, scope: str
     ) -> None:
         key = request.headers.get("Idempotency-Key")
         sessions = getattr(auth(request), "sessions", None)
-        if not key or sessions is None:
+        if not key or sessions is None or not hasattr(sessions, "begin"):
             return
         fp = idempotency_fingerprint(body)
         await run_in_threadpool(
@@ -276,29 +322,35 @@ def create_app(
     async def signup(request: Request, payload: SignUpRequest) -> AuthProgressResponse:
         await require_turnstile(request, payload.turnstile_token, "sign_up")
         body = payload.model_dump(mode="json")
-        replayed = await idempotent_replay(request, "auth_signup", body, scope=client_ip(request))
+        key, replayed = await idempotent_claim(
+            request, "auth_signup", body, scope=client_ip(request)
+        )
         if replayed is not None:
             _status, response_body = replayed
             return AuthProgressResponse(**response_body)
-        user = await call_auth(
-            auth(request).signup,
-            payload.first_name,
-            payload.surname,
-            payload.phone,
-            str(payload.email),
-            payload.password,
-            ip=client_ip(request),
-        )
-        response = AuthProgressResponse(user_id=user.id, next_step="phone")
-        await idempotent_store(
-            request,
-            "auth_signup",
-            body,
-            200,
-            response.model_dump(mode="json"),
-            scope=client_ip(request),
-        )
-        return response
+        try:
+            user = await call_auth(
+                auth(request).signup,
+                payload.first_name,
+                payload.surname,
+                payload.phone,
+                str(payload.email),
+                payload.password,
+                ip=client_ip(request),
+            )
+            response = AuthProgressResponse(user_id=user.id, next_step="phone")
+            await idempotent_store(
+                request,
+                "auth_signup",
+                body,
+                200,
+                response.model_dump(mode="json"),
+                scope=client_ip(request),
+            )
+            return response
+        except Exception:
+            await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
+            raise
 
     @app.post(
         "/auth/verify/phone", response_model=AuthProgressResponse, operation_id="authVerifyPhone"
@@ -317,17 +369,26 @@ def create_app(
     @app.post("/auth/otp/resend", status_code=204, operation_id="authResendOtp")
     async def resend_otp(request: Request, payload: ResendOtpRequest) -> None:
         body = payload.model_dump(mode="json")
-        replayed = await idempotent_replay(
+        key, replayed = await idempotent_claim(
             request, "auth_otp_resend", body, scope=str(payload.user_id)
         )
         if replayed is not None:
             return
-        await call_auth(
-            auth(request).resend, payload.user_id, Channel(payload.channel), ip=client_ip(request)
-        )
-        await idempotent_store(
-            request, "auth_otp_resend", body, 204, {}, scope=str(payload.user_id)
-        )
+        try:
+            await call_auth(
+                auth(request).resend,
+                payload.user_id,
+                Channel(payload.channel),
+                ip=client_ip(request),
+            )
+            await idempotent_store(
+                request, "auth_otp_resend", body, 204, {}, scope=str(payload.user_id)
+            )
+        except Exception:
+            await idempotent_abandon(
+                request, "auth_otp_resend", scope=str(payload.user_id), key=key
+            )
+            raise
 
     @app.post("/auth/login", response_model=SessionResponse, operation_id="authLogin")
     async def login(request: Request, payload: LoginRequest) -> SessionResponse:

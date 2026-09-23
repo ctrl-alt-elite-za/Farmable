@@ -627,12 +627,18 @@ def test_export_job_creation_replays_idempotently(accounts):
     assert conflict.json()["error"]["code"] == "idempotency_key_conflict"
 
     with accounts.sessions() as session:
-        from farmable_backend.models import ExportJob
+        from farmable_backend.models import ExportJob, IdempotencyRecord
 
         jobs = session.scalars(
             select(ExportJob).where(ExportJob.owner_id == accounts.alice.user.id)
         ).all()
         assert len(jobs) == 1
+        record = session.get(
+            IdempotencyRecord,
+            ("account_export_job_create", str(accounts.alice.user.id), "export-job-key-1"),
+        )
+        assert record is not None
+        assert "download_token" not in record.response_body
 
 
 def test_export_job_idempotency_is_scoped_to_the_account(accounts):

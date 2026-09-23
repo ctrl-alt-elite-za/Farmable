@@ -6,15 +6,16 @@ parameter. Responses and exports carry no password, OTP or token material.
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import io
 import json
-import secrets
 import zipfile
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from argon2.exceptions import InvalidHashError, VerificationError
 from sqlalchemy import delete, select, update
@@ -36,6 +37,19 @@ from farmable_backend.auth import (
     OtpProvider,
 )
 from farmable_backend.auth import AuthError as _AuthError
+from farmable_backend.idempotency import (
+    IdempotencyConflict,
+    IdempotencyInProgress,
+)
+from farmable_backend.idempotency import (
+    abandon as idempotency_abandon,
+)
+from farmable_backend.idempotency import (
+    claim as idempotency_claim,
+)
+from farmable_backend.idempotency import (
+    store as idempotency_store,
+)
 from farmable_backend.models import (
     DEFAULT_ACCOUNT_LANGUAGE,
     AccountProfile,
@@ -47,7 +61,6 @@ from farmable_backend.models import (
     FarmLocation,
     FarmTask,
     FinancialRecord,
-    IdempotencyRecord,
     Media,
     Observation,
     PendingContactChange,
@@ -345,15 +358,23 @@ class AccountService:
                 select(AuthIdentity).where(AuthIdentity.id == owner).with_for_update()
             ).scalar_one()
             self._require_export_consent(session, owner)
-            if idempotency_key is not None:
-                record = session.get(
-                    IdempotencyRecord,
-                    ("account_export_job_create", idempotency_scope, idempotency_key),
+        if idempotency_key is not None:
+            try:
+                replayed = idempotency_claim(
+                    self.sessions,
+                    route="account_export_job_create",
+                    scope=idempotency_scope,
+                    key=idempotency_key,
+                    request_fingerprint=request_fingerprint or "",
                 )
-                if record is not None:
-                    if record.request_fingerprint != request_fingerprint:
-                        raise ApiError(409, "idempotency_key_conflict")
-                    return UUID(record.response_body["id"]), record.response_body["download_token"]
+            except IdempotencyConflict:
+                raise ApiError(409, "idempotency_key_conflict") from None
+            except IdempotencyInProgress:
+                raise ApiError(409, "idempotency_in_progress", 1) from None
+            if replayed is not None:
+                _status, body = replayed
+                return UUID(body["id"]), self._export_token(UUID(body["id"]))
+        try:
             try:
                 rate_limit_check(
                     self.sessions,
@@ -365,32 +386,49 @@ class AccountService:
                 )
             except RateLimited as exc:
                 raise ApiError(429, exc.code, exc.retry_after) from None
-            token = secrets.token_urlsafe(32)
-            token_hash = hashlib.sha256(token.encode()).hexdigest()
-            document = self._export_document_for(session, owner)
-            job = ExportJob(
-                owner_id=owner,
-                status="ready",
-                format=format,
-                artifact=zip_bytes(document) if format == "zip" else json_bytes(document),
-                download_token_hash=token_hash,
-                expires_at=datetime.now(UTC) + EXPORT_JOB_TTL,
-            )
-            session.add(job)
-            session.flush()
-            job_id = job.id
-            if idempotency_key is not None:
-                session.add(
-                    IdempotencyRecord(
-                        route="account_export_job_create",
-                        scope=idempotency_scope,
-                        idempotency_key=idempotency_key,
-                        request_fingerprint=request_fingerprint or "",
-                        status_code=201,
-                        response_body={"id": str(job_id), "download_token": token},
-                    )
+            with self.sessions.begin() as session:
+                document = self._export_document_for(session, owner)
+                job_id = uuid4()
+                token = self._export_token(job_id)
+                job = ExportJob(
+                    owner_id=owner,
+                    status="ready",
+                    format=format,
+                    artifact=zip_bytes(document) if format == "zip" else json_bytes(document),
+                    id=job_id,
+                    download_token_hash=hashlib.sha256(token.encode()).hexdigest(),
+                    expires_at=datetime.now(UTC) + EXPORT_JOB_TTL,
                 )
-        return job_id, token
+                session.add(job)
+            if idempotency_key is not None:
+                idempotency_store(
+                    self.sessions,
+                    route="account_export_job_create",
+                    scope=idempotency_scope,
+                    key=idempotency_key,
+                    request_fingerprint=request_fingerprint or "",
+                    status_code=201,
+                    body={"id": str(job_id)},
+                )
+            return job_id, token
+        except Exception:
+            if idempotency_key is not None:
+                idempotency_abandon(
+                    self.sessions,
+                    route="account_export_job_create",
+                    scope=idempotency_scope,
+                    key=idempotency_key,
+                )
+            raise
+
+    def _export_token(self, job_id: UUID) -> str:
+        bind = self.sessions.kw.get("bind")
+        url = getattr(bind, "url", None)
+        if url is None:
+            raise RuntimeError("export token key is unavailable")
+        secret = url.render_as_string(hide_password=False).encode()
+        digest = hmac.new(secret, b"farmable-export-token:" + job_id.bytes, hashlib.sha256).digest()
+        return base64.urlsafe_b64encode(digest).decode().rstrip("=")
 
     @staticmethod
     def _require_export_consent(session: Session, owner: UUID) -> None:

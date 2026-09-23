@@ -9,7 +9,9 @@ this repo's established pattern for auth behavior tests (see test_auth.py).
 """
 
 from datetime import UTC, datetime
+from uuid import uuid4
 
+import pytest
 from farmable_backend.auth import AuthService, DeterministicFakeOtpProvider
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
@@ -100,10 +102,26 @@ def _signup_body(**overrides):
     return body
 
 
+def _signup_request(client, body=None, *, key=None):
+    return client.post(
+        "/auth/signup",
+        json=body or _signup_body(),
+        headers={"Idempotency-Key": key or f"test-signup-{uuid4().hex}"},
+    )
+
+
+def _resend_request(client, user_id, *, key=None):
+    return client.post(
+        "/auth/otp/resend",
+        json={"user_id": user_id, "channel": "phone"},
+        headers={"Idempotency-Key": key or f"test-resend-{uuid4().hex}"},
+    )
+
+
 def test_signup_verify_login(settings):
     app, _, provider, _ = _app(settings)
     with TestClient(app) as client:
-        signup = client.post("/auth/signup", json=_signup_body())
+        signup = _signup_request(client)
         assert signup.status_code == 200
         user_id = signup.json()["user_id"]
         client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
@@ -125,22 +143,24 @@ def test_signup_verify_login(settings):
 def test_sms_rate_limit_per_phone(settings):
     app, _, provider, _ = _app(settings)
     with TestClient(app) as client:
-        signup = client.post("/auth/signup", json=_signup_body())
+        signup = _signup_request(client)
         user_id = signup.json()["user_id"]
         # Sign-up already sent send #1. Two explicit resends bring it to 3.
         assert (
             client.post(
-                "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"}
+                "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"},
+                headers={"Idempotency-Key": "test-resend-key-0001"},
             ).status_code
             == 204
         )
         assert (
             client.post(
-                "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"}
+                "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"},
+                headers={"Idempotency-Key": "test-resend-key-0002"},
             ).status_code
             == 204
         )
-        fourth = client.post("/auth/otp/resend", json={"user_id": user_id, "channel": "phone"})
+        fourth = _resend_request(client, user_id, key="test-resend-key-0004")
         assert fourth.status_code == 429
         assert "Retry-After" in fourth.headers
     assert provider.deliveries == 3
@@ -157,7 +177,7 @@ def test_sms_daily_global_cap(settings):
             RateLimitCounter(scope="sms_daily", subject_hash=_hash("global"), hits=[now] * 50)
         )
     with TestClient(app) as client:
-        response = client.post("/auth/signup", json=_signup_body(phone="+27820000099"))
+        response = _signup_request(client, _signup_body(phone="+27820000099"))
     assert response.status_code == 429
     assert response.json()["error"]["code"] == "daily_sms_cap"
     assert provider.deliveries == 0
@@ -174,7 +194,7 @@ def _hash(value: str) -> str:
 def test_refresh_reuse_revokes_all(settings):
     app, _, _, sessions = _app(settings)
     with TestClient(app) as client:
-        signup = client.post("/auth/signup", json=_signup_body())
+        signup = _signup_request(client)
         user_id = signup.json()["user_id"]
         client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
         session_a = client.post(
@@ -213,11 +233,11 @@ def test_refresh_reuse_revokes_all(settings):
 def test_signup_existing_email_same_response(settings):
     app, _, provider, sessions = _app(settings)
     with TestClient(app) as client:
-        first = client.post("/auth/signup", json=_signup_body())
+        first = _signup_request(client)
         assert first.status_code == 200
         deliveries_after_first = provider.deliveries
-        second = client.post(
-            "/auth/signup", json=_signup_body(phone="+27820000001", first_name="Someone Else")
+        second = _signup_request(
+            client, _signup_body(phone="+27820000001", first_name="Someone Else")
         )
         assert second.status_code == first.status_code
         assert set(second.json()) == set(first.json())
@@ -230,7 +250,7 @@ def test_signup_existing_email_same_response(settings):
 def test_login_sends_no_sms(settings):
     app, _, provider, _ = _app(settings)
     with TestClient(app) as client:
-        signup = client.post("/auth/signup", json=_signup_body())
+        signup = _signup_request(client)
         user_id = signup.json()["user_id"]
         client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
         client.post("/auth/verify/email", json={"user_id": user_id, "code": "222222"})
@@ -250,7 +270,7 @@ def test_login_sends_no_sms(settings):
 def test_unverified_user_blocked(settings):
     app, _, _, _ = _app(settings)
     with TestClient(app) as client:
-        signup = client.post("/auth/signup", json=_signup_body())
+        signup = _signup_request(client)
         user_id = signup.json()["user_id"]
         client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
         # Phone-only verified: login must still be refused (email step incomplete).
@@ -268,7 +288,7 @@ def test_unverified_user_blocked(settings):
 def test_idempotency_key_replays_the_original_signup_response(settings):
     app, _, provider, sessions = _app(settings)
     with TestClient(app) as client:
-        headers = {"Idempotency-Key": "signup-key-1"}
+        headers = {"Idempotency-Key": "test-signup-key-0001"}
         first = client.post("/auth/signup", json=_signup_body(), headers=headers)
         second = client.post("/auth/signup", json=_signup_body(), headers=headers)
         assert first.status_code == second.status_code == 200
@@ -281,7 +301,7 @@ def test_idempotency_key_replays_the_original_signup_response(settings):
 def test_idempotency_key_reuse_with_different_payload_is_rejected(settings):
     app, _, _, _ = _app(settings)
     with TestClient(app) as client:
-        headers = {"Idempotency-Key": "signup-key-2"}
+        headers = {"Idempotency-Key": "test-signup-key-0002"}
         first = client.post("/auth/signup", json=_signup_body(), headers=headers)
         assert first.status_code == 200
         conflict = client.post(
@@ -291,12 +311,35 @@ def test_idempotency_key_reuse_with_different_payload_is_rejected(settings):
         assert conflict.json()["error"]["code"] == "idempotency_key_conflict"
 
 
-# Concurrent-replay safety (same idempotency key, true parallel requests) is
-# not testable against SQLite here — its single shared connection under real
-# thread concurrency surfaces as request-level 500s rather than clean
-# serialization, which would make this test assert the wrong thing. NOT YET
-# COVERED: this needs a PostgreSQL-backed concurrency test (none exists yet)
-# — tracked as an open gap, see ISSUE_9_ACCEPTANCE_MATRIX.md.
+def test_signup_requires_idempotency_key(settings):
+    app, _, _, sessions = _app(settings)
+    with TestClient(app) as client:
+        response = client.post("/auth/signup", json=_signup_body())
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "idempotency_key_required"
+    with sessions() as session:
+        assert session.scalar(select(AuthIdentity)) is None
+
+
+def test_idempotency_claim_blocks_duplicate_until_completion(settings):
+    from farmable_backend.idempotency import (
+        IdempotencyInProgress,
+        claim,
+        store,
+    )
+
+    _, _, _, sessions = _app(settings)
+    kwargs = {
+        "route": "test_claim",
+        "scope": "scope",
+        "key": "test-claim-key-0001",
+        "request_fingerprint": "a" * 64,
+    }
+    assert claim(sessions, **kwargs) is None
+    with pytest.raises(IdempotencyInProgress):
+        claim(sessions, **kwargs)
+    store(sessions, **kwargs, status_code=200, body={"ok": True})
+    assert claim(sessions, **kwargs) == (200, {"ok": True})
 
 
 def test_turnstile_down_refuses(settings):
@@ -316,7 +359,7 @@ def test_turnstile_down_refuses(settings):
         ServiceSettings(environment="ci", integrations_mode="fake", fault_turnstile=True)
     )
     with TestClient(app) as client:
-        response = client.post("/auth/signup", json=_signup_body())
+        response = _signup_request(client)
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "turnstile_failed"
     assert provider.deliveries == 0
