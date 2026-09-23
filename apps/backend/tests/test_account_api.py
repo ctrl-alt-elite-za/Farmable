@@ -23,7 +23,10 @@ from farmable_backend.models import (
     Base,
     Farm,
     FinancialRecord,
+    PhotoAttempt,
+    PhotoUpload,
     Section,
+    SyncMutation,
     User,
     VerificationChallenge,
 )
@@ -99,6 +102,49 @@ def _seed_records(accounts):
                     date=date(2026, 1, 15),
                 )
             )
+
+
+def _seed_photo_upload(accounts, tokens):
+    """Direct ORM inserts, as _seed_records does: the reserve() path would drag
+    in rate limiting and object storage this deletion test does not exercise."""
+    with accounts.sessions.begin() as session:
+        farm = session.scalar(select(Farm).where(Farm.owner_id == tokens.user.id))
+        section = Section(owner_id=tokens.user.id, farm_id=farm.id, name="Photo block")
+        session.add(section)
+        session.flush()
+        mutation = SyncMutation(
+            mutation_id=uuid4(),
+            farm_id=farm.id,
+            owner_id=tokens.user.id,
+            record_type="media",
+            operation="upload",
+            record_id=uuid4(),
+            request_fingerprint="0" * 64,
+        )
+        session.add(mutation)
+        session.flush()
+        upload = PhotoUpload(
+            farm_id=farm.id,
+            owner_id=tokens.user.id,
+            section_id=section.id,
+            mutation_row_id=mutation.id,
+            local_media_id=uuid4(),
+            content_type="image/jpeg",
+            byte_length=1234,
+        )
+        session.add(upload)
+        session.flush()
+        now = datetime.now(UTC)
+        session.add(
+            PhotoAttempt(
+                upload_id=upload.id,
+                sequence=upload.sequence,
+                expires_at=now + timedelta(hours=1),
+                form_expires_at=now + timedelta(minutes=5),
+                next_attempt_at=now,
+            )
+        )
+        return upload.id
 
 
 def test_language_options_match_the_database_constraint():
@@ -378,6 +424,32 @@ def test_deleted_account_loses_login_refresh_and_record_access(accounts):
         assert farm is not None and farm.deleted_at is not None
         section = session.scalar(select(Section).where(Section.owner_id == owner_id))
         assert section is not None and section.deleted_at is not None
+
+
+def test_deletion_removes_the_owners_photo_upload_rows(accounts):
+    alice_upload = _seed_photo_upload(accounts, accounts.alice)
+    bob_upload = _seed_photo_upload(accounts, accounts.bob)
+    owner_id = accounts.alice.user.id
+    removed = accounts.client.request(
+        "DELETE", "/account", headers=_headers(accounts.alice), json={"password": PASSWORD}
+    )
+    assert removed.status_code == 204
+    with accounts.sessions() as session:
+        assert (
+            session.scalars(select(PhotoUpload).where(PhotoUpload.owner_id == owner_id)).all() == []
+        )
+        assert (
+            session.scalars(
+                select(PhotoAttempt).where(PhotoAttempt.upload_id == alice_upload)
+            ).all()
+            == []
+        )
+        # The other owner's upload and attempt rows must survive untouched.
+        assert session.get(PhotoUpload, bob_upload) is not None
+        assert (
+            session.scalars(select(PhotoAttempt).where(PhotoAttempt.upload_id == bob_upload)).all()
+            != []
+        )
 
 
 def test_deletion_leaves_other_owners_untouched(accounts):

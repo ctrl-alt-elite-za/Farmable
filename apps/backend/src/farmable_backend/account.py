@@ -37,6 +37,8 @@ from farmable_backend.models import (
     FinancialRecord,
     Media,
     Observation,
+    PhotoAttempt,
+    PhotoUpload,
     Planting,
     SavedPlan,
     Section,
@@ -214,6 +216,14 @@ class AccountService:
             # Explicit deletes rather than a users-row cascade: the ownership
             # row stays so every farm foreign key, photo upload and rate row
             # keeps its referent. The credential identity itself is removed.
+            # photo_attempts first: its upload_id foreign key has no ON DELETE
+            # CASCADE, so the photo_uploads delete would be blocked by it.
+            # The GCS objects those uploads point at are not removed here; no
+            # cleanup worker exists to hook into, and that gap is tracked
+            # separately.
+            owned_uploads = select(PhotoUpload.id).where(PhotoUpload.owner_id == owner)
+            session.execute(delete(PhotoAttempt).where(PhotoAttempt.upload_id.in_(owned_uploads)))
+            session.execute(delete(PhotoUpload).where(PhotoUpload.owner_id == owner))
             session.execute(delete(AccountProfile).where(AccountProfile.user_id == owner))
             session.execute(delete(AuthSession).where(AuthSession.user_id == owner))
             session.execute(
