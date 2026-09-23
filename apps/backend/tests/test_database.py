@@ -38,6 +38,8 @@ def test_only_owned_application_tables_are_registered():
         "voice_session_rates",
         "rate_limit_counters",
         "idempotency_records",
+        "export_jobs",
+        "account_consents",
         "forecast_runs",
         "forecast_state",
         "weather_jobs",
