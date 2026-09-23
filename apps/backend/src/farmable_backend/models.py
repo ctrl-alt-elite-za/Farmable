@@ -228,6 +228,29 @@ class AccountProfile(Base):
     )
 
 
+class Consent(Base):
+    """Versioned, auditable consent state for POPIA/account operations."""
+
+    __tablename__ = "account_consents"
+    __table_args__ = (
+        UniqueConstraint("user_id", "consent_type", "version", name="uq_account_consents_version"),
+        _nonblank("consent_type", "account_consents"),
+        _max_length("consent_type", "account_consents", 80),
+        _max_length("version", "account_consents", 40),
+        _max_length("source", "account_consents", 40),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE"), index=True
+    )
+    consent_type: Mapped[str] = mapped_column(Text)
+    version: Mapped[str] = mapped_column(Text)
+    granted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source: Mapped[str] = mapped_column(Text, default="api", server_default="api")
+
+
 class PendingContactChange(Base):
     """A verified account's requested-but-unconfirmed email/phone change.
 

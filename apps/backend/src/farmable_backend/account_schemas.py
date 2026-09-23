@@ -75,3 +75,17 @@ class ExportJobStatusResponse(StrictModel):
     format: Literal["json", "zip"]
     created_at: datetime
     expires_at: datetime | None = None
+
+
+class ConsentUpdate(StrictModel):
+    version: str = Field(min_length=1, max_length=40)
+    granted: bool
+
+
+class ConsentResponse(StrictModel):
+    consent_type: str
+    version: str
+    granted: bool
+    granted_at: datetime | None = None
+    withdrawn_at: datetime | None = None
+    source: str

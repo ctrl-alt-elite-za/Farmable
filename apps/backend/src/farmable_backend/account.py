@@ -41,6 +41,7 @@ from farmable_backend.models import (
     AccountProfile,
     AuthIdentity,
     AuthSession,
+    Consent,
     ExportJob,
     Farm,
     FarmLocation,
@@ -464,6 +465,62 @@ class AccountService:
                 )
                 .values(revoked_at=datetime.now(UTC))
             )
+
+    def list_consents(self, authorization: str | None) -> list[dict[str, Any]]:
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            rows = session.scalars(
+                select(Consent)
+                .where(Consent.user_id == owner)
+                .order_by(Consent.consent_type, Consent.version)
+            ).all()
+            return [
+                {
+                    "consent_type": row.consent_type,
+                    "version": row.version,
+                    "granted": row.granted_at is not None and row.withdrawn_at is None,
+                    "granted_at": _value(row.granted_at),
+                    "withdrawn_at": _value(row.withdrawn_at),
+                    "source": row.source,
+                }
+                for row in rows
+            ]
+
+    def set_consent(
+        self, authorization: str | None, consent_type: str, version: str, granted: bool
+    ) -> dict[str, Any]:
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            now = datetime.now(UTC)
+            row = session.scalar(
+                select(Consent).where(
+                    Consent.user_id == owner,
+                    Consent.consent_type == consent_type,
+                    Consent.version == version,
+                )
+            )
+            if row is None:
+                row = Consent(
+                    user_id=owner,
+                    consent_type=consent_type,
+                    version=version,
+                    granted_at=now if granted else None,
+                    withdrawn_at=None if granted else now,
+                )
+                session.add(row)
+            elif granted:
+                row.granted_at = row.granted_at or now
+                row.withdrawn_at = None
+            else:
+                row.withdrawn_at = now
+            return {
+                "consent_type": row.consent_type,
+                "version": row.version,
+                "granted": granted,
+                "granted_at": _value(row.granted_at),
+                "withdrawn_at": _value(row.withdrawn_at),
+                "source": row.source,
+            }
 
     def revoke_all(self, authorization: str | None) -> None:
         with self.sessions.begin() as session:

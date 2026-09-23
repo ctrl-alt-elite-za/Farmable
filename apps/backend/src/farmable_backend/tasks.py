@@ -4,8 +4,9 @@ import procrastinate
 from sqlalchemy.engine import make_url
 
 from farmable_backend.config import Settings
-from farmable_backend.database import CONNECTION_OPTIONS
+from farmable_backend.database import CONNECTION_OPTIONS, Database
 from farmable_backend.logging import correlation_id, request_id
+from farmable_backend.retention import cleanup
 
 
 def create_task_app(settings: Settings) -> procrastinate.App:
@@ -25,6 +26,16 @@ def create_task_app(settings: Settings) -> procrastinate.App:
         try:
             logging.getLogger(__name__).info("Example job completed")
         finally:
+            request_id.reset(context)
+
+    @app.task(name="retention_cleanup", queue="default")
+    async def retention_cleanup(request_id_value: str | None = None) -> None:
+        context = request_id.set(correlation_id(request_id_value))
+        database = Database(settings)
+        try:
+            cleanup(database.sessions)
+        finally:
+            database.close()
             request_id.reset(context)
 
     return app

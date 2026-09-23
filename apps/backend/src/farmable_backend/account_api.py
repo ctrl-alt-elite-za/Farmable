@@ -10,13 +10,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.security import HTTPBearer
-from starlette.responses import JSONResponse
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import TimeoutError as DatabaseTimeout
+from starlette.responses import JSONResponse
 
 from farmable_backend.account import EXPORT_BASENAME, AccountService, json_bytes, zip_bytes
 from farmable_backend.account_schemas import (
     AccountFarmResponse,
+    ConsentResponse,
+    ConsentUpdate,
     ContactChangeConfirm,
     DeleteAccountRequest,
     ExportJobCreateResponse,
@@ -28,8 +30,14 @@ from farmable_backend.account_schemas import (
 from farmable_backend.auth import Channel
 from farmable_backend.idempotency import (
     IdempotencyConflict,
+)
+from farmable_backend.idempotency import (
     fingerprint as idempotency_fingerprint,
+)
+from farmable_backend.idempotency import (
     replay as idempotency_replay,
+)
+from farmable_backend.idempotency import (
     store as idempotency_store,
 )
 from farmable_backend.record_access import ApiError
@@ -97,6 +105,34 @@ async def read_profile(request: Request, response: Response):
     return await worker.call(worker.service.profile, token(request))
 
 
+@router.get(
+    "/account/consents", response_model=list[ConsentResponse], operation_id="listAccountConsents"
+)
+async def list_consents(request: Request, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    return await worker.call(worker.service.list_consents, token(request))
+
+
+@router.put(
+    "/account/consents/{consent_type}",
+    response_model=ConsentResponse,
+    operation_id="setAccountConsent",
+)
+async def update_consent(
+    request: Request, response: Response, consent_type: str, payload: ConsentUpdate
+):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    return await worker.call(
+        worker.service.set_consent,
+        token(request),
+        consent_type,
+        payload.version,
+        payload.granted,
+    )
+
+
 @router.patch(
     "/account/profile", response_model=ProfileResponse, operation_id="updateAccountProfile"
 )
@@ -111,11 +147,15 @@ async def write_profile(request: Request, response: Response, payload: ProfileUp
     response_model=ProfileResponse,
     operation_id="confirmAccountContactChange",
 )
-async def confirm_contact_change(request: Request, response: Response, payload: ContactChangeConfirm):
+async def confirm_contact_change(
+    request: Request, response: Response, payload: ContactChangeConfirm
+):
     response.headers["Cache-Control"] = "no-store"
     worker = runtime(request)
     channel = Channel.EMAIL if payload.channel == "email" else Channel.PHONE
-    return await worker.call(worker.service.confirm_contact_change, token(request), channel, payload.code)
+    return await worker.call(
+        worker.service.confirm_contact_change, token(request), channel, payload.code
+    )
 
 
 @router.get("/account/farm", response_model=AccountFarmResponse, operation_id="getAccountFarm")
