@@ -33,6 +33,10 @@ from sqlalchemy.orm import sessionmaker
 PASSWORD = "correct horse battery staple"  # noqa: S105 - synthetic test credential
 
 
+def _idempotency_key(label: str) -> str:
+    return f"test-idempotency-{label}-key"
+
+
 class CountingOtpProvider:
     """Wraps the deterministic fake OTP provider and counts real deliveries."""
 
@@ -290,7 +294,7 @@ def test_unverified_user_blocked(settings):
 def test_idempotency_key_replays_the_original_signup_response(settings):
     app, _, provider, sessions = _app(settings)
     with TestClient(app) as client:
-        headers = {"Idempotency-Key": "test-signup-key-0001"}
+        headers = {"Idempotency-Key": _idempotency_key("signup-one")}
         first = client.post("/auth/signup", json=_signup_body(), headers=headers)
         second = client.post("/auth/signup", json=_signup_body(), headers=headers)
         assert first.status_code == second.status_code == 200
@@ -303,7 +307,7 @@ def test_idempotency_key_replays_the_original_signup_response(settings):
 def test_idempotency_key_reuse_with_different_payload_is_rejected(settings):
     app, _, _, _ = _app(settings)
     with TestClient(app) as client:
-        headers = {"Idempotency-Key": "test-signup-key-0002"}
+        headers = {"Idempotency-Key": _idempotency_key("signup-two")}
         first = client.post("/auth/signup", json=_signup_body(), headers=headers)
         assert first.status_code == 200
         conflict = client.post(
@@ -334,7 +338,7 @@ def test_idempotency_claim_blocks_duplicate_until_completion(settings):
     kwargs = {
         "route": "test_claim",
         "scope": "scope",
-        "key": "test-claim-key-0001",
+        "key": _idempotency_key("claim-one"),
         "request_fingerprint": "a" * 64,
     }
     assert claim(sessions, **kwargs) is None
