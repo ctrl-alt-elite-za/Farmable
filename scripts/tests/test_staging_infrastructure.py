@@ -802,9 +802,7 @@ _REQUIRED_CONFIG_VARS = (
 def _required_config_env(tmp_path: Path) -> dict:
     """A clean environment: any GCP_* left in the ambient environment would mask
     the very variable a case is trying to leave unset."""
-    environment = {
-        name: value for name, value in os.environ.items() if not name.startswith("GCP_")
-    }
+    environment = {name: value for name, value in os.environ.items() if not name.startswith("GCP_")}
     environment["GITHUB_OUTPUT"] = str(tmp_path / "github-output")
     for name in _REQUIRED_CONFIG_VARS:
         environment[name] = f"value-for-{name}"

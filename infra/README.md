@@ -88,7 +88,6 @@ real deploy, a freeze, a rollback, a backup before migration, the nightly run,
 and the absence of any service-account key — is in
 `docs/deploy-staging-acceptance.md`.
 
-
 The nightly workflow resolves the service URL and expected commit SHA from the
 single revision receiving 100 percent of live traffic. It does not rely on a
 manually updated URL or SHA variable, and it fails if the live service,

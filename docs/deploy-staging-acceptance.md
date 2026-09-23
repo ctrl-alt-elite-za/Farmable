@@ -14,15 +14,15 @@ Workload Identity Federation, so there is no credential to rotate or leak.
 Complete `infra/README.md` "One-time operator setup" first, then confirm each
 item here.
 
-| Item | Where | Done when |
-| --- | --- | --- |
-| Project and billing account | Google Cloud console | `gcloud billing projects describe PROJECT_ID` reports `billingEnabled: true` |
-| Budget alert | Cloud Billing, Budgets and alerts | A budget scoped to this project, with email alerts at 50%, 90% and 100% of actual spend. Google Cloud never caps spend, so the alert is the only warning before the demo project overruns. |
-| Terraform applied | `terraform -chdir=infra apply` | `terraform -chdir=infra output` prints the six outputs |
-| PostGIS | the `farmable` database | `CREATE EXTENSION postgis;` has been run once, out of band, as the application user. Alembic never runs it: hand-written SQL in migrations is forbidden (AGENTS.md). |
-| Secret values | Secret Manager | Every container Terraform created has an enabled version |
-| Protected variables | GitHub, Settings, Environments, staging | The ten names listed in `infra/README.md` step 4 |
-| `DEPLOY_FREEZE` | GitHub, Settings, Variables, repository scope | Absent, or not `on`, for a normal day |
+| Item                        | Where                                         | Done when                                                                                                                                                                                  |
+| --------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Project and billing account | Google Cloud console                          | `gcloud billing projects describe PROJECT_ID` reports `billingEnabled: true`                                                                                                               |
+| Budget alert                | Cloud Billing, Budgets and alerts             | A budget scoped to this project, with email alerts at 50%, 90% and 100% of actual spend. Google Cloud never caps spend, so the alert is the only warning before the demo project overruns. |
+| Terraform applied           | `terraform -chdir=infra apply`                | `terraform -chdir=infra output` prints the six outputs                                                                                                                                     |
+| PostGIS                     | the `farmable` database                       | `CREATE EXTENSION postgis;` has been run once, out of band, as the application user. Alembic never runs it: hand-written SQL in migrations is forbidden (AGENTS.md).                       |
+| Secret values               | Secret Manager                                | Every container Terraform created has an enabled version                                                                                                                                   |
+| Protected variables         | GitHub, Settings, Environments, staging       | The ten names listed in `infra/README.md` step 4                                                                                                                                           |
+| `DEPLOY_FREEZE`             | GitHub, Settings, Variables, repository scope | Absent, or not `on`, for a normal day                                                                                                                                                      |
 
 Then run the read-only setup check:
 
