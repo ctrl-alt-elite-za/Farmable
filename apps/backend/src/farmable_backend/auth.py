@@ -17,6 +17,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.models import AuthIdentity, AuthSession, Farm, User, VerificationChallenge
+from farmable_backend.rate_limits import RateLimited
+from farmable_backend.rate_limits import check as rate_check
 
 PASSWORD_HASHER = PasswordHasher()  # argon2-cffi defaults are Argon2id.
 # Unknown accounts must still pay the same Argon2 verification cost as known
@@ -29,11 +31,37 @@ OTP_SEND_WINDOW = timedelta(minutes=10)
 MAX_OTP_SENDS = 3
 DEFAULT_FARM_NAME = "My farm"
 
+# Small curated set of extremely common passwords/patterns (#9 security
+# criteria). Not exhaustive; a fuller list is a follow-up, not a #9 blocker,
+# since the 15-char minimum already rules out most of the canonical top-10k.
+COMMON_PASSWORDS = frozenset(
+    {
+        "password123456",
+        "letmein12345678",
+        "qwertyuiop12345",
+        "123456789012345",
+        "iloveyou1234567",
+        "welcome123456789",
+        "changeme1234567",
+        "administrator1",
+        "passwordpassword",
+        "trustno1trustno1",
+    }
+)
+
+
+def _rate_limit(session: Session, **kwargs: object) -> None:
+    try:
+        rate_check(session, **kwargs)  # type: ignore[arg-type]
+    except RateLimited as exc:
+        raise AuthError(exc.code, 429, exc.retry_after) from exc
+
 
 class AuthError(Exception):
-    def __init__(self, code: str, status_code: int = 400):
+    def __init__(self, code: str, status_code: int = 400, retry_after: int | None = None):
         self.code = code
         self.status_code = status_code
+        self.retry_after = retry_after
         super().__init__(code)
 
 
@@ -132,19 +160,44 @@ class AuthService:
         self.provider = provider or DisabledOtpProvider()
 
     def signup(
-        self, first_name: str, surname: str, phone: str, email: str, password: str
+        self,
+        first_name: str,
+        surname: str,
+        phone: str,
+        email: str,
+        password: str,
+        *,
+        ip: str = "unknown",
     ) -> AuthUser:
         email = email.strip().lower()
         phone = phone.strip()
+        if password.lower() in COMMON_PASSWORDS:
+            raise AuthError("password_too_common", 422)
+        # A fabricated, never-persisted identity: returned on an existing-email/
+        # phone collision so the response is shaped identically to a genuine
+        # sign-up without creating a second account or a fake DB row (#9
+        # enumeration resistance).
+        placeholder = AuthUser(uuid4(), first_name.strip(), surname.strip(), phone, email, False, False)
         try:
             with self.sessions.begin() as session:
+                _rate_limit(
+                    session,
+                    scope="signup_ip",
+                    subject=ip,
+                    window_seconds=3600,
+                    limit=5,
+                    code="signup_rate_limited",
+                )
                 existing = session.scalar(
                     select(AuthIdentity.id).where(
                         (AuthIdentity.email == email) | (AuthIdentity.phone == phone)
                     )
                 )
                 if existing is not None:
-                    raise AuthError("account_exists", 409)
+                    # Same public response/status as a new sign-up; no OTP is
+                    # sent to the caller, and no account, farm, challenge, or
+                    # session is created or mutated for this request.
+                    return placeholder
                 password_hash = PASSWORD_HASHER.hash(password)
                 owner = User()
                 session.add(owner)
@@ -166,14 +219,16 @@ class AuthService:
                 # shares this transaction, so a credential conflict rolls it back.
                 session.add(Farm(owner_id=owner.id, name=DEFAULT_FARM_NAME))
                 session.flush()
-                self._send(session, user, Channel.PHONE)
+                self._send(session, user, Channel.PHONE, ip=ip)
                 return _user(user)
         except IntegrityError as exc:
             diagnostic = getattr(exc.orig, "diag", None)
             if getattr(exc.orig, "sqlstate", None) == "23505" and getattr(
                 diagnostic, "constraint_name", None
             ) in {"uq_auth_identities_email", "uq_auth_identities_phone"}:
-                raise AuthError("account_exists", 409) from None
+                # Lost a race against a concurrent sign-up claiming the same
+                # email/phone. Same enumeration-safe response as the pre-check.
+                return placeholder
             raise
 
     def verify(self, user_id: UUID, channel: Channel, code: str) -> AuthUser | SessionTokens:
@@ -221,7 +276,7 @@ class AuthService:
             raise AuthError("invalid_verification", 400)
         return result
 
-    def resend(self, user_id: UUID, channel: Channel) -> None:
+    def resend(self, user_id: UUID, channel: Channel, *, ip: str = "unknown") -> None:
         with self.sessions.begin() as session:
             user = session.scalar(
                 select(AuthIdentity).where(AuthIdentity.id == user_id).with_for_update()
@@ -232,9 +287,9 @@ class AuthService:
                 channel is Channel.EMAIL and user.email_verified
             ):
                 raise AuthError("invalid_verification", 400)
-            self._send(session, user, channel)
+            self._send(session, user, channel, ip=ip)
 
-    def login(self, identifier: str, password: str) -> SessionTokens:
+    def login(self, identifier: str, password: str, *, ip: str = "unknown") -> SessionTokens:
         identifier = identifier.strip()
         with self.sessions.begin() as session:
             user = session.scalar(
@@ -248,35 +303,67 @@ class AuthService:
                 else DUMMY_PASSWORD_HASH
             )
             password_valid = self._verify_password(password_hash, password)
-            if user is None or user.password_hash is None or not password_valid:
-                raise AuthError("invalid_credentials", 401)
-            if not (user.phone_verified and user.email_verified):
+            verified = user is not None and (user.phone_verified and user.email_verified)
+            if user is None or user.password_hash is None or not password_valid or not verified:
+                # Record the failure against both the account and the caller's
+                # IP; only failures count toward these limits, so legitimate
+                # repeated logins are never throttled. An unknown identifier
+                # still hashes to a stable per-identifier bucket, matching the
+                # dummy-hash timing defense above.
+                _rate_limit(
+                    session,
+                    scope="login_fail_account",
+                    subject=identifier.lower(),
+                    window_seconds=900,
+                    limit=5,
+                    code="login_rate_limited",
+                )
+                _rate_limit(
+                    session,
+                    scope="login_fail_ip",
+                    subject=ip,
+                    window_seconds=900,
+                    limit=20,
+                    code="login_rate_limited",
+                )
                 raise AuthError("invalid_credentials", 401)
             return self._new_session(session, user)
 
     def refresh(self, refresh_token: str) -> SessionTokens:
         with self.sessions.begin() as session:
-            # Consume the token in the same statement that decides whether it
-            # is valid. A select followed by a write lets two concurrent
-            # requests both mint a replacement session from one refresh token.
-            user_id = session.scalar(
-                update(AuthSession)
-                .where(
-                    AuthSession.refresh_token_hash == _hash_token(refresh_token),
-                    AuthSession.revoked_at.is_(None),
-                    AuthSession.expires_at > _now(),
-                )
-                .values(revoked_at=_now())
-                .returning(AuthSession.user_id)
+            token_hash = _hash_token(refresh_token)
+            # Lock the session row (if any) so a concurrent refresh with the
+            # same token serializes instead of both racing the reuse check.
+            existing = session.scalar(
+                select(AuthSession)
+                .where(AuthSession.refresh_token_hash == token_hash)
+                .with_for_update()
             )
-            if user_id is None:
+            if existing is None:
                 raise AuthError("invalid_session", 401)
-            user = session.get(AuthIdentity, user_id)
+            if existing.revoked_at is not None:
+                # Reuse of an already-rotated/revoked refresh token: treat as
+                # theft and revoke every live session for this user.
+                session.execute(
+                    update(AuthSession)
+                    .where(
+                        AuthSession.user_id == existing.user_id,
+                        AuthSession.revoked_at.is_(None),
+                    )
+                    .values(revoked_at=_now())
+                )
+                raise AuthError("invalid_session", 401)
+            if existing.expires_at <= _now():
+                raise AuthError("invalid_session", 401)
+            existing.revoked_at = _now()
+            user = session.get(AuthIdentity, existing.user_id)
             if user is None or not (user.phone_verified and user.email_verified):
                 raise AuthError("invalid_session", 401)
             return self._new_session(session, user)
 
-    def _send(self, session: Session, user: AuthIdentity, channel: Channel) -> None:
+    def _send(
+        self, session: Session, user: AuthIdentity, channel: Channel, *, ip: str = "unknown"
+    ) -> None:
         recent = session.scalars(
             select(VerificationChallenge).where(
                 VerificationChallenge.user_id == user.id,
@@ -285,7 +372,29 @@ class AuthService:
             )
         ).all()
         if len(recent) >= MAX_OTP_SENDS:
-            raise AuthError("otp_rate_limited", 429)
+            oldest = min(c.created_at for c in recent)
+            retry = max(1, int((_as_utc(oldest) + OTP_SEND_WINDOW - _now()).total_seconds()) + 1)
+            raise AuthError("otp_rate_limited", 429, retry)
+        if channel is Channel.PHONE:
+            # SMS costs money per send (~$0.19); gate on IP and a system-wide
+            # daily cap in addition to the per-phone window above, and never
+            # let a rejected request reach the provider.
+            _rate_limit(
+                session,
+                scope="sms_ip",
+                subject=ip,
+                window_seconds=3600,
+                limit=10,
+                code="sms_ip_rate_limited",
+            )
+            _rate_limit(
+                session,
+                scope="sms_daily",
+                subject="global",
+                window_seconds=86400,
+                limit=50,
+                code="daily_sms_cap",
+            )
         session.execute(
             update(VerificationChallenge)
             .where(
@@ -344,10 +453,19 @@ class InMemoryAuthService:
         self.deliveries: list[tuple[Channel, UUID]] = []
 
     def signup(
-        self, first_name: str, surname: str, phone: str, email: str, password: str
+        self,
+        first_name: str,
+        surname: str,
+        phone: str,
+        email: str,
+        password: str,
+        *,
+        ip: str = "unknown",
     ) -> AuthUser:
         if any(u["email"] == email.lower() or u["phone"] == phone for u in self.users.values()):
-            raise AuthError("account_exists", 409)
+            # #9 enumeration resistance: identical shape to a new sign-up, no
+            # account/OTP created or sent for this request.
+            return AuthUser(uuid4(), first_name.strip(), surname.strip(), phone, email.lower(), False, False)
         user_id = uuid4()
         self.users[user_id] = {
             "first_name": first_name,
@@ -377,7 +495,7 @@ class InMemoryAuthService:
         user["email_verified"] = True
         return self._new_session(user_id)
 
-    def login(self, identifier: str, password: str) -> SessionTokens:
+    def login(self, identifier: str, password: str, *, ip: str = "unknown") -> SessionTokens:
         user_id = next(
             (
                 key
@@ -406,7 +524,7 @@ class InMemoryAuthService:
         self.sessions[_hash_token(refresh)] = user_id
         return SessionTokens(access, refresh, expires_at, self._as_user(user_id))
 
-    def resend(self, user_id: UUID, channel: Channel) -> None:
+    def resend(self, user_id: UUID, channel: Channel, *, ip: str = "unknown") -> None:
         user = self.users.get(user_id)
         if user is None or (channel is Channel.EMAIL and not user["phone_verified"]):
             raise AuthError("invalid_verification", 400)

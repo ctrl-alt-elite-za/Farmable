@@ -731,6 +731,56 @@ class PhotoRate(Base):
     hits: Mapped[list[float]] = mapped_column(JSON_DOCUMENT)
 
 
+class RateLimitCounter(Base):
+    """Durable sliding-window counter for auth/abuse limits (#9).
+
+    Keyed by ``scope`` (e.g. ``signup_ip``, ``sms_phone``) plus a hashed
+    subject so raw IPs/phones are never persisted. One row per scope+subject;
+    a process restart cannot reset it because ``hits`` lives in the database.
+    """
+
+    __tablename__ = "rate_limit_counters"
+    __table_args__ = (
+        _nonblank("scope", "rate_limit_counters"),
+        _max_length("scope", "rate_limit_counters", 40),
+        _max_length("subject_hash", "rate_limit_counters", 64),
+    )
+
+    scope: Mapped[str] = mapped_column(Text, primary_key=True)
+    subject_hash: Mapped[str] = mapped_column(Text, primary_key=True)
+    hits: Mapped[list[float]] = mapped_column(JSON_DOCUMENT)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class IdempotencyRecord(Base):
+    """Durable Idempotency-Key ledger (#9): one row per key+route.
+
+    ``request_fingerprint`` lets a replay with a different payload be
+    rejected instead of silently returning the first response. Responses are
+    stored as their own JSON document so a replay never re-runs the mutation.
+    """
+
+    __tablename__ = "idempotency_records"
+    __table_args__ = (
+        _nonblank("route", "idempotency_records"),
+        _max_length("route", "idempotency_records", 60),
+        _max_length("idempotency_key", "idempotency_records", 200),
+        CheckConstraint(
+            column("request_fingerprint").regexp_match("^[0-9a-f]{64}$"),
+            name="ck_idempotency_records_request_fingerprint_hex",
+        ),
+    )
+
+    route: Mapped[str] = mapped_column(Text, primary_key=True)
+    idempotency_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    request_fingerprint: Mapped[str] = mapped_column(Text)
+    status_code: Mapped[int] = mapped_column(Integer)
+    response_body: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # Reusable ORM field annotations for future models (#8), not feature tables.
 Point = Annotated[WKBElement, mapped_column(Geometry("POINT", srid=4326))]
 Shape = Annotated[WKBElement, mapped_column(Geometry("MULTIPOLYGON", srid=4326))]

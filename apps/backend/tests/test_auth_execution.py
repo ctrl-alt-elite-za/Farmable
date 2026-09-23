@@ -7,8 +7,11 @@ from uuid import uuid4
 import httpx
 import pytest
 from farmable_backend.auth import AuthError
+from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import request_id
 from farmable_backend.main import create_app
+
+FAKE_SERVICES = ServiceSettings(integrations_mode="fake")
 
 
 class BlockingAuth:
@@ -21,7 +24,7 @@ class BlockingAuth:
         self.maximum = 0
         self.correlations = []
 
-    def call(self, *args):
+    def call(self, *args, **kwargs):
         with self.lock:
             self.active += 1
             self.maximum = max(self.maximum, self.active)
@@ -50,18 +53,26 @@ class BlockingAuth:
                 "phone": "+27820000000",
                 "email": "test@example.com",
                 "password": "synthetic test password",
+                "turnstile_token": "fixture-token",
             },
         ),
         ("verify/phone", {"user_id": str(uuid4()), "code": "123456"}),
         ("verify/email", {"user_id": str(uuid4()), "code": "123456"}),
         ("otp/resend", {"user_id": str(uuid4()), "channel": "phone"}),
-        ("login", {"identifier": "test@example.com", "password": "synthetic"}),
+        (
+            "login",
+            {
+                "identifier": "test@example.com",
+                "password": "synthetic",
+                "turnstile_token": "fixture-token",
+            },
+        ),
         ("refresh", {"refresh_token": "synthetic-refresh-token-for-test"}),
     ],
 )
 def test_health_stays_responsive_during_auth(settings, path, payload):
     service = BlockingAuth()
-    app = create_app(settings, readiness=lambda: {})
+    app = create_app(settings, readiness=lambda: {}, service_settings=FAKE_SERVICES)
     app.state.auth = service
     correlation = str(uuid4())
 
@@ -91,7 +102,7 @@ def test_health_stays_responsive_during_auth(settings, path, payload):
 
 def test_auth_concurrency_is_bounded_without_blocking_health(settings):
     service = BlockingAuth(expected=2)
-    app = create_app(settings, readiness=lambda: {})
+    app = create_app(settings, readiness=lambda: {}, service_settings=FAKE_SERVICES)
     app.state.auth = service
 
     async def check():
@@ -102,7 +113,11 @@ def test_auth_concurrency_is_bounded_without_blocking_health(settings):
                 asyncio.create_task(
                     client.post(
                         "/auth/login",
-                        json={"identifier": "test@example.com", "password": "synthetic"},
+                        json={
+                            "identifier": "test@example.com",
+                            "password": "synthetic",
+                            "turnstile_token": "fixture-token",
+                        },
                     )
                 )
                 for _ in range(3)
@@ -124,7 +139,7 @@ def test_auth_concurrency_is_bounded_without_blocking_health(settings):
 
 def test_cancelling_requests_does_not_release_running_auth_worker_slots(settings):
     service = BlockingAuth(expected=2)
-    app = create_app(settings, readiness=lambda: {})
+    app = create_app(settings, readiness=lambda: {}, service_settings=FAKE_SERVICES)
     app.state.auth = service
 
     async def check():
@@ -136,7 +151,11 @@ def test_cancelling_requests_does_not_release_running_auth_worker_slots(settings
                 return asyncio.create_task(
                     client.post(
                         "/auth/login",
-                        json={"identifier": "test@example.com", "password": "synthetic"},
+                        json={
+                            "identifier": "test@example.com",
+                            "password": "synthetic",
+                            "turnstile_token": "fixture-token",
+                        },
                     )
                 )
 

@@ -84,9 +84,9 @@ def create_app(
     # HTTP requests cannot free a running thread's slot before its work finishes.
     auth_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="farmable-auth")
 
-    async def call_auth(function, *args):
+    async def call_auth(function, *args, **kwargs):
         return await asyncio.get_running_loop().run_in_executor(
-            auth_executor, partial(copy_context().run, function, *args)
+            auth_executor, partial(copy_context().run, function, *args, **kwargs)
         )
 
     @asynccontextmanager
@@ -188,8 +188,17 @@ def create_app(
             "invalid_session": "Your session has expired",
             "provider_unavailable": "Verification is temporarily unavailable",
             "provider_error": "Verification is temporarily unavailable",
+            "turnstile_failed": "Please try again",
+            "password_too_common": "Choose a less common password",
+            "signup_rate_limited": "Please wait before trying again",
+            "sms_ip_rate_limited": "Please wait before requesting another code",
+            "daily_sms_cap": "Please try again later",
+            "login_rate_limited": "Please wait before trying again",
         }
-        return error_response(exc.status_code, exc.code, messages.get(exc.code, "Request failed"))
+        headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
+        return error_response(
+            exc.status_code, exc.code, messages.get(exc.code, "Request failed"), headers=headers
+        )
 
     def auth(request: Request):
         service = getattr(request.app.state, "auth", None)
@@ -197,8 +206,22 @@ def create_app(
             raise HTTPException(503)
         return service
 
+    def client_ip(request: Request) -> str:
+        # Single API process; no trusted forwarding headers (see RateLimiter).
+        return request.client.host if request.client else "unknown"
+
+    async def require_turnstile(request: Request, token: str, action: str) -> None:
+        # Verified before password hashing, user lookup/mutation, or OTP
+        # dispatch. Any non-ok result (rejected, timeout, unavailable,
+        # misconfigured) fails closed with one safe, generic error — the
+        # token/secret are never logged (see Turnstile adapter + logging.mask).
+        result = await request.app.state.services.turnstile.validate(token, action=action)
+        if not result.ok:
+            raise AuthError("turnstile_failed", 503)
+
     @app.post("/auth/signup", response_model=AuthProgressResponse, operation_id="authSignup")
     async def signup(request: Request, payload: SignUpRequest) -> AuthProgressResponse:
+        await require_turnstile(request, payload.turnstile_token, "sign_up")
         user = await call_auth(
             auth(request).signup,
             payload.first_name,
@@ -206,6 +229,7 @@ def create_app(
             payload.phone,
             str(payload.email),
             payload.password,
+            ip=client_ip(request),
         )
         return AuthProgressResponse(user_id=user.id, next_step="phone")
 
@@ -225,12 +249,17 @@ def create_app(
 
     @app.post("/auth/otp/resend", status_code=204, operation_id="authResendOtp")
     async def resend_otp(request: Request, payload: ResendOtpRequest) -> None:
-        await call_auth(auth(request).resend, payload.user_id, Channel(payload.channel))
+        await call_auth(
+            auth(request).resend, payload.user_id, Channel(payload.channel), ip=client_ip(request)
+        )
 
     @app.post("/auth/login", response_model=SessionResponse, operation_id="authLogin")
     async def login(request: Request, payload: LoginRequest) -> SessionResponse:
+        await require_turnstile(request, payload.turnstile_token, "login")
         return _session_response(
-            await call_auth(auth(request).login, payload.identifier, payload.password)
+            await call_auth(
+                auth(request).login, payload.identifier, payload.password, ip=client_ip(request)
+            )
         )
 
     @app.post("/auth/refresh", response_model=SessionResponse, operation_id="authRefresh")

@@ -119,4 +119,9 @@ class FakeTransport(httpx.AsyncBaseTransport):
             return httpx.Response(200, content=body, headers={"content-type": "text/event-stream"})
         if service == "twilio" and request.url.path.endswith("/VerificationCheck"):
             payload = {**payload, "status": "approved", "valid": True}
+        if service == "turnstile":
+            # Echo the caller's requested action so both sign-up and login
+            # verify against a matching fixture instead of a fixed value.
+            requested = json.loads(request.content or b"{}").get("action", payload["action"])
+            payload = {**payload, "action": requested}
         return httpx.Response(200, json=payload)

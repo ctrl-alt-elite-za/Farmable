@@ -456,7 +456,12 @@ def test_deleted_account_loses_login_refresh_and_record_access(accounts):
     )
     assert refreshed.status_code == 401
     login = accounts.client.post(
-        "/auth/login", json={"identifier": "sipho@example.com", "password": PASSWORD}
+        "/auth/login",
+        json={
+            "identifier": "sipho@example.com",
+            "password": PASSWORD,
+            "turnstile_token": "fixture-token",
+        },
     )
     assert login.status_code == 401
     assert login.json()["error"]["code"] == "invalid_credentials"

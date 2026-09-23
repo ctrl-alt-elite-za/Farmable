@@ -37,6 +37,7 @@ class SignUpRequest(StrictModel):
     phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
     email: EmailStr
     password: str = Field(min_length=15, max_length=128, pattern=r".*\S.*")
+    turnstile_token: str = Field(min_length=1, max_length=2048, repr=False)
 
 
 class VerifyOtpRequest(StrictModel):
@@ -52,6 +53,7 @@ class ResendOtpRequest(StrictModel):
 class LoginRequest(StrictModel):
     identifier: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=1, max_length=128)
+    turnstile_token: str = Field(min_length=1, max_length=2048, repr=False)
 
 
 class RefreshRequest(StrictModel):

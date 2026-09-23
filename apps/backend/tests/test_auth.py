@@ -14,12 +14,14 @@ from farmable_backend.auth import (
     SessionTokens,
     _hash_token,
 )
+from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
 from farmable_backend.models import (
     AuthIdentity,
     AuthSession,
     Base,
     Farm,
+    RateLimitCounter,
     User,
     VerificationChallenge,
 )
@@ -32,7 +34,11 @@ PASSWORD = "correct horse battery staple"  # noqa: S105 - synthetic test credent
 
 
 def client(settings):
-    app = create_app(settings, readiness=lambda: {})
+    app = create_app(
+        settings,
+        readiness=lambda: {},
+        service_settings=ServiceSettings(integrations_mode="fake"),
+    )
     app.state.auth = InMemoryAuthService()
     return TestClient(app), app.state.auth
 
@@ -47,6 +53,7 @@ def verified_account(settings):
             "phone": "+27123456789",
             "email": "sipho@example.com",
             "password": PASSWORD,
+            "turnstile_token": "fixture-token",
         },
     )
     assert signup.status_code == 200
@@ -77,7 +84,12 @@ def test_email_and_phone_password_login_do_not_send_an_otp(settings):
     before = list(auth.deliveries)
     for identifier in ("sipho@example.com", "+27123456789"):
         response = test_client.post(
-            "/auth/login", json={"identifier": identifier, "password": PASSWORD}
+            "/auth/login",
+            json={
+                "identifier": identifier,
+                "password": PASSWORD,
+                "turnstile_token": "fixture-token",
+            },
         )
         assert response.status_code == 200
         assert response.json()["refresh_token"]
@@ -95,13 +107,24 @@ def test_unverified_account_cannot_log_in_and_errors_are_generic(settings):
             "phone": "+27820000000",
             "email": "nandi@example.com",
             "password": PASSWORD,
+            "turnstile_token": "fixture-token",
         },
     )
     unverified = test_client.post(
-        "/auth/login", json={"identifier": "nandi@example.com", "password": PASSWORD}
+        "/auth/login",
+        json={
+            "identifier": "nandi@example.com",
+            "password": PASSWORD,
+            "turnstile_token": "fixture-token",
+        },
     )
     missing = test_client.post(
-        "/auth/login", json={"identifier": "missing@example.com", "password": PASSWORD}
+        "/auth/login",
+        json={
+            "identifier": "missing@example.com",
+            "password": PASSWORD,
+            "turnstile_token": "fixture-token",
+        },
     )
     assert unverified.status_code == 401
     assert missing.status_code == 401
@@ -151,6 +174,7 @@ def _database_auth():
             AuthIdentity.__table__,
             VerificationChallenge.__table__,
             AuthSession.__table__,
+            RateLimitCounter.__table__,
         ],
     )
     sessions = sessionmaker(engine, expire_on_commit=False)
@@ -233,16 +257,31 @@ def test_signup_only_translates_credential_unique_violations(sqlstate, constrain
     failure = IntegrityError("generated statement", {}, original)
     sessions = MagicMock()
     transaction = sessions.begin.return_value
-    transaction.__enter__.return_value.scalar.return_value = None
-    transaction.__enter__.return_value.flush.side_effect = failure
+    session = transaction.__enter__.return_value
+    session.scalar.return_value = None
+    session.get.return_value = None  # No rate-limit counter row yet.
+    # The rate-limit counter insert and the owner-row insert each flush first;
+    # only the credential (AuthIdentity) insert's flush should hit the
+    # simulated unique-constraint failure.
+    calls = {"n": 0}
+
+    def flush_side_effect():
+        calls["n"] += 1
+        if calls["n"] == 3:
+            raise failure
+
+    session.flush.side_effect = flush_side_effect
     provider = MagicMock()
     service = AuthService(sessions, provider)
-    with pytest.raises(AuthError if conflict else IntegrityError) as caught:
-        service.signup("Test", "User", "+27820000000", "test@example.com", PASSWORD)
     if conflict:
-        assert caught.value.code == "account_exists"
-        assert caught.value.status_code == 409
+        # #9 enumeration resistance: a credential collision (even one only
+        # discovered via a race at flush time) returns the same public shape
+        # as a new sign-up, never a distinguishable error.
+        user = service.signup("Test", "User", "+27820000000", "test@example.com", PASSWORD)
+        assert user.email == "test@example.com"
     else:
+        with pytest.raises(IntegrityError) as caught:
+            service.signup("Test", "User", "+27820000000", "test@example.com", PASSWORD)
         assert caught.value is failure
     # Exception exits the transaction before the public conflict is raised.
     assert transaction.__exit__.call_args.args[0] is IntegrityError
