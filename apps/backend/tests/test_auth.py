@@ -14,6 +14,7 @@ from farmable_backend.auth import (
     SessionTokens,
     _hash_token,
 )
+from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
 from farmable_backend.models import (
@@ -37,9 +38,12 @@ def client(settings):
     app = create_app(
         settings,
         readiness=lambda: {},
-        service_settings=ServiceSettings(integrations_mode="fake"),
+        service_settings=ServiceSettings(environment="ci", integrations_mode="fake"),
     )
     app.state.auth = InMemoryAuthService()
+    # TestClient(app) without a `with` block never runs the lifespan, so
+    # app.state.services (normally set there) needs to be seeded by hand too.
+    app.state.services = ServiceRegistry(ServiceSettings(environment="ci", integrations_mode="fake"))
     return TestClient(app), app.state.auth
 
 

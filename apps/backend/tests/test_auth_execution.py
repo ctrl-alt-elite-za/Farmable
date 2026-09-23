@@ -7,11 +7,12 @@ from uuid import uuid4
 import httpx
 import pytest
 from farmable_backend.auth import AuthError
+from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import request_id
 from farmable_backend.main import create_app
 
-FAKE_SERVICES = ServiceSettings(integrations_mode="fake")
+FAKE_SERVICES = ServiceSettings(environment="ci", integrations_mode="fake")
 
 
 class BlockingAuth:
@@ -74,6 +75,7 @@ def test_health_stays_responsive_during_auth(settings, path, payload):
     service = BlockingAuth()
     app = create_app(settings, readiness=lambda: {}, service_settings=FAKE_SERVICES)
     app.state.auth = service
+    app.state.services = ServiceRegistry(FAKE_SERVICES)
     correlation = str(uuid4())
 
     async def check():
@@ -104,6 +106,7 @@ def test_auth_concurrency_is_bounded_without_blocking_health(settings):
     service = BlockingAuth(expected=2)
     app = create_app(settings, readiness=lambda: {}, service_settings=FAKE_SERVICES)
     app.state.auth = service
+    app.state.services = ServiceRegistry(FAKE_SERVICES)
 
     async def check():
         async with httpx.AsyncClient(
@@ -141,6 +144,7 @@ def test_cancelling_requests_does_not_release_running_auth_worker_slots(settings
     service = BlockingAuth(expected=2)
     app = create_app(settings, readiness=lambda: {}, service_settings=FAKE_SERVICES)
     app.state.auth = service
+    app.state.services = ServiceRegistry(FAKE_SERVICES)
 
     async def check():
         async with httpx.AsyncClient(

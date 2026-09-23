@@ -290,7 +290,13 @@ class AuthService:
             self._send(session, user, channel, ip=ip)
 
     def login(self, identifier: str, password: str, *, ip: str = "unknown") -> SessionTokens:
+        # As in refresh(): raising inside `with self.sessions.begin()` rolls
+        # back everything in the transaction, including the failure-counter
+        # hits recorded just above the raise. So the generic-credentials
+        # failure is raised after the block commits, not from inside it.
         identifier = identifier.strip()
+        failure: AuthError | None = None
+        result: SessionTokens | None = None
         with self.sessions.begin() as session:
             user = session.scalar(
                 select(AuthIdentity).where(
@@ -309,7 +315,9 @@ class AuthService:
                 # IP; only failures count toward these limits, so legitimate
                 # repeated logins are never throttled. An unknown identifier
                 # still hashes to a stable per-identifier bucket, matching the
-                # dummy-hash timing defense above.
+                # dummy-hash timing defense above. A rate-limit AuthError
+                # raised here still aborts the transaction, but check() never
+                # records a hit on the call that rejects, so nothing is lost.
                 _rate_limit(
                     session,
                     scope="login_fail_account",
@@ -326,10 +334,23 @@ class AuthService:
                     limit=20,
                     code="login_rate_limited",
                 )
-                raise AuthError("invalid_credentials", 401)
-            return self._new_session(session, user)
+                failure = AuthError("invalid_credentials", 401)
+            else:
+                result = self._new_session(session, user)
+        if failure is not None:
+            raise failure
+        if result is None:  # Defensive: every successful branch assigns a result.
+            raise AuthError("invalid_credentials", 401)
+        return result
 
     def refresh(self, refresh_token: str) -> SessionTokens:
+        # A raise inside `with self.sessions.begin()` rolls the whole
+        # transaction back — including the cascade-revoke UPDATE below. So
+        # every branch here sets `failure`/`result` and exits the block
+        # normally (committing), then raises afterwards if needed, mirroring
+        # `verify()`'s pattern.
+        failure: AuthError | None = None
+        result: SessionTokens | None = None
         with self.sessions.begin() as session:
             token_hash = _hash_token(refresh_token)
             # Lock the session row (if any) so a concurrent refresh with the
@@ -340,8 +361,8 @@ class AuthService:
                 .with_for_update()
             )
             if existing is None:
-                raise AuthError("invalid_session", 401)
-            if existing.revoked_at is not None:
+                failure = AuthError("invalid_session", 401)
+            elif existing.revoked_at is not None:
                 # Reuse of an already-rotated/revoked refresh token: treat as
                 # theft and revoke every live session for this user.
                 session.execute(
@@ -352,14 +373,21 @@ class AuthService:
                     )
                     .values(revoked_at=_now())
                 )
-                raise AuthError("invalid_session", 401)
-            if existing.expires_at <= _now():
-                raise AuthError("invalid_session", 401)
-            existing.revoked_at = _now()
-            user = session.get(AuthIdentity, existing.user_id)
-            if user is None or not (user.phone_verified and user.email_verified):
-                raise AuthError("invalid_session", 401)
-            return self._new_session(session, user)
+                failure = AuthError("invalid_session", 401)
+            elif _as_utc(existing.expires_at) <= _now():
+                failure = AuthError("invalid_session", 401)
+            else:
+                existing.revoked_at = _now()
+                user = session.get(AuthIdentity, existing.user_id)
+                if user is None or not (user.phone_verified and user.email_verified):
+                    failure = AuthError("invalid_session", 401)
+                else:
+                    result = self._new_session(session, user)
+        if failure is not None:
+            raise failure
+        if result is None:  # Defensive: every successful branch assigns a result.
+            raise AuthError("invalid_session", 401)
+        return result
 
     def _send(
         self, session: Session, user: AuthIdentity, channel: Channel, *, ip: str = "unknown"

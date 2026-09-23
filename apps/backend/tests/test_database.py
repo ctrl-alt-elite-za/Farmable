@@ -34,6 +34,8 @@ def test_only_owned_application_tables_are_registered():
         "photo_attempts",
         "photo_rates",
         "voice_session_rates",
+        "rate_limit_counters",
+        "idempotency_records",
         "forecast_runs",
         "forecast_state",
         "weather_jobs",

@@ -215,7 +215,10 @@ def create_app(
         # dispatch. Any non-ok result (rejected, timeout, unavailable,
         # misconfigured) fails closed with one safe, generic error — the
         # token/secret are never logged (see Turnstile adapter + logging.mask).
-        result = await request.app.state.services.turnstile.validate(token, action=action)
+        services = getattr(request.app.state, "services", None)
+        if services is None:
+            raise AuthError("turnstile_failed", 503)
+        result = await services.turnstile.validate(token, action=action)
         if not result.ok:
             raise AuthError("turnstile_failed", 503)
 
