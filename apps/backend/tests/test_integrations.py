@@ -5,7 +5,7 @@ import json
 import time
 from collections.abc import AsyncIterator
 from pathlib import Path
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
@@ -36,11 +36,14 @@ def test_twilio_sdk_and_literal_hosts_stay_inside_integrations():
             elif isinstance(node, ast.ImportFrom):
                 modules = [node.module or ""]
             sdk_import = any(name == "twilio" or name.startswith("twilio.") for name in modules)
-            provider_host = (
-                isinstance(node, ast.Constant)
-                and isinstance(node.value, str)
-                and ".twilio.com" in node.value.lower()
-            )
+            host = ""
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                value = node.value.strip()
+                try:
+                    host = urlsplit(value if "://" in value else "//" + value).hostname or ""
+                except ValueError:
+                    pass  # Non-URL source literals are not provider hostnames.
+            provider_host = host == "twilio.com" or host.endswith(".twilio.com")
             if sdk_import or provider_host:
                 violations.append(f"{relative}:{node.lineno}")
     assert not violations, "Twilio provider access outside integrations: " + ", ".join(violations)
