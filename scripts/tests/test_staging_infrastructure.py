@@ -213,6 +213,7 @@ def test_shell_contracts_parse() -> None:
         "infra/gcp-rollout.sh",
         "infra/gcp-secret-smoke.sh",
         "infra/gcp-storage-smoke.sh",
+        "infra/gcp-required-config.sh",
     ):
         result = subprocess.run(  # noqa: S603 - fixed shell parser and repository paths
             [bash, "-n", str(ROOT / path)], capture_output=True, text=True
@@ -781,3 +782,60 @@ def test_failed_first_deploy_refuses_to_delete_when_the_revision_probe_fails(
     assert result.returncode != 0
     assert "services delete" not in log.read_text(encoding="utf-8")
     assert "operator action required" in result.stderr
+
+
+_REQUIRED_CONFIG_VARS = (
+    "GCP_PROJECT_ID",
+    "GCP_WORKLOAD_IDENTITY_PROVIDER",
+    "GCP_DEPLOYER_SERVICE_ACCOUNT",
+    "GCP_RUNTIME_SERVICE_ACCOUNT",
+    "GCP_ARTIFACT_REPOSITORY",
+    "GCP_CLOUD_SQL_INSTANCE",
+    "GCP_CLOUD_SQL_CONNECTION",
+    "GCP_MEDIA_BUCKET",
+    "GCP_DATABASE_SECRET",
+    "GCP_GEMINI_SECRET",
+)
+
+
+def _required_config_env(tmp_path: Path) -> dict:
+    """A clean environment: any GCP_* left in the ambient environment would mask
+    the very variable a case is trying to leave unset."""
+    environment = {
+        name: value for name, value in os.environ.items() if not name.startswith("GCP_")
+    }
+    environment["GITHUB_OUTPUT"] = str(tmp_path / "github-output")
+    for name in _REQUIRED_CONFIG_VARS:
+        environment[name] = f"value-for-{name}"
+    return environment
+
+
+def test_required_config_emits_every_deployment_output(tmp_path: Path) -> None:
+    environment = _required_config_env(tmp_path)
+    result = _run("infra/gcp-required-config.sh", environment)
+    assert result.returncode == 0, result.stderr
+    written = (tmp_path / "github-output").read_text(encoding="utf-8").splitlines()
+    assert written == [
+        "project=value-for-GCP_PROJECT_ID",
+        "repository=value-for-GCP_ARTIFACT_REPOSITORY",
+        "sql_instance=value-for-GCP_CLOUD_SQL_INSTANCE",
+        "sql_connection=value-for-GCP_CLOUD_SQL_CONNECTION",
+        "media_bucket=value-for-GCP_MEDIA_BUCKET",
+        "runtime_account=value-for-GCP_RUNTIME_SERVICE_ACCOUNT",
+        "database_secret=value-for-GCP_DATABASE_SECRET",
+        "gemini_secret=value-for-GCP_GEMINI_SECRET",
+    ]
+
+
+@pytest.mark.parametrize("unset", _REQUIRED_CONFIG_VARS)
+def test_required_config_names_the_variable_that_is_unset(tmp_path: Path, unset: str) -> None:
+    """A chained `test -n` exits 1 saying nothing about which of ten protected
+    variables an operator has not set. GCP_CLOUD_SQL_INSTANCE was not checked at
+    all, so it failed in the backup step -- after an image was built and pushed.
+    """
+    environment = _required_config_env(tmp_path)
+    environment[unset] = ""
+    result = _run("infra/gcp-required-config.sh", environment)
+    assert result.returncode != 0
+    assert unset in result.stderr
+    assert not (tmp_path / "github-output").exists()
