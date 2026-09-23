@@ -255,7 +255,9 @@ def test_photo_worker_resources_are_optional_and_always_closed(
             raise RuntimeError("queue")
 
     app = Mock(open_async=opened, run_worker_async=AsyncMock(side_effect=run_queue))
-    monkeypatch.setattr(worker, "ServiceSettings", Mock())
+    monkeypatch.setattr(
+        worker, "ServiceSettings", lambda: SimpleNamespace(integrations_mode="disabled")
+    )
     monkeypatch.setattr(
         worker,
         "Settings",

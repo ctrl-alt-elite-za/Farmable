@@ -11,7 +11,7 @@ from pathlib import Path
 from ci_checks import CHECKS, DIAGNOSTICS
 
 MARKER = "<!-- farmable-ci-report -->"
-WORKFLOWS = {"Farmable PR checks", "gitleaks", "autofix.ci", "CodeQL"}
+WORKFLOWS = {"Farmable PR checks", "mobile", "gitleaks", "autofix.ci", "CodeQL"}
 
 
 def safe_result(data: dict) -> dict:

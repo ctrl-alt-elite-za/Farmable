@@ -26,6 +26,7 @@ from farmable_backend.auth import (
 )
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
+from farmable_backend.forecast_api import router as forecast_router
 from farmable_backend.gcs_photos import create_gcs_photos
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
@@ -95,6 +96,7 @@ def create_app(
         integration_config = service_settings or ServiceSettings()
         services = ServiceRegistry(integration_config)
         app.state.services = services
+        app.state.forecast_data_mode = config.forecast_data_mode
         app.state.sha = config.commit_sha
         database = None
         try:
@@ -151,6 +153,7 @@ def create_app(
     app.include_router(records_router)
     app.include_router(account_router)
     app.include_router(voice_router)
+    app.include_router(forecast_router)
 
     @app.exception_handler(ApiError)
     async def record_error(request: Request, exc: ApiError) -> JSONResponse:

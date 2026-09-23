@@ -648,6 +648,75 @@ class PhotoAttempt(Base):
     cleaned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ForecastRun(Base):
+    __tablename__ = "forecast_runs"
+    __table_args__ = (
+        CheckConstraint(
+            column("status").in_(("staged", "active", "superseded")), name="ck_forecast_run_status"
+        ),
+        Index(
+            "uq_forecast_one_active",
+            "status",
+            unique=True,
+            postgresql_where=column("status") == "active",
+            sqlite_where=column("status") == "active",
+        ),
+    )
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source_sha256: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSON_DOCUMENT)
+    failed_checks: Mapped[list[str]] = mapped_column(JSON_DOCUMENT)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ForecastState(Base):
+    __tablename__ = "forecast_state"
+    __table_args__ = (CheckConstraint(column("id") == 1, name="ck_forecast_state_singleton"),)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    active_run_id: Mapped[str | None] = mapped_column(Text, ForeignKey("forecast_runs.id"))
+
+
+class WeatherJob(Base):
+    """Transactional outbox and fenced lease, shared by rounded location only."""
+
+    __tablename__ = "weather_jobs"
+    __table_args__ = (
+        CheckConstraint(column("latitude_tenths").between(-900, 900), name="ck_weather_lat"),
+        CheckConstraint(column("longitude_tenths").between(-1800, 1799), name="ck_weather_lon"),
+        CheckConstraint(column("last_year") - column("first_year") == 14, name="ck_weather_years"),
+        CheckConstraint(
+            column("status").in_(("pending", "processing", "ready")), name="ck_weather_status"
+        ),
+        Index("ix_weather_due", "policy_hash", "last_year", "status", "next_attempt_at"),
+    )
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    latitude_tenths: Mapped[int] = mapped_column(BigInteger)
+    longitude_tenths: Mapped[int] = mapped_column(BigInteger)
+    first_year: Mapped[int] = mapped_column(BigInteger)
+    last_year: Mapped[int] = mapped_column(BigInteger)
+    policy_hash: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    attempt_count: Mapped[int] = mapped_column(BigInteger, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_kind: Mapped[str | None] = mapped_column(Text)
+    error_code: Mapped[str | None] = mapped_column(Text)
+
+
+class WeatherRiskClimatology(Base):
+    __tablename__ = "weather_risk_climatology"
+    __table_args__ = (
+        CheckConstraint(column("plant_month").between(1, 12), name="ck_weather_month"),
+    )
+    job_id: Mapped[str] = mapped_column(Text, ForeignKey("weather_jobs.id"), primary_key=True)
+    crop: Mapped[str] = mapped_column(Text, primary_key=True)
+    plant_month: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class VoiceSessionRate(Base):
     __tablename__ = "voice_session_rates"
     owner_id: Mapped[UUID] = mapped_column(
