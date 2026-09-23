@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "0010"
 down_revision: str | None = "0009"
@@ -21,7 +22,9 @@ def upgrade() -> None:
         "rate_limit_counters",
         sa.Column("scope", sa.Text(), primary_key=True),
         sa.Column("subject_hash", sa.Text(), primary_key=True),
-        sa.Column("hits", sa.JSON(), nullable=False),
+        sa.Column(
+            "hits", sa.JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False
+        ),
         sa.Column(
             "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
@@ -43,7 +46,9 @@ def upgrade() -> None:
         sa.Column("idempotency_key", sa.Text(), primary_key=True),
         sa.Column("request_fingerprint", sa.Text(), nullable=False),
         sa.Column("status_code", sa.Integer(), nullable=False),
-        sa.Column("response_body", sa.JSON(), nullable=False),
+        sa.Column(
+            "response_body", sa.JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False
+        ),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
