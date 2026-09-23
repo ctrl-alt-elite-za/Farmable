@@ -52,6 +52,12 @@ elif [ "$mode" = mobile ]; then
   # for why adb wait-for-device and each probe each need their own limit.
   bash scripts/await-device.sh
   adb install -r "${APK:?Set APK to the test-mode Android build}"
+  # And again after the install, because the gate above proves nothing about
+  # the moment after a slow step. Streaming a release APK takes seconds, and
+  # PR #53's run passed the first check, installed successfully, then failed
+  # Maestro's very first command with "device offline" — the transport went
+  # away inside that window.
+  bash scripts/await-device.sh
   # Prove connectivity, then stop ONLY this invocation's API for offline proof.
   maestro test e2e/mobile/online_launch.yaml
   "${compose[@]}" stop api
