@@ -422,9 +422,7 @@ class AccountService:
             )
             code = self.provider.create_code(channel)
             try:
-                if idempotency_key is not None and hasattr(
-                    type(self.provider), "deliver_with_key"
-                ):
+                if idempotency_key is not None and hasattr(type(self.provider), "deliver_with_key"):
                     cast(Any, self.provider).deliver_with_key(
                         channel, normalized, code, idempotency_key
                     )

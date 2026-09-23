@@ -393,10 +393,7 @@ class AuthService:
             password_valid = self._verify_password(password_hash, password)
             verified = user is not None and (user.phone_verified and user.email_verified)
             valid = (
-                user is not None
-                and user.password_hash is not None
-                and password_valid
-                and verified
+                user is not None and user.password_hash is not None and password_valid and verified
             )
             still_admitted = finish_login(
                 session,

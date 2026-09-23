@@ -128,9 +128,7 @@ def _locked_counter(session: Session, *, scope: str, subject: str) -> RateLimitC
     return counter
 
 
-def admit_login(
-    sessions: sessionmaker[Session], *, account: str, ip: str
-) -> None:
+def admit_login(sessions: sessionmaker[Session], *, account: str, ip: str) -> None:
     """Reserve one bounded login verification across both abuse buckets.
 
     The reservations are durable and locked in one transaction, so separate
