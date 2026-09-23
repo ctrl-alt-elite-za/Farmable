@@ -932,19 +932,46 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
       // One current planting per section, enforced by a partial unique index.
       // Standing the old one down before raising the new one is what keeps a
       // re-plan from violating it.
-      await (db.update(db.plantings)..where(
-            (t) =>
-                t.sectionId.equals(section.id) &
-                t.isCurrent.equals(true) &
-                t.deletedAt.isNull(),
-          ))
-          .write(
-            PlantingsCompanion(
-              isCurrent: const Value(false),
-              syncState: const Value('pending'),
-              updatedAt: Value(at),
-            ),
-          );
+      //
+      // Read the rows first rather than writing in bulk, because each one has
+      // to be versioned and queued on its own. Marking them pending without
+      // queuing anything was how the invariant could hold on the phone and
+      // break on the server: the replacement uploads and claims current while
+      // the stand-down never leaves the device, so the section ends up with
+      // two current plantings remotely and nothing locally that says so.
+      final demoted =
+          await (db.select(db.plantings)..where(
+                (t) =>
+                    t.sectionId.equals(section.id) &
+                    t.isCurrent.equals(true) &
+                    t.deletedAt.isNull(),
+              ))
+              .get();
+
+      for (final planting in demoted) {
+        await (db.update(
+          db.plantings,
+        )..where((t) => t.id.equals(planting.id))).write(
+          PlantingsCompanion(
+            isCurrent: const Value(false),
+            version: Value(planting.version + 1),
+            syncState: const Value('pending'),
+            updatedAt: Value(at),
+          ),
+        );
+        // Queued here, before the replacement is created below. The outbox
+        // drains in insertion order, so this is what makes the server see the
+        // old planting stand down first — the same ordering the local index
+        // forces, carried across the wire.
+        await _enqueue(
+          farmId: planting.farmId,
+          ownerId: planting.ownerId,
+          operation: 'update',
+          recordType: 'planting',
+          recordId: planting.id,
+          at: at,
+        );
+      }
 
       final plantingId = newUuid();
       await db

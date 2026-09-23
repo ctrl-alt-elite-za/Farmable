@@ -14,6 +14,9 @@ library;
 import 'dart:convert';
 
 import 'package:almanac/data/local/database.dart' as db;
+// Not `show OrderingTerm`: `rowId` is an extension getter, and a show
+// clause filters extensions out along with everything else unnamed.
+import 'package:drift/drift.dart' hide Column, Table, isNull, isNotNull;
 import 'package:almanac/data/local/seed.dart';
 import 'package:almanac/domain/farm_records.dart' as rec;
 import 'package:almanac/domain/models.dart';
@@ -227,6 +230,85 @@ void main() {
           reason: 'A step of the plan that was replaced is not still due',
         );
       }
+    });
+
+    testWidgets('the planting it stands down is queued, and queued first', (
+      tester,
+    ) async {
+      // Tshego's finding. The superseded planting was marked pending but
+      // never versioned or enqueued, so only the replacement would ever reach
+      // the server. The partial unique index keeps one current planting per
+      // section on the phone; nothing carried that across the wire, and the
+      // server would have ended up holding two with nothing local to say so.
+      final harness = await pumpFarmApp(tester, location: '/home');
+      final records = harness.container.read(farmRecordsProvider);
+      final database = harness.db;
+
+      Future<List<db.Planting>> plantings() async =>
+          (await database.select(database.plantings).get())
+              .where((p) => p.sectionId == northPlot && p.deletedAt == null)
+              .toList();
+
+      final first = recommendations(
+        PlanningConstraints(
+          budget: const Cents(10000000),
+          plantingDate: DateTime(2026, 9, 20),
+        ),
+      ).firstWhere((r) => r.crop == Crop.spinach);
+      await records.acceptPlan(acceptanceFor(first));
+      final standing = (await plantings()).singleWhere((p) => p.isCurrent);
+
+      final second = recommendations(
+        PlanningConstraints(
+          budget: const Cents(10000000),
+          plantingDate: DateTime(2026, 9, 21),
+        ),
+      ).firstWhere((r) => r.crop == Crop.cabbage);
+      await records.acceptPlan(acceptanceFor(second));
+
+      final after = await plantings();
+      final demoted = after.firstWhere((p) => p.id == standing.id);
+      final raised = after.singleWhere((p) => p.isCurrent);
+
+      expect(demoted.isCurrent, isFalse);
+      expect(
+        demoted.version,
+        standing.version + 1,
+        reason:
+            'an unversioned change is one the server cannot order against '
+            'anything else it has for this row',
+      );
+      expect(demoted.syncState, 'pending');
+
+      final queued =
+          (await (database.select(
+                database.syncMutations,
+              )..orderBy([(t) => OrderingTerm.asc(t.rowId)])).get())
+              .where((m) => m.recordType == 'planting')
+              .toList();
+      final standDown = queued.indexWhere(
+        (m) => m.recordId == standing.id && m.operation == 'update',
+      );
+      final create = queued.indexWhere(
+        (m) => m.recordId == raised.id && m.operation == 'create',
+      );
+
+      expect(
+        standDown,
+        isNonNegative,
+        reason:
+            'the stand-down has to leave the device at all, or the server '
+            'never learns the old planting stopped being current',
+      );
+      expect(create, isNonNegative);
+      expect(
+        standDown,
+        lessThan(create),
+        reason:
+            'the outbox drains in insertion order, so queuing the stand-down '
+            'first is what stops the replacement claiming current while the '
+            'old one still holds it',
+      );
     });
   });
 }
