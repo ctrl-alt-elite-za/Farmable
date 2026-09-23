@@ -921,3 +921,31 @@ def test_verify_setup_reports_every_unmet_check_not_only_the_first(tmp_path: Pat
     assert "ctrl-alt-elite-za/Farmable" in result.stderr
     assert "4 Google Cloud setup check(s) failed" in result.stderr
     assert "PASS: Media bucket uses uniform bucket-level access" in result.stdout
+
+
+def test_operator_acceptance_evidence_is_documented() -> None:
+    """The repository work for issue #6 is merged; what is left is live evidence an
+    operator gathers by hand. Naming each piece, next to the command that produces
+    it, is what stops "deployed" from meaning only "the workflow went green".
+    """
+    doc = read("docs/deploy-staging-acceptance.md")
+    for marker in (
+        "africa-south1",
+        "infra/gcp-verify-setup.sh",
+        "infra/gcp-required-config.sh",
+        "DEPLOY_FREEZE",
+        "gcloud sql backups list",
+        "alembic current",
+        "gcloud run revisions list",
+        ".github/workflows/nightly-staging.yml",
+        "budget",
+        "PostGIS",
+        "rollback",
+        "Workload Identity Federation",
+    ):
+        assert marker in doc, marker
+    # Issue #6's body still describes a Cape Town EC2 deployment that was never
+    # built. The operator checklist must not reintroduce it.
+    lowered = doc.lower()
+    for stale in ("af-south-1", "aws", "ec2"):
+        assert stale not in lowered, stale
