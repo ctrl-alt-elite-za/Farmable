@@ -29,17 +29,17 @@ async def run() -> None:
 
     async def run_retention() -> None:
         while not retention_stop.is_set():
-            if database is not None:
-                await asyncio.to_thread(cleanup, database.sessions)
             try:
                 await asyncio.wait_for(retention_stop.wait(), timeout=3600)
             except TimeoutError:
-                pass
+                if database is not None:
+                    await asyncio.to_thread(cleanup, database.sessions)
 
     try:
         async with app.open_async():
-            database = Database(settings)
-            retention_task = asyncio.create_task(run_retention())
+            if settings.photo_bucket or services_settings.integrations_mode != "disabled":
+                database = Database(settings)
+                retention_task = asyncio.create_task(run_retention())
             if database is not None and services_settings.integrations_mode != "disabled":
                 services = ServiceRegistry(services_settings)
                 weather = WeatherWorker(database.sessions, services.open_meteo)

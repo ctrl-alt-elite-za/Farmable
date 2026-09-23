@@ -189,7 +189,9 @@ class AuthService:
         # phone collision so the response is shaped identically to a genuine
         # sign-up without creating a second account or a fake DB row (#9
         # enumeration resistance).
-        placeholder = AuthUser(uuid4(), first_name.strip(), surname.strip(), phone, email, False, False)
+        placeholder = AuthUser(
+            uuid4(), first_name.strip(), surname.strip(), phone, email, False, False
+        )
         # Its own short transaction, committed before the (possibly slow)
         # work below even starts — see rate_limits.py.
         _rate_limit(
@@ -538,7 +540,9 @@ class InMemoryAuthService:
         if any(u["email"] == email.lower() or u["phone"] == phone for u in self.users.values()):
             # #9 enumeration resistance: identical shape to a new sign-up, no
             # account/OTP created or sent for this request.
-            return AuthUser(uuid4(), first_name.strip(), surname.strip(), phone, email.lower(), False, False)
+            return AuthUser(
+                uuid4(), first_name.strip(), surname.strip(), phone, email.lower(), False, False
+            )
         user_id = uuid4()
         self.users[user_id] = {
             "first_name": first_name,

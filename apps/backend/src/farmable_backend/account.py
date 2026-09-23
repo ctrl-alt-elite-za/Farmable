@@ -193,14 +193,12 @@ class AccountService:
                 .where(PendingContactChange.user_id == owner)
                 .with_for_update()
             )
+            if pending_row is None:
+                raise ApiError(400, "no_pending_change")
             pending = (
-                None
-                if pending_row is None
-                else (
-                    pending_row.pending_email
-                    if channel is Channel.EMAIL
-                    else pending_row.pending_phone
-                )
+                pending_row.pending_email
+                if channel is Channel.EMAIL
+                else pending_row.pending_phone
             )
             if pending is None:
                 raise ApiError(400, "no_pending_change")

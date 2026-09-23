@@ -43,7 +43,9 @@ def client(settings):
     app.state.auth = InMemoryAuthService()
     # TestClient(app) without a `with` block never runs the lifespan, so
     # app.state.services (normally set there) needs to be seeded by hand too.
-    app.state.services = ServiceRegistry(ServiceSettings(environment="ci", integrations_mode="fake"))
+    app.state.services = ServiceRegistry(
+        ServiceSettings(environment="ci", integrations_mode="fake")
+    )
     return TestClient(app), app.state.auth
 
 

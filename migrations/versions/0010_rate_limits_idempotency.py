@@ -47,7 +47,9 @@ def upgrade() -> None:
         sa.Column("request_fingerprint", sa.Text(), nullable=False),
         sa.Column("status_code", sa.Integer(), nullable=False),
         sa.Column(
-            "response_body", sa.JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False
+            "response_body",
+            sa.JSON().with_variant(postgresql.JSONB(), "postgresql"),
+            nullable=False,
         ),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False

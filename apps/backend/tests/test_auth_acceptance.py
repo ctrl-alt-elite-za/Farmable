@@ -8,10 +8,9 @@ against the FastAPI app directly with SQLite + the fake providers, which is
 this repo's established pattern for auth behavior tests (see test_auth.py).
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
-import pytest
-from farmable_backend.auth import AuthService, Channel, DeterministicFakeOtpProvider
+from farmable_backend.auth import AuthService, DeterministicFakeOtpProvider
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
@@ -82,7 +81,9 @@ def _app(settings, provider=None):
         service_settings=ServiceSettings(environment="ci", integrations_mode="fake"),
     )
     app.state.auth = auth
-    app.state.services = ServiceRegistry(ServiceSettings(environment="ci", integrations_mode="fake"))
+    app.state.services = ServiceRegistry(
+        ServiceSettings(environment="ci", integrations_mode="fake")
+    )
     return app, auth, provider, sessions
 
 
@@ -146,7 +147,9 @@ def test_sms_daily_global_cap(settings):
     # via the real signup path is rejected with no provider call.
     with sessions.begin() as session:
         now = datetime.now(UTC).timestamp()
-        session.add(RateLimitCounter(scope="sms_daily", subject_hash=_hash("global"), hits=[now] * 50))
+        session.add(
+            RateLimitCounter(scope="sms_daily", subject_hash=_hash("global"), hits=[now] * 50)
+        )
     with TestClient(app) as client:
         response = client.post("/auth/signup", json=_signup_body(phone="+27820000099"))
     assert response.status_code == 429

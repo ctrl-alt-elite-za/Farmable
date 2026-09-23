@@ -363,7 +363,9 @@ def test_phone_change_requires_confirmation_before_it_applies(accounts):
 
 def test_contact_change_wrong_code_is_rejected_and_does_not_apply(accounts):
     alice = _headers(accounts.alice)
-    accounts.client.patch("/account/profile", headers=alice, json={"email": "sipho.new@example.com"})
+    accounts.client.patch(
+        "/account/profile", headers=alice, json={"email": "sipho.new@example.com"}
+    )
     wrong = accounts.client.post(
         "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "000000"}
     )
@@ -936,9 +938,13 @@ def test_delete_is_retry_safe_after_session_already_revoked(accounts):
     # session to authenticate with. It must fail safely (401, no 500) rather
     # than double-run cleanup or raise on an already-deleted identity.
     alice = _headers(accounts.alice)
-    first = accounts.client.request("DELETE", "/account", headers=alice, json={"password": PASSWORD})
+    first = accounts.client.request(
+        "DELETE", "/account", headers=alice, json={"password": PASSWORD}
+    )
     assert first.status_code == 204
-    retry = accounts.client.request("DELETE", "/account", headers=alice, json={"password": PASSWORD})
+    retry = accounts.client.request(
+        "DELETE", "/account", headers=alice, json={"password": PASSWORD}
+    )
     assert retry.status_code == 401
     assert retry.json()["error"]["code"] == "invalid_session"
 

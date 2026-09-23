@@ -72,6 +72,8 @@ def check(
             except IntegrityError:
                 # Lost the race to create the row; the winner's row is now visible.
                 counter = session.get(RateLimitCounter, (scope, subject_hash), with_for_update=True)
+        if counter is None:
+            raise RuntimeError("rate-limit counter disappeared during creation")
         hits = [hit for hit in counter.hits if hit > now - window_seconds]
         if len(hits) >= limit:
             retry_after = max(1, math.ceil(min(hits) + window_seconds - now))
