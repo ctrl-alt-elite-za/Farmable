@@ -613,6 +613,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/outlook': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Outlook */
+    get: operations['getCropOutlook'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/voice/live-session': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Live Session */
+    post: operations['createLiveSession'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -838,6 +872,36 @@ export interface components {
        * @constant
        */
       status: 'ok';
+    };
+    /** LiveSessionResponse */
+    LiveSessionResponse: {
+      /**
+       * Api Version
+       * @constant
+       */
+      api_version: 'v1beta';
+      /**
+       * Credential
+       * @description Ephemeral secret; keep in memory only.
+       */
+      credential: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Mode
+       * @enum {string}
+       */
+      mode: 'live' | 'fake';
+      /** Model */
+      model: string;
+      /**
+       * New Session Expires At
+       * Format: date-time
+       */
+      new_session_expires_at: string;
     };
     /** LoginRequest */
     LoginRequest: {
@@ -1068,6 +1132,67 @@ export interface components {
       updated_at: string;
       /** Version */
       version: number;
+    };
+    /** Outlook */
+    Outlook: {
+      /** Assumptions */
+      assumptions: string[];
+      /** Break Even Price Per Kg */
+      break_even_price_per_kg: string;
+      /** Cost Per Ha */
+      cost_per_ha: string;
+      /**
+       * Crop
+       * @enum {string}
+       */
+      crop:
+        | 'butternut'
+        | 'cabbage'
+        | 'carrots'
+        | 'green_beans'
+        | 'onions'
+        | 'potatoes'
+        | 'spinach'
+        | 'tomatoes';
+      /**
+       * Currency
+       * @default ZAR
+       * @constant
+       */
+      currency: 'ZAR';
+      /**
+       * Data Kind
+       * @enum {string}
+       */
+      data_kind: 'synthetic' | 'historical';
+      /**
+       * Forecast As Of
+       * Format: date-time
+       */
+      forecast_as_of: string;
+      /** Harvest Month */
+      harvest_month: number;
+      /**
+       * Method
+       * @enum {string}
+       */
+      method: 'fixture' | 'historical_range' | 'lightgbm';
+      /** Plant Month */
+      plant_month: number;
+      /**
+       * Price Basis Year
+       * @default 2025
+       * @constant
+       */
+      price_basis_year: 2025;
+      price_range: components['schemas']['PriceRange'];
+      /** Run Id */
+      run_id: string;
+      /** Warning */
+      warning: string | null;
+      weather_risk: components['schemas']['UnavailableWeather'];
+      /** Yield Kg Per Ha */
+      yield_kg_per_ha: string;
     };
     /** Page[FarmView] */
     Page_FarmView_: {
@@ -1339,6 +1464,21 @@ export interface components {
       /** Version */
       version: number;
     };
+    /** PriceRange */
+    PriceRange: {
+      /** P10 */
+      p10: string;
+      /** P50 */
+      p50: string;
+      /** P90 */
+      p90: string;
+      /**
+       * Unit
+       * @default ZAR/kg
+       * @constant
+       */
+      unit: 'ZAR/kg';
+    };
     /** ReadyResponse */
     ReadyResponse: {
       /**
@@ -1545,7 +1685,7 @@ export interface components {
      */
     RecordDelete: {
       /** Expected Version */
-      expected_version: number;
+      expected_version?: number | null;
       /**
        * Mutation Id
        * Format: uuid
@@ -1847,6 +1987,22 @@ export interface components {
       updated_at: string;
       /** Version */
       version: number;
+    };
+    /** UnavailableWeather */
+    UnavailableWeather: {
+      /**
+       * Reasons
+       * @default [
+       *       "climatology_not_computed"
+       *     ]
+       */
+      reasons: 'climatology_not_computed'[];
+      /**
+       * Status
+       * @default unavailable
+       * @constant
+       */
+      status: 'unavailable';
     };
     /** UploadCreate */
     UploadCreate: {
@@ -6432,6 +6588,159 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ReadyResponse'];
+        };
+      };
+    };
+  };
+  getCropOutlook: {
+    parameters: {
+      query: {
+        section_id: string;
+        crop:
+          | 'butternut'
+          | 'cabbage'
+          | 'carrots'
+          | 'green_beans'
+          | 'onions'
+          | 'potatoes'
+          | 'spinach'
+          | 'tomatoes';
+        plant_month: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Outlook'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  createLiveSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LiveSessionResponse'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
         };
       };
     };
