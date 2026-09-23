@@ -42,6 +42,7 @@ def test_refresh_token_can_only_be_rotated_once_concurrently(engine):
         f"+27{int(suffix[:10], 16) % 10_000_000_000:010d}",
         f"auth-{suffix}@example.com",
         "correct horse battery staple",
+        ip=f"198.51.100.{(int(suffix[:2], 16) % 250) + 1}",
     )
     service.verify(user.id, Channel.PHONE, "111111")
     tokens = service.verify(user.id, Channel.EMAIL, "222222")
@@ -120,6 +121,7 @@ def test_auth_concurrent_signup_returns_conflict_without_orphans(engine, monkeyp
                 f"+278{phone + (index if duplicate == 'email' else 0):09d}",
                 f"auth-race-{suffix}-{index if duplicate == 'phone' else 0}@example.com",
                 password,
+                ip=f"198.51.100.{(int(suffix[:2], 16) % 250) + 1}",
             )
         except AuthError as exc:
             return exc

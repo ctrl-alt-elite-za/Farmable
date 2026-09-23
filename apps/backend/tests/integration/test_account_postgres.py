@@ -36,6 +36,7 @@ def _register(service, suffix, index):
         f"+278{digits:09d}",
         f"account-{suffix}-{index}@example.com",
         PASSWORD,
+        ip=f"198.51.100.{(int(suffix[:2], 16) % 250) + 1}",
     )
     service.verify(tokens.id, Channel.PHONE, "111111")
     session = service.verify(tokens.id, Channel.EMAIL, "222222")
