@@ -25,6 +25,8 @@ trap cleanup EXIT
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration -m integration -q -k 'healthy or models_match_migrations or vision_registry or farm_records or auth'
 # Explicitly selected: these locking/recovery tests must not disappear behind -k.
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_photo_sync_postgres.py -m integration -q
+# Account ownership/deletion and farm-backfill races require real PostgreSQL locks.
+"${compose[@]}" run --rm tests pytest -o addopts= apps/backend/tests/integration/test_account_postgres.py apps/backend/tests/integration/test_backfill_account_farms_postgres.py -m integration -q
 # Forecast/voice races do not match the older auth/farm keyword filter above.
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_voice_sessions_postgres.py apps/backend/tests/integration/test_forecast_postgres.py -m integration -q
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_weather_postgres.py -m integration -q

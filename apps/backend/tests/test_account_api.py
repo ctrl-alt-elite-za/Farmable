@@ -31,6 +31,7 @@ from farmable_backend.models import (
     User,
     VerificationChallenge,
 )
+from farmable_backend.photo_jobs import PhotoJobs
 from farmable_backend.records_api import RecordRuntime
 from farmable_backend.records_service import RecordsService
 from fastapi.testclient import TestClient
@@ -153,6 +154,18 @@ def _seed_photo_upload(accounts, tokens):
             )
         )
         return upload.id
+
+
+def _make_photo_ready_for_cleanup(accounts, upload_id):
+    with accounts.sessions.begin() as session:
+        upload = session.get(PhotoUpload, upload_id)
+        attempt = session.scalar(select(PhotoAttempt).where(PhotoAttempt.upload_id == upload_id))
+        old = datetime.now(UTC) - timedelta(hours=2)
+        upload.state = "ready"
+        attempt.terminal_at = old
+        attempt.form_expires_at = old
+        attempt.clean_generation = "1"
+        return attempt.id
 
 
 def _seed_sync_change(accounts, tokens):
@@ -496,6 +509,49 @@ def test_deletion_retains_photo_upload_rows_for_the_cleanup_worker(accounts):
     # session, and all of this owner's sessions were revoked by the deletion.
     still_authorized = accounts.client.get("/account/profile", headers=_headers(accounts.alice))
     assert still_authorized.status_code == 401
+
+
+def test_deletion_requeues_ready_photos_for_full_cleanup(accounts):
+    jobs = PhotoJobs(accounts.sessions)
+    pending_upload = _seed_photo_upload(accounts, accounts.alice)
+    pending_attempt = _make_photo_ready_for_cleanup(accounts, pending_upload)
+    cleaned_upload = _seed_photo_upload(accounts, accounts.alice)
+    cleaned_attempt = _make_photo_ready_for_cleanup(accounts, cleaned_upload)
+    bob_upload = _seed_photo_upload(accounts, accounts.bob)
+    bob_attempt = _make_photo_ready_for_cleanup(accounts, bob_upload)
+
+    # Model the normal janitor having already removed the source object while
+    # deliberately preserving the ready clean object.
+    claim = jobs.cleanup_claim(cleaned_upload, cleaned_attempt)
+    assert claim is not None and claim[2] is True
+    jobs.cleanup_finish(cleaned_upload, cleaned_attempt, claim[1].cleanup_token, True)
+
+    removed = accounts.client.request(
+        "DELETE", "/account", headers=_headers(accounts.alice), json={"password": PASSWORD}
+    )
+    assert removed.status_code == 204
+
+    with accounts.sessions() as session:
+        assert session.get(PhotoUpload, pending_upload).state == "failed"
+        assert session.get(PhotoUpload, cleaned_upload).state == "failed"
+        assert session.get(PhotoAttempt, cleaned_attempt).cleaned_at is None
+        assert session.get(PhotoUpload, bob_upload).state == "ready"
+
+    # Both the never-cleaned and previously-cleaned attempts are durable
+    # candidates after the grace period. A fixed time avoids sleeping here.
+    deletion_grace_elapsed = datetime.now(UTC) + timedelta(hours=2)
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr("farmable_backend.photo_jobs.db_now", lambda _: deletion_grace_elapsed)
+        candidates = set(jobs.cleanup_candidates())
+        assert (pending_upload, pending_attempt) in candidates
+        assert (cleaned_upload, cleaned_attempt) in candidates
+        pending_claim = jobs.cleanup_claim(pending_upload, pending_attempt)
+        cleaned_claim = jobs.cleanup_claim(cleaned_upload, cleaned_attempt)
+        bob_claim = jobs.cleanup_claim(bob_upload, bob_attempt)
+
+    assert pending_claim is not None and pending_claim[2] is False
+    assert cleaned_claim is not None and cleaned_claim[2] is False
+    assert bob_claim is not None and bob_claim[2] is True
 
 
 def test_deletion_tombstones_without_publishing_sync_changes(accounts):

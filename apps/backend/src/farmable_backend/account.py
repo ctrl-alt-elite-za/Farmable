@@ -37,6 +37,8 @@ from farmable_backend.models import (
     FinancialRecord,
     Media,
     Observation,
+    PhotoAttempt,
+    PhotoUpload,
     Planting,
     SavedPlan,
     Section,
@@ -229,19 +231,31 @@ class AccountService:
             # Explicit deletes rather than a users-row cascade: the ownership
             # row stays so every farm foreign key, photo upload and rate row
             # keeps its referent. The credential identity itself is removed.
-            # photo_uploads/photo_attempts are deliberately NOT deleted here.
-            # PhotoJobs.cleanup_candidates (photo_jobs.py) is a real, running
-            # janitor that finds terminal/expired uploads by joining these two
-            # tables and deletes their GCS blobs by the key derived from
-            # upload.media_id + attempt.id -- a key stored nowhere else. Hard-
-            # deleting these rows on account deletion would remove the only
-            # record of that key before the janitor ever sees it, orphaning
-            # the blob in GCS permanently and unrecoverably. Leaving the rows
-            # in place lets the existing worker reach and clean them exactly
-            # as it does for any other account's abandoned upload; no caller
-            # can read them afterward since every account/farm/records route
-            # requires a live session, and all of this owner's sessions are
-            # revoked below in the same transaction.
+            # Retain photo rows because they contain the only durable GCS object
+            # keys, but make every attempt eligible for the janitor again. This
+            # includes ready photos (whose clean object is normally preserved)
+            # and attempts cleaned before deletion. Marking the upload failed
+            # makes cleanup_claim return keep_clean=False; clearing cleaned_at
+            # re-enqueues previously cleaned attempts. The normal one-hour
+            # terminal grace period still protects in-flight external work.
+            owned_uploads = select(PhotoUpload.id).where(PhotoUpload.owner_id == owner)
+            session.execute(
+                update(PhotoAttempt)
+                .where(PhotoAttempt.upload_id.in_(owned_uploads))
+                .values(
+                    terminal_at=now,
+                    cleaned_at=None,
+                    cleanup_token=None,
+                    cleanup_expires_at=None,
+                    lease_token=None,
+                    lease_expires_at=None,
+                )
+            )
+            session.execute(
+                update(PhotoUpload)
+                .where(PhotoUpload.owner_id == owner)
+                .values(state="failed", error_code="scope_unavailable")
+            )
             session.execute(delete(AccountProfile).where(AccountProfile.user_id == owner))
             session.execute(delete(AuthSession).where(AuthSession.user_id == owner))
             session.execute(
