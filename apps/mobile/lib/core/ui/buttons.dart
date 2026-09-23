@@ -27,6 +27,13 @@ class AppPrimaryButton extends StatelessWidget {
   /// a bare spinner.
   final String? busyLabel;
 
+  /// Puts the glyph after the word instead of before it.
+  ///
+  /// For an arrow, which points at where the tap goes rather than labelling
+  /// what the button is. "Next →" reads; "→ Next" reads as an arrow pointing
+  /// at the word.
+  final bool iconAfterLabel;
+
   const AppPrimaryButton({
     super.key,
     required this.label,
@@ -34,6 +41,7 @@ class AppPrimaryButton extends StatelessWidget {
     this.onPressed,
     this.block = true,
     this.busyLabel,
+    this.iconAfterLabel = false,
   });
 
   @override
@@ -47,6 +55,7 @@ class AppPrimaryButton extends StatelessWidget {
       border: null,
       label: busyLabel ?? label,
       icon: icon,
+      iconAfterLabel: iconAfterLabel,
     );
   }
 }
@@ -200,6 +209,7 @@ class _Pressable extends StatefulWidget {
   final BorderSide? border;
   final String label;
   final IconData? icon;
+  final bool iconAfterLabel;
 
   const _Pressable({
     required this.onPressed,
@@ -209,6 +219,7 @@ class _Pressable extends StatefulWidget {
     required this.border,
     required this.label,
     required this.icon,
+    this.iconAfterLabel = false,
   });
 
   @override
@@ -227,7 +238,7 @@ class _PressableState extends State<_Pressable> {
       mainAxisSize: widget.block ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (widget.icon != null) ...[
+        if (widget.icon != null && !widget.iconAfterLabel) ...[
           Icon(widget.icon, size: 20, color: widget.foreground),
           const SizedBox(width: AlmanacDimens.sp2),
         ],
@@ -239,6 +250,10 @@ class _PressableState extends State<_Pressable> {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        if (widget.icon != null && widget.iconAfterLabel) ...[
+          const SizedBox(width: AlmanacDimens.sp2),
+          Icon(widget.icon, size: 20, color: widget.foreground),
+        ],
       ],
     );
 
