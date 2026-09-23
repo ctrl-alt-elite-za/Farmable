@@ -13,7 +13,7 @@ from farmable_backend.config import Settings
 from farmable_backend.database import make_engine
 from farmable_backend.models import AccountProfile, AuthIdentity, AuthSession, Farm, User
 from farmable_backend.record_access import ApiError
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 pytestmark = pytest.mark.integration
@@ -104,6 +104,19 @@ def test_concurrent_first_language_writes_insert_exactly_one_profile(engine):
     and once the first commits it takes a fresh READ COMMITTED snapshot, sees
     the committed profile row, and takes the UPDATE branch instead.
 
+    A barrier placed before `sessions.begin()` does NOT reliably force this:
+    each transaction runs an unrelated authenticate()/get() preamble first,
+    and the two threads' connection-pool checkouts are asymmetric (one reuses
+    a warm connection, the other may open a fresh one), so the thread that
+    reaches the contended SELECT first can commit and release before the
+    second thread ever arrives -- the race the test exists to force may
+    simply not happen, and the test passes for the wrong reason regardless of
+    whether the lock is present. Instead, an engine-level `before_cursor_execute`
+    hook holds each thread immediately before it executes the owner-row lock
+    statement itself, so both threads issue that exact statement at
+    effectively the same instant and PostgreSQL's row lock is what serializes
+    them -- the failure mode under test is forced to occur, not hoped for.
+
     The winner is genuinely nondeterministic, so only the row count and the
     set of admissible values are asserted.
     """
@@ -114,10 +127,13 @@ def test_concurrent_first_language_writes_insert_exactly_one_profile(engine):
     tokens = _register(auth, suffix, 0)
     owners = [tokens.user.id]
     languages = ("zu", "xh")
-    barrier = Barrier(len(languages), timeout=10)
+    lock_barrier = Barrier(len(languages), timeout=10)
+
+    def synchronize_on_owner_lock(conn, cursor, statement, parameters, context, executemany):  # noqa: PLR0913
+        if statement.startswith("SELECT users.id"):
+            lock_barrier.wait()
 
     def write(language):
-        barrier.wait()
         try:
             return account.update_profile(
                 f"Bearer {tokens.access_token}", ProfileUpdate(preferred_language=language)
@@ -125,6 +141,7 @@ def test_concurrent_first_language_writes_insert_exactly_one_profile(engine):
         except Exception as error:  # noqa: BLE001 - the failure mode under test
             return error
 
+    event.listen(engine, "before_cursor_execute", synchronize_on_owner_lock)
     try:
         with ThreadPoolExecutor(max_workers=len(languages)) as executor:
             results = list(executor.map(write, languages))
@@ -137,6 +154,7 @@ def test_concurrent_first_language_writes_insert_exactly_one_profile(engine):
             assert len(profiles) == 1
             assert profiles[0].preferred_language in languages
     finally:
+        event.remove(engine, "before_cursor_execute", synchronize_on_owner_lock)
         _cleanup(engine, owners)
 
 
