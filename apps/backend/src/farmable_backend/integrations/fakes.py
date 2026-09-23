@@ -5,6 +5,7 @@ import io
 import json
 import wave
 from collections import Counter
+from datetime import date, timedelta
 from importlib.resources import files
 from typing import Any, Literal
 
@@ -52,6 +53,7 @@ class FakeTransport(httpx.AsyncBaseTransport):
             "crop.kindwise.com": "crop_health",
             "rest.isric.org": "soilgrids",
             "api.open-meteo.com": "open_meteo",
+            "archive-api.open-meteo.com": "open_meteo",
             "geocode.googleapis.com": "maps",
         }
         service = hosts.get(request.url.host)
@@ -72,6 +74,30 @@ class FakeTransport(httpx.AsyncBaseTransport):
                 200, content=example_audio(), headers={"content-type": "audio/wav"}
             )
         payload = self.fixtures["success"][service]
+        if service == "open_meteo" and request.url.path == "/v1/archive":
+            start = date.fromisoformat(request.url.params["start_date"])
+            end = date.fromisoformat(request.url.params["end_date"])
+            count = (end - start).days + 1
+            if not 1 <= count <= 6201:
+                return httpx.Response(400, json={"error": True})
+            return httpx.Response(
+                200,
+                json={
+                    "daily_units": {
+                        "temperature_2m_min": "°C",
+                        "temperature_2m_max": "°C",
+                        "precipitation_sum": "mm",
+                    },
+                    "daily": {
+                        "time": [(start + timedelta(days=n)).isoformat() for n in range(count)],
+                        "temperature_2m_min": [5] * count,
+                        "temperature_2m_max": [25] * count,
+                        "precipitation_sum": [2] * count,
+                    },
+                },
+            )
+        if service == "gemini" and request.url.path == "/v1beta/auth_tokens":
+            return httpx.Response(200, json={"name": "auth_tokens/fixture-only-not-a-live-token"})
         if service == "gemini" and request.url.path.endswith(":streamGenerateContent"):
             # Preserve the raw thought/signature part; it is not visible first text.
             thought = {

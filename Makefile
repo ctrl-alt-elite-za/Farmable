@@ -12,10 +12,13 @@ SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
 
 .PHONY: setup lint format typecheck test test-integration hooks check-no-raw-sql client db-migrate queue-schema
 .PHONY: client-check security-audit migration-safety deployability e2e-api e2e-degradation e2e-mobile mobile-test-build
-.PHONY: smoke
+.PHONY: smoke smoke-voice mobile-checks demo-regression
 
 smoke:
 	uv run python -m farmable_backend.integrations.smoke $(SMOKE_ARGS)
+
+smoke-voice:
+	uv run python scripts/smoke_gemini_live.py $(SMOKE_ARGS)
 
 setup:
 	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
@@ -73,6 +76,15 @@ check-no-raw-sql:
 client:
 	uv run python scripts/generate_client.py
 
+# Explicitly run after migrations. No fixture directory is scanned by default.
+FORECAST_DIR ?= ml/forecast/results
+.PHONY: forecast-import-latest forecast-activate
+forecast-import-latest:
+	uv run python -m farmable_backend.forecast_cli import-latest --root "$(FORECAST_DIR)"
+
+forecast-activate:
+	uv run python -m farmable_backend.forecast_cli activate --run "$(RUN)"
+
 client-check: client
 	@git diff --exit-code -- packages/api-client || { echo 'client-stale: run make client and commit its output'; exit 1; }
 
@@ -99,3 +111,18 @@ db-migrate:
 
 queue-schema:
 	uv run python -m farmable_backend.manage queue-schema
+
+mobile-checks:
+	node --test scripts/tests/mobile-api.test.mjs
+	bash scripts/check-test-mode.sh
+	cd apps/mobile && flutter pub get --enforce-lockfile
+	cd apps/mobile && dart run tool/generate_tokens.dart --verify
+	cd apps/mobile && dart format --output=none --set-exit-if-changed .
+	cd apps/mobile && flutter analyze
+	cd apps/mobile && flutter test --exclude-tags demo-api
+	cd apps/mobile && flutter test --plain-name 'renders the farm with no network and no spinner' test/home_screen_test.dart
+	uv run python scripts/test_mobile_contract.py
+
+demo-regression:
+	uv run python -m farmable_backend.demo_api.rehearse
+	uv run pytest apps/backend/tests/test_demo_planner.py apps/backend/tests/test_demo_api.py -q

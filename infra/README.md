@@ -56,7 +56,7 @@ terraform -chdir=infra plan  -var=project_id=almanac-staging-za
 terraform -chdir=infra apply -var=project_id=almanac-staging-za
 ```
 
-Expect **52 to add, 0 to change, 0 to destroy**. If the plan reports destroys, stop and
+Expect **58 to add, 0 to change, 0 to destroy**. If the plan reports destroys, stop and
 escalate — a clean project has nothing to destroy.
 
 Then capture the outputs; Phase 4 needs them:
@@ -148,6 +148,15 @@ non-secret resource identifiers:
 Optional overrides: `INTEGRATIONS_MODE` (defaults to `live`) and `GCP_SECRET_PREFIX`
 (defaults to the prefix implied by `GCP_DATABASE_SECRET`).
 
+**The forecast import lane is separate and off by default.** `FORECAST_DATA_MODE`
+defaults to `disabled`, so no import job or artifact build runs and the demo does not
+need it. To enable it you also need `GCP_FORECAST_IMPORT_ACCOUNT` and
+`GCP_FORECAST_GITHUB_TOKEN_SECRET` (Terraform outputs `forecast_import_service_account`
+and `forecast_github_token_secret`), plus a value in
+`farmable-staging-forecast-github-token`. That lane has its own runbook — see
+[forecast deployment](../docs/forecast-deployment.md) — and it is not duplicated here so
+the two cannot drift apart.
+
 ### Phase 5 — first deploy
 
 Run the **Deploy demo backend** workflow from the `main` branch. It must be `main`: the
@@ -196,6 +205,11 @@ manually updated URL or SHA variable, and it fails if the live service,
 database, worker, or revision identity is unhealthy.
 
 ## Delivery and failure behavior
+
+Forecast import is a separate, bounded post-migration job. The nightly workflow
+also verifies authenticated demo crop outlooks. Both require explicit operator
+configuration; see [forecast deployment](../docs/forecast-deployment.md). A disabled
+or unconfigured outlook is a failed acceptance check, not a silent nightly pass.
 
 Each deploy captures the revision receiving 100% traffic before deployment. It
 builds and pushes `backend:<exact Git SHA>`, completes and verifies a Cloud SQL backup,

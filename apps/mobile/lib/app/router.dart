@@ -14,16 +14,69 @@ library;
 
 import 'package:go_router/go_router.dart';
 
+import '../features/auth/auth_choice_screen.dart';
+import '../features/auth/brand_intro_screen.dart';
+import '../features/auth/forgot_password_screen.dart';
+import '../features/auth/login_screen.dart';
+import '../features/auth/onboarding_screen.dart';
+import '../features/auth/reset_password_screen.dart';
+import '../features/auth/sign_up_screen.dart';
+import '../features/auth/verify_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
+import '../features/recommendations/recommendation_detail_screen.dart';
+import '../features/recommendations/recommendations_screen.dart';
 import '../features/shell/bottom_nav_island.dart';
 import '../features/status/status_screen.dart';
 import '../features/zone/zone_screen.dart';
+import 'config.dart';
 
-GoRouter buildRouter() => GoRouter(
-  initialLocation: '/home',
+/// [initialLocation] is for tests, which pump a screen directly rather than
+/// tapping their way to it. A build overrides the same thing with
+/// `INITIAL_ROUTE` — see [initialRoute] for why a cold launch still opens on
+/// Home.
+GoRouter buildRouter({String? initialLocation}) => GoRouter(
+  initialLocation: initialLocation ?? initialRoute,
   routes: [
     GoRoute(path: '/', redirect: (_, _) => '/home'),
+
+    // ---------------------------------------------------------------- auth
+    //
+    // Launch, onboarding and authentication — guide §§4-11. Kept together as
+    // one block so it stays easy to read next to the farm routes below, and
+    // easy to resolve if two branches add routes at once.
+    //
+    // NOTHING BELOW THIS BLOCK IS GATED ON A SESSION, and that is deliberate.
+    // The seeded demo farm has no user, and Home and Zone Detail have to open
+    // without one. Authentication decides which auth screen comes next, never
+    // whether the farm is allowed to draw.
+    GoRoute(path: '/splash', builder: (_, _) => const BrandIntroScreen()),
+    GoRoute(
+      path: '/onboarding',
+      builder: (context, _) => OnboardingScreen(
+        // Skip and Get started go to the same place, per guide §6.
+        onFinished: () => GoRouter.of(context).go('/auth'),
+      ),
+    ),
+    GoRoute(
+      path: '/auth',
+      builder: (_, _) => const AuthChoiceScreen(),
+      routes: [
+        GoRoute(path: 'signup', builder: (_, _) => const SignUpScreen()),
+        GoRoute(path: 'verify', builder: (_, _) => const VerifyScreen()),
+        GoRoute(path: 'login', builder: (_, _) => const LoginScreen()),
+        GoRoute(
+          path: 'forgot-password',
+          builder: (_, _) => const ForgotPasswordScreen(),
+        ),
+        GoRoute(
+          path: 'reset-password',
+          builder: (_, _) => const ResetPasswordScreen(),
+        ),
+      ],
+    ),
+    // ------------------------------------------------------------ end auth
+
     GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
 
     GoRoute(
@@ -51,6 +104,26 @@ GoRouter buildRouter() => GoRouter(
           path: 'zone/:zoneId',
           builder: (context, state) =>
               ZoneScreen(sectionId: state.pathParameters['zoneId']!),
+          routes: [
+            // "What should I plant here?" — deep-linkable like every other
+            // screen. The planner is pure and the section is on disk, so
+            // arriving cold at this URL with no network still answers.
+            GoRoute(
+              path: 'plant',
+              builder: (context, state) => RecommendationsScreen(
+                sectionId: state.pathParameters['zoneId']!,
+              ),
+              routes: [
+                GoRoute(
+                  path: ':crop',
+                  builder: (context, state) => RecommendationDetailScreen(
+                    sectionId: state.pathParameters['zoneId']!,
+                    cropName: state.pathParameters['crop']!,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     ),

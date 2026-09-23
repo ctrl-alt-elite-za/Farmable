@@ -11,6 +11,10 @@ set -Eeuo pipefail
 : "${DATABASE_SECRET:?DATABASE_SECRET is required}"
 : "${GEMINI_SECRET:?GEMINI_SECRET is required}"
 : "${GCS_BUCKET:?GCS_BUCKET is required}"
+FORECAST_DATA_MODE="${FORECAST_DATA_MODE:-disabled}"
+case "$FORECAST_DATA_MODE" in disabled|sample|historical) ;; *)
+  echo 'Invalid forecast data mode' >&2; exit 1 ;;
+esac
 
 # `describe` exits non-zero both when the service is absent and when the call simply
 # failed, and the two are distinguishable only by parsing human-readable error text.
@@ -153,7 +157,7 @@ gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --image="$IMAGE" --platform=managed --no-traffic --tag="sha-${COMMIT_SHA}" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
-  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE}" \
+  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \
   --set-secrets="$secret_args" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null

@@ -53,6 +53,7 @@ jobs:
           - { check: no-raw-sql, backend: true }
           - { check: client-up-to-date, backend: true }
           - { check: integration-tests, backend: true }
+          - { check: demo-regression, backend: true }
           - { check: migration-safety, backend: true }
           - { check: deployability, backend: true }
           - { check: e2e-api, backend: true }

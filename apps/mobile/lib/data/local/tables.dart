@@ -133,6 +133,17 @@ class FarmTasks extends Table with OwnedRecord {
   TextColumn get status => text().withDefault(const Constant('pending'))();
   IntColumn get expectedCostCents => integer().nullable()();
 
+  /// LOCAL-ONLY. The `saved_plans` row whose acceptance generated this step,
+  /// or null for a task a person created.
+  ///
+  /// The server's `farm_tasks` has no such column, and the distinction it
+  /// carries is not cosmetic: accepting a new plan retires the schedule the
+  /// last one generated, and it has to be able to tell those steps apart from
+  /// the reminder the farmer typed themselves. Without it the choice is
+  /// between leaving two schedules on the timeline and deleting the farmer's
+  /// own reminder, and both are wrong.
+  TextColumn get planId => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -224,6 +235,18 @@ class SyncMutations extends Table {
   /// "3 changes waiting" shows.
   DateTimeColumn get syncedAt => dateTime().nullable()();
 
+  // LOCAL-ONLY delivery bookkeeping. A null payload is a legacy or unsupported
+  // mutation: keep it pending, never invent its lost historical snapshot.
+  TextColumn get payload => text().nullable()();
+  IntColumn get recordVersion => integer().nullable()();
+  TextColumn get dependencyId => text().nullable()();
+  TextColumn get deliveryState =>
+      text().withDefault(const Constant('pending'))();
+  IntColumn get attemptCount => integer().withDefault(const Constant(0))();
+  IntColumn get budgetCount => integer().withDefault(const Constant(0))();
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+  TextColumn get errorCode => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {mutationId};
 }
@@ -237,6 +260,20 @@ class SeedState extends Table {
   IntColumn get id => integer()();
   TextColumn get seedVersion => text()();
   DateTimeColumn get seededAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Durable app-owned attachments. Paths are relative and never sent to a server.
+class LocalPhotos extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get farmId => text()();
+  TextColumn get relativePath => text()();
+  TextColumn get contentType => text()();
+  IntColumn get byteLength => integer()();
+  TextColumn get cloudId => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

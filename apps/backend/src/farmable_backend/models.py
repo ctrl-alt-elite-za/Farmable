@@ -27,12 +27,16 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from farmable_backend.photo_policy import MAX_CLAIMS
+
 # Spinach is sold by bunch or kilogram, so only these crops get a per-plant formula (#16).
 WEIGHED_CROPS = ("cabbage", "tomato")
 SYNC_STATES = ("pending", "synced", "conflict")
 TASK_STATUSES = ("pending", "in_progress", "done", "cancelled")
 FINANCIAL_TYPES = ("expense", "income")
 PLAN_STATUSES = ("saved", "approved", "rejected")
+ACCOUNT_LANGUAGES = ("en", "af", "nso", "st", "xh", "zu")
+DEFAULT_ACCOUNT_LANGUAGE = "en"
 
 JSON_DOCUMENT = JSON().with_variant(JSONB(), "postgresql")
 CHANGE_CURSOR = BigInteger().with_variant(Integer(), "sqlite")
@@ -193,6 +197,34 @@ class AuthSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AccountProfile(Base):
+    """Account preferences.
+
+    A separate table, not new columns on auth_identities: migration 0004 is
+    already deployed and immutable, and tests/test_auth_migration.py asserts
+    that its CREATE TABLE text still matches the ORM exactly.
+    """
+
+    __tablename__ = "account_profiles"
+    __table_args__ = (
+        CheckConstraint(
+            column("preferred_language").in_(ACCOUNT_LANGUAGES),
+            name="ck_account_profiles_preferred_language",
+        ),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE"), primary_key=True
+    )
+    preferred_language: Mapped[str] = mapped_column(
+        Text, default=DEFAULT_ACCOUNT_LANGUAGE, server_default=DEFAULT_ACCOUNT_LANGUAGE
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Farm(Base):
@@ -537,6 +569,166 @@ class SyncChange(Base):
     operation: Mapped[str] = mapped_column(Text)
     version: Mapped[int] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PhotoUpload(Base):
+    """Immutable logical media mutation; state is not the generic sync_state."""
+
+    __tablename__ = "photo_uploads"
+    __table_args__ = (
+        _farm_owner_fk("photo_uploads"),
+        _section_owner_fk("photo_uploads"),
+        ForeignKeyConstraint(
+            ("mutation_row_id", "farm_id", "owner_id"),
+            ("sync_mutations.id", "sync_mutations.farm_id", "sync_mutations.owner_id"),
+            name="fk_photo_uploads_mutation_scope",
+        ),
+        UniqueConstraint("owner_id", "local_media_id", name="uq_photo_uploads_local"),
+        UniqueConstraint("mutation_row_id", name="uq_photo_uploads_mutation"),
+        UniqueConstraint("media_id", name="uq_photo_uploads_media"),
+        CheckConstraint(
+            column("content_type").in_(("image/jpeg", "image/png")), name="ck_photo_uploads_type"
+        ),
+        CheckConstraint(column("byte_length").between(1, 5_000_000), name="ck_photo_uploads_size"),
+        CheckConstraint(
+            column("state").in_(
+                ("awaiting_upload", "queued", "processing", "ready", "failed", "expired")
+            ),
+            name="ck_photo_uploads_state",
+        ),
+        CheckConstraint(column("sequence") > 0, name="ck_photo_uploads_sequence"),
+        Index("ix_photo_uploads_due", "state", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
+    mutation_row_id: Mapped[UUID] = mapped_column(Uuid)
+    media_id: Mapped[UUID] = mapped_column(Uuid, default=uuid4)
+    local_media_id: Mapped[UUID] = mapped_column(Uuid)
+    content_type: Mapped[str] = mapped_column(Text)
+    byte_length: Mapped[int] = mapped_column(BigInteger)
+    state: Mapped[str] = mapped_column(Text, default="awaiting_upload")
+    sequence: Mapped[int] = mapped_column(BigInteger, default=1)
+    error_code: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PhotoAttempt(Base):
+    """Retained attempt keys let cleanup avoid broad bucket scans."""
+
+    __tablename__ = "photo_attempts"
+    __table_args__ = (
+        UniqueConstraint("upload_id", "sequence", name="uq_photo_attempts_sequence"),
+        CheckConstraint(column("sequence") > 0, name="ck_photo_attempts_sequence"),
+        CheckConstraint(
+            column("attempt_count").between(0, MAX_CLAIMS), name="ck_photo_attempts_count"
+        ),
+        Index("ix_photo_attempts_cleanup", "cleaned_at", "terminal_at"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    upload_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("photo_uploads.id"))
+    sequence: Mapped[int] = mapped_column(BigInteger)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    form_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempt_count: Mapped[int] = mapped_column(BigInteger, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_generation: Mapped[str | None] = mapped_column(Text)
+    clean_generation: Mapped[str | None] = mapped_column(Text)
+    clean_sha256: Mapped[str | None] = mapped_column(Text)
+    clean_size: Mapped[int | None] = mapped_column(BigInteger)
+    width: Mapped[int | None] = mapped_column(BigInteger)
+    height: Mapped[int | None] = mapped_column(BigInteger)
+    terminal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleanup_token: Mapped[UUID | None] = mapped_column(Uuid)
+    cleanup_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleaned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ForecastRun(Base):
+    __tablename__ = "forecast_runs"
+    __table_args__ = (
+        CheckConstraint(
+            column("status").in_(("staged", "active", "superseded")), name="ck_forecast_run_status"
+        ),
+        Index(
+            "uq_forecast_one_active",
+            "status",
+            unique=True,
+            postgresql_where=column("status") == "active",
+            sqlite_where=column("status") == "active",
+        ),
+    )
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source_sha256: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSON_DOCUMENT)
+    failed_checks: Mapped[list[str]] = mapped_column(JSON_DOCUMENT)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ForecastState(Base):
+    __tablename__ = "forecast_state"
+    __table_args__ = (CheckConstraint(column("id") == 1, name="ck_forecast_state_singleton"),)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    active_run_id: Mapped[str | None] = mapped_column(Text, ForeignKey("forecast_runs.id"))
+
+
+class WeatherJob(Base):
+    """Transactional outbox and fenced lease, shared by rounded location only."""
+
+    __tablename__ = "weather_jobs"
+    __table_args__ = (
+        CheckConstraint(column("latitude_tenths").between(-900, 900), name="ck_weather_lat"),
+        CheckConstraint(column("longitude_tenths").between(-1800, 1799), name="ck_weather_lon"),
+        CheckConstraint(column("last_year") - column("first_year") == 14, name="ck_weather_years"),
+        CheckConstraint(
+            column("status").in_(("pending", "processing", "ready")), name="ck_weather_status"
+        ),
+        Index("ix_weather_due", "policy_hash", "last_year", "status", "next_attempt_at"),
+    )
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    latitude_tenths: Mapped[int] = mapped_column(BigInteger)
+    longitude_tenths: Mapped[int] = mapped_column(BigInteger)
+    first_year: Mapped[int] = mapped_column(BigInteger)
+    last_year: Mapped[int] = mapped_column(BigInteger)
+    policy_hash: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    attempt_count: Mapped[int] = mapped_column(BigInteger, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_kind: Mapped[str | None] = mapped_column(Text)
+    error_code: Mapped[str | None] = mapped_column(Text)
+
+
+class WeatherRiskClimatology(Base):
+    __tablename__ = "weather_risk_climatology"
+    __table_args__ = (
+        CheckConstraint(column("plant_month").between(1, 12), name="ck_weather_month"),
+    )
+    job_id: Mapped[str] = mapped_column(Text, ForeignKey("weather_jobs.id"), primary_key=True)
+    crop: Mapped[str] = mapped_column(Text, primary_key=True)
+    plant_month: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class VoiceSessionRate(Base):
+    __tablename__ = "voice_session_rates"
+    owner_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    hits: Mapped[list[float]] = mapped_column(JSON_DOCUMENT)
+
+
+class PhotoRate(Base):
+    __tablename__ = "photo_rates"
+    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id"), primary_key=True)
+    hits: Mapped[list[float]] = mapped_column(JSON_DOCUMENT)
 
 
 # Reusable ORM field annotations for future models (#8), not feature tables.
