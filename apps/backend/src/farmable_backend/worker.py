@@ -31,9 +31,11 @@ async def run() -> None:
             tasks = getattr(app, "tasks", {})
             if isinstance(tasks, dict) and "retention_cleanup" in tasks:
                 try:
-                    await tasks["retention_cleanup"].configure(
-                        queueing_lock="retention-cleanup", schedule_in={"hours": 1}
-                    ).defer_async()
+                    await (
+                        tasks["retention_cleanup"]
+                        .configure(queueing_lock="retention-cleanup", schedule_in={"hours": 1})
+                        .defer_async()
+                    )
                 except AlreadyEnqueued:
                     pass
                 except Exception:

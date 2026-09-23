@@ -148,14 +148,16 @@ def test_sms_rate_limit_per_phone(settings):
         # Sign-up already sent send #1. Two explicit resends bring it to 3.
         assert (
             client.post(
-                "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"},
+                "/auth/otp/resend",
+                json={"user_id": user_id, "channel": "phone"},
                 headers={"Idempotency-Key": "test-resend-key-0001"},
             ).status_code
             == 204
         )
         assert (
             client.post(
-                "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"},
+                "/auth/otp/resend",
+                json={"user_id": user_id, "channel": "phone"},
                 headers={"Idempotency-Key": "test-resend-key-0002"},
             ).status_code
             == 204

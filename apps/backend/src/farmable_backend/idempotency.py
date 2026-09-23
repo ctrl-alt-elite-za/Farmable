@@ -143,9 +143,7 @@ def store(
             record.response_body = body
 
 
-def abandon(
-    sessions: sessionmaker[Session], *, route: str, scope: str, key: str
-) -> None:
+def abandon(sessions: sessionmaker[Session], *, route: str, scope: str, key: str) -> None:
     """Release a claim when the guarded mutation fails before completion."""
     with sessions.begin() as session:
         session.execute(
