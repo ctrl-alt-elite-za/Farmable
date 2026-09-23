@@ -62,6 +62,13 @@ def accounts(settings):
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
+
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()  # raw-sql: allow -- SQLite test configuration.
+        cursor.execute("PRAGMA foreign_keys=ON")  # raw-sql: allow -- SQLite test configuration.
+        cursor.close()
+
     Base.metadata.create_all(engine)
     sessions = sessionmaker(engine, expire_on_commit=False)
     auth = AuthService(sessions, DeterministicFakeOtpProvider())
