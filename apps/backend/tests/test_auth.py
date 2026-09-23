@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from farmable_backend.auth import (
+    DEFAULT_FARM_NAME,
     DUMMY_PASSWORD_HASH,
     MAX_OTP_ATTEMPTS,
     AuthError,
@@ -14,7 +15,14 @@ from farmable_backend.auth import (
     _hash_token,
 )
 from farmable_backend.main import create_app
-from farmable_backend.models import AuthIdentity, AuthSession, Base, User, VerificationChallenge
+from farmable_backend.models import (
+    AuthIdentity,
+    AuthSession,
+    Base,
+    Farm,
+    User,
+    VerificationChallenge,
+)
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.exc import IntegrityError
@@ -139,6 +147,7 @@ def _database_auth():
         engine,
         tables=[
             User.__table__,
+            Farm.__table__,
             AuthIdentity.__table__,
             VerificationChallenge.__table__,
             AuthSession.__table__,
@@ -238,3 +247,13 @@ def test_signup_only_translates_credential_unique_violations(sqlstate, constrain
     # Exception exits the transaction before the public conflict is raised.
     assert transaction.__exit__.call_args.args[0] is IntegrityError
     provider.deliver.assert_not_called()
+
+
+def test_signup_creates_the_owner_empty_farm():
+    sessions, service = _database_auth()
+    user = service.signup("Sipho", "Dlamini", "+27123456789", "sipho@example.com", PASSWORD)
+
+    with sessions() as session:
+        farms = session.scalars(select(Farm).where(Farm.owner_id == user.id)).all()
+    assert [farm.name for farm in farms] == [DEFAULT_FARM_NAME]
+    assert [farm.deleted_at for farm in farms] == [None]
