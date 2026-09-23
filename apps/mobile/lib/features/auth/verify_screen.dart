@@ -161,6 +161,27 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
     _startCountdown();
   }
 
+  /// Start again — throw away the half-made account and go back to sign-up.
+  ///
+  /// Only moves on if the account was actually removed. Sending the farmer to
+  /// sign-up after a failed abandonment is the worst of both: the pending
+  /// account is still there, so the same email comes back as `accountExists`,
+  /// and they are now on a screen with no way to reach the code they were
+  /// sent. They would be stuck, having been told the opposite.
+  Future<void> _startAgain() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final failure = await ref
+        .read(authViewModelProvider.notifier)
+        .abandonSignup();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _failure = failure;
+    });
+    if (failure == null) context.go('/auth/signup');
+  }
+
   @override
   Widget build(BuildContext context) {
     final standing = ref.watch(authViewModelProvider).value;
@@ -241,10 +262,7 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
         AuthFooterLink(
           leading: 'Wrong number or address?',
           linkLabel: 'Start again',
-          onTap: () async {
-            await ref.read(authViewModelProvider.notifier).abandonSignup();
-            if (context.mounted) context.go('/auth/signup');
-          },
+          onTap: _startAgain,
         ),
       ],
     );

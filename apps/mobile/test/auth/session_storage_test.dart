@@ -13,6 +13,7 @@ import 'package:almanac/data/auth/demo_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
+import 'package:almanac/features/auth/widgets/auth_scaffold.dart';
 import 'package:almanac/core/ui/otp_slots.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,21 +46,23 @@ void _block(Directory dir, {String name = _fileName}) {
 /// machine is busier: a sleep is a guess about someone else's timing, and the
 /// guess is wrong exactly when everything is under load.
 ///
-/// A flag rather than a Future on purpose. The write is real file I/O started
-/// under a widget test's fake clock, so its continuation sits on the fake
-/// queue while the I/O itself runs on the real one — a Future completed from
-/// in here cannot be awaited from either side without deadlocking. A flag can
-/// simply be read between turns of both clocks.
+/// A counter rather than a Future on purpose. The write is real file I/O
+/// started under a widget test's fake clock, so its continuation sits on the
+/// fake queue while the I/O itself runs on the real one — a Future completed
+/// from in here cannot be awaited from either side without deadlocking. A
+/// counter can simply be read between turns of both clocks, and counting
+/// rather than flagging lets a test wait for a *second* write in a flow that
+/// already made one.
 class _AnnouncedStorage implements SessionStorage {
   _AnnouncedStorage(this._inner);
 
   final SessionStorage _inner;
-  bool _settled = false;
+  int _settled = 0;
 
-  /// True once a write has succeeded **or** failed. The failure itself is the
-  /// screen's to catch and to show, which is what this test is about, so it
+  /// How many writes have finished — succeeded **or** failed. A failure is the
+  /// screen's to catch and to show, which is what these tests are about, so it
   /// is deliberately not re-raised here.
-  bool get writeSettled => _settled;
+  int get writesSettled => _settled;
 
   @override
   Future<Map<String, Object?>?> read() => _inner.read();
@@ -69,12 +72,37 @@ class _AnnouncedStorage implements SessionStorage {
     try {
       await _inner.write(value);
     } finally {
-      _settled = true;
+      _settled++;
     }
   }
 
   @override
   Future<void> clear() => _inner.clear();
+}
+
+/// Turn both clocks until one more write has finished trying.
+///
+/// `pump` drains the fake queue the continuation is scheduled on; `runAsync`
+/// gives the real file I/O its turn. Neither finishes a write alone, which is
+/// why waiting on a duration here was unreliable rather than merely slow.
+///
+/// The cap is a failure guard, not a budget — it makes a screen that never
+/// writes say so, instead of hanging until the runner gives up with nothing
+/// to point at.
+Future<void> _settleWrite(
+  WidgetTester tester,
+  _AnnouncedStorage storage,
+) async {
+  final before = storage.writesSettled;
+  for (var turn = 0; turn < 200 && storage.writesSettled == before; turn++) {
+    await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+  }
+  expect(
+    storage.writesSettled,
+    greaterThan(before),
+    reason: 'the screen never finished attempting a write',
+  );
 }
 
 void main() {
@@ -238,34 +266,14 @@ void main() {
     await enterField(tester, 'Email', 'sipho.dlamini@gmail.com');
     await enterField(tester, 'Password', goodPassphrase);
     await enterField(tester, 'Confirm password', goodPassphrase);
-    // Tapped inside `runAsync` on purpose. This is the one widget test whose
-    // storage is a real file rather than a map in memory, and a widget test's
-    // fake clock never turns the event loop that real I/O completes on — the
-    // submit would sit on its busy state forever and the assertions below
-    // would pass for a screen that had simply not finished.
+    // This is the one group of widget tests whose storage is a real file
+    // rather than a map in memory, so the write has to be waited for rather
+    // than pumped for — see [_settleWrite].
     final submit = find.text('Create account');
     await tester.ensureVisible(submit.first);
     await pumpBriefly(tester);
     await tester.tap(submit.first);
-
-    // Turn both clocks until the write reports back. `pump` drains the fake
-    // queue the continuation is scheduled on; `runAsync` gives the real file
-    // I/O a turn. Neither finishes this alone, which is why the original
-    // sleep was unreliable rather than merely slow.
-    //
-    // The cap is a failure guard, not a budget — it makes a screen that never
-    // writes say so, instead of hanging until the runner gives up with
-    // nothing to point at.
-    for (var turn = 0; turn < 200 && !storage.writeSettled; turn++) {
-      await tester.pump();
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-    }
-    expect(
-      storage.writeSettled,
-      isTrue,
-      reason: 'the signup never finished attempting its write',
-    );
-
+    await _settleWrite(tester, storage);
     await pumpBriefly(tester);
 
     expect(
@@ -280,6 +288,73 @@ void main() {
           'the write failed, so there is no account and no pending signup. '
           'Moving the farmer on to the code screen tells them an account was '
           'created that does not exist.',
+    );
+  });
+
+  testWidgets('Start again that cannot be saved keeps the farmer on the code '
+      'screen', (tester) async {
+    // Tshego's finding. The link awaited `abandonSignup()` and threw its
+    // result away, so a failed removal still sent the farmer to sign-up. The
+    // pending account is then still there: the same email comes back as
+    // `accountExists`, and the code screen they were sent to is now behind
+    // them with no way back. Stuck, having been told the opposite.
+    final dir = _scratch();
+    final storage = _AnnouncedStorage(_storageIn(dir));
+
+    // Sign up for real first — storage works at this point, so there is a
+    // genuine pending account for the abandonment to fail to remove.
+    await pumpAuthApp(tester, location: '/auth/signup', session: storage);
+    await enterField(tester, 'Name', 'Sipho');
+    await enterField(tester, 'Surname', 'Dlamini');
+    await enterField(tester, 'Phone number', '82 555 0123');
+    await enterField(tester, 'Email', 'sipho.dlamini@gmail.com');
+    await enterField(tester, 'Password', goodPassphrase);
+    await enterField(tester, 'Confirm password', goodPassphrase);
+    final submit = find.text('Create account');
+    await tester.ensureVisible(submit.first);
+    await pumpBriefly(tester);
+    await tester.tap(submit.first);
+    await _settleWrite(tester, storage);
+    await pumpBriefly(tester);
+    expect(
+      find.byType(OtpSlots),
+      findsOneWidget,
+      reason: 'the signup has to have landed on the code screen first',
+    );
+
+    // Now the phone fills up. The scratch file the atomic replacement needs is
+    // occupied, so nothing can be written from here on.
+    _block(dir, name: '$_fileName.tmp');
+
+    // Matched by widget rather than by text: AuthFooterLink paints both
+    // halves as one Text.rich, so no Text widget carries the link words on
+    // their own and find.text misses it entirely.
+    final startAgain = find.byWidgetPredicate(
+      (w) => w is AuthFooterLink && w.linkLabel == 'Start again',
+    );
+    await tester.ensureVisible(startAgain.first);
+    await pumpBriefly(tester);
+    await tester.tap(startAgain.first);
+    await _settleWrite(tester, storage);
+    await pumpBriefly(tester);
+
+    expect(
+      find.byType(OtpSlots),
+      findsOneWidget,
+      reason:
+          'the pending account was not removed, so the code screen is still '
+          'where the farmer can finish. Sending them to sign-up strands them '
+          'against their own abandoned email.',
+    );
+    expect(
+      find.text('Create account'),
+      findsNothing,
+      reason: 'nothing was abandoned, so there is nothing to start again',
+    );
+    expect(
+      find.text(authAdvice(AuthFailure.storageUnavailable)),
+      findsOneWidget,
+      reason: 'the farmer has to be told why the link did nothing',
     );
   });
 }
