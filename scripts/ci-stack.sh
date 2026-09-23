@@ -35,6 +35,10 @@ cleanup() {
 }
 trap cleanup EXIT
 "${compose[@]}" build api worker
+if [ "$mode" = deployability ]; then
+  # Build the post-migration importer too; no live DB or notifier credential in CI.
+  docker build --file apps/backend/Dockerfile --target forecast-import .
+fi
 "${compose[@]}" up -d --wait database
 "${compose[@]}" run --rm migrate
 "${compose[@]}" run --rm queue-schema

@@ -88,3 +88,59 @@ def test_migration_round_trip_preserves_existing_user_data(request):
         assert session.get(AuthIdentity, database.ids.owner).phone_verified
     command.upgrade(database.config, "0007")
     assert import_bundle(database.sessions, "sample-v1", raw(bundle()), "sample").status == "active"
+
+
+def test_staging_outlook_smoke_uses_and_removes_postgres_session(request):
+    from farmable_backend.config import Settings
+    from farmable_backend.demo_seed import DEMO_OWNER_ID, seed_demo_farm
+    from farmable_backend.integrations.settings import ServiceSettings
+    from farmable_backend.main import create_app
+    from farmable_backend.models import AuthSession
+    from farmable_backend.outlook_smoke import SmokeConfig, smoke
+    from farmable_backend.records_api import RecordRuntime
+    from farmable_backend.records_service import RecordsService
+    from fastapi.testclient import TestClient
+
+    database = request.getfixturevalue("pg")
+    command.upgrade(database.config, "0008")
+    with database.sessions.begin() as session:
+        seed_demo_farm(session)
+        session.add(
+            AuthIdentity(
+                id=DEMO_OWNER_ID,
+                first_name="Demo",
+                surname="Farmer",
+                phone="+27000000000",
+                email="smoke@example.invalid",
+                password_hash="not-a-password",  # noqa: S106 -- synthetic identity only.
+                phone_verified=True,
+                email_verified=True,
+            )
+        )
+    import_bundle(database.sessions, "sample-v1", raw(bundle()), "sample")
+    sha = "a" * 40
+    app = create_app(
+        Settings(forecast_data_mode="sample", commit_sha=sha),
+        readiness=lambda: {"database": "ok", "worker": "ok"},
+        service_settings=ServiceSettings(environment="ci", integrations_mode="fake"),
+    )
+    app.state.records = RecordRuntime(RecordsService(database.sessions), lambda: None)
+    config = SmokeConfig(
+        environment="staging", mode="sample", api_url="https://demo.run.app", commit_sha=sha
+    )
+    with TestClient(app) as api:
+
+        def handle(request):
+            result = api.get(
+                request.url.path, params=request.url.params, headers=dict(request.headers)
+            )
+            return httpx.Response(
+                result.status_code, content=result.content, headers=dict(result.headers)
+            )
+
+        with httpx.Client(base_url=config.api_url, transport=httpx.MockTransport(handle)) as client:
+            assert smoke(database.sessions, config, client) == 96
+    with database.sessions() as session:
+        assert (
+            session.scalar(select(AuthSession).where(AuthSession.user_id == DEMO_OWNER_ID)) is None
+        )
