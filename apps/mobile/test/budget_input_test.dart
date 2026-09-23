@@ -77,6 +77,22 @@ void main() {
     refuses('1,00', saying: 'Use numbers only');
     refuses('99000000', saying: 'works up to R10,000,000');
 
+    // The review's native-integer cases. Dart's int wraps at 64 bits rather
+    // than throwing, so a ceiling checked after `* 100` was reading a wrapped
+    // number: the first of these arrived as -100 cents and the second as 84,
+    // and both were accepted as budgets. Pinning the exact values matters
+    // because the ordinary oversized case above never reaches the overflow —
+    // it is refused long before the multiplication can wrap.
+    refuses('9223372036854775807', saying: 'works up to R10,000,000');
+    refuses('184467440737095517', saying: 'works up to R10,000,000');
+    // Digits past what an int can hold at all, where tryParse returns null.
+    refuses('99999999999999999999999', saying: 'works up to R10,000,000');
+    // The ceiling itself still goes through, in both spellings, and the
+    // first rand above it does not.
+    accepts('10000000', 1000000000);
+    accepts('10,000,000', 1000000000);
+    refuses('10000001', saying: 'works up to R10,000,000');
+
     test('the message names the amount to type instead', () {
       expect(BudgetInput.parse('2100.50').error, contains('enter 2100'));
     });

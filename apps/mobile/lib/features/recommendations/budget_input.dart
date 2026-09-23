@@ -80,13 +80,19 @@ class BudgetInput {
 
     // Digits that will not fit in an int are digits far past the ceiling.
     final rand = int.tryParse(match.group(1)!.replaceAll(',', ''));
-    final cents = rand == null ? null : rand * 100;
-    if (cents == null || cents > maxBudget.value) {
+    // Compare in rand, before multiplying. Dart's int is 64 bits and wraps
+    // silently rather than throwing, so checking the ceiling after `* 100`
+    // lets a wrapped value land back inside it: 9223372036854775807 becomes
+    // -100 and 184467440737095517 becomes 84. Both then read as valid, and
+    // the farmer is planned against a budget nobody typed — the same silent
+    // reinterpretation this file exists to prevent, arriving through
+    // arithmetic instead of through parsing.
+    if (rand == null || rand > maxBudget.value ~/ 100) {
       return BudgetInput._(
         error: 'The planner works up to ${maxBudget.formatted}.',
       );
     }
 
-    return BudgetInput._(value: Cents(cents));
+    return BudgetInput._(value: Cents(rand * 100));
   }
 }
