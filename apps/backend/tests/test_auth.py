@@ -222,7 +222,10 @@ def test_parallel_login_failures_fence_a_paused_valid_request(tmp_path, monkeypa
         assert valid_started.wait(30)
         failures = [executor.submit(login, "wrong password") for _ in range(5)]
         assert [future.result() for future in failures] == ["invalid_credentials"] * 5
-        assert login(PASSWORD) == "login_rate_limited"
+        # A fresh wrong-password request must be rejected by the lockout before
+        # entering password verification; the already-paused valid request
+        # below verifies the concurrent success fence.
+        assert login("wrong password") == "login_rate_limited"
         release_valid.set()
         assert valid.result() == "login_rate_limited"
 
