@@ -29,7 +29,7 @@ from farmable_backend.models import (
     VerificationChallenge,
 )
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
@@ -194,6 +194,10 @@ def test_parallel_login_failures_fence_a_paused_valid_request(tmp_path, monkeypa
     user = service.signup("Sipho", "Dlamini", "+27123456789", "sipho@example.com", PASSWORD)
     service.verify(user.id, Channel.PHONE, "111111")
     service.verify(user.id, Channel.EMAIL, "222222")
+    # Email verification creates an authenticated session. Remove that setup
+    # session so this race test only observes a token minted by login.
+    with sessions.begin() as session:
+        session.execute(delete(AuthSession))
     original_verify = service._verify_password
     valid_started = threading.Event()
     release_valid = threading.Event()

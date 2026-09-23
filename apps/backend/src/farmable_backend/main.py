@@ -213,6 +213,9 @@ def create_app(
             ),
             "idempotency_in_progress": "The request is already being processed",
             "idempotency_key_required": "Idempotency-Key is required",
+            "delivery_unknown": (
+                "Delivery may have succeeded; retry with the same Idempotency-Key"
+            ),
             "consent_required": "Required consent has not been granted",
         }
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
