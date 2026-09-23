@@ -126,18 +126,18 @@ the appropriate application PR. This PR documents the existing subset only.
 
 ## Acceptance-to-evidence map
 
-| Issue requirement                               | Evidence                                                                                                   |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| New farm has no visible records                 | `test_authenticated_crud_round_trip` and owner-scoped list tests in `test_sync_api.py`                     |
-| Planting records are returned in section detail | `test_section_detail_exposes_the_flutter_summary`                                                          |
-| Same mutation is idempotent                     | `test_replaying_a_mutation_creates_one_logical_record`, plus update/delete replay tests                    |
-| Unknown or malformed input is rejected          | strict DTO and bounded-body tests in `test_sync_api.py`                                                    |
-| Foreign farm IDs are hidden                     | `test_writes_to_a_foreign_farm_are_not_found`, `test_records_cannot_be_reached_through_another_owned_farm` |
-| Optimistic deletion is safe offline             | stale-delete and deleted-record version tests                                                              |
-| Sync has no gaps or duplicates                  | `test_change_polling_resumes_from_a_cursor_without_gaps_or_duplicates`                                     |
-| Crop catalogue/calendar, animal sections, and cascading cleanup | Outstanding; generic contract tests do not establish these issue-specific requirements. |
-| Generated client matches the API                | `make client-check`                                                                                        |
-| Raw SQL guardrail remains clean                 | `make check-no-raw-sql`                                                                                    |
+| Issue requirement                                               | Evidence                                                                                                   |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| New farm has no visible records                                 | `test_authenticated_crud_round_trip` and owner-scoped list tests in `test_sync_api.py`                     |
+| Planting records are returned in section detail                 | `test_section_detail_exposes_the_flutter_summary`                                                          |
+| Same mutation is idempotent                                     | `test_replaying_a_mutation_creates_one_logical_record`, plus update/delete replay tests                    |
+| Unknown or malformed input is rejected                          | strict DTO and bounded-body tests in `test_sync_api.py`                                                    |
+| Foreign farm IDs are hidden                                     | `test_writes_to_a_foreign_farm_are_not_found`, `test_records_cannot_be_reached_through_another_owned_farm` |
+| Optimistic deletion is safe offline                             | stale-delete and deleted-record version tests                                                              |
+| Sync has no gaps or duplicates                                  | `test_change_polling_resumes_from_a_cursor_without_gaps_or_duplicates`                                     |
+| Crop catalogue/calendar, animal sections, and cascading cleanup | Outstanding; generic contract tests do not establish these issue-specific requirements.                    |
+| Generated client matches the API                                | `make client-check`                                                                                        |
+| Raw SQL guardrail remains clean                                 | `make check-no-raw-sql`                                                                                    |
 
 The named issue examples use the repository's farm-scoped production routes;
 they are not a second unscoped API surface.
