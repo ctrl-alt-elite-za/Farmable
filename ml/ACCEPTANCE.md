@@ -1,9 +1,36 @@
 # Issue #20 acceptance evidence
 
-Updated 2026-09-23. This is local implementation evidence, **not a completed issue**.
-Changes have not been committed or pushed. No real decision backtest was executed.
+Updated 2026-09-23. This is implementation evidence for the senior-review
+follow-up, **not a completed issue**. No real decision backtest was executed.
 
 ## Verified locally
+
+### Senior-review follow-up
+
+- Report schema 2 rejects incomplete historical grids before calculating metrics
+  and derives displayed month bounds from validated coverage. All six R01 items
+  are covered by regression tests, including missing interior months/defaults,
+  out-of-period rows, duplicates, explicit skips and synthetic relabelling.
+- `uv run pytest ml/forecast ml/backtest scripts/tests/test_audit_issue20_market_workbooks.py -q`:
+  **97 passed** (93 ML tests and 4 source-audit tests).
+- Full `uv run pytest -q`: **928 passed, 15 skipped, 33 deselected**. Skips require
+  `jq`; integration tests remain deselected. Repository Ruff and changed-file
+  formatting checks pass. ML implementation (16 files) and audit-script mypy pass.
+  Gitleaks directory scans of `ml/` and the ML implementation report no leaks.
+  Required `gitleaks detect --source ml/ --config .gitleaks.toml --redact` also
+  exits 0 (115 commits). `check_protocol_first.py --check-ready` correctly exits 1:
+  `ml/backtest/PROTOCOL.md` is absent from local `origin/main` history.
+- Original Department workbooks for 2008–2024 were hashed and audited: eight
+  crops × twelve monthly Joburg prices in every year. Release dates/revision
+  histories and post-2024 harvest prices remain unverified. See the source audit.
+- Eight modern budget PDFs and an older cabbage version were hashed and inspected.
+  Budget/calendars review remains incomplete; these are not historical input approvals.
+- The user-selected strict historical-input policy is recorded in
+  `backtest/INFORMATION_POLICY.md`, with the CPI ranking counterexample and tests
+  for future costs and post-decision reporting conversions. Source-specific lag,
+  vintage loading and integrated mutation testing remain open.
+
+### Earlier foundation checks
 
 - `uv run pytest ml/forecast ml/backtest -q`: **71 passed**.
 - `uv run pytest ml/forecast ml/backtest scripts/tests apps/backend -q`:
@@ -51,13 +78,11 @@ in the caller-supplied consistent price basis and do not pretend their nominal
 inputs have been converted to 2025 rand. Do not infer full no-look-ahead acceptance
 from a synthetic price-only mutation test.
 
-The 23 September source check found annual Department of Agriculture fresh-produce
-workbook links for 2012–2024, but did not verify monthly Johannesburg rows or their
-availability metadata. The 2025 Elsenburg budget links also remain unverified at
-component level. Consequently, dated cost budgets plus the currently available
-monthly Joburg evidence do **not** support an honest historical decision backtest;
-the result remains blocked until workbook contents, budget assumptions and the
-fixed-cost versus historical-information policy are resolved.
+The follow-up confirms monthly Johannesburg workbook contents; historical
+availability metadata is still missing. Modern budget fields have been extracted,
+but historical cost releases and calendar/component assumptions remain unresolved.
+The user selected strict historical inputs. The real decision backtest remains
+blocked by those sources and separate protocol registration.
 
 ## Dependencies and next work
 
