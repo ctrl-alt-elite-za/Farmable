@@ -1,3 +1,5 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -30,6 +32,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 PASSWORD = "correct horse battery staple"  # noqa: S105 - synthetic test credential
 
@@ -166,6 +169,62 @@ def test_login_lockout_is_checked_before_a_correct_password():
             service.login("sipho@example.com", "wrong password")
     with pytest.raises(AuthError, match="login_rate_limited"):
         service.login("sipho@example.com", PASSWORD)
+
+
+def test_parallel_login_failures_fence_a_paused_valid_request(tmp_path, monkeypatch):
+    """Five failures completed while Argon2 is paused cannot mint a token."""
+    engine = create_engine(
+        f"sqlite+pysqlite:///{tmp_path / 'login-race.db'}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+        poolclass=NullPool,
+    )
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            User.__table__,
+            Farm.__table__,
+            AuthIdentity.__table__,
+            VerificationChallenge.__table__,
+            AuthSession.__table__,
+            RateLimitCounter.__table__,
+        ],
+    )
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    service = AuthService(sessions, DeterministicFakeOtpProvider())
+    user = service.signup("Sipho", "Dlamini", "+27123456789", "sipho@example.com", PASSWORD)
+    service.verify(user.id, Channel.PHONE, "111111")
+    service.verify(user.id, Channel.EMAIL, "222222")
+    original_verify = service._verify_password
+    valid_started = threading.Event()
+    release_valid = threading.Event()
+
+    def paused_verify(password_hash, password):
+        if password == PASSWORD:
+            valid_started.set()
+            assert release_valid.wait(30)
+        return original_verify(password_hash, password)
+
+    monkeypatch.setattr(service, "_verify_password", paused_verify)
+
+    def login(password):
+        try:
+            service.login("sipho@example.com", password, ip="race-ip")
+        except AuthError as exc:
+            return exc.code
+        return "success"
+
+    with ThreadPoolExecutor(max_workers=7) as executor:
+        valid = executor.submit(login, PASSWORD)
+        assert valid_started.wait(30)
+        failures = [executor.submit(login, "wrong password") for _ in range(5)]
+        assert [future.result() for future in failures] == ["invalid_credentials"] * 5
+        assert login(PASSWORD) == "login_rate_limited"
+        release_valid.set()
+        assert valid.result() == "login_rate_limited"
+
+    with sessions() as session:
+        assert session.scalar(select(AuthSession)) is None
+    engine.dispose()
 
 
 def test_refresh_rotates_a_session(settings):

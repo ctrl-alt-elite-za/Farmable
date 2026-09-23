@@ -88,6 +88,7 @@ EXPORT_CONSENT_TYPE = "data_export"
 EXPORT_CONSENT_VERSION = "1"
 # A fixed entry timestamp keeps the archive byte-for-byte reproducible.
 EXPORT_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
+AMBIGUOUS_DELIVERY_CODES = frozenset({"sms_unavailable", "email_delivery_unknown"})
 
 # Owner-scoped record tables, in export order. auth_identities,
 # verification_challenges and auth_sessions are deliberately absent: password
@@ -191,7 +192,14 @@ class AccountService:
             except IdempotencyInProgress:
                 raise ApiError(409, "idempotency_in_progress", 1) from None
             if replayed is not None:
-                _status, body = replayed
+                status, body = replayed
+                if status >= 400:
+                    error = body.get("error", {})
+                    raise ApiError(
+                        status,
+                        error.get("code", "request_failed"),
+                        error.get("retry_after"),
+                    )
                 return ProfileResponse(**body)
         try:
             with self.sessions.begin() as session:
@@ -211,9 +219,37 @@ class AccountService:
             # transaction commits so a request that changes name+email still
             # persists the name even if the OTP send fails.
             if payload.email is not None:
-                self._request_contact_change(authorization, Channel.EMAIL, payload.email)
+                if idempotency_key is not None:
+                    idempotency_store(
+                        self.sessions,
+                        route="account_profile",
+                        scope=idempotency_scope,
+                        key=idempotency_key,
+                        request_fingerprint=request_fingerprint,
+                        status_code=503,
+                        body={"error": {"code": "delivery_unknown"}},
+                    )
+                self._request_contact_change(
+                    authorization, Channel.EMAIL, payload.email, idempotency_key=idempotency_key
+                )
             if payload.phone is not None:
-                self._request_contact_change(authorization, Channel.PHONE, payload.phone, ip=ip)
+                if idempotency_key is not None:
+                    idempotency_store(
+                        self.sessions,
+                        route="account_profile",
+                        scope=idempotency_scope,
+                        key=idempotency_key,
+                        request_fingerprint=request_fingerprint,
+                        status_code=503,
+                        body={"error": {"code": "delivery_unknown"}},
+                    )
+                self._request_contact_change(
+                    authorization,
+                    Channel.PHONE,
+                    payload.phone,
+                    ip=ip,
+                    idempotency_key=idempotency_key,
+                )
             if payload.email is not None or payload.phone is not None:
                 with self.sessions.begin() as session:
                     owner = authenticate(session, authorization)
@@ -229,14 +265,30 @@ class AccountService:
                     body=response.model_dump(mode="json"),
                 )
             return response
-        except Exception:
+        except Exception as exc:
             if idempotency_key is not None:
-                idempotency_abandon(
-                    self.sessions,
-                    route="account_profile",
-                    scope=idempotency_scope,
-                    key=idempotency_key,
-                )
+                if isinstance(exc, ApiError) and exc.code in AMBIGUOUS_DELIVERY_CODES:
+                    idempotency_store(
+                        self.sessions,
+                        route="account_profile",
+                        scope=idempotency_scope,
+                        key=idempotency_key,
+                        request_fingerprint=request_fingerprint,
+                        status_code=exc.status,
+                        body={
+                            "error": {
+                                "code": exc.code,
+                                "retry_after": exc.retry_after,
+                            }
+                        },
+                    )
+                else:
+                    idempotency_abandon(
+                        self.sessions,
+                        route="account_profile",
+                        scope=idempotency_scope,
+                        key=idempotency_key,
+                    )
             raise
 
     def confirm_contact_change(
@@ -305,7 +357,13 @@ class AccountService:
         return response
 
     def _request_contact_change(
-        self, authorization: str | None, channel: Channel, new_value: str, *, ip: str = "unknown"
+        self,
+        authorization: str | None,
+        channel: Channel,
+        new_value: str,
+        *,
+        ip: str = "unknown",
+        idempotency_key: str | None = None,
     ) -> None:
         normalized = new_value.strip().lower() if channel is Channel.EMAIL else new_value.strip()
         with self.sessions.begin() as session:
@@ -364,7 +422,14 @@ class AccountService:
             )
             code = self.provider.create_code(channel)
             try:
-                self.provider.deliver(channel, normalized, code)
+                if idempotency_key is not None and hasattr(
+                    type(self.provider), "deliver_with_key"
+                ):
+                    cast(Any, self.provider).deliver_with_key(
+                        channel, normalized, code, idempotency_key
+                    )
+                else:
+                    self.provider.deliver(channel, normalized, code)
             except _AuthError as exc:
                 raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
             session.add(

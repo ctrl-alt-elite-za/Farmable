@@ -24,6 +24,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.models import RateLimitCounter
 
+LOGIN_IN_FLIGHT_LIMIT = 32
+
 
 class RateLimited(Exception):
     def __init__(self, code: str, retry_after: int):
@@ -107,3 +109,86 @@ def retry_after_if_limited(
         if len(hits) < limit:
             return None
         return max(1, math.ceil(min(hits) + window_seconds - now))
+
+
+def _locked_counter(session: Session, *, scope: str, subject: str) -> RateLimitCounter:
+    """Get/create a counter while retaining a row lock in ``session``."""
+    subject_hash = hash_subject(subject)
+    counter = session.get(RateLimitCounter, (scope, subject_hash), with_for_update=True)
+    if counter is None:
+        try:
+            with session.begin_nested():
+                counter = RateLimitCounter(scope=scope, subject_hash=subject_hash, hits=[])
+                session.add(counter)
+                session.flush()
+        except IntegrityError:
+            counter = session.get(RateLimitCounter, (scope, subject_hash), with_for_update=True)
+    if counter is None:
+        raise RuntimeError("rate-limit counter disappeared during creation")
+    return counter
+
+
+def admit_login(
+    sessions: sessionmaker[Session], *, account: str, ip: str
+) -> None:
+    """Reserve one bounded login verification across both abuse buckets.
+
+    The reservations are durable and locked in one transaction, so separate
+    API replicas cannot all start unbounded Argon2 work from the same stale
+    counter value.
+    """
+    now = _now_ts()
+    limits = (
+        ("login_fail_account", account, 5),
+        ("login_fail_ip", ip, 20),
+    )
+    with sessions.begin() as session:
+        counters = [
+            (scope, _locked_counter(session, scope=scope, subject=subject), limit)
+            for scope, subject, limit in limits
+        ]
+        for _scope, counter, limit in counters:
+            counter.hits = [hit for hit in counter.hits if hit > now - 900]
+            if len(counter.hits) >= limit or counter.in_flight >= LOGIN_IN_FLIGHT_LIMIT:
+                retry_after = (
+                    max(1, math.ceil(min(counter.hits) + 900 - now)) if counter.hits else 1
+                )
+                raise RateLimited("login_rate_limited", retry_after)
+        for _scope, counter, _limit in counters:
+            counter.in_flight += 1
+
+
+def finish_login(
+    session: Session,
+    *,
+    account: str,
+    ip: str,
+    success: bool,
+) -> bool:
+    """Consume a login reservation and return whether the request is fenced.
+
+    The caller must use the same transaction for this function and session
+    insertion. On a successful password check, ``False`` means the lockout
+    became authoritative while Argon2 was running, so no session may be
+    issued. On failure, the newly recorded hit is reflected by the return
+    value.
+    """
+    now = _now_ts()
+    limits = (
+        ("login_fail_account", account, 5),
+        ("login_fail_ip", ip, 20),
+    )
+    counters = [
+        (counter, limit)
+        for scope, subject, limit in limits
+        for counter in [_locked_counter(session, scope=scope, subject=subject)]
+    ]
+    for counter, _limit in counters:
+        counter.in_flight = max(0, counter.in_flight - 1)
+        counter.hits = [hit for hit in counter.hits if hit > now - 900]
+    was_admitted = all(len(counter.hits) < limit for counter, limit in counters)
+    if not success:
+        for counter, _limit in counters:
+            counter.hits = [*counter.hits, now]
+        return was_admitted
+    return all(len(counter.hits) < limit for counter, limit in counters)

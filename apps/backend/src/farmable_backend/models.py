@@ -826,6 +826,7 @@ class RateLimitCounter(Base):
     scope: Mapped[str] = mapped_column(Text, primary_key=True)
     subject_hash: Mapped[str] = mapped_column(Text, primary_key=True)
     hits: Mapped[list[float]] = mapped_column(JSON_DOCUMENT)
+    in_flight: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

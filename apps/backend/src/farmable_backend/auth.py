@@ -17,7 +17,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.models import AuthIdentity, AuthSession, Farm, User, VerificationChallenge
-from farmable_backend.rate_limits import RateLimited, retry_after_if_limited
+from farmable_backend.rate_limits import (
+    RateLimited,
+    admit_login,
+    finish_login,
+)
 from farmable_backend.rate_limits import check as rate_check
 
 PASSWORD_HASHER = PasswordHasher()  # argon2-cffi defaults are Argon2id.
@@ -369,16 +373,11 @@ class AuthService:
     def login(self, identifier: str, password: str, *, ip: str = "unknown") -> SessionTokens:
         identifier = identifier.strip()
         normalized_identifier = identifier.lower()
-        for scope, subject, limit in (
-            ("login_fail_account", normalized_identifier, 5),
-            ("login_fail_ip", ip, 20),
-        ):
-            retry_after = retry_after_if_limited(
-                self.sessions, scope=scope, subject=subject, window_seconds=900, limit=limit
-            )
-            if retry_after is not None:
-                raise AuthError("login_rate_limited", 429, retry_after)
-        failed = False
+        try:
+            admit_login(self.sessions, account=normalized_identifier, ip=ip)
+        except RateLimited as exc:
+            raise AuthError(exc.code, 429, exc.retry_after) from exc
+        failure: AuthError | None = None
         result: SessionTokens | None = None
         with self.sessions.begin() as session:
             user = session.scalar(
@@ -393,36 +392,35 @@ class AuthService:
             )
             password_valid = self._verify_password(password_hash, password)
             verified = user is not None and (user.phone_verified and user.email_verified)
-            if user is None or user.password_hash is None or not password_valid or not verified:
-                failed = True
+            valid = (
+                user is not None
+                and user.password_hash is not None
+                and password_valid
+                and verified
+            )
+            still_admitted = finish_login(
+                session,
+                account=normalized_identifier,
+                ip=ip,
+                success=valid,
+            )
+            if not valid:
+                failure = (
+                    AuthError("invalid_credentials", 401)
+                    if still_admitted
+                    else AuthError("login_rate_limited", 429, 900)
+                )
+            elif not still_admitted:
+                failure = AuthError("login_rate_limited", 429, 900)
             else:
+                if user is None:
+                    raise AuthError("invalid_credentials", 401)
                 result = self._new_session(session, user)
-        if failed:
-            # Recorded after the login transaction has already committed, in
-            # their own short transactions (see rate_limits.py) — never
-            # holding a lock across the login work above. Only failures
-            # count toward these limits, so legitimate repeated logins are
-            # never throttled. An unknown identifier still hashes to a
-            # stable per-identifier bucket, matching the dummy-hash timing
-            # defense above.
-            _rate_limit(
-                self.sessions,
-                scope="login_fail_account",
-                subject=normalized_identifier,
-                window_seconds=900,
-                limit=5,
-                code="login_rate_limited",
-            )
-            _rate_limit(
-                self.sessions,
-                scope="login_fail_ip",
-                subject=ip,
-                window_seconds=900,
-                limit=20,
-                code="login_rate_limited",
-            )
-            raise AuthError("invalid_credentials", 401)
-        if result is None:  # Defensive: every successful branch assigns a result.
+        if failure is not None:
+            # Reservation finalization and session insertion share this
+            # transaction, so a fenced success can never issue a token.
+            raise failure
+        if result is None:
             raise AuthError("invalid_credentials", 401)
         return result
 

@@ -14,7 +14,13 @@ import pytest
 from farmable_backend.account import AccountService
 from farmable_backend.account_api import AccountRuntime
 from farmable_backend.account_schemas import Language
-from farmable_backend.auth import AuthService, Channel, DeterministicFakeOtpProvider, SessionTokens
+from farmable_backend.auth import (
+    AuthError,
+    AuthService,
+    Channel,
+    DeterministicFakeOtpProvider,
+    SessionTokens,
+)
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
 from farmable_backend.models import (
@@ -358,6 +364,38 @@ def test_email_change_requires_confirmation_before_it_applies(accounts):
     assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (
         "sipho.new@example.com"
     )
+
+
+def test_ambiguous_combined_contact_delivery_is_replayed_without_duplicates(accounts):
+    deliveries = []
+    provider = accounts.provider
+    inner = DeterministicFakeOtpProvider()
+
+    def deliver(channel, destination, code):
+        deliveries.append((channel, destination))
+        if channel is Channel.PHONE:
+            raise AuthError("sms_unavailable", 503)
+        inner.deliver(channel, destination, code)
+
+    provider.deliver.side_effect = deliver
+    headers = _headers(accounts.alice, "ambiguous-combined")
+    payload = {"email": "sipho.combined@example.com", "phone": "+27821234567"}
+
+    first = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert first.status_code == 503
+    assert first.json()["error"]["code"] == "sms_unavailable"
+    assert deliveries == [
+        (Channel.EMAIL, "sipho.combined@example.com"),
+        (Channel.PHONE, "+27821234567"),
+    ]
+
+    replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert replay.status_code == 503
+    assert replay.json()["error"]["code"] == "sms_unavailable"
+    assert len(deliveries) == 2
+    with accounts.sessions() as session:
+        identity = session.get(AuthIdentity, accounts.alice.user.id)
+        assert identity is not None and identity.email == "sipho@example.com"
 
 
 def test_phone_change_requires_confirmation_before_it_applies(accounts):
