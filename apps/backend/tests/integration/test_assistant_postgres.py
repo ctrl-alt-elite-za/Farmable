@@ -15,13 +15,127 @@ from farmable_backend.assistant.store import Store
 from farmable_backend.config import Settings
 from farmable_backend.database import make_engine
 from farmable_backend.integrations.settings import ServiceSettings
-from farmable_backend.models import AssistantBudget, AssistantTurn, User
+from farmable_backend.models import (
+    AssistantBudget,
+    AssistantTurn,
+    ForecastRun,
+    ForecastState,
+    SavedPlan,
+    SyncChange,
+    User,
+)
+from farmable_backend.planning import service as planning_service
+from farmable_backend.planning.contracts import PlanConfirmation, PlanRequest
+from farmable_backend.planning.service import Planner
 from farmable_backend.record_access import ApiError
 from sqlalchemy import delete, event, func, select
 from sqlalchemy.orm import sessionmaker
 from test_assistant import policy, seed
+from test_forecasts import bundle
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.mark.parametrize("updating", [False, True])
+def test_confirmed_planning_is_atomic_across_replicas(monkeypatch, updating):
+    engine = make_engine(Settings())
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    owner = seed(sessions)
+    run_id = "planning-" + uuid4().hex
+    fixed_now = datetime(2026, 9, 23, tzinfo=UTC)
+    monkeypatch.setattr(planning_service, "db_now", lambda _: fixed_now)
+    with sessions.begin() as session:
+        state = session.get(ForecastState, 1, with_for_update=True)
+        previous = state.active_run_id
+        if previous:
+            session.get(ForecastRun, previous).status = "superseded"
+            session.flush()
+        session.add(
+            ForecastRun(
+                id=run_id,
+                source_sha256="0" * 64,
+                status="active",
+                payload=bundle(run_id),
+                failed_checks=[],
+            )
+        )
+        session.flush()
+        state.active_run_id = run_id
+    service = Planner(sessions, "sample", "fake")
+    barrier = Barrier(2, timeout=10)
+
+    def before_lock(conn, cursor, statement, params, context, many):
+        if statement.startswith("SELECT farms.") and "FOR UPDATE" in statement:
+            barrier.wait()
+
+    try:
+        request = PlanRequest(
+            section_id=owner.section,
+            planting_date="2026-10-01",
+            budget_cents=1_000_000,
+            money_basis_year=2025,
+            crops=[{"crop": "cabbage"}],
+            planting_cost_percent=50,
+            market_commission_bps=500,
+            agent_commission_bps=250,
+        )
+        preview = service.preview(owner.auth, owner.farm, request)
+        payload = PlanConfirmation(
+            mutation_id=uuid4(),
+            plan_id=uuid4(),
+            confirmed=True,
+            request=request,
+            snapshot_hash=preview.snapshot_hash,
+            candidate_id=preview.candidates[0].id,
+        )
+        if updating:
+            service.confirm(owner.auth, owner.farm, payload)
+        payloads = (
+            [payload, payload]
+            if not updating
+            else [
+                payload.model_copy(update={"mutation_id": uuid4(), "expected_version": 1})
+                for _ in range(2)
+            ]
+        )
+
+        def confirm(value):
+            try:
+                return (
+                    Planner(sessions, "sample", "fake")
+                    .confirm(owner.auth, owner.farm, value)
+                    .replayed
+                )
+            except ApiError as error:
+                return error.code
+
+        event.listen(engine, "before_cursor_execute", before_lock)
+        try:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(confirm, payloads))
+        finally:
+            event.remove(engine, "before_cursor_execute", before_lock)
+        assert results.count(False) == 1
+        assert results.count("revision_conflict" if updating else True) == 1
+        with sessions() as session:
+            assert session.get(SavedPlan, payload.plan_id).version == (2 if updating else 1)
+            assert session.scalar(
+                select(func.count())
+                .select_from(SyncChange)
+                .where(SyncChange.owner_id == owner.owner)
+            ) == (2 if updating else 1)
+    finally:
+        with sessions.begin() as session:
+            session.execute(delete(User).where(User.id == owner.owner))
+            state = session.get(ForecastState, 1, with_for_update=True)
+            state.active_run_id = previous
+            session.flush()
+            session.get(ForecastRun, run_id).status = "superseded"
+            session.flush()
+            if previous:
+                session.get(ForecastRun, previous).status = "active"
+            session.execute(delete(ForecastRun).where(ForecastRun.id == run_id))
+        engine.dispose()
 
 
 def test_retention_skips_locked_turns_and_fences_late_updates(monkeypatch):

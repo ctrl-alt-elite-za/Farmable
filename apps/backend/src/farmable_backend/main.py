@@ -36,6 +36,7 @@ from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
 from farmable_backend.middleware import RateLimiter, SafeDefaultsMiddleware, error_response
+from farmable_backend.planning.api import router as planning_router
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import RecordBodyLimit, RecordRuntime
 from farmable_backend.records_api import router as records_router
@@ -168,6 +169,7 @@ def create_app(
     app.include_router(assistant_router)
     app.include_router(voice_router)
     app.include_router(forecast_router)
+    app.include_router(planning_router)
 
     @app.exception_handler(ApiError)
     async def record_error(request: Request, exc: ApiError) -> JSONResponse:

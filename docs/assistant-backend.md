@@ -18,7 +18,7 @@ the scope review on PR #71.
 | Success/error/slow fakes and staging-only fault flags                 | `integrations/fakes.py`, `settings.py`; parametrized fake, timeout and fault tests in `test_integrations.py`                                    | Recorded real-response comparison and consumer-level degradation checks; current fixtures are synthetic                                                              |
 | Smoke command, crop coverage, credentials/cost/fallback documentation | `integrations/smoke.py`, `make smoke`, `docs/services.md`, `docs/provider-verification.md`                                                      | Authorized real staging runs, account/security settings and crop-coverage evidence; a command existing is not a PASS                                                 |
 | Twilio confined to integrations                                       | `integrations/twilio.py`; static source regression in `test_integrations.py` checks SDK imports and literal provider hosts outside the boundary | Continue enforcing this boundary; the check is not a sandbox against dynamically constructed imports/URLs                                                            |
-| Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only tools and assistant regression tests                                                                                  | Production planning, confirmed writes, stale-plan protection and grounded action results                                                                             |
+| Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only planning previews, explicit confirmation API and stale-plan checks                                                    | Frontend confirmation journey, production input acceptance and real-model grounded action verification                                                               |
 | Voice and crop diagnosis                                              | Existing provider adapters and separately disabled Live credential endpoint                                                                     | Azure streaming/language rules, sentence TTS and playback interruption, queued farm-scoped diagnosis; Flutter integration remains with its owning issues             |
 | Accounting, evaluation and privacy                                    | Bounded admission reservations, synthetic regressions, owner export/deletion, conversation consent/revocation and 30-day chat-content expiry    | Actual priced settlement, system-spend acceptance, calibrated/adversarial evaluations, provider/backup retention review, consent UI and appropriate provider caching |
 | Deployment and full journey                                           | Existing CI checks; no live activation in this PR                                                                                               | Approved configuration, real-provider contracts, physical-device and deployed end-to-end evidence                                                                    |
@@ -88,7 +88,7 @@ loop, following Google's [function-calling protocol](https://ai.google.dev/gemin
 
 ## Tools and grounding
 
-Only `list_sections` and `get_crop_outlook` exist. Tool names are explicitly
+`list_sections`, `get_crop_outlook` and `preview_planting_plan` are available. Tool names are explicitly
 allowlisted, arguments are validated, and ownership is checked again at execution.
 No arbitrary code, URLs, database query, model-supplied identity or mutation is
 executed. Tool outputs are saved and returned with the turn. Crop outlooks retain
@@ -98,14 +98,17 @@ and synthetic-data warning. A missing outlook is an explicit tool error.
 This is **tool-result grounding**, not proof that every generated sentence is
 correct. The prompt requires fresh evidence and forbids fabricated actions, but a
 prompt is not a security boundary or a calibrated factuality evaluator. Real-model
-grounding and adversarial evaluations remain a release gate. Unsupported saving,
-allocation and diagnosis requests must not be presented as completed actions.
+grounding and adversarial evaluations remain a release gate. Planning previews
+must not be presented as saved plans. The model cannot confirm writes or diagnose photos.
 
-The merged numerical allocation engine is explicitly a demo engine with sample
-inputs; the production API exposes outlooks but does not yet expose the full
-budget/deadline/minimum-share planner contract. This implementation does not
-quietly repurpose that demo engine or invent a production plan. Completing that
-integration and explicit-confirmation mutations is still required by #7/#21.
+The original demo engine is unchanged. The separate active-outlook planner now
+compares crops and allocates blocks with budget, deadline, minimum-share and
+promised-quantity constraints. It provides a cash timeline and goal mode using
+explicit cost-timing/fee assumptions. A separate authenticated confirmation API
+rechecks the snapshot and saved-plan version, then atomically saves through the
+existing sync ledger. It is never exposed as a model tool. See
+[production-planning.md](production-planning.md) for the full contract, monetary
+basis, calendar bounds, uncertainty and remaining production acceptance.
 
 ## Bounded execution and cancellation
 
@@ -222,7 +225,7 @@ deletion. Conversation containers and consent receipts also remain. This is chat
 **content** retention, not deletion of every account record. Approved planting
 plans are independent records and are not modified by chat cleanup.
 
-Notice `gemini-conversation-v2` describes this policy. Existing v1 grants are
+Notice `gemini-conversation-v3` describes this policy and planning data sent to Gemini. Existing v1/v2 grants are
 invalid for new generation and require explicit consent again; no grants are
 silently upgraded. Frontend consent controls remain a separate integration task.
 
@@ -232,8 +235,8 @@ and restore procedures: after restoring a database, migrate it and complete the
 cleanup before allowing direct access to restored content. Review the chosen
 Google account's retention terms before making any upstream deletion promise.
 
-Still required for full #7: confirmed production planning actions and stale-plan
-protection; production speech/language handling and TTS cancellation; queued crop
+Still required for full #7: frontend confirmation and real-data planning acceptance;
+production speech/language handling and TTS cancellation; queued crop
 diagnosis; provider context caching where appropriate; actual priced usage and
 system spending acceptance; calibrated/model-quality evaluations; real-response
 contracts and all provider/manual checks in [services.md](services.md).

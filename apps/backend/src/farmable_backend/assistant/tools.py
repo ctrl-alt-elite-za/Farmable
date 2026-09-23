@@ -8,9 +8,55 @@ from sqlalchemy import select
 from farmable_backend.assistant.schemas import OutlookArgs, SectionListArgs
 from farmable_backend.forecasts import outlook
 from farmable_backend.models import Section
+from farmable_backend.planning.contracts import PlanRequest
+from farmable_backend.planning.service import Planner
 from farmable_backend.record_access import ApiError, section_scope
 
 DECLARATIONS = [
+    {
+        "name": "preview_planting_plan",
+        "description": "Compare active-outlook allocations without saving. Ask the farmer for "
+        "missing constraints, cost timing and fees; never invent them. Money must be in 2025 ZAR. "
+        "Return the preview for explicit confirmation through the app; you cannot confirm it.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "section_id": {"type": "STRING"},
+                "planting_date": {"type": "STRING"},
+                "budget_cents": {"type": "INTEGER"},
+                "money_basis_year": {"type": "INTEGER", "description": "Must be 2025."},
+                "crops": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "crop": {"type": "STRING"},
+                            "minimum_percent": {"type": "INTEGER"},
+                            "promised_kg": {"type": "NUMBER"},
+                        },
+                        "required": ["crop"],
+                    },
+                },
+                "block_count": {"type": "INTEGER"},
+                "max_results": {"type": "INTEGER"},
+                "cash_deadline": {"type": "STRING"},
+                "goal_margin_cents": {"type": "INTEGER"},
+                "planting_cost_percent": {"type": "INTEGER"},
+                "market_commission_bps": {"type": "INTEGER"},
+                "agent_commission_bps": {"type": "INTEGER"},
+            },
+            "required": [
+                "section_id",
+                "planting_date",
+                "budget_cents",
+                "money_basis_year",
+                "crops",
+                "planting_cost_percent",
+                "market_commission_bps",
+                "agent_commission_bps",
+            ],
+        },
+    },
     {
         "name": "list_sections",
         "description": "List sections in the current farmer's farm.",
@@ -37,6 +83,27 @@ DECLARATIONS = [
 
 def execute(store, auth, conversation_id, name, args, mode):
     try:
+        if name == "preview_planting_plan":
+            request = PlanRequest.model_validate(args)
+            # Keep the existing consent/farm lock through this read-only calculation.
+            with store.sessions.begin() as session:
+                conversation = store.scope(session, auth, conversation_id, lock=True)
+                store.require_consent(session, conversation_id)
+                section = section_scope(
+                    session,
+                    conversation.owner_id,
+                    conversation.farm_id,
+                    request.section_id,
+                    lock=True,
+                )
+                result = (
+                    Planner(store.sessions, mode, store.services.integrations_mode)
+                    .snapshot(session, section, request)
+                    .model_dump(mode="json")
+                )
+                if len(json.dumps(result).encode()) > 24000:
+                    raise ApiError(503, "plan_too_large")
+                return result
         if name == "list_sections":
             payload = SectionListArgs.model_validate(args)
             with store.sessions() as session:

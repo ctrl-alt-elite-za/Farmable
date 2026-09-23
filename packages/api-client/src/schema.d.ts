@@ -559,6 +559,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/farms/{farm_id}/planning/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Confirm */
+    post: operations['confirmPlantingPlan'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/planning/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Preview */
+    post: operations['previewPlantingPlan'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/farms/{farm_id}/plans': {
     parameters: {
       query?: never;
@@ -933,6 +967,35 @@ export interface components {
        */
       years_observed: 15;
     };
+    /** Candidate */
+    Candidate: {
+      /** Allocations */
+      allocations: components['schemas']['Estimate'][];
+      /** Cash Timeline */
+      cash_timeline: components['schemas']['CashEvent'][];
+      /** Id */
+      id: string;
+      /** Margin Cents */
+      margin_cents: number;
+      /** Required Cash Cents */
+      required_cash_cents: number;
+      /** Unplanted Blocks */
+      unplanted_blocks: number;
+    };
+    /** CashEvent */
+    CashEvent: {
+      /** Balance Cents */
+      balance_cents: number;
+      /** Cost Cents */
+      cost_cents: number;
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /** Receipts Cents */
+      receipts_cents: number;
+    };
     /** ChangePage */
     ChangePage: {
       /** Items */
@@ -961,6 +1024,23 @@ export interface components {
       /** Version */
       version: number;
     };
+    /** ConfirmedPlan */
+    ConfirmedPlan: {
+      /**
+       * Approved At
+       * Format: date-time
+       */
+      approved_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Replayed */
+      replayed: boolean;
+      /** Version */
+      version: number;
+    };
     /** ConsentGrant */
     ConsentGrant: {
       /** Model */
@@ -969,7 +1049,7 @@ export interface components {
        * Notice Version
        * @constant
        */
-      notice_version: 'gemini-conversation-v2';
+      notice_version: 'gemini-conversation-v3';
     };
     /** ConsentView */
     ConsentView: {
@@ -981,12 +1061,12 @@ export interface components {
       model: string;
       /**
        * Notice
-       * @default Allow this conversation's messages, recent replies and requested farm-section and crop-outlook data to be sent to Google Gemini to generate answers. Each message and its reply expire from Farmable history after 30 days from sending the message. Reopening a conversation does not extend this period. Background cleanup erases expired chat content; content-free usage and retry records remain. Saved planting plans are separate and are not erased by this policy. Provider retention depends on the operator's Google account terms. Withdrawing permission stops further generation but cannot recall data already sent or erase provider copies. Do not include sensitive personal information in messages.
+       * @default Allow this conversation's messages, recent replies and requested farm-section and crop-outlook data, planning inputs (including budget) and preview results to be sent to Google Gemini to generate answers. Each message and its reply expire from Farmable history after 30 days from sending the message. Reopening a conversation does not extend this period. Background cleanup erases expired chat content; content-free usage and retry records remain. Saved planting plans are separate and are not erased by this policy. Provider retention depends on the operator's Google account terms. Withdrawing permission stops further generation but cannot recall data already sent or erase provider copies. Do not include sensitive personal information in messages.
        */
       notice: string;
       /**
        * Notice Version
-       * @default gemini-conversation-v2
+       * @default gemini-conversation-v3
        */
       notice_version: string;
       /**
@@ -1029,6 +1109,58 @@ export interface components {
        */
       id: string;
     };
+    /** CropConstraint */
+    'CropConstraint-Input': {
+      /**
+       * Crop
+       * @enum {string}
+       */
+      crop:
+        | 'butternut'
+        | 'cabbage'
+        | 'carrots'
+        | 'green_beans'
+        | 'onions'
+        | 'potatoes'
+        | 'spinach'
+        | 'tomatoes';
+      /**
+       * Minimum Percent
+       * @default 0
+       */
+      minimum_percent: number;
+      /**
+       * Promised Kg
+       * @default 0
+       */
+      promised_kg: number | string;
+    };
+    /** CropConstraint */
+    'CropConstraint-Output': {
+      /**
+       * Crop
+       * @enum {string}
+       */
+      crop:
+        | 'butternut'
+        | 'cabbage'
+        | 'carrots'
+        | 'green_beans'
+        | 'onions'
+        | 'potatoes'
+        | 'spinach'
+        | 'tomatoes';
+      /**
+       * Minimum Percent
+       * @default 0
+       */
+      minimum_percent: number;
+      /**
+       * Promised Kg
+       * @default 0
+       */
+      promised_kg: string;
+    };
     /** DeleteAccountRequest */
     DeleteAccountRequest: {
       /** Password */
@@ -1044,6 +1176,52 @@ export interface components {
     /** ErrorResponse */
     ErrorResponse: {
       error: components['schemas']['Error'];
+    };
+    /** Estimate */
+    Estimate: {
+      /** Area M2 */
+      area_m2: string;
+      /** Blocks */
+      blocks: number;
+      /** Break Even Price Per Kg */
+      break_even_price_per_kg: string;
+      /** Commission Cents */
+      commission_cents: number;
+      /** Cost Schedule */
+      cost_schedule: [string, number][];
+      /**
+       * Crop
+       * @enum {string}
+       */
+      crop:
+        | 'butternut'
+        | 'cabbage'
+        | 'carrots'
+        | 'green_beans'
+        | 'onions'
+        | 'potatoes'
+        | 'spinach'
+        | 'tomatoes';
+      /**
+       * Harvest Date
+       * Format: date
+       */
+      harvest_date: string;
+      /** Margin Cents */
+      margin_cents: number;
+      /**
+       * Payment Date
+       * Format: date
+       */
+      payment_date: string;
+      /** Price Only Break Even Chance Bounds */
+      price_only_break_even_chance_bounds: [string, string];
+      /** Production Cost Cents */
+      production_cost_cents: number;
+      /** Quantity Kg */
+      quantity_kg: string;
+      /** Sales Cents */
+      sales_cents: number;
     };
     /** FarmUpdate */
     FarmUpdate: {
@@ -1608,6 +1786,31 @@ export interface components {
       /** Next Cursor */
       next_cursor: string | null;
     };
+    /** PlanConfirmation */
+    PlanConfirmation: {
+      /** Candidate Id */
+      candidate_id: string;
+      /** Confirmed */
+      confirmed: boolean;
+      /**
+       * Expected Version
+       * @default 0
+       */
+      expected_version: number;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Plan Id
+       * Format: uuid
+       */
+      plan_id: string;
+      request: components['schemas']['PlanRequest-Input'];
+      /** Snapshot Hash */
+      snapshot_hash: string;
+    };
     /**
      * PlanCreate
      * @example {
@@ -1646,6 +1849,118 @@ export interface components {
        * @enum {string}
        */
       status: 'saved' | 'approved' | 'rejected';
+    };
+    /** PlanPreview */
+    PlanPreview: {
+      /** Area M2 */
+      area_m2: string;
+      /** Assumptions */
+      assumptions: string[];
+      /** Candidates */
+      candidates: components['schemas']['Candidate'][];
+      /** Change Needed */
+      change_needed: {
+        [key: string]: unknown;
+      } | null;
+      /** Comparisons */
+      comparisons: components['schemas']['Estimate'][];
+      /** Engine Version */
+      engine_version: string;
+      /** Feasible */
+      feasible: boolean;
+      request: components['schemas']['PlanRequest-Output'];
+      /** Section Version */
+      section_version: number;
+      /** Snapshot Hash */
+      snapshot_hash: string;
+      /** Source */
+      source: {
+        [key: string]: unknown;
+      };
+    };
+    /** PlanRequest */
+    'PlanRequest-Input': {
+      /** Agent Commission Bps */
+      agent_commission_bps: number;
+      /**
+       * Block Count
+       * @default 4
+       */
+      block_count: number;
+      /** Budget Cents */
+      budget_cents: number;
+      /** Cash Deadline */
+      cash_deadline?: string | null;
+      /** Crops */
+      crops: components['schemas']['CropConstraint-Input'][];
+      /** Goal Margin Cents */
+      goal_margin_cents?: number | null;
+      /** Market Commission Bps */
+      market_commission_bps: number;
+      /**
+       * Max Results
+       * @default 3
+       */
+      max_results: number;
+      /**
+       * Money Basis Year
+       * @constant
+       */
+      money_basis_year: 2025;
+      /** Planting Cost Percent */
+      planting_cost_percent: number;
+      /**
+       * Planting Date
+       * Format: date
+       */
+      planting_date: string;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+    };
+    /** PlanRequest */
+    'PlanRequest-Output': {
+      /** Agent Commission Bps */
+      agent_commission_bps: number;
+      /**
+       * Block Count
+       * @default 4
+       */
+      block_count: number;
+      /** Budget Cents */
+      budget_cents: number;
+      /** Cash Deadline */
+      cash_deadline?: string | null;
+      /** Crops */
+      crops: components['schemas']['CropConstraint-Output'][];
+      /** Goal Margin Cents */
+      goal_margin_cents?: number | null;
+      /** Market Commission Bps */
+      market_commission_bps: number;
+      /**
+       * Max Results
+       * @default 3
+       */
+      max_results: number;
+      /**
+       * Money Basis Year
+       * @constant
+       */
+      money_basis_year: 2025;
+      /** Planting Cost Percent */
+      planting_cost_percent: number;
+      /**
+       * Planting Date
+       * Format: date
+       */
+      planting_date: string;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
     };
     /**
      * PlanUpdate
@@ -6286,6 +6601,204 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['UploadView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  confirmPlantingPlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanConfirmation'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConfirmedPlan'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  previewPlantingPlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanRequest-Input'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlanPreview'];
         };
       };
       /** @description Unauthorized */

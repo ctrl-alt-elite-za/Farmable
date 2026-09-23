@@ -175,11 +175,10 @@ def test_cleanup_is_bounded_and_covers_all_owners(assistant, monkeypatch):
         assert all(t.content_deleted_at is not None for t in session.scalars(select(AssistantTurn)))
 
 
-def test_previous_notice_requires_explicit_reconsent(assistant):
+@pytest.mark.parametrize("version", ["gemini-conversation-v1", "gemini-conversation-v2"])
+def test_previous_notice_requires_explicit_reconsent(assistant, version):
     with assistant.sessions.begin() as session:
-        session.get(
-            AssistantConsent, assistant.conversation
-        ).notice_version = "gemini-conversation-v1"
+        session.get(AssistantConsent, assistant.conversation).notice_version = version
     requests = script(assistant, [])
     response, _, _ = post(assistant)
     assert response.status_code == 403 and requests == []

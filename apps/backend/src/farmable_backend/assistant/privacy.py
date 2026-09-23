@@ -7,10 +7,11 @@ from pydantic import Field
 
 from farmable_backend.schemas import StrictModel
 
-NOTICE_VERSION = "gemini-conversation-v2"
+NOTICE_VERSION = "gemini-conversation-v3"
 NOTICE = (
     "Allow this conversation's messages, recent replies and requested farm-section "
-    "and crop-outlook data to be sent to Google Gemini to generate answers. "
+    "and crop-outlook data, planning inputs (including budget) and preview results "
+    "to be sent to Google Gemini to generate answers. "
     "Each message and its reply expire from Farmable history after 30 days from "
     "sending the message. Reopening a conversation does not extend this period. "
     "Background cleanup erases expired chat content; content-free usage and retry "
@@ -23,7 +24,7 @@ NOTICE = (
 
 
 class ConsentGrant(StrictModel):
-    notice_version: Literal["gemini-conversation-v2"]
+    notice_version: Literal["gemini-conversation-v3"]
     model: str = Field(min_length=1, max_length=128)
 
 
