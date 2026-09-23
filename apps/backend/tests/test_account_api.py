@@ -507,6 +507,15 @@ def test_deletion_tombstones_without_publishing_sync_changes(accounts):
     _seed_records(accounts)
     _seed_sync_change(accounts, accounts.alice)
     owner_id = accounts.alice.user.id
+    with accounts.sessions.begin() as session:
+        # sync_state defaults to "pending" for every seeded row, which would
+        # make the equality assertion below pass even if deletion started
+        # flipping it to "pending" itself (the tombstone_* pattern's second
+        # field) -- a silent no-op mutation the test couldn't catch. Setting
+        # one row to a different value first makes that leg of the pin live:
+        # it now only survives if deletion truly leaves sync_state alone.
+        farm = session.scalar(select(Farm).where(Farm.owner_id == owner_id))
+        farm.sync_state = "synced"
     with accounts.sessions() as session:
         before = {
             model: [
