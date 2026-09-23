@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.models import AuthIdentity, AuthSession, Farm, User, VerificationChallenge
-from farmable_backend.rate_limits import RateLimited
+from farmable_backend.rate_limits import RateLimited, retry_after_if_limited
 from farmable_backend.rate_limits import check as rate_check
 
 PASSWORD_HASHER = PasswordHasher()  # argon2-cffi defaults are Argon2id.
@@ -59,6 +59,34 @@ def _rate_limit(sessions: sessionmaker[Session], **kwargs: object) -> None:
         rate_check(sessions, **kwargs)  # type: ignore[arg-type]
     except RateLimited as exc:
         raise AuthError(exc.code, 429, exc.retry_after) from exc
+
+
+def check_sms_limits(sessions: sessionmaker[Session], *, ip: str, phone: str) -> None:
+    """Admit one SMS across IP, destination and global budgets."""
+    _rate_limit(
+        sessions,
+        scope="sms_ip",
+        subject=ip,
+        window_seconds=3600,
+        limit=10,
+        code="sms_ip_rate_limited",
+    )
+    _rate_limit(
+        sessions,
+        scope="sms_phone",
+        subject=phone,
+        window_seconds=600,
+        limit=3,
+        code="sms_phone_rate_limited",
+    )
+    _rate_limit(
+        sessions,
+        scope="sms_daily",
+        subject="global",
+        window_seconds=86400,
+        limit=50,
+        code="daily_sms_cap",
+    )
 
 
 class AuthError(Exception):
@@ -205,7 +233,7 @@ class AuthService:
         # Signup always sends exactly one phone OTP; check its cost-abuse
         # limits upfront too, so a rejection here never leaves an orphaned
         # owner/identity/farm row from a transaction rolled back mid-flight.
-        self._check_sms_limits(ip)
+        self._check_sms_limits(ip, phone)
         with self.sessions.begin() as session:
             existing = session.scalar(
                 select(AuthIdentity).where(
@@ -324,8 +352,6 @@ class AuthService:
         return result
 
     def resend(self, user_id: UUID, channel: Channel, *, ip: str = "unknown") -> None:
-        if channel is Channel.PHONE:
-            self._check_sms_limits(ip)
         with self.sessions.begin() as session:
             user = session.scalar(
                 select(AuthIdentity).where(AuthIdentity.id == user_id).with_for_update()
@@ -336,10 +362,22 @@ class AuthService:
                 channel is Channel.EMAIL and user.email_verified
             ):
                 raise AuthError("invalid_verification", 400)
+            if channel is Channel.PHONE:
+                self._check_sms_limits(ip, user.phone)
             self._send(session, user, channel)
 
     def login(self, identifier: str, password: str, *, ip: str = "unknown") -> SessionTokens:
         identifier = identifier.strip()
+        normalized_identifier = identifier.lower()
+        for scope, subject, limit in (
+            ("login_fail_account", normalized_identifier, 5),
+            ("login_fail_ip", ip, 20),
+        ):
+            retry_after = retry_after_if_limited(
+                self.sessions, scope=scope, subject=subject, window_seconds=900, limit=limit
+            )
+            if retry_after is not None:
+                raise AuthError("login_rate_limited", 429, retry_after)
         failed = False
         result: SessionTokens | None = None
         with self.sessions.begin() as session:
@@ -370,7 +408,7 @@ class AuthService:
             _rate_limit(
                 self.sessions,
                 scope="login_fail_account",
-                subject=identifier.lower(),
+                subject=normalized_identifier,
                 window_seconds=900,
                 limit=5,
                 code="login_rate_limited",
@@ -434,29 +472,14 @@ class AuthService:
             raise AuthError("invalid_session", 401)
         return result
 
-    def _check_sms_limits(self, ip: str) -> None:
+    def _check_sms_limits(self, ip: str, phone: str) -> None:
         # SMS costs money per send (~$0.19); gate on IP and a system-wide
         # daily cap. Called by signup()/resend() *before* their own
         # transaction opens (and before _send() is reached), so a rejection
         # here never leaves an orphaned owner/identity/farm row, and the
         # provider is never called. Each check is its own short,
         # already-committed transaction (see rate_limits.py).
-        _rate_limit(
-            self.sessions,
-            scope="sms_ip",
-            subject=ip,
-            window_seconds=3600,
-            limit=10,
-            code="sms_ip_rate_limited",
-        )
-        _rate_limit(
-            self.sessions,
-            scope="sms_daily",
-            subject="global",
-            window_seconds=86400,
-            limit=50,
-            code="daily_sms_cap",
-        )
+        check_sms_limits(self.sessions, ip=ip, phone=phone)
 
     def _send(self, session: Session, user: AuthIdentity, channel: Channel) -> None:
         recent = session.scalars(

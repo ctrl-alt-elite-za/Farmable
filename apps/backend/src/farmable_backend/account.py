@@ -35,6 +35,7 @@ from farmable_backend.auth import (
     Channel,
     DisabledOtpProvider,
     OtpProvider,
+    check_sms_limits,
 )
 from farmable_backend.auth import AuthError as _AuthError
 from farmable_backend.idempotency import (
@@ -164,32 +165,79 @@ class AccountService:
             owner = authenticate(session, authorization)
             return self._profile(session, self._identity(session, owner))
 
-    def update_profile(self, authorization: str | None, payload: ProfileUpdate) -> ProfileResponse:
-        with self.sessions.begin() as session:
-            owner = authenticate(session, authorization)
-            identity = self._identity(session, owner)
-            if payload.first_name is not None:
-                identity.first_name = payload.first_name.strip()
-            if payload.surname is not None:
-                identity.surname = payload.surname.strip()
-            if payload.preferred_language is not None:
-                self._set_language(session, owner, payload.preferred_language)
-            session.flush()
-            response = self._profile(session, identity)
-        # Email/phone changes never apply inline: they only ever take effect
-        # through confirm_contact_change, after the destination proves control
-        # by returning the OTP it received. Requested after the main profile
-        # transaction commits so a request that changes name+email still
-        # persists the name even if the OTP send fails.
-        if payload.email is not None:
-            self._request_contact_change(authorization, Channel.EMAIL, payload.email)
-        if payload.phone is not None:
-            self._request_contact_change(authorization, Channel.PHONE, payload.phone)
-        if payload.email is not None or payload.phone is not None:
+    def update_profile(
+        self,
+        authorization: str | None,
+        payload: ProfileUpdate,
+        *,
+        ip: str = "unknown",
+        idempotency_key: str | None = None,
+        idempotency_scope: str = "",
+        request_fingerprint: str | None = None,
+    ) -> ProfileResponse:
+        if idempotency_key is not None:
+            if request_fingerprint is None:
+                raise ApiError(400, "idempotency_key_required")
+            try:
+                replayed = idempotency_claim(
+                    self.sessions,
+                    route="account_profile",
+                    scope=idempotency_scope,
+                    key=idempotency_key,
+                    request_fingerprint=request_fingerprint,
+                )
+            except IdempotencyConflict:
+                raise ApiError(409, "idempotency_key_conflict") from None
+            except IdempotencyInProgress:
+                raise ApiError(409, "idempotency_in_progress", 1) from None
+            if replayed is not None:
+                _status, body = replayed
+                return ProfileResponse(**body)
+        try:
             with self.sessions.begin() as session:
                 owner = authenticate(session, authorization)
-                response = self._profile(session, self._identity(session, owner))
-        return response
+                identity = self._identity(session, owner)
+                if payload.first_name is not None:
+                    identity.first_name = payload.first_name.strip()
+                if payload.surname is not None:
+                    identity.surname = payload.surname.strip()
+                if payload.preferred_language is not None:
+                    self._set_language(session, owner, payload.preferred_language)
+                session.flush()
+                response = self._profile(session, identity)
+            # Email/phone changes never apply inline: they only ever take effect
+            # through confirm_contact_change, after the destination proves control
+            # by returning the OTP it received. Requested after the main profile
+            # transaction commits so a request that changes name+email still
+            # persists the name even if the OTP send fails.
+            if payload.email is not None:
+                self._request_contact_change(authorization, Channel.EMAIL, payload.email)
+            if payload.phone is not None:
+                self._request_contact_change(authorization, Channel.PHONE, payload.phone, ip=ip)
+            if payload.email is not None or payload.phone is not None:
+                with self.sessions.begin() as session:
+                    owner = authenticate(session, authorization)
+                    response = self._profile(session, self._identity(session, owner))
+            if idempotency_key is not None:
+                idempotency_store(
+                    self.sessions,
+                    route="account_profile",
+                    scope=idempotency_scope,
+                    key=idempotency_key,
+                    request_fingerprint=request_fingerprint,
+                    status_code=200,
+                    body=response.model_dump(mode="json"),
+                )
+            return response
+        except Exception:
+            if idempotency_key is not None:
+                idempotency_abandon(
+                    self.sessions,
+                    route="account_profile",
+                    scope=idempotency_scope,
+                    key=idempotency_key,
+                )
+            raise
 
     def confirm_contact_change(
         self, authorization: str | None, channel: Channel, code: str
@@ -231,27 +279,33 @@ class AccountService:
                 raise ApiError(400, "invalid_verification")
             if not self._verify_code(challenge.code_hash, code):
                 challenge.attempts += 1
-                raise ApiError(400, "invalid_verification")
-            challenge.consumed_at = datetime.now(UTC)
-            try:
-                with session.begin_nested():
-                    if channel is Channel.EMAIL:
-                        identity.email = pending
-                        pending_row.pending_email = None
-                    else:
-                        identity.phone = pending
-                        pending_row.pending_phone = None
-                    session.flush()
-            except IntegrityError:
-                # Someone else claimed this email/phone between the request
-                # and the confirm step. The caller already proved control of
-                # the destination by returning its OTP, so a direct error here
-                # is not an enumeration oracle (unlike signup/request).
-                raise ApiError(409, "contact_unavailable") from None
-            return self._profile(session, identity)
+                failure = ApiError(400, "invalid_verification")
+            else:
+                failure = None
+            if failure is not None:
+                # Leave the transaction normally so the failed-attempt counter
+                # commits before the API error is raised.
+                pass
+            else:
+                challenge.consumed_at = datetime.now(UTC)
+                try:
+                    with session.begin_nested():
+                        if channel is Channel.EMAIL:
+                            identity.email = pending
+                            pending_row.pending_email = None
+                        else:
+                            identity.phone = pending
+                            pending_row.pending_phone = None
+                        session.flush()
+                except IntegrityError:
+                    raise ApiError(409, "contact_unavailable") from None
+                response = self._profile(session, identity)
+        if failure is not None:
+            raise failure
+        return response
 
     def _request_contact_change(
-        self, authorization: str | None, channel: Channel, new_value: str
+        self, authorization: str | None, channel: Channel, new_value: str, *, ip: str = "unknown"
     ) -> None:
         normalized = new_value.strip().lower() if channel is Channel.EMAIL else new_value.strip()
         with self.sessions.begin() as session:
@@ -277,6 +331,11 @@ class AccountService:
                 # Enumeration-safe: identical to a fresh request either way.
                 # Warn the real owner instead of confirming existence to the
                 # caller, and never store a pending value that would collide.
+                if channel is Channel.PHONE:
+                    try:
+                        check_sms_limits(self.sessions, ip=ip, phone=normalized)
+                    except _AuthError as exc:
+                        raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
                 try:
                     self.provider.notify_existing_account(channel, normalized)
                 except _AuthError:
@@ -290,6 +349,10 @@ class AccountService:
                 pending_row.pending_email = normalized
             else:
                 pending_row.pending_phone = normalized
+                try:
+                    check_sms_limits(self.sessions, ip=ip, phone=normalized)
+                except _AuthError as exc:
+                    raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
             session.execute(
                 update(VerificationChallenge)
                 .where(

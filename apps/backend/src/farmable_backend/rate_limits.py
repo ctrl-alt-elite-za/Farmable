@@ -84,3 +84,26 @@ def check(
             rejected = None
     if rejected is not None:
         raise rejected
+
+
+def retry_after_if_limited(
+    sessions: sessionmaker[Session],
+    *,
+    scope: str,
+    subject: str,
+    window_seconds: int,
+    limit: int,
+) -> int | None:
+    """Return the lockout delay without consuming another admission slot."""
+    now = _now_ts()
+    with sessions.begin() as session:
+        counter = session.get(
+            RateLimitCounter, (scope, hash_subject(subject)), with_for_update=True
+        )
+        if counter is None:
+            return None
+        hits = [hit for hit in counter.hits if hit > now - window_seconds]
+        counter.hits = hits
+        if len(hits) < limit:
+            return None
+        return max(1, math.ceil(min(hits) + window_seconds - now))

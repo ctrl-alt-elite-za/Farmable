@@ -74,6 +74,11 @@ def runtime(request: Request) -> AccountRuntime:
     return value
 
 
+def client_ip(request: Request) -> str:
+    # Single API process; no trusted forwarding headers.
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("/auth/logout", status_code=204, operation_id="authLogout")
 async def logout(request: Request) -> None:
     worker = runtime(request)
@@ -127,7 +132,26 @@ async def update_consent(
 async def write_profile(request: Request, response: Response, payload: ProfileUpdate):
     response.headers["Cache-Control"] = "no-store"
     worker = runtime(request)
-    return await worker.call(worker.service.update_profile, token(request), payload)
+    key = request.headers.get("Idempotency-Key", "").strip() or None
+    has_contact_change = payload.email is not None or payload.phone is not None
+    if has_contact_change and (key is None or not 16 <= len(key) <= 200):
+        raise ApiError(400, "idempotency_key_required")
+    if key is not None and not 16 <= len(key) <= 200:
+        raise ApiError(400, "idempotency_key_required")
+    scope = ""
+    if key is not None:
+        scope = str(await worker.call(worker.service.owner_id, token(request)))
+    return await worker.call(
+        partial(
+            worker.service.update_profile,
+            token(request),
+            payload,
+            ip=client_ip(request),
+            idempotency_key=key,
+            idempotency_scope=scope,
+            request_fingerprint=idempotency_fingerprint(payload.model_dump(mode="json")),
+        )
+    )
 
 
 @router.post(

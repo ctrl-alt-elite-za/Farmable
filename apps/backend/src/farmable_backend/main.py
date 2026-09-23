@@ -205,6 +205,7 @@ def create_app(
             "password_too_common": "Choose a less common password",
             "signup_rate_limited": "Please wait before trying again",
             "sms_ip_rate_limited": "Please wait before requesting another code",
+            "sms_phone_rate_limited": "Please wait before requesting another code",
             "daily_sms_cap": "Please try again later",
             "login_rate_limited": "Please wait before trying again",
             "idempotency_key_conflict": (

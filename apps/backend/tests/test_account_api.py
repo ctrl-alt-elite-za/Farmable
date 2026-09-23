@@ -7,6 +7,7 @@ import zipfile
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from typing import get_args
+from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -32,6 +33,7 @@ from farmable_backend.models import (
     VerificationChallenge,
 )
 from farmable_backend.photo_jobs import PhotoJobs
+from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import RecordRuntime
 from farmable_backend.records_service import RecordsService
 from fastapi.testclient import TestClient
@@ -50,8 +52,11 @@ def _register(auth, first_name, surname, phone, email):
     return tokens
 
 
-def _headers(tokens):
-    return {"Authorization": f"Bearer {tokens.access_token}"}
+def _headers(tokens, idempotency_label: str | None = None):
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+    if idempotency_label is not None:
+        headers["Idempotency-Key"] = f"contact-idem-{idempotency_label}-key"
+    return headers
 
 
 @pytest.fixture
@@ -81,14 +86,21 @@ def accounts(settings):
         service_settings=ServiceSettings(environment="ci", integrations_mode="fake"),
     )
     app.state.auth = auth
-    account_service = AccountService(sessions, DeterministicFakeOtpProvider())
+    provider = MagicMock(wraps=DeterministicFakeOtpProvider())
+    account_service = AccountService(sessions, provider)
     account_service.set_consent(_headers(alice)["Authorization"], "data_export", "1", True)
     account_service.set_consent(_headers(bob)["Authorization"], "data_export", "1", True)
     app.state.account = AccountRuntime(account_service)
     app.state.records = RecordRuntime(RecordsService(sessions), lambda: None)
     with TestClient(app) as client:
         yield SimpleNamespace(
-            client=client, sessions=sessions, auth=auth, alice=alice, bob=bob, app=app
+            client=client,
+            sessions=sessions,
+            auth=auth,
+            alice=alice,
+            bob=bob,
+            app=app,
+            provider=provider,
         )
     engine.dispose()
 
@@ -330,7 +342,9 @@ def test_farm_location_out_of_range_is_rejected(accounts):
 def test_email_change_requires_confirmation_before_it_applies(accounts):
     alice = _headers(accounts.alice)
     patched = accounts.client.patch(
-        "/account/profile", headers=alice, json={"email": "sipho.new@example.com"}
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-one"),
+        json={"email": "sipho.new@example.com"},
     )
     assert patched.status_code == 200
     assert patched.json()["email"] == "sipho@example.com"  # Unchanged until confirmed.
@@ -349,7 +363,9 @@ def test_email_change_requires_confirmation_before_it_applies(accounts):
 def test_phone_change_requires_confirmation_before_it_applies(accounts):
     alice = _headers(accounts.alice)
     patched = accounts.client.patch(
-        "/account/profile", headers=alice, json={"phone": "+27821234567"}
+        "/account/profile",
+        headers=_headers(accounts.alice, "phone-one"),
+        json={"phone": "+27821234567"},
     )
     assert patched.status_code == 200
     assert patched.json()["phone"] == "+27123456789"
@@ -364,7 +380,9 @@ def test_phone_change_requires_confirmation_before_it_applies(accounts):
 def test_contact_change_wrong_code_is_rejected_and_does_not_apply(accounts):
     alice = _headers(accounts.alice)
     accounts.client.patch(
-        "/account/profile", headers=alice, json={"email": "sipho.new@example.com"}
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-two"),
+        json={"email": "sipho.new@example.com"},
     )
     wrong = accounts.client.post(
         "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "000000"}
@@ -374,6 +392,53 @@ def test_contact_change_wrong_code_is_rejected_and_does_not_apply(accounts):
     assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (
         "sipho@example.com"
     )
+
+
+def test_contact_change_attempts_commit_and_lock_out_after_restart(accounts):
+    alice = _headers(accounts.alice, "email-attempts")
+    accounts.client.patch(
+        "/account/profile", headers=alice, json={"email": "sipho.retry@example.com"}
+    )
+    for _ in range(5):
+        wrong = accounts.client.post(
+            "/account/contact/confirm",
+            headers=alice,
+            json={"channel": "email", "code": "000000"},
+        )
+        assert wrong.status_code == 400
+    with accounts.sessions() as session:
+        challenge = session.scalar(
+            select(VerificationChallenge).where(
+                VerificationChallenge.user_id == accounts.alice.user.id,
+                VerificationChallenge.channel == "email",
+                VerificationChallenge.consumed_at.is_(None),
+            )
+        )
+        assert challenge.attempts == 5
+    restarted = AccountService(accounts.sessions, accounts.provider)
+    with pytest.raises(ApiError, match="invalid_verification"):
+        restarted.confirm_contact_change(alice["Authorization"], Channel.EMAIL, "222222")
+    assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (
+        "sipho@example.com"
+    )
+
+
+def test_contact_change_sms_budget_blocks_provider_delivery(accounts):
+    for label in ("phone-budget-one", "phone-budget-two", "phone-budget-three"):
+        response = accounts.client.patch(
+            "/account/profile",
+            headers=_headers(accounts.alice, label),
+            json={"phone": "+27821111111"},
+        )
+        assert response.status_code == 200
+    rejected = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "phone-budget-four"),
+        json={"phone": "+27821111111"},
+    )
+    assert rejected.status_code == 429
+    assert rejected.json()["error"]["code"] == "sms_phone_rate_limited"
+    assert accounts.provider.deliver.call_count == 3
 
 
 def test_confirm_without_a_pending_change_is_rejected(accounts):
@@ -391,7 +456,9 @@ def test_email_change_to_an_existing_account_is_enumeration_safe(accounts):
     # genuine pending change, and the value must never actually go pending
     # (a later confirm attempt has nothing to confirm).
     patched = accounts.client.patch(
-        "/account/profile", headers=alice, json={"email": "nandi@example.com"}
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-three"),
+        json={"email": "nandi@example.com"},
     )
     assert patched.status_code == 200
     assert patched.json()["email"] == "sipho@example.com"

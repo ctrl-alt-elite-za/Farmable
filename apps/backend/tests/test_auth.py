@@ -156,6 +156,18 @@ def test_missing_account_still_performs_password_verification(monkeypatch):
     assert verified_hashes == [DUMMY_PASSWORD_HASH]
 
 
+def test_login_lockout_is_checked_before_a_correct_password():
+    _sessions, service = _database_auth()
+    user = service.signup("Sipho", "Dlamini", "+27123456789", "sipho@example.com", PASSWORD)
+    service.verify(user.id, Channel.PHONE, "111111")
+    service.verify(user.id, Channel.EMAIL, "222222")
+    for _ in range(5):
+        with pytest.raises(AuthError, match="invalid_credentials"):
+            service.login("sipho@example.com", "wrong password")
+    with pytest.raises(AuthError, match="login_rate_limited"):
+        service.login("sipho@example.com", PASSWORD)
+
+
 def test_refresh_rotates_a_session(settings):
     test_client, _, session = verified_account(settings)
     refreshed = test_client.post("/auth/refresh", json={"refresh_token": session["refresh_token"]})
@@ -231,7 +243,7 @@ def test_database_service_rate_limits_resends_and_invalidates_old_code():
     user = service.signup("Sipho", "Dlamini", "+27123456789", "sipho@example.com", PASSWORD)
     service.resend(user.id, Channel.PHONE)
     service.resend(user.id, Channel.PHONE)
-    with pytest.raises(AuthError, match="otp_rate_limited"):
+    with pytest.raises(AuthError, match="sms_phone_rate_limited"):
         service.resend(user.id, Channel.PHONE)
 
     with sessions() as session:
