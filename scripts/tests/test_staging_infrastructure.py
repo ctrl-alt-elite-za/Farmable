@@ -607,6 +607,8 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     assert result.returncode == 0, result.stderr + result.stdout
     calls = log.read_text(encoding="utf-8")
     assert "run deploy" in calls
+    deploy_call = calls.split("run deploy", 1)[1].split("\n", 1)[0]
+    assert "--no-traffic" not in deploy_call
     assert "update-traffic" in calls
     assert "farmable-00002=100" in calls
     assert "farmable-unrelated=100" not in calls
