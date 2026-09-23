@@ -1,4 +1,5 @@
 import 'farm_records.dart';
+import 'planning/acceptance.dart';
 
 /// What the farm screens need, independent of where the records are stored.
 ///
@@ -83,4 +84,17 @@ abstract interface class FarmRecordsRepository {
   Future<FarmTask> setTaskStatus(String taskId, TaskStatus status);
 
   Future<void> deleteTask(String taskId);
+
+  /// Commits an accepted recommendation to its section.
+  ///
+  /// **Only ever called after the farmer confirms.** Guide §32 makes the
+  /// confirmation a rule rather than a courtesy: a recommendation the app
+  /// produced is a suggestion until a person says yes, and calling this
+  /// earlier — on tap, on scroll, "optimistically" — turns the assistant into
+  /// something that changes the farm without being asked.
+  ///
+  /// One transaction writes all of it: the saved plan, the planting, the
+  /// section's projection and every timeline step. A partial accept would
+  /// leave a section planted with no schedule, or a schedule for nothing.
+  Future<void> acceptPlan(PlanAcceptance acceptance);
 }

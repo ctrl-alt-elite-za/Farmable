@@ -35,6 +35,8 @@ def test_only_owned_application_tables_are_registered():
         "voice_session_rates",
         "forecast_runs",
         "forecast_state",
+        "weather_jobs",
+        "weather_risk_climatology",
     }
 
 

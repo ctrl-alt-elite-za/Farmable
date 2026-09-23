@@ -24,15 +24,19 @@ import '../features/auth/sign_up_screen.dart';
 import '../features/auth/verify_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
+import '../features/recommendations/recommendation_detail_screen.dart';
+import '../features/recommendations/recommendations_screen.dart';
 import '../features/shell/bottom_nav_island.dart';
 import '../features/status/status_screen.dart';
 import '../features/zone/zone_screen.dart';
 import 'config.dart';
 
+/// [initialLocation] is for tests, which pump a screen directly rather than
+/// tapping their way to it. A build overrides the same thing with
+/// `INITIAL_ROUTE` — see [initialRoute] for why a cold launch still opens on
+/// Home.
 GoRouter buildRouter({String? initialLocation}) => GoRouter(
-  // `/home` unless a build says otherwise — see [launchRoute] in config.dart
-  // for why a cold launch does not open onto the brand intro.
-  initialLocation: initialLocation ?? launchRoute,
+  initialLocation: initialLocation ?? initialRoute,
   routes: [
     GoRoute(path: '/', redirect: (_, _) => '/home'),
 
@@ -100,6 +104,26 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
           path: 'zone/:zoneId',
           builder: (context, state) =>
               ZoneScreen(sectionId: state.pathParameters['zoneId']!),
+          routes: [
+            // "What should I plant here?" — deep-linkable like every other
+            // screen. The planner is pure and the section is on disk, so
+            // arriving cold at this URL with no network still answers.
+            GoRoute(
+              path: 'plant',
+              builder: (context, state) => RecommendationsScreen(
+                sectionId: state.pathParameters['zoneId']!,
+              ),
+              routes: [
+                GoRoute(
+                  path: ':crop',
+                  builder: (context, state) => RecommendationDetailScreen(
+                    sectionId: state.pathParameters['zoneId']!,
+                    cropName: state.pathParameters['crop']!,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     ),

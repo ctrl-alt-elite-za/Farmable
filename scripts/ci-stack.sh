@@ -35,6 +35,10 @@ cleanup() {
 }
 trap cleanup EXIT
 "${compose[@]}" build api worker
+if [ "$mode" = deployability ]; then
+  # Build the post-migration importer too; no live DB or notifier credential in CI.
+  docker build --file apps/backend/Dockerfile --target forecast-import .
+fi
 "${compose[@]}" up -d --wait database
 "${compose[@]}" run --rm migrate
 "${compose[@]}" run --rm queue-schema
@@ -48,9 +52,19 @@ if [ "$mode" = e2e-degradation ]; then
   "${compose[@]}" stop database
   "${compose[@]}" run --rm --no-deps tests pytest e2e/degradation -m integration -q -k database_down -p no:cacheprovider
 elif [ "$mode" = mobile ]; then
+  # Every wait is bounded inside the helper — see scripts/await-device.sh
+  # for why adb wait-for-device and each probe each need their own limit.
+  bash scripts/await-device.sh
   adb install -r "${APK:?Set APK to the test-mode Android build}"
+  # And again after the install, because the gate above proves nothing about
+  # the moment after a slow step. Streaming a release APK takes seconds, and
+  # PR #53's run passed the first check, installed successfully, then failed
+  # Maestro's very first command with "device offline" — the transport went
+  # away inside that window.
+  bash scripts/await-device.sh
   # Prove connectivity, then stop ONLY this invocation's API for offline proof.
   maestro test e2e/mobile/online_launch.yaml
   "${compose[@]}" stop api
+  bash scripts/await-device.sh
   maestro test e2e/mobile/offline_launch.yaml
 fi

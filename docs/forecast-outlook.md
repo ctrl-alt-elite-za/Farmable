@@ -3,7 +3,9 @@
 This slice removes the **development** dependency on #20, not the need for honest
 forecast evidence. It implements the import → validation → activation → authenticated
 outlook → rollback path using a committed synthetic snapshot. No public market data
-has been analysed, no model has been trained, and no weather risk has been computed.
+has been analysed and no model has been trained by this snapshot path.
+Location-triggered weather exposure is implemented separately; see
+[weather-risk.md](weather-risk.md) for its policy, warnings and operational limits.
 Keep #20 and #21 open until their remaining acceptance criteria are met.
 
 ## Scope and merge order
@@ -46,8 +48,9 @@ The snapshot includes:
   in `ZAR/kg`, **for harvest after the selected planting month**.
 - `cost_per_ha`, `yield_kg_per_ha`, `break_even_price_per_kg`, `currency=ZAR`,
   `price_basis_year=2025`, and the source assumptions.
-- `weather_risk.status=unavailable` with `climatology_not_computed`. Never display
-  this as zero risk, suitable land, or an inferred soil assessment.
+- `weather_risk.status=unavailable` with `climatology_not_computed` until a matching
+  weather cache exists, or `available` with labelled historical exposure shares.
+  Never display unavailable as zero risk or interpret exposure as crop suitability.
 
 Decimals are JSON strings, consistent with other backend Decimal DTOs. The fixture's
 January cabbage example gives `p50=5.0000`, cost `75000.0000`/ha, assumed yield
@@ -112,9 +115,77 @@ snapshot in one query and do not depend on an application-process cache.
 
 Import failures emit fixed warning codes and return exit 0 so an operator/deploy
 can retain the last active snapshot; rollback failures return nonzero. Failed runs
-persist their check names. The importer has an injectable failure-notification seam
-tested with a fake receiver. **Actual GitHub issue creation and deployment wiring
-are not implemented in this slice.** Do not mistake a console warning for an issue.
+persist their check names. The CLI can report failures to GitHub using the opt-in
+configuration below. The trusted post-migration job and nightly HTTP check are
+wired as described in [forecast-deployment.md](forecast-deployment.md); operator
+configuration and live evidence are still required. A console warning is not
+proof that an issue was created.
+
+## GitHub failure reporting (import job only)
+
+The CLI uses GitHub's [repository issues API](https://docs.github.com/en/rest/issues/issues).
+Inject these variables into the **trusted import job only**, from the deployment
+secret store; do not add them to the shared API/worker environment or mobile app:
+
+- `FORECAST_GITHUB_ENABLED=true`
+- `FORECAST_GITHUB_REPOSITORY=ctrl-alt-elite-za/Farmable`
+- `FORECAST_GITHUB_TOKEN`: a short-lived GitHub App installation token, or a
+  repository-scoped fine-grained token, with Issues read/write on this repository.
+
+This does not grant workflow permissions, configure cloud secrets, deploy, or make
+real GitHub requests during tests. Never expose an issue-writing credential to
+untrusted PR code. Notifications default off. Failed imports then print
+`notification_disabled` alongside the actual failed checks.
+
+Each report contains only the validated run ID and allowlisted check names, with
+a run-ID marker for deduplication. Raw data, provider errors, paths and secrets are
+excluded. Repeated imports reuse an existing report, including renamed or closed
+issues whose marker remains. They do not reopen it or replace its original checks.
+Keep the marker intact; removing it or deleting the issue permits a new report.
+
+Cooperating importers using the same database serialize lookup/create using the
+existing forecast-state row lock, **after** each import transaction commits.
+Ordinary outlook reads do not take that lock. Notification can temporarily delay
+other imports/rollbacks; their database statement timeout still applies. Different
+databases targeting the same repository are not covered by this serialization;
+use a single notification-writing import job per repository. No new migration is
+required.
+
+Lookup includes open and closed issues and excludes PRs, with at most ten pages
+of 100 records, 1 MiB per response, five-second HTTP phase timeouts and a 20-second
+processing budget checked before requests and as response chunks arrive. An
+in-flight HTTP operation can extend beyond that processing budget until its phase
+timeout. If lookup is incomplete, reporting fails closed instead of risking a
+duplicate. Repositories exceeding the scan limit require a reporting-index change;
+do not remove the limit silently. No redirects or environment proxies are followed.
+
+POST is never automatically retried: GitHub might have accepted it before a
+connection failed. The next import looks up the marker again. GitHub does not
+provide a transactional exactly-once guarantee with our database. Transient
+visibility gaps can still cause duplicates after an ambiguous request.
+
+Any notification/configuration failure prints only `notification_failed`; it does
+not roll back activation, stop processing other folders or fail deployment.
+Unresolved staged artifacts are retried for notification on subsequent imports;
+there is no background delivery queue. A command-level failure (such as an
+unreachable database or invalid root) remains a console warning, since no safe
+per-run notification transaction can be established.
+
+## Seeded PostgreSQL performance check
+
+`make test-integration` explicitly runs `e2e/perf/test_outlook.py` in the disposable
+Compose project. The shared fixture refuses non-CI environments, migrates a random
+schema, and removes that schema on exit. No developer or production farm is used.
+
+The benchmark adds 100 farms and 1,000 sections to the normal ownership/auth seed,
+imports the synthetic snapshot, warms eight requests, then measures all 96
+crop/planting-month lookups through the real authenticated ASGI route against
+PostgreSQL. It asserts every response, retains the sample warning, reports
+nearest-rank p95, and fails at 200 ms or above. The normal rate limiter stays on.
+Measurement includes authentication, database access and response serialization;
+it excludes network/proxy latency, live weather, concurrency and production load.
+Do not present it as deployed latency or the staging rehearsal. CI logs print the
+sample count, workload and measured p95. Docker must be running to obtain a result.
 
 ## Verification and remaining work
 
@@ -132,11 +203,11 @@ Still required for full #21:
 2. Verify real price, cost, yield and CPI sources and consume reviewed #20 output.
    A historical-range baseline can be built independently; publishing simulation
    results still requires the protocol-first process, with no invented statistics.
-3. Implement location-triggered, rounded-grid historical weather jobs, risk
-   thresholds, growing-window calculations, retries/cache reuse and real-provider
-   acceptance. Until then the explicit unavailable-weather fallback is intentional.
-4. Wire a credential-scoped, idempotent GitHub failure notifier and the after-migration
-   deployment step. No deployment permissions are changed here.
-5. Measure authenticated `/outlook` p95 on the disposable seeded PostgreSQL stack;
-   add the all-demo-crops check to the actual staging rehearsal. Unit timing is not
-   evidence for production latency.
+3. Validate the weather screening policy agronomically and verify real-provider
+   operation in the deployment; the queue, calculation, cache and unavailable
+   fallback are documented in [weather-risk.md](weather-risk.md).
+4. Configure and verify the notifier and separate import identity, and run the
+   wired after-migration deployment step in staging; see [forecast-deployment.md](forecast-deployment.md).
+5. Record the wired all-demo-crops nightly check against the actual staging
+   deployment. Seeded PostgreSQL performance passes in CI; that is not deployed
+   production-latency evidence.

@@ -20,3 +20,11 @@ def test_synthetic_artifacts_only_enter_testing_image():
     assert "COPY ml/forecast/fixtures ml/forecast/fixtures" in testing
     assert "ml/forecast" not in dockerfile.split("FROM base AS testing", 1)[0]
     assert "ml/forecast" not in dockerfile.split("FROM base AS runtime", 1)[1]
+
+
+def test_outlook_performance_is_explicitly_selected():
+    script = (ROOT / "scripts/test-integration.sh").read_text()
+    assert any(
+        "run --rm tests pytest e2e/perf/test_outlook.py -m integration -q -s" in line
+        for line in script.splitlines()
+    )

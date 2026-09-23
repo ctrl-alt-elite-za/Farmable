@@ -72,6 +72,11 @@ database, worker, or revision identity is unhealthy.
 
 ## Delivery and failure behavior
 
+Forecast import is a separate, bounded post-migration job. The nightly workflow
+also verifies authenticated demo crop outlooks. Both require explicit operator
+configuration; see [forecast deployment](../docs/forecast-deployment.md). A disabled
+or unconfigured outlook is a failed acceptance check, not a silent nightly pass.
+
 Each deploy captures the revision receiving 100% traffic before deployment. It
 builds and pushes `backend:<exact Git SHA>`, completes and verifies a Cloud SQL backup,
 runs `alembic upgrade head` and initializes the worker vendor schema as a Cloud Run Job, creates a no-traffic revision,
