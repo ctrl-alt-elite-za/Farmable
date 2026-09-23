@@ -214,6 +214,7 @@ def test_shell_contracts_parse() -> None:
         "infra/gcp-secret-smoke.sh",
         "infra/gcp-storage-smoke.sh",
         "infra/gcp-required-config.sh",
+        "infra/gcp-verify-setup.sh",
     ):
         result = subprocess.run(  # noqa: S603 - fixed shell parser and repository paths
             [bash, "-n", str(ROOT / path)], capture_output=True, text=True
@@ -857,3 +858,66 @@ def test_required_config_runs_before_authentication_and_feeds_the_backup() -> No
     assert 'test -n "$PROJECT"' not in workflow
     for name in _REQUIRED_CONFIG_VARS:
         assert name in read("infra/gcp-required-config.sh"), name
+
+
+# `${VAR-default}`, not `${VAR:-default}`: a case that sets FAKE_SECRET_VERSION to
+# the empty string is asking for "this secret has no enabled version", which `:-`
+# would quietly turn back into the default and make the test pass for free.
+_VERIFY_SETUP_STUB = r"""
+case "$*" in
+  *"services list"*)
+    printf '%s\n' "${FAKE_ENABLED_API-run.googleapis.com}" ;;
+  *"buckets describe"*)
+    case "$*" in
+      *public_access_prevention*) printf '%s\n' "${FAKE_PREVENTION-enforced}" ;;
+      *uniform_bucket_level_access*) printf '%s\n' "${FAKE_UNIFORM-True}" ;;
+    esac ;;
+  *"secrets versions list"*)
+    printf '%s\n' "${FAKE_SECRET_VERSION-1}" ;;
+  *"providers describe"*)
+    printf '%s\n' "${FAKE_CONDITION-assertion.repository == ctrl-alt-elite-za/Farmable}" ;;
+esac
+exit 0
+"""
+
+
+def _verify_setup_env(tmp_path: Path) -> dict:
+    return {
+        **os.environ,
+        "PATH": _path(tmp_path),
+        "GCP_PROJECT": "farmable-project",
+        "GCS_BUCKET": "farmable-project-farmable-staging-media",
+    }
+
+
+def test_verify_setup_passes_when_the_live_project_matches_the_contract(
+    tmp_path: Path,
+) -> None:
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    result = _run("infra/gcp-verify-setup.sh", _verify_setup_env(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert "PASS: API enabled: run.googleapis.com" in result.stdout
+    assert "PASS: Media bucket blocks public access" in result.stdout
+    assert "FAIL" not in result.stdout + result.stderr
+
+
+def test_verify_setup_reports_every_unmet_check_not_only_the_first(tmp_path: Path) -> None:
+    """Terraform creates empty Secret Manager containers, so "no enabled version" is
+    the likeliest first-deploy failure and must be named, not hidden behind an
+    earlier failing check. One run has to produce the operator's whole to-do list.
+    """
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    environment = {
+        **_verify_setup_env(tmp_path),
+        "FAKE_PREVENTION": "inherited",
+        "FAKE_SECRET_VERSION": "",
+        "FAKE_CONDITION": "assertion.repository == someone-else/Fork",
+    }
+    result = _run("infra/gcp-verify-setup.sh", environment)
+    assert result.returncode != 0
+    assert "FAIL: Media bucket public access prevention is 'inherited'" in result.stderr
+    assert "FAIL: Secret has no enabled version: farmable-staging-database-url" in result.stderr
+    assert "FAIL: Secret has no enabled version: farmable-staging-gemini-api-key" in result.stderr
+    assert "ctrl-alt-elite-za/Farmable" in result.stderr
+    assert "4 Google Cloud setup check(s) failed" in result.stderr
+    assert "PASS: Media bucket uses uniform bucket-level access" in result.stdout
