@@ -48,13 +48,29 @@ def test_wrong_year_and_duplicate_alias_fail():
         audit_rows(rows, 2024)
 
 
-def test_committed_audit_fails_closed_when_release_dates_are_unknown():
+def test_committed_audit_uses_only_conservative_archive_availability():
     audit = json.loads((ROOT / "ml/data/market_workbook_audit.json").read_text())
     assert len(audit["sources"]) == 17
-    for source in audit["sources"]:
-        assert source["available_on"] is None
-        assert source["availability_status"] == "unknown_blocks_historical_use"
-        assert "not release evidence" in source["availability_evidence"]
+    dated = [source for source in audit["sources"] if source["available_on"] is not None]
+    unknown = [source for source in audit["sources"] if source["available_on"] is None]
+    assert [source["year"] for source in dated] == [str(year) for year in range(2008, 2021)]
+    assert [source["year"] for source in unknown] == ["2021", "2022", "2023", "2024"]
+    assert all(
+        source["availability_status"] == "archived_official_payload_capture"
+        and source["availability_time_utc"].startswith(source["available_on"])
+        and source["availability_source_url"].startswith(
+            ("http://www.daff.gov.za", "https://www.dalrrd.gov.za")
+        )
+        and source["availability_capture_url"].startswith("https://web.archive.org/web/")
+        and len(source["availability_cdx_digest"]) == 32
+        and "not a publication date" in source["availability_evidence"]
+        for source in dated
+    )
+    assert all(
+        source["availability_status"] == "unknown_blocks_historical_use"
+        and "not release evidence" in source["availability_evidence"]
+        for source in unknown
+    )
 
 
 def test_json_payload_keeps_month_arrays_reviewable_and_round_trips():

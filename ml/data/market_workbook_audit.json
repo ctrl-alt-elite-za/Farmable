@@ -68,10 +68,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T15:10:38Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202008%20-%20MS%20Excel.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703151038id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202008%20-%20MS%20Excel.xls",
+      "availability_cdx_digest": "JQSULNALUPA4KFPPYV7GU6HYWAUYTE4A",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2009",
@@ -139,10 +143,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T15:10:47Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202009%20-%20MS%20Excel.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703151047id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202009%20-%20MS%20Excel.xls",
+      "availability_cdx_digest": "QVY523XIDSECCEBZUCBT3FHCNVBXILBR",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2010",
@@ -210,10 +218,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T15:10:57Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202010%20-%20MS%20Excel.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703151057id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202010%20-%20MS%20Excel.xls",
+      "availability_cdx_digest": "T26R7BQESK67A7XGY2OHI3NBSCBSMUSE",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2011",
@@ -281,10 +293,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T19:03:24Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202011%20-%20MS%20Excel.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703190324id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202011%20-%20MS%20Excel.xls",
+      "availability_cdx_digest": "6DZVW7OFGXHCFHQXQ6UIO247BN2U654V",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2012",
@@ -352,10 +368,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T19:03:32Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202012%20-%20MS%20Excel.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703190332id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202012%20-%20MS%20Excel.xls",
+      "availability_cdx_digest": "U3DJBYFRR2SDAGA7TUBGEP7UNTAGPV44",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2013",
@@ -423,10 +443,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2018-04-24",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2018-04-24T15:52:17Z",
+      "availability_source_url": "http://www.daff.gov.za:80/Daffweb3/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202013.xlsx",
+      "availability_capture_url": "https://web.archive.org/web/20180424155217id_/http://www.daff.gov.za:80/Daffweb3/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202013.xlsx",
+      "availability_cdx_digest": "IDXCFX6LSXGPNKLAMNE6DYFBCPVTWSWM",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2014",
@@ -494,10 +518,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-04",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-04T03:23:05Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202014.xlsx",
+      "availability_capture_url": "https://web.archive.org/web/20210704032305id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202014.xlsx",
+      "availability_cdx_digest": "UBOTAPSOTAPL6KQENTSP762XXVYVLGXF",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2015",
@@ -565,10 +593,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T15:10:27Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202015%20-%20MS%20Excel.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703151027id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202015%20-%20MS%20Excel.xls",
+      "availability_cdx_digest": "ZW2KKZDYSHV4BD6GE4VSFMCMLYTGAIQE",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2016",
@@ -636,10 +668,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T15:09:56Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202016-%20MS%20Excel.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703150956id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202016-%20MS%20Excel.xls",
+      "availability_cdx_digest": "LWQRO5CSJWEYU5NI33Y2ER5O6QETFKNB",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2017",
@@ -707,10 +743,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T15:09:49Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202017-%20MS%20Excel.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703150949id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202017-%20MS%20Excel.xls",
+      "availability_cdx_digest": "4GH7NZIWGGX446J2MTWEAA6PRLWWNN2L",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2018",
@@ -778,10 +818,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T15:09:30Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202018-%20MS%20Excel%20final%20for%20the%20web.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703150930id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202018-%20MS%20Excel%20final%20for%20the%20web.xls",
+      "availability_cdx_digest": "BOYYDK26RLU6X7RGKYPJUDLNC3CZXGKH",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2019",
@@ -849,10 +893,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-07-03",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-07-03T15:09:21Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202019.xls",
+      "availability_capture_url": "https://web.archive.org/web/20210703150921id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202019.xls",
+      "availability_cdx_digest": "CAWU4HDYYCOTPJPZPIJGCGN5CX3BNPJA",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2020",
@@ -920,10 +968,14 @@
           "inconsistent_price_months": []
         }
       },
-      "available_on": null,
+      "available_on": "2021-12-11",
       "redistribution_status": "unverified",
-      "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_time_utc": "2021-12-11T01:37:46Z",
+      "availability_source_url": "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202020.xlsx",
+      "availability_capture_url": "https://web.archive.org/web/20211211013746id_/https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20Analysis/Statistical%20Information/Statistics%20on%20Fresh%20Produce%20Markets%202020.xlsx",
+      "availability_cdx_digest": "TH5J7KM64VLCLVJAPKM3OP3A3B3LE3NH",
+      "availability_status": "archived_official_payload_capture",
+      "availability_evidence": "Earliest matching HTTP-200 capture of the same workbook payload on an official DAFF/DALRRD URL. This is a conservative availability bound, not a publication date."
     },
     {
       "year": "2021",
@@ -994,7 +1046,7 @@
       "available_on": null,
       "redistribution_status": "unverified",
       "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_evidence": "No matching historical official capture is recorded. Observation labels, retrieval time and file metadata are not release evidence."
     },
     {
       "year": "2022",
@@ -1065,7 +1117,7 @@
       "available_on": null,
       "redistribution_status": "unverified",
       "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_evidence": "No matching historical official capture is recorded. Observation labels, retrieval time and file metadata are not release evidence."
     },
     {
       "year": "2023",
@@ -1136,7 +1188,7 @@
       "available_on": null,
       "redistribution_status": "unverified",
       "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_evidence": "No matching historical official capture is recorded. Observation labels, retrieval time and file metadata are not release evidence."
     },
     {
       "year": "2024",
@@ -1207,7 +1259,7 @@
       "available_on": null,
       "redistribution_status": "unverified",
       "availability_status": "unknown_blocks_historical_use",
-      "availability_evidence": "The official archive exposes the annual file but no historical publication or revision date. Observation labels, retrieval time and file metadata are not release evidence."
+      "availability_evidence": "No matching historical official capture is recorded. Observation labels, retrieval time and file metadata are not release evidence."
     }
   ]
 }

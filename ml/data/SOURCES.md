@@ -72,23 +72,22 @@ average annual prices into months. Current and prior-year totals are excluded.
 The 2020/2021 product labels are on mass rows; other inspected years use value rows.
 Blank, nonpositive, nonnumeric or inconsistent cells would be flagged, not imputed.
 
-These are current downloaded workbook versions. A search of the official archive
-on 23 September 2026 found annual links but no historical publication or revision
-dates. Each audit record therefore carries `available_on: null`,
-`availability_status: unknown_blocks_historical_use`, and the reason. Monthly
-observation labels cannot establish when those values became public. No redistribution
-licence has been verified. Original workbooks remain in ignored local scratch
-storage; the committed audit contains provenance/coverage metadata, not prices.
-FAOSTAT stays a distinct farm-gate source and is not substituted.
+These are current downloaded workbook versions. Archived HTTP-200 captures on
+official DAFF/DALRRD URLs match the audited payloads for 2008 through 2020.
+`market_workbook_audit.json` records the earliest matching capture timestamp as a
+conservative availability bound for each of those files. It is not a publication
+date, and a file is eligible only for planting origins strictly after its bound.
+No matching historical official capture was found for 2021 through 2024, so those
+records retain `available_on: null` and block historical use. Monthly observation
+labels, current download times and file metadata are not release evidence. No
+redistribution licence has been verified. Original workbooks remain in ignored
+local scratch storage; the committed audit contains provenance/coverage metadata,
+not prices. FAOSTAT stays a distinct farm-gate source and is not substituted.
 
 The audited 17 workbooks were re-downloaded into ignored scratch storage on
-23 September 2026 and every byte matched the committed SHA-256 audit. Exact-URL
-CDX queries returned one HTTP-200 capture for the 2012 workbook, at 1 December
-2025 15:08:34 UTC, and no captures for the 2024 workbook. This does not establish
-release before the relevant historical planting origins or exhaustively cover
-possible historical URL aliases. The strict market-vintage gate remains blocked
-pending publisher release records, archived pre-origin captures, or an official
-response confirming historical availability.
+23 September 2026 and every byte matched the committed SHA-256 audit. The archive
+evidence improves the usable training history, but it does not clear the complete
+2012–2024 experiment: the 2021–2024 workbook vintages remain unknown.
 
 To reproduce, download each audit entry's URL under its original `filename` in a
 local directory, copy the audit JSON there, and run:
@@ -99,6 +98,25 @@ uv run --with xlrd==2.0.2 --with openpyxl==3.1.5 python scripts/audit_issue20_ma
 
 The readers are temporary audit dependencies, not model/runtime dependencies.
 Hashes must match before parsing. This command does not import data or run models.
+
+### Follow-up: October 2024 through March 2025 market report
+
+The official Department of Agriculture report [Crops and Markets First Quarter
+2025](https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/crops-and-markets-1st-quarter-2025-.pdf)
+was downloaded, hashed and visually reviewed page by page for the required crops.
+It supplies monthly Johannesburg tonnes and R/ton from October 2024 through March
+2025 for butternut, cabbage, carrots, green beans, onions, potatoes and tomatoes.
+Spinach is absent. `post_2024_market_source_audit.json` records the file identity,
+pages, fields and crop gap.
+
+This report is useful candidate outcome coverage for late-2024 plantings, but it
+does not complete the eight-crop contract. No matching archive capture or publisher
+release record was found, so PDF metadata and the current server timestamp are not
+treated as availability evidence. The official Statistics and Economic Analysis
+contact route is recorded at <https://nda.gov.za/index.php/publication/322-sea-contacts>;
+an official response is still needed for the missing spinach observations and
+release/revision history. `PUBLISHER_DATA_REQUEST.md` contains a reviewable draft
+request and response-acceptance rules; it has not been sent.
 
 ### Follow-up: original budget inspection
 
@@ -131,10 +149,17 @@ mapping, guideline yield midpoint, document version/release evidence and
 redistribution terms. Do not treat the staged calendar CSV or the Elsenburg budget
 durations as verified replacements for those fields.
 
-`calendar_source_audit.json` records the downloaded source hashes, sizes, ARC
-copyright notices and crop topics. The summer booklet exposes an RSA sowing and
-planting chart and guidance for green beans, spinach, tomatoes and cucurbits;
-the winter booklet covers cabbage, carrots, onions and potatoes. These are source
-provenance facts only. The audit deliberately leaves regional applicability,
-historical release dates, redistribution permission and canonical guideline yield
-midpoints unresolved, so no calendar row is imported from the PDFs yet.
+`calendar_source_audit.json` records the downloaded source hashes, sizes, page
+counts, ARC copyright notices and crop topics. The originally recorded winter
+response was a truncated 17,327,888-byte file that exposed zero pages. A fresh
+response from the same official URL is a readable 38-page, 20,284,376-byte PDF;
+the audit records both identities and treats the first only as superseded
+provenance. `CALENDAR_REVIEW.md` records the complete page-level field review.
+
+The summer booklet exposes an RSA sowing/planting chart and guidance for green
+beans, Swiss chard/spinach, tomatoes and cucurbits; the winter booklet covers
+cabbage, carrots, onions and potatoes. Material fields remain absent or ambiguous:
+several crops lack yield ranges or explicit durations, onions lack a planting
+window, butternut's class-level yield unit is unsafe, and regional/cultivar choices
+remain. Historical release dates and redistribution permission are also unknown.
+No calendar row is imported from the PDFs.

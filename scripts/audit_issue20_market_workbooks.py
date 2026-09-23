@@ -23,6 +23,75 @@ ALIASES = {
     "tomatoes": "TOMATOES",
 }
 
+ARCHIVED_AVAILABILITY = {
+    2008: (
+        "20210703151038",
+        "JQSULNALUPA4KFPPYV7GU6HYWAUYTE4A",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202008%20-%20MS%20Excel.xls",
+    ),
+    2009: (
+        "20210703151047",
+        "QVY523XIDSECCEBZUCBT3FHCNVBXILBR",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202009%20-%20MS%20Excel.xls",
+    ),
+    2010: (
+        "20210703151057",
+        "T26R7BQESK67A7XGY2OHI3NBSCBSMUSE",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202010%20-%20MS%20Excel.xls",
+    ),
+    2011: (
+        "20210703190324",
+        "6DZVW7OFGXHCFHQXQ6UIO247BN2U654V",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202011%20-%20MS%20Excel.xls",
+    ),
+    2012: (
+        "20210703190332",
+        "U3DJBYFRR2SDAGA7TUBGEP7UNTAGPV44",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202012%20-%20MS%20Excel.xls",
+    ),
+    2013: (
+        "20180424155217",
+        "IDXCFX6LSXGPNKLAMNE6DYFBCPVTWSWM",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202013.xlsx",
+    ),
+    2014: (
+        "20210704032305",
+        "UBOTAPSOTAPL6KQENTSP762XXVYVLGXF",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202014.xlsx",
+    ),
+    2015: (
+        "20210703151027",
+        "ZW2KKZDYSHV4BD6GE4VSFMCMLYTGAIQE",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202015%20-%20MS%20Excel.xls",
+    ),
+    2016: (
+        "20210703150956",
+        "LWQRO5CSJWEYU5NI33Y2ER5O6QETFKNB",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202016-%20MS%20Excel.xls",
+    ),
+    2017: (
+        "20210703150949",
+        "4GH7NZIWGGX446J2MTWEAA6PRLWWNN2L",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202017-%20MS%20Excel.xls",
+    ),
+    2018: (
+        "20210703150930",
+        "BOYYDK26RLU6X7RGKYPJUDLNC3CZXGKH",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202018-%20MS%20Excel%20"
+        "final%20for%20the%20web.xls",
+    ),
+    2019: (
+        "20210703150921",
+        "CAWU4HDYYCOTPJPZPIJGCGN5CX3BNPJA",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202019.xls",
+    ),
+    2020: (
+        "20211211013746",
+        "TH5J7KM64VLCLVJAPKM3OP3A3B3LE3NH",
+        "Statistics%20on%20Fresh%20Produce%20Markets%202020.xlsx",
+    ),
+}
+
 
 def json_payload(document: dict) -> str:
     """Render stable readable JSON without expanding short integer arrays."""
@@ -118,16 +187,49 @@ def main() -> None:
             record.update(sheet=sheet, crops=audit_rows(rows, int(source["year"])))
         except (KeyError, ValueError, StopIteration) as exc:
             record["audit_error"] = str(exc) or "expected sheet/header missing"
-        record.update(
-            available_on=None,
-            availability_status="unknown_blocks_historical_use",
-            availability_evidence=(
-                "The official archive exposes the annual file but no historical "
-                "publication or revision date. Observation labels, retrieval time and "
-                "file metadata are not release evidence."
-            ),
-            redistribution_status="unverified",
-        )
+        year = int(source["year"])
+        archived = ARCHIVED_AVAILABILITY.get(year)
+        if archived is None:
+            availability = {
+                "available_on": None,
+                "availability_status": "unknown_blocks_historical_use",
+                "availability_evidence": (
+                    "No matching historical official capture is recorded. Observation "
+                    "labels, retrieval time and file metadata are not release evidence."
+                ),
+            }
+        else:
+            timestamp, digest, filename = archived
+            if year == 2013:
+                historical_url = (
+                    "http://www.daff.gov.za:80/Daffweb3/Portals/0/Statistics%20and%20"
+                    f"Economic%20Analysis/Statistical%20Information/{filename}"
+                )
+            else:
+                historical_url = (
+                    "https://www.dalrrd.gov.za/Portals/0/Statistics%20and%20Economic%20"
+                    f"Analysis/Statistical%20Information/{filename}"
+                )
+            archived_at = (
+                f"{timestamp[:4]}-{timestamp[4:6]}-{timestamp[6:8]}T"
+                f"{timestamp[8:10]}:{timestamp[10:12]}:{timestamp[12:14]}Z"
+            )
+            availability = {
+                "available_on": archived_at[:10],
+                "availability_time_utc": archived_at,
+                "availability_source_url": historical_url,
+                "availability_capture_url": (
+                    f"https://web.archive.org/web/{timestamp}id_/{historical_url}"
+                ),
+                "availability_cdx_digest": digest,
+                "availability_status": "archived_official_payload_capture",
+                "availability_evidence": (
+                    "Earliest matching HTTP-200 capture of the same workbook payload on "
+                    "an official DAFF/DALRRD URL. This is a conservative availability "
+                    "bound, not a publication date."
+                ),
+            }
+        record.update(**availability, redistribution_status="unverified")
         records.append(record)
     payload = json_payload(
         {

@@ -11,8 +11,8 @@ follow-up, **not a completed issue**. No real decision backtest was executed.
   and derives displayed month bounds from validated coverage. All six R01 items
   are covered by regression tests, including missing interior months/defaults,
   out-of-period rows, duplicates, explicit skips and synthetic relabelling.
-- `uv run pytest ml/forecast ml/backtest scripts/tests/test_audit_issue20_market_workbooks.py -q`:
-  **105 passed**.
+- `uv run pytest ml/forecast ml/backtest scripts/tests/test_audit_issue20_market_workbooks.py scripts/tests/test_issue20_source_manifests.py -q`:
+  **107 passed**.
 - The non-shell repository suite passes: **813 passed, 33 deselected**. The four
   omitted test modules invoke Windows `bash.exe`; this machine currently has the
   WSL relay but no `/bin/bash`, so the unfiltered run stops on that environment
@@ -23,11 +23,16 @@ follow-up, **not a completed issue**. No real decision backtest was executed.
   exits 0 (115 commits). `check_protocol_first.py --check-ready` correctly exits 1:
   `ml/backtest/PROTOCOL.md` is absent from local `origin/main` history.
 - Original Department workbooks for 2008–2024 were hashed and audited: eight
-  crops × twelve monthly Joburg prices in every year. Release dates/revision
-  histories and post-2024 harvest prices remain unverified. See the source audit.
+  crops × twelve monthly Joburg prices in every year. Matching official archive
+  captures establish conservative availability bounds for 2008–2020; 2021–2024
+  remain unknown. A separate official quarterly report was visually reviewed and
+  supplies October 2024–March 2025 Johannesburg values for seven crops, with
+  spinach absent. See the source audits.
 - Eight modern budget PDFs and an older cabbage version were hashed and inspected.
   All requested source fields/subtotals and the experiment subtotal mapping are
-  recorded; these are not historical input approvals. Calendar provenance remains open.
+  recorded; these are not historical input approvals. The official ARC calendar
+  booklets are now hashed and reviewed, with page-level missing/ambiguous fields
+  recorded rather than inferred.
 - The user-selected strict historical-input policy is recorded in
   `backtest/INFORMATION_POLICY.md`, with the CPI ranking counterexample and tests
   for future costs, deterministic as-of vintage selection, mutation invariance,
@@ -82,28 +87,32 @@ in the caller-supplied consistent price basis and do not pretend their nominal
 inputs have been converted to 2025 rand. Do not infer full no-look-ahead acceptance
 from a synthetic price-only mutation test.
 
-The follow-up confirms monthly Johannesburg workbook contents. Historical
-availability is explicitly recorded as unknown and therefore blocks use. Modern
-budget fields and the subtotal policy have been extracted, but historical cost
-releases, VAT compatibility and calendar provenance remain unresolved.
+The follow-up confirms monthly Johannesburg workbook contents. Conservative
+archive bounds are recorded for 2008–2020, while unknown 2021–2024 availability
+still blocks the complete run. The post-2024 quarterly report omits spinach.
+Modern budget fields and the subtotal policy have been extracted, but historical
+cost releases, VAT compatibility and complete approved calendar values remain unresolved.
 The user selected strict historical inputs. The real decision backtest remains
 blocked by those sources and separate protocol registration.
 
 ## Dependencies and next work
 
-Remote main was inspected read-only at
-`1cc591bcc7966ac46ee77572ce949d8385945621`, newer than the current checkout's
-`ed69b882af4043af2b1d32894ba5f32b56dcd5a2`. It includes migrations through `0007`
-and #21's normalized fixture contract. Preserve local work while reconciling that
-base before adding reference migrations. No remote changes were made here.
+Remote main was inspected read-only at `f375c0a`. It includes migrations through
+`0008_weather_climatology` and #21's normalized fixture contract. The current
+Issue #8 domain schema has no reference crop, market, calendar, cost or import
+tables; `data.ReferenceSnapshot` is a forecast payload contract rather than a
+database model. `data/REFERENCE_SCHEMA_RECONCILIATION.md` records the additive
+model plan and requires a future migration to revise `0008`. No remote changes
+were made here.
 
 The snapshot exporter follows that contract: eight crops × twelve planting-month
 numbers, integer growing months, decimal(14,4) amounts, 2025 ZAR/kg, explicit
 as-of, source hashes and data-kind labels. `consumer_json` emits its Decimal strings.
 Full consumer validation on the merged branch remains to run.
 
-Obtain historical release evidence and post-2024 price coverage, verify the source
-calendars and VAT basis, and then finalize and merge the protocol separately.
+Obtain 2021–2024 release evidence and the missing post-2024 spinach coverage,
+resolve calendar fields and VAT basis, and then finalize and merge the protocol
+separately.
 After that gate, complete imports and integrate the real runner, Colab notebook
 and result artifacts.
 

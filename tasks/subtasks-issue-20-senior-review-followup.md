@@ -7,22 +7,29 @@
 **Status:** PR #61 is a tested foundation and remains separate from closing #20.
 
 **Implementation checkpoint, 23 September 2026:** R01 is implemented and tested.
-24 of 53 individual checklist items are complete; 29 remain open. R02's original
-workbook coverage is audited for 2008–2024, with unknown publication dates recorded
-as blockers; post-2024 harvest coverage still does not clear the source gate. R03
+25 of 53 individual checklist items are complete; 28 remain open. R02's original
+workbook coverage is audited for 2008–2024. Official archive captures establish
+conservative availability bounds for 2008–2020, while 2021–2024 remain unknown.
+The official Q1 2025 report adds six months for seven crops but omits spinach, so
+post-2024 harvest coverage still does not clear the source gate. R03
 has complete modern-budget extracts, a frozen subtotal mapping, and named
 calendar/cost blockers. The official ARC summer and winter booklets are now
-downloaded and hashed in `ml/data/calendar_source_audit.json`; their crop topics
-are identified, but regional applicability, release evidence, permission and
-guideline yield midpoints remain unresolved. R04's strict historical-vintage
-policy, selector and mutation/report-claim tests are implemented. No protocol
-registration, import completion, or real result is claimed.
+downloaded, structurally checked and reviewed in `ml/data/CALENDAR_REVIEW.md`.
+The review identifies material missing/ambiguous fields for all eight crops, so
+R03.05 remains open. R04's strict historical-vintage policy, selector and
+mutation/report-claim tests are implemented. R06.01 now records the current-main
+schema and migration constraints; no protocol registration, import completion,
+or real result is claimed.
 
 Evidence: [acceptance checks](../ml/ACCEPTANCE.md),
 [source inventory](../ml/data/INVENTORY.md),
 [market workbook audit](../ml/data/market_workbook_audit.json),
-[budget review](../ml/data/BUDGET_REVIEW.md), and
-[information policy and coverage contract](../ml/backtest/INFORMATION_POLICY.md).
+[post-2024 market audit](../ml/data/post_2024_market_source_audit.json),
+[publisher data-request draft](../ml/data/PUBLISHER_DATA_REQUEST.md),
+[budget review](../ml/data/BUDGET_REVIEW.md),
+[calendar review](../ml/data/CALENDAR_REVIEW.md),
+[information policy and coverage contract](../ml/backtest/INFORMATION_POLICY.md),
+and [reference-schema reconciliation](../ml/data/REFERENCE_SCHEMA_RECONCILIATION.md).
 
 This checklist converts the senior review into bounded implementation work. No real
 forecast, recommendation, or decision result may be published before the protocol
@@ -99,7 +106,7 @@ fixtures, and the report-safety fix may proceed before that gate.
 
 **Depends on:** R02–R03, current-main schema reconciliation, and the existing package contracts. **Owner:** backend/data implementation owner. **Deliverable:** validated ORM imports.
 
-- [ ] **R06.01** Reconcile the current #8 reference schema, identifiers, migration head, and constraints.
+- [x] **R06.01** Reconcile the current #8 reference schema, identifiers, migration head, and constraints.
 - [ ] **R06.02** Add only required additive ORM models/fields and migrations.
 - [ ] **R06.03** Implement market-price, calendar, and cost import commands.
 - [ ] **R06.04** Validate the complete source before opening the write transaction.

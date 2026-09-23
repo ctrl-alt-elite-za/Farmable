@@ -60,15 +60,15 @@ required origins remain missing. Original publication dates and redistribution
 permissions remain unverified for these downloads. No normalized import-ready
 cost record is supplied.
 
-For **each of the eight crops**, independently sourced regional planting windows,
-harvest offsets, occupied months and guideline yield midpoints remain unverified.
-The staged CSV attributes seven crops to “GDARD Vegetable Production Guidelines”
-and green beans to “ARC Growing Green Beans”, but it provides no source URL, file
-hash, version or release date. An official-source search on 23 September 2026 did
-not locate those exact documents. Its values remain leads, not verified inputs.
+The official ARC summer and winter vegetable booklets are now downloaded, hashed
+and reviewed in `CALENDAR_REVIEW.md`. They provide useful planting and harvest
+evidence but do not provide a complete canonical record for any automatic import:
+material yield/duration fields are absent for several crops, some statements are
+ambiguous, and region, cultivar/type and spinach/Swiss-chard identity choices
+remain. The staged CSV still has no URL, hash, version or release date and does not
+match the traceable source contract. Its values remain leads, not verified inputs.
 The growing periods and yields above belong to the budgets and cannot substitute
-for the requested calendar. Green beans' 2.5-month budget duration also needs a
-registered harvest-month mapping. Processing tomatoes remain incompatible with
+for missing calendar fields. Processing tomatoes remain incompatible with
 fresh-market prices without an explicit, reviewed assumption.
 
 Consequently calendar verification, historical cost vintages, VAT reconciliation

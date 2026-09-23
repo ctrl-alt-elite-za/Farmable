@@ -1,0 +1,37 @@
+# ARC crop-calendar review
+
+The two official ARC-VOPI vegetable booklets were downloaded, hashed, rendered
+and inspected page by page on 23 September 2026. Source identities and structural
+validation are in `calendar_source_audit.json`. This review records what the
+booklets actually support; it does not convert ambiguous statements into canonical
+Issue #20 inputs.
+
+Both booklets carry 2013 ARC copyright notices and require permission to copy or
+transmit the work. Neither gives an edition, revision identifier or publication
+date. PDF creation/modification metadata is recorded for provenance only and is
+not historical availability evidence. The shared RSA chart warns that cultivar
+suitability varies by region.
+
+| Crop | Page-level planting evidence | Harvest/duration evidence | Yield evidence | Decision blocker |
+| --- | --- | --- | --- | --- |
+| butternut | Summer pp. 30–32 treats butternut under cucurbits/squash: September–November in mild areas and August–October in warm areas. The RSA chart on p. 7 has three generic squash sow/harvest sequences. | P. 32 gives 90–100 days for butternut, without defining the start event; occupied months are absent. | P. 32 gives a squash-class point estimate of 200 kg/m². It is not butternut-specific and the implausible unit cannot be silently corrected. | “Mild” and “warm” areas are not geographically defined; no safe yield midpoint or occupied-month mapping. |
+| cabbage | Winter p. 7 gives four RSA sow/transplant/harvest sequences covering February through January. P. 14 says year-round production is possible, with Highveld May–July sowing and hot/humid Lowveld summer restrictions. | P. 13 inconsistently describes nursery periods of about 3–4 and 4–6 weeks; p. 15 gives 90–110 days after transplanting. | P. 15 gives 60–80 t/ha; its arithmetic midpoint is 70 t/ha, but ARC does not designate a midpoint. | Region and nursery-duration rule must be selected before occupied time can be calculated. |
+| carrots | Winter p. 7 gives four RSA sow/harvest sequences. P. 20 gives regional sowing windows; Western Cape is August through the end of March. | Direct-sown. P. 19 gives 7–14 days to emergence and p. 20 gives 10–12 weeks from emergence to harvest. Combining them would be an inferred 77–98 days. | No numeric yield or range. | Missing yield midpoint and direct source statement for total occupied time. |
+| green_beans | Summer p. 7 gives four RSA sow/harvest sequences. P. 35 gives bush/runner windows by production area; Western Cape is September–February for bush and September–January for runner beans. | P. 36 gives 60–90 days to maturity without expressly defining the start event. | P. 36 gives 100 kg/100 m², equivalent by unit conversion to a 10 t/ha point estimate. | Protocol must select bush or runner type, region and start-event/occupied-month rule; no yield range. |
+| onions | Winter p. 25 discusses short-day and intermediate-day types and says intermediate-day cultivars are grown south of Welkom, but gives no calendar dates. | P. 26 gives 6–8 weeks to transplant for short-day seedlings; harvest is defined by leaf lodging rather than a post-transplant duration. | P. 27 gives 30–40 t/ha under favourable conditions, up to 60 t/ha for top farmers, and a 25 t/ha South African average. | No planting window, harvest offset or occupied period. The favourable-range midpoint of 35 t/ha is arithmetic, not a selected guideline value. |
+| potatoes | Winter p. 7 places August, September and February/March in the chart's “transplanting” column, paired with November, December and June/July harvests. P. 28 says planting depends on local conditions and directs growers to local advice. | P. 28 gives 70–90, 90–110 and 120–150 days for short-, medium- and long-season cultivars. | No numeric yield or range. | The source label “transplanting” must be preserved; cultivar class, region and yield midpoint are unresolved. |
+| spinach | Summer pp. 20–22 use Swiss chard and spinach interchangeably. P. 20 gives Highveld August–March, Middleveld August–April and Lowveld March–June windows. | P. 22 says the crop is normally grown for just under five months and may remain over seven months in favourable conditions. | P. 20 gives an average 8–10 t/ha and maximum 15 t/ha. Later 50–70 t/ha figures are treatment-specific trial results and are not the general guideline. | Farmable's `spinach` identity needs an explicit Swiss-chard mapping and region choice. An arithmetic 9 t/ha midpoint is not source-approved. |
+| tomatoes | Summer p. 7 gives three RSA sow/transplant/harvest sequences from August through May. | No explicit maturity duration or occupied-month value. Fertiliser guidance through week 18 is not harvest timing. | No numeric yield or range. | Missing regional window, duration and yield midpoint; the processing-budget/fresh-price caveat also remains. |
+
+## Normalization decision
+
+R03.05 remains open. The sources provide useful planting and harvest evidence, but
+they cannot produce a complete eight-crop calendar without material inference.
+In particular, carrots, potatoes and tomatoes lack numeric yield ranges; onions
+lack a calendar window and post-transplant duration; tomatoes lack duration;
+butternut's yield unit is unsafe; and several crops require region, cultivar/type
+or crop-identity decisions. Historical release timing is also unknown.
+
+No value from these booklets may enter a historical recommendation until the
+registered protocol resolves those choices and a dated source vintage satisfies
+the strict pre-planting availability policy.
