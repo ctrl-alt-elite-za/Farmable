@@ -1,6 +1,8 @@
 """PostgreSQL coverage for account ownership scope, revocation and deletion."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from uuid import uuid4
 
 import pytest
@@ -83,6 +85,57 @@ def test_account_deletion_is_scoped_to_the_confirming_owner(engine):
         survivor = account.farm(f"Bearer {second.access_token}")
         assert survivor.name == "Second farm"
         assert survivor.owner_id == second.user.id
+    finally:
+        _cleanup(engine, owners)
+
+
+def test_concurrent_first_language_writes_insert_exactly_one_profile(engine):
+    """The real race behind AccountService._set_language's owner-row lock.
+
+    account_profiles is a get-or-insert keyed on the owner. Without the
+    `.with_for_update()` SELECT on the users row, two concurrent first-time
+    language writes both read AccountProfile as None, both INSERT, and the
+    second violates the account_profiles primary key -- an unhandled
+    IntegrityError surfacing to the caller as a 500.
+
+    Only real PostgreSQL can show this: SQLite emits no FOR UPDATE clause, so
+    the SQLite sibling test can only assert statement ordering and stays green
+    if the lock is deleted. Here the second thread blocks on the owner row,
+    and once the first commits it takes a fresh READ COMMITTED snapshot, sees
+    the committed profile row, and takes the UPDATE branch instead.
+
+    The winner is genuinely nondeterministic, so only the row count and the
+    set of admissible values are asserted.
+    """
+    suffix = uuid4().hex
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    auth = AuthService(sessions, DeterministicFakeOtpProvider())
+    account = AccountService(sessions)
+    tokens = _register(auth, suffix, 0)
+    owners = [tokens.user.id]
+    languages = ("zu", "xh")
+    barrier = Barrier(len(languages), timeout=10)
+
+    def write(language):
+        barrier.wait()
+        try:
+            return account.update_profile(
+                f"Bearer {tokens.access_token}", ProfileUpdate(preferred_language=language)
+            ).preferred_language
+        except Exception as error:  # noqa: BLE001 - the failure mode under test
+            return error
+
+    try:
+        with ThreadPoolExecutor(max_workers=len(languages)) as executor:
+            results = list(executor.map(write, languages))
+        assert [item for item in results if isinstance(item, Exception)] == []
+        assert set(results) <= set(languages)
+        with Session(engine) as session:
+            profiles = session.scalars(
+                select(AccountProfile).where(AccountProfile.user_id == tokens.user.id)
+            ).all()
+            assert len(profiles) == 1
+            assert profiles[0].preferred_language in languages
     finally:
         _cleanup(engine, owners)
 
