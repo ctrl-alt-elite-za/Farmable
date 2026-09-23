@@ -2,24 +2,28 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from threading import Barrier
+from threading import Barrier, Event
 from uuid import uuid4
 
 import pytest
+from farmable_backend.account import AccountService
 from farmable_backend.assistant import retention
 from farmable_backend.assistant.privacy import NOTICE_VERSION, ConsentGrant
 from farmable_backend.assistant.retention import purge_batch
 from farmable_backend.assistant.schemas import ConversationCreate, TurnCreate
 from farmable_backend.assistant.settings import AssistantSettings
 from farmable_backend.assistant.store import Store
+from farmable_backend.auth import PASSWORD_HASHER
 from farmable_backend.config import Settings
 from farmable_backend.database import make_engine
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.models import (
     AssistantBudget,
     AssistantTurn,
+    AuthIdentity,
     ForecastRun,
     ForecastState,
+    PlanRevision,
     SavedPlan,
     SyncChange,
     User,
@@ -28,12 +32,104 @@ from farmable_backend.planning import service as planning_service
 from farmable_backend.planning.contracts import PlanConfirmation, PlanRequest
 from farmable_backend.planning.service import Planner
 from farmable_backend.record_access import ApiError
+from farmable_backend.records_schemas import PlanCreate, PlanUpdate
+from farmable_backend.records_service import RecordsService
 from sqlalchemy import delete, event, func, select
 from sqlalchemy.orm import sessionmaker
 from test_assistant import policy, seed
 from test_forecasts import bundle
 
 pytestmark = pytest.mark.integration
+
+
+def test_account_erasure_fences_a_waiting_plan_edit():
+    engine = make_engine(Settings())
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    owner = seed(sessions)
+    identifier = uuid4()
+    records = RecordsService(sessions)
+    records.mutate(
+        owner.auth,
+        owner.farm,
+        "plans",
+        "create",
+        None,
+        PlanCreate(
+            mutation_id=uuid4(),
+            id=identifier,
+            section_id=owner.section,
+            plan={"private": "before"},
+        ),
+    )
+    with sessions.begin() as session:
+        session.get(AuthIdentity, owner.owner).password_hash = PASSWORD_HASHER.hash(
+            "fixture password"
+        )
+    erasure_locked, writer_waiting, release = Event(), Event(), Event()
+
+    def before_lock(conn, cursor, statement, params, context, many):
+        if statement.startswith("SELECT farms.") and "FOR UPDATE" in statement:
+            if "ORDER BY farms.id" not in statement:
+                writer_waiting.set()
+
+    def after_lock(conn, cursor, statement, params, context, many):
+        if statement.startswith("SELECT farms.") and "ORDER BY farms.id FOR UPDATE" in statement:
+            erasure_locked.set()
+            assert release.wait(10), "erasure never released"
+
+    def edit():
+        try:
+            records.mutate(
+                owner.auth,
+                owner.farm,
+                "plans",
+                "update",
+                identifier,
+                PlanUpdate(
+                    mutation_id=uuid4(),
+                    expected_version=1,
+                    plan={"private": "late"},
+                ),
+            )
+        except ApiError as error:
+            return error.code
+        return "unexpected_success"
+
+    event.listen(engine, "before_cursor_execute", before_lock)
+    event.listen(engine, "after_cursor_execute", after_lock)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            deleting = pool.submit(
+                AccountService(sessions).delete_account, owner.auth, "fixture password"
+            )
+            try:
+                assert erasure_locked.wait(10), "erasure did not lock farm"
+                editing = pool.submit(edit)
+                assert writer_waiting.wait(10), "edit did not reach farm lock"
+            finally:
+                release.set()
+            deleting.result(timeout=10)
+            assert editing.result(timeout=10) == "not_found"
+        with sessions() as session:
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(PlanRevision)
+                    .where(
+                        PlanRevision.owner_id == owner.owner,
+                    )
+                )
+                == 0
+            )
+            record = session.get(SavedPlan, identifier)
+            assert record.deleted_at is not None and record.plan == {"private": "before"}
+    finally:
+        release.set()
+        event.remove(engine, "before_cursor_execute", before_lock)
+        event.remove(engine, "after_cursor_execute", after_lock)
+        with sessions.begin() as session:
+            session.execute(delete(User).where(User.id == owner.owner))
+        engine.dispose()
 
 
 @pytest.mark.parametrize("updating", [False, True])
@@ -119,6 +215,13 @@ def test_confirmed_planning_is_atomic_across_replicas(monkeypatch, updating):
         assert results.count("revision_conflict" if updating else True) == 1
         with sessions() as session:
             assert session.get(SavedPlan, payload.plan_id).version == (2 if updating else 1)
+            revisions = session.scalars(
+                select(PlanRevision)
+                .where(PlanRevision.plan_id == payload.plan_id)
+                .order_by(PlanRevision.version)
+            ).all()
+            assert [row.version for row in revisions] == ([1, 2] if updating else [1])
+            assert all(row.origin == "planner_confirmation" for row in revisions)
             assert session.scalar(
                 select(func.count())
                 .select_from(SyncChange)

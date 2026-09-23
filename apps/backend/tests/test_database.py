@@ -18,6 +18,7 @@ def test_only_owned_application_tables_are_registered():
         "assistant_consents",
         "assistant_turns",
         "assistant_budget",
+        "plan_revisions",
         "detector_models",
         "weight_formulas",
         "users",

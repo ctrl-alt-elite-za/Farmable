@@ -43,6 +43,7 @@ from farmable_backend.models import (
     Observation,
     PhotoAttempt,
     PhotoUpload,
+    PlanRevision,
     Planting,
     SavedPlan,
     Section,
@@ -177,9 +178,10 @@ class AccountService:
                     select(model).where(model.owner_id == owner).order_by(model.id)
                 ).all()
                 document[name] = [_row(row) for row in rows]
-            # Assistant content is personal data too. Its FK cascades on identity
-            # deletion; exports include only this owner's plain text/tool history.
+            # Plan history and assistant content are personal data too. Account
+            # erasure explicitly deletes plan history and cascades assistant rows.
             for name, model in (
+                ("plan_revisions", PlanRevision),
                 ("assistant_conversations", AssistantConversation),
                 ("assistant_consents", AssistantConsent),
                 ("assistant_turns", AssistantTurn),
@@ -221,6 +223,12 @@ class AccountService:
             if not _verify_password(identity.password_hash, password):
                 raise ApiError(401, "invalid_credentials")
             now = datetime.now(UTC)
+            # Serialize erasure with plan confirmation/sync writes so a request
+            # admitted just before deletion cannot restore an archived version.
+            session.scalars(
+                select(Farm).where(Farm.owner_id == owner).order_by(Farm.id).with_for_update()
+            ).all()
+            session.execute(delete(PlanRevision).where(PlanRevision.owner_id == owner))
             # Deliberate deviation from the tombstone contract that
             # farm_records.tombstone_* follows (deleted_at + version bump +
             # sync_state="pending" + a SyncChange row). That contract exists to

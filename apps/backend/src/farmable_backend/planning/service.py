@@ -15,12 +15,14 @@ from farmable_backend.forecasts import expected_kind, quality_checks
 from farmable_backend.models import (
     ForecastRun,
     ForecastState,
+    PlanRevision,
     SavedPlan,
     SyncChange,
     SyncMutation,
     WeatherJob,
 )
-from farmable_backend.planning.contracts import ConfirmedPlan
+from farmable_backend.planning.contracts import ConfirmedPlan, PlanHistory, PlanHistoryEntry
+from farmable_backend.planning.history import preserve
 from farmable_backend.planning.production import calculate
 from farmable_backend.record_access import (
     ApiError,
@@ -37,6 +39,37 @@ from farmable_backend.weather_policy import grid_cell, job_key, planting_years
 class Planner:
     def __init__(self, sessions, mode, integrations_mode):
         self.sessions, self.mode, self.integrations_mode = sessions, mode, integrations_mode
+
+    def history(self, auth, farm_id, plan_id, before_version, limit):
+        with self.sessions.begin() as session:
+            owner = authenticate(session, auth)
+            farm_scope(session, owner, farm_id)
+            record = session.get(SavedPlan, plan_id)
+            if record is None or (record.owner_id, record.farm_id) != (owner, farm_id):
+                raise ApiError(404, "not_found")
+            query = select(PlanRevision).where(
+                PlanRevision.owner_id == owner,
+                PlanRevision.farm_id == farm_id,
+                PlanRevision.plan_id == plan_id,
+            )
+            if before_version is not None:
+                query = query.where(PlanRevision.version < before_version)
+            rows = session.scalars(
+                query.order_by(PlanRevision.version.desc()).limit(limit + 1)
+            ).all()
+            return PlanHistory(
+                revisions=[
+                    PlanHistoryEntry(
+                        version=row.version,
+                        section_id=row.section_id,
+                        origin=row.origin,
+                        recorded_at=utc(row.recorded_at),
+                        snapshot=row.snapshot,
+                    )
+                    for row in rows[:limit]
+                ],
+                next_before_version=rows[limit - 1].version if len(rows) > limit else None,
+            )
 
     def preview(self, auth, farm_id, request):
         with self.sessions.begin() as session:
@@ -172,6 +205,7 @@ class Planner:
                     )
                     session.add(record)
                 else:
+                    preserve(session, record)
                     record.version += 1
                 record.status, record.plan = "approved", saved
                 record.approved_at, record.sync_state = db_now(session), "synced"
@@ -187,6 +221,7 @@ class Planner:
                 )
                 session.add(mutation)
                 session.flush()
+                preserve(session, record, "planner_confirmation")
                 session.add(
                     SyncChange(
                         owner_id=owner,

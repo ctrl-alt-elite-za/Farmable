@@ -594,6 +594,35 @@ class SavedPlan(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class PlanRevision(Base):
+    """Append-only application snapshots; account erasure explicitly removes them."""
+
+    __tablename__ = "plan_revisions"
+    __table_args__ = (
+        _farm_owner_fk("plan_revisions"),
+        _section_owner_fk("plan_revisions"),
+        UniqueConstraint("plan_id", "version", name="uq_plan_revisions_plan_version"),
+        CheckConstraint(column("version") > 0, name="ck_plan_revisions_version_positive"),
+        CheckConstraint(
+            column("origin").in_(("baseline", "manual", "planner_confirmation")),
+            name="ck_plan_revisions_origin",
+        ),
+        Index("ix_plan_revisions_owner_farm", "owner_id", "farm_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    plan_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("saved_plans.id", ondelete="CASCADE"))
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
+    version: Mapped[int] = mapped_column(BigInteger)
+    origin: Mapped[str] = mapped_column(Text)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class SyncMutation(Base):
     __tablename__ = "sync_mutations"
     __table_args__ = (

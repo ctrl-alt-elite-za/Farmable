@@ -111,3 +111,16 @@ class ConfirmedPlan(StrictModel):
     version: int
     approved_at: datetime
     replayed: bool
+
+
+class PlanHistoryEntry(StrictModel):
+    version: int
+    section_id: UUID
+    origin: Literal["baseline", "manual", "planner_confirmation"]
+    recorded_at: datetime
+    snapshot: dict[str, Any]
+
+
+class PlanHistory(StrictModel):
+    revisions: list[PlanHistoryEntry]
+    next_before_version: int | None

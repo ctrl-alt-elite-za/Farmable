@@ -576,6 +576,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/farms/{farm_id}/planning/plans/{plan_id}/history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** History */
+    get: operations['getPlantingPlanHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/farms/{farm_id}/planning/preview': {
     parameters: {
       query?: never;
@@ -1849,6 +1866,37 @@ export interface components {
        * @enum {string}
        */
       status: 'saved' | 'approved' | 'rejected';
+    };
+    /** PlanHistory */
+    PlanHistory: {
+      /** Next Before Version */
+      next_before_version: number | null;
+      /** Revisions */
+      revisions: components['schemas']['PlanHistoryEntry'][];
+    };
+    /** PlanHistoryEntry */
+    PlanHistoryEntry: {
+      /**
+       * Origin
+       * @enum {string}
+       */
+      origin: 'baseline' | 'manual' | 'planner_confirmation';
+      /**
+       * Recorded At
+       * Format: date-time
+       */
+      recorded_at: string;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+      /** Snapshot */
+      snapshot: {
+        [key: string]: unknown;
+      };
+      /** Version */
+      version: number;
     };
     /** PlanPreview */
     PlanPreview: {
@@ -6700,6 +6748,105 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ConfirmedPlan'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getPlantingPlanHistory: {
+    parameters: {
+      query?: {
+        before_version?: number | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+        plan_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlanHistory'];
         };
       };
       /** @description Unauthorized */

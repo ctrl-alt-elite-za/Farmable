@@ -1,10 +1,12 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from farmable_backend.planning.contracts import (
     ConfirmedPlan,
     PlanConfirmation,
+    PlanHistory,
     PlanPreview,
     PlanRequest,
 )
@@ -24,6 +26,26 @@ def planner(request):
         worker.service.sessions,
         request.app.state.forecast_data_mode,
         request.app.state.services.open_meteo.settings.integrations_mode,
+    )
+
+
+@router.get(
+    "/farms/{farm_id}/planning/plans/{plan_id}/history",
+    response_model=PlanHistory,
+    operation_id="getPlantingPlanHistory",
+)
+async def history(
+    request: Request,
+    response: Response,
+    farm_id: UUID,
+    plan_id: UUID,
+    before_version: Annotated[int | None, Query(ge=1)] = None,
+    limit: Annotated[int, Query(ge=1, le=20)] = 10,
+):
+    worker, service = planner(request)
+    response.headers["Cache-Control"] = "no-store"
+    return await worker.call(
+        service.history, token(request), farm_id, plan_id, before_version, limit
     )
 
 

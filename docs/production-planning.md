@@ -111,6 +111,39 @@ current after a later edit. Different IDs are different user requests, so client
 must retain IDs across retries. Existing generic manual-plan CRUD is preserved;
 its arbitrary JSON is not represented as a server-calculated recommendation.
 
+## Saved-plan history
+
+Migration `0013` adds `plan_revisions`. Each accepted planner confirmation or
+ordinary plan create/update/delete appends a snapshot in the same transaction
+as the plan and sync change. Exact retries add no revision; rejected or rolled
+back writes add none. `(plan_id, version)` is unique. Existing snapshots are
+never updated by either write path, and there is no history-edit/restore API.
+This is application-level immutability, not protection from a database administrator.
+
+`GET /farms/{farm_id}/planning/plans/{plan_id}/history` returns newest-first
+snapshots, with a default of 10 and maximum of 20 per page. Pass the returned
+`next_before_version` as `before_version` for the next page. Reads require the
+owner's verified session and an active farm; another owner/farm receives 404.
+History remains readable for a soft-deleted plan, without reviving it. History
+does not need the forecast provider or a still-active source run.
+
+Each row records server-controlled origin: `planner_confirmation`, `manual`,
+or `baseline`. User-submitted JSON cannot claim a trusted confirmation origin.
+The snapshot preserves the full plan data, status and approval/deletion times;
+confirmed plans therefore retain their original source, assumptions and results.
+
+Pre-migration versions cannot be reconstructed. An existing plan's current
+version is captured as `baseline` before its next accepted edit; older missing
+versions are not fabricated. Until that edit, its history can be empty. There
+is no data backfill or rewriting of old migrations.
+
+History is included in the owner's account export and hard-deleted on account
+erasure. Deletion takes the farm locks shared by planner/sync writes to fence
+late restoration. Chat expiry does not delete saved-plan history. Database
+backups and already-downloaded exports remain separate retention responsibilities.
+Apply `0013` before deploying this code. Downgrading discards history irreversibly
+but leaves current saved plans intact; obtain independent migration review.
+
 ## Assistant boundary and remaining acceptance
 
 `preview_planting_plan` is an allowlisted **read-only** tool. It applies the same
@@ -123,12 +156,12 @@ button; frontend confirmation and physical-device acceptance remain required.
 Consent notice v3 includes planning inputs/budget and preview results sent to
 Gemini. Earlier grants require explicit reconsent. Tool/chat copies obey the
 30-day content policy; explicitly saved plans remain separate account records
-included in export/deletion. No new migration or dependency is required.
+included in export/deletion. History requires migration `0013`; no dependency is added.
 
 Tests exercise arithmetic, constraints, holidays, source changes, replay and
 cross-owner/farm denial; hosted PostgreSQL tests exercise replica races. They use
 synthetic inputs and do not establish real-model quality or data calibration.
 Full #7 remains open for voice, diagnosis, accounting/evaluation and live/device
-acceptance. Full #21 acceptance also still needs its independent review, including
-immutable version-history requirements beyond the existing current-version sync
-records, and a reviewed nominal-cash conversion policy for a current-rand UI.
+acceptance. Full #21 acceptance still needs independent review, including the
+history integration and a reviewed nominal-cash conversion policy for a
+current-rand UI.
