@@ -1,11 +1,9 @@
 # Issue #20 staged data inventory
 
-**Checkpoint:** 23 September 2026. The official Department of Agriculture archive
-was inspected as a source lead. It publishes annual fresh-produce workbook links
-for 2012 through 2024, but the archive page does not establish that each workbook
-contains monthly Johannesburg rows for the eight required crops. Workbook-level
-inspection remains required; the links alone do not clear the historical-price
-blocker.
+**Checkpoint:** 23 September 2026. Original official workbooks for 2008–2024 have
+now been inspected. All eight crops have twelve valid monthly Johannesburg prices
+in each workbook. Historical release vintages and post-2024 harvest coverage
+remain blockers. The source audit below supersedes the earlier archive-link check.
 
 This document is generated from the existing Git ref `origin/issue-20-reference-data`.
 It records what is actually staged and the limits that must be resolved before a
@@ -38,22 +36,46 @@ The staged ref is commit `69ff3904dd308f385b9d0b4115fac2cac92429c15`.
 
 ## Required blockers before real results
 
-1. Download and inspect the official Department of Agriculture annual fresh-produce
-   workbooks for 2012–2024 and prove that Joburg/product/month rows exist, with
-   units, aggregation definitions and publication/availability metadata. The archive
-   links are evidence that candidate files exist, not evidence that they satisfy the
-   required backtest period. The staged scraper cannot satisfy that period.
-2. Decide whether FAOSTAT producer prices are an explicitly labelled substitute for
-   Joburg wholesale prices. Do not silently merge the two series or call producer prices
-   Joburg prices.
+1. Establish original publication dates and revision vintages for the inspected
+   Joburg workbooks, plus post-2024 harvest prices. Monthly contents are confirmed;
+   their availability at historical planting time is not.
+2. Keep FAOSTAT producer prices separate from Joburg wholesale prices. The selected
+   strict experiment does not authorize substitution.
 3. Add source URLs, retrieval dates, vintages/availability dates, units, flags, and
    redistribution permissions to `SOURCES.md` before committing derived inputs.
-   The 2025 Elsenburg budget links are likewise only dated source leads until each
-   budget's region, production period, yield, cost subtotal, VAT and marketing
-   treatment have been transcribed and checked.
+   The 2025 Elsenburg PDFs now have hashes and extracted fields in
+   `BUDGET_REVIEW.md`; historical vintages, VAT/marketing reconciliation and
+   independent component verification remain outstanding.
 4. Reconcile the staged calendar with the chosen region and exact eight-crop contract.
    The current CSV includes pumpkin and beetroot and has no provenance metadata sufficient
    for a reproducible release.
-5. The FRED `ZAFCPIALLMINMEI` series currently ends at January 2025, so it cannot by
-   itself provide the PRD's complete twelve-month 2025 reporting base. Choose an official
-   Stats SA fallback or amend the CPI-base rule before freezing the protocol.
+5. The committed Stats SA fallback supplies the complete 2025 reporting base;
+   independently verify its transcription against the original PDF. It is not a
+   historical-vintage feature input. See `SOURCES.md` and the information policy.
+
+## Official workbook coverage audit
+
+`market_workbook_audit.json` is the machine-readable evidence, including source
+URLs/hashes and exact row locators. Every 2012–2024 year contributes twelve
+positive, internally consistent monthly prices per crop. No missing or inconsistent
+cells were found in these eight rows. This is current-vintage coverage, not proof
+of unrevised historical availability.
+
+| Crop | Exact workbook label | 2008–2011 training months | 2012–2024 months | After 2024 verified |
+| --- | --- | ---: | ---: | ---: |
+| butternut | BUTTERNUT SQUASHES | 48 | 156 | 0 |
+| cabbage | CABBAGE | 48 | 156 | 0 |
+| carrots | CARROTS | 48 | 156 | 0 |
+| green_beans | GREEN BEANS | 48 | 156 | 0 |
+| onions | ONIONS | 48 | 156 | 0 |
+| potatoes | POTATOES | 48 | 156 | 0 |
+| spinach | SPINACH | 48 | 156 | 0 |
+| tomatoes | TOMATOES | 48 | 156 | 0 |
+
+The inspected archive lists 2008–2024, with no 2025 workbook link. Late-2024
+plantings need later harvest prices; absence from this archive does not prove
+that no other official source exists. Training-month counts do not establish that
+every rolling validation fold has enough eligible, published observations.
+
+**Decision: historical Joburg input remains blocked** by missing release/vintage
+evidence and post-2024 coverage. Do not generate real decisions from this audit.
