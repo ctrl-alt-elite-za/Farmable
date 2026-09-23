@@ -24,6 +24,17 @@ ALIASES = {
 }
 
 
+def json_payload(document: dict) -> str:
+    """Render stable readable JSON without expanding short integer arrays."""
+
+    payload = json.dumps(document, indent=2)
+
+    def compact(match: re.Match) -> str:
+        return "[" + ", ".join(re.findall(r"\d+", match.group(0))) + "]"
+
+    return re.sub(r"\[\n(?:\s+\d+,?\n)+\s+\]", compact, payload) + "\n"
+
+
 def read_sheet(path: Path) -> tuple[str, list[list]]:
     if path.suffix.lower() == ".xls":
         import xlrd
@@ -107,18 +118,23 @@ def main() -> None:
             record.update(sheet=sheet, crops=audit_rows(rows, int(source["year"])))
         except (KeyError, ValueError, StopIteration) as exc:
             record["audit_error"] = str(exc) or "expected sheet/header missing"
-        record.update(available_on=None, redistribution_status="unverified")
-        records.append(record)
-    payload = (
-        json.dumps(
-            {
-                "parser_version": 1,
-                "status": "not_approved_for_historical_features",
-                "sources": records,
-            },
-            indent=2,
+        record.update(
+            available_on=None,
+            availability_status="unknown_blocks_historical_use",
+            availability_evidence=(
+                "The official archive exposes the annual file but no historical "
+                "publication or revision date. Observation labels, retrieval time and "
+                "file metadata are not release evidence."
+            ),
+            redistribution_status="unverified",
         )
-        + "\n"
+        records.append(record)
+    payload = json_payload(
+        {
+            "parser_version": 1,
+            "status": "not_approved_for_historical_features",
+            "sources": records,
+        }
     )
     if args.output:
         args.output.write_text(payload, encoding="utf-8")

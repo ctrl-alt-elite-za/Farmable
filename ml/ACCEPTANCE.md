@@ -12,10 +12,12 @@ follow-up, **not a completed issue**. No real decision backtest was executed.
   are covered by regression tests, including missing interior months/defaults,
   out-of-period rows, duplicates, explicit skips and synthetic relabelling.
 - `uv run pytest ml/forecast ml/backtest scripts/tests/test_audit_issue20_market_workbooks.py -q`:
-  **97 passed** (93 ML tests and 4 source-audit tests).
-- Full `uv run pytest -q`: **928 passed, 15 skipped, 33 deselected**. Skips require
-  `jq`; integration tests remain deselected. Repository Ruff and changed-file
-  formatting checks pass. ML implementation (16 files) and audit-script mypy pass.
+  **105 passed**.
+- The non-shell repository suite passes: **813 passed, 33 deselected**. The four
+  omitted test modules invoke Windows `bash.exe`; this machine currently has the
+  WSL relay but no `/bin/bash`, so the unfiltered run stops on that environment
+  error. Repository Ruff and changed-file formatting checks pass. ML
+  implementation (17 files) and audit-script mypy pass.
   Gitleaks directory scans of `ml/` and the ML implementation report no leaks.
   Required `gitleaks detect --source ml/ --config .gitleaks.toml --redact` also
   exits 0 (115 commits). `check_protocol_first.py --check-ready` correctly exits 1:
@@ -24,11 +26,13 @@ follow-up, **not a completed issue**. No real decision backtest was executed.
   crops × twelve monthly Joburg prices in every year. Release dates/revision
   histories and post-2024 harvest prices remain unverified. See the source audit.
 - Eight modern budget PDFs and an older cabbage version were hashed and inspected.
-  Budget/calendars review remains incomplete; these are not historical input approvals.
+  All requested source fields/subtotals and the experiment subtotal mapping are
+  recorded; these are not historical input approvals. Calendar provenance remains open.
 - The user-selected strict historical-input policy is recorded in
   `backtest/INFORMATION_POLICY.md`, with the CPI ranking counterexample and tests
-  for future costs and post-decision reporting conversions. Source-specific lag,
-  vintage loading and integrated mutation testing remain open.
+  for future costs, deterministic as-of vintage selection, mutation invariance,
+  post-decision reporting conversions and historical report attestation. Real
+  source release evidence and runner integration remain open.
 
 ### Earlier foundation checks
 
@@ -78,9 +82,10 @@ in the caller-supplied consistent price basis and do not pretend their nominal
 inputs have been converted to 2025 rand. Do not infer full no-look-ahead acceptance
 from a synthetic price-only mutation test.
 
-The follow-up confirms monthly Johannesburg workbook contents; historical
-availability metadata is still missing. Modern budget fields have been extracted,
-but historical cost releases and calendar/component assumptions remain unresolved.
+The follow-up confirms monthly Johannesburg workbook contents. Historical
+availability is explicitly recorded as unknown and therefore blocks use. Modern
+budget fields and the subtotal policy have been extracted, but historical cost
+releases, VAT compatibility and calendar provenance remain unresolved.
 The user selected strict historical inputs. The real decision backtest remains
 blocked by those sources and separate protocol registration.
 
@@ -97,11 +102,10 @@ numbers, integer growing months, decimal(14,4) amounts, 2025 ZAR/kg, explicit
 as-of, source hashes and data-kind labels. `consumer_json` emits its Decimal strings.
 Full consumer validation on the merged branch remains to run.
 
-Resolve the **historical information versus fixed 2025-cost scenario** first:
-`backtest/PROTOCOL_DRAFT.md` provides concrete proposed settings and required
-decisions. Verify historical Joburg price coverage, source calendars and budget
-subtotals; complete imports; finalize and merge the protocol separately; then
-integrate the gated real runner, Colab notebook and actual result artifacts.
+Obtain historical release evidence and post-2024 price coverage, verify the source
+calendars and VAT basis, and then finalize and merge the protocol separately.
+After that gate, complete imports and integrate the real runner, Colab notebook
+and result artifacts.
 
 Native Make is unavailable and Node dependencies remain absent after the earlier
 installation request was declined. No successful complete `make lint/typecheck/test`

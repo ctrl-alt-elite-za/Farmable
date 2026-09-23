@@ -118,11 +118,16 @@ def build_report(
     *,
     input_hashes: dict[str, str],
     data_kind: str,
+    information_cutoff_verified: bool = False,
     config: Bootstrap | None = None,
 ) -> dict[str, Any]:
     config = config if config is not None else Bootstrap()
     if data_kind not in {"synthetic", "historical"}:
         raise ValueError("data_kind must be explicit")
+    if data_kind == "historical" and not information_cutoff_verified:
+        raise ValueError("historical information cutoff is not verified")
+    if data_kind == "synthetic" and information_cutoff_verified:
+        raise ValueError("synthetic fixtures cannot claim verified historical information")
     if not input_hashes or any(
         len(value) != 64 or any(c not in "0123456789abcdef" for c in value)
         for value in input_hashes.values()
@@ -158,6 +163,13 @@ def build_report(
     return {
         "schema_version": 2,
         "data_kind": data_kind,
+        "information_policy": {
+            "status": (
+                "verified_strictly_before_planting"
+                if information_cutoff_verified
+                else "synthetic_not_applicable"
+            )
+        },
         "coverage": coverage,
         "currency": "ZAR",
         "price_basis_year": 2025,
@@ -231,8 +243,9 @@ def _report_period(report: dict[str, Any]) -> str:
         or coverage["end_month"] != HISTORICAL_MONTHS[-1].strftime("%Y-%m")
         or coverage["observed_months"] != len(HISTORICAL_MONTHS)
         or coverage["decision_keys"] != len(HISTORICAL_KEYS)
+        or report.get("information_policy", {}).get("status") != "verified_strictly_before_planting"
     ):
-        raise ValueError("insufficient historical coverage")
+        raise ValueError("insufficient historical coverage or information-cutoff evidence")
     if coverage["start_month"] is None:
         return "no planting months"
     return f"{coverage['start_month']}–{coverage['end_month']}"

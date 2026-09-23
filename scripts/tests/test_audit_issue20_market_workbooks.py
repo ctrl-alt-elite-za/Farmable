@@ -1,7 +1,12 @@
 """Source audit must distinguish valid months from absent or inconsistent cells."""
 
+import json
+from pathlib import Path
+
 import pytest
-from audit_issue20_market_workbooks import ALIASES, audit_rows
+from audit_issue20_market_workbooks import ALIASES, audit_rows, json_payload
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def workbook_rows(label_on_mass=False):
@@ -41,3 +46,19 @@ def test_wrong_year_and_duplicate_alias_fail():
     rows.extend(rows[2:5])
     with pytest.raises(ValueError, match="exactly one"):
         audit_rows(rows, 2024)
+
+
+def test_committed_audit_fails_closed_when_release_dates_are_unknown():
+    audit = json.loads((ROOT / "ml/data/market_workbook_audit.json").read_text())
+    assert len(audit["sources"]) == 17
+    for source in audit["sources"]:
+        assert source["available_on"] is None
+        assert source["availability_status"] == "unknown_blocks_historical_use"
+        assert "not release evidence" in source["availability_evidence"]
+
+
+def test_json_payload_keeps_month_arrays_reviewable_and_round_trips():
+    document = {"months": list(range(1, 13)), "empty": [], "nested": {"year": 2024}}
+    payload = json_payload(document)
+    assert '"months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]' in payload
+    assert json.loads(payload) == document

@@ -44,8 +44,8 @@ The staged ref is commit `69ff3904dd308f385b9d0b4115fac2cac92429c15`.
 3. Add source URLs, retrieval dates, vintages/availability dates, units, flags, and
    redistribution permissions to `SOURCES.md` before committing derived inputs.
    The 2025 Elsenburg PDFs now have hashes and extracted fields in
-   `BUDGET_REVIEW.md`; historical vintages, VAT/marketing reconciliation and
-   independent component verification remain outstanding.
+   `BUDGET_REVIEW.md`; the subtotal/marketing mapping is frozen, while historical
+   vintages and VAT compatibility remain outstanding.
 4. Reconcile the staged calendar with the chosen region and exact eight-crop contract.
    The current CSV includes pumpkin and beetroot and has no provenance metadata sufficient
    for a reproducible release.
