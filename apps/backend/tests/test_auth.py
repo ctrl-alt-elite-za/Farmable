@@ -264,6 +264,10 @@ def test_signup_only_translates_credential_unique_violations(sqlstate, constrain
     session = transaction.__enter__.return_value
     session.scalar.return_value = None
     session.get.return_value = None  # No rate-limit counter row yet.
+    # A real SAVEPOINT context manager propagates an exception raised inside
+    # it; MagicMock's auto-mocked __exit__ would otherwise swallow it (any
+    # truthy return value suppresses the exception).
+    session.begin_nested.return_value.__exit__.return_value = False
     # The rate-limit counter insert and the owner-row insert each flush first;
     # only the credential (AuthIdentity) insert's flush should hit the
     # simulated unique-constraint failure.
@@ -283,12 +287,17 @@ def test_signup_only_translates_credential_unique_violations(sqlstate, constrain
         # as a new sign-up, never a distinguishable error.
         user = service.signup("Test", "User", "+27820000000", "test@example.com", PASSWORD)
         assert user.email == "test@example.com"
+        # The conflict is caught and handled inside a nested SAVEPOINT, so
+        # the outer transaction commits normally (the rate-limit hit
+        # recorded earlier in it is never rolled back by the collision).
+        assert transaction.__exit__.call_args.args[0] is None
     else:
         with pytest.raises(IntegrityError) as caught:
             service.signup("Test", "User", "+27820000000", "test@example.com", PASSWORD)
         assert caught.value is failure
-    # Exception exits the transaction before the public conflict is raised.
-    assert transaction.__exit__.call_args.args[0] is IntegrityError
+        # An unrecognised conflict re-raises past the savepoint and exits
+        # the outer transaction too.
+        assert transaction.__exit__.call_args.args[0] is IntegrityError
     provider.deliver.assert_not_called()
 
 

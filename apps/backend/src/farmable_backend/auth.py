@@ -94,6 +94,8 @@ class OtpProvider(Protocol):
 
     def deliver(self, channel: Channel, destination: str, code: str) -> None: ...
 
+    def notify_existing_account(self, channel: Channel, destination: str) -> None: ...
+
 
 class DeterministicFakeOtpProvider:
     """Test/development provider. It deliberately retains no OTP values or logs."""
@@ -107,6 +109,9 @@ class DeterministicFakeOtpProvider:
         if code != self.codes[channel]:
             raise AuthError("provider_error", 503)
 
+    def notify_existing_account(self, channel: Channel, destination: str) -> None:
+        pass  # Test/dev provider: no delivery log kept for this either.
+
 
 class DisabledOtpProvider:
     """Fail closed until issue #7 supplies configured live SMS and email adapters."""
@@ -115,6 +120,9 @@ class DisabledOtpProvider:
         return f"{secrets.randbelow(1_000_000):06d}"
 
     def deliver(self, channel: Channel, destination: str, code: str) -> None:
+        raise AuthError("provider_unavailable", 503)
+
+    def notify_existing_account(self, channel: Channel, destination: str) -> None:
         raise AuthError("provider_unavailable", 503)
 
 
@@ -178,58 +186,89 @@ class AuthService:
         # sign-up without creating a second account or a fake DB row (#9
         # enumeration resistance).
         placeholder = AuthUser(uuid4(), first_name.strip(), surname.strip(), phone, email, False, False)
-        try:
-            with self.sessions.begin() as session:
-                _rate_limit(
-                    session,
-                    scope="signup_ip",
-                    subject=ip,
-                    window_seconds=3600,
-                    limit=5,
-                    code="signup_rate_limited",
+        with self.sessions.begin() as session:
+            # Recorded (and committed with this transaction) before anything
+            # that can fail below, including the enumeration-safe collision
+            # paths — an IntegrityError inside the nested block only rolls
+            # back the nested savepoint, never this hit.
+            _rate_limit(
+                session,
+                scope="signup_ip",
+                subject=ip,
+                window_seconds=3600,
+                limit=5,
+                code="signup_rate_limited",
+            )
+            existing = session.scalar(
+                select(AuthIdentity).where(
+                    (AuthIdentity.email == email) | (AuthIdentity.phone == phone)
                 )
-                existing = session.scalar(
-                    select(AuthIdentity.id).where(
-                        (AuthIdentity.email == email) | (AuthIdentity.phone == phone)
-                    )
-                )
-                if existing is not None:
-                    # Same public response/status as a new sign-up; no OTP is
-                    # sent to the caller, and no account, farm, challenge, or
-                    # session is created or mutated for this request.
-                    return placeholder
-                password_hash = PASSWORD_HASHER.hash(password)
-                owner = User()
-                session.add(owner)
-                session.flush()
-                user = AuthIdentity(
-                    id=owner.id,
-                    first_name=first_name.strip(),
-                    surname=surname.strip(),
-                    phone=phone,
-                    email=email,
-                    password_hash=password_hash,
-                )
-                session.add(user)
-                # Claim the unique credentials before delivering an OTP. On a
-                # conflict the entire transaction, including owner, rolls back.
-                session.flush()
-                # Issue #9: every account owns exactly one empty farm from
-                # sign-up, so the account API always has a subject. The insert
-                # shares this transaction, so a credential conflict rolls it back.
-                session.add(Farm(owner_id=owner.id, name=DEFAULT_FARM_NAME))
-                session.flush()
-                self._send(session, user, Channel.PHONE, ip=ip)
-                return _user(user)
-        except IntegrityError as exc:
-            diagnostic = getattr(exc.orig, "diag", None)
-            if getattr(exc.orig, "sqlstate", None) == "23505" and getattr(
-                diagnostic, "constraint_name", None
-            ) in {"uq_auth_identities_email", "uq_auth_identities_phone"}:
-                # Lost a race against a concurrent sign-up claiming the same
-                # email/phone. Same enumeration-safe response as the pre-check.
+            )
+            if existing is not None:
+                self._notify_collision(existing, email, phone)
+                # Same public response/status as a new sign-up; no OTP is
+                # sent to the caller, and no account, farm, challenge, or
+                # session is created or mutated for this request.
                 return placeholder
-            raise
+            password_hash = PASSWORD_HASHER.hash(password)
+            try:
+                with session.begin_nested():
+                    owner = User()
+                    session.add(owner)
+                    session.flush()
+                    user = AuthIdentity(
+                        id=owner.id,
+                        first_name=first_name.strip(),
+                        surname=surname.strip(),
+                        phone=phone,
+                        email=email,
+                        password_hash=password_hash,
+                    )
+                    session.add(user)
+                    # Claim the unique credentials before delivering an OTP;
+                    # owner+identity+farm share this savepoint, so a
+                    # credential conflict rolls all three back together
+                    # without touching the rate-limit hit recorded above.
+                    session.flush()
+                    # Issue #9: every account owns exactly one empty farm
+                    # from sign-up, so the account API always has a subject.
+                    session.add(Farm(owner_id=owner.id, name=DEFAULT_FARM_NAME))
+                    session.flush()
+            except IntegrityError as exc:
+                diagnostic = getattr(exc.orig, "diag", None)
+                if getattr(exc.orig, "sqlstate", None) == "23505" and getattr(
+                    diagnostic, "constraint_name", None
+                ) in {"uq_auth_identities_email", "uq_auth_identities_phone"}:
+                    # Lost a race against a concurrent sign-up claiming the
+                    # same email/phone. Same enumeration-safe response as the
+                    # pre-check, and the same best-effort owner warning.
+                    winner = session.scalar(
+                        select(AuthIdentity).where(
+                            (AuthIdentity.email == email) | (AuthIdentity.phone == phone)
+                        )
+                    )
+                    if winner is not None:
+                        self._notify_collision(winner, email, phone)
+                    return placeholder
+                raise
+            self._send(session, user, Channel.PHONE, ip=ip)
+            return _user(user)
+
+    def _notify_collision(self, existing: AuthIdentity, email: str, phone: str) -> None:
+        # Best-effort: the real owner is warned that someone tried to sign up
+        # with their email/phone. Never lets a provider failure change the
+        # public response — that must stay identical to a new sign-up either
+        # way (#9 enumeration resistance).
+        for channel, destination, matched in (
+            (Channel.EMAIL, existing.email, existing.email == email),
+            (Channel.PHONE, existing.phone, existing.phone == phone),
+        ):
+            if not matched:
+                continue
+            try:
+                self.provider.notify_existing_account(channel, destination)
+            except AuthError:
+                pass
 
     def verify(self, user_id: UUID, channel: Channel, code: str) -> AuthUser | SessionTokens:
         failure: AuthError | None = None

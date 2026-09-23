@@ -19,12 +19,24 @@
             "type": "string"
           },
           "preferred_language": {
-            "enum": ["en", "af", "nso", "st", "xh", "zu"],
+            "enum": [
+              "en",
+              "af",
+              "nso",
+              "st",
+              "xh",
+              "zu"
+            ],
             "title": "Preferred Language",
             "type": "string"
           }
         },
-        "required": ["id", "owner_id", "name", "preferred_language"],
+        "required": [
+          "id",
+          "owner_id",
+          "name",
+          "preferred_language"
+        ],
         "title": "AccountFarmResponse",
         "type": "object"
       },
@@ -32,7 +44,10 @@
         "additionalProperties": false,
         "properties": {
           "next_step": {
-            "enum": ["phone", "email"],
+            "enum": [
+              "phone",
+              "email"
+            ],
             "title": "Next Step",
             "type": "string"
           },
@@ -42,7 +57,10 @@
             "type": "string"
           }
         },
-        "required": ["user_id", "next_step"],
+        "required": [
+          "user_id",
+          "next_step"
+        ],
         "title": "AuthProgressResponse",
         "type": "object"
       },
@@ -61,7 +79,10 @@
             "type": "string"
           },
           "data_kind": {
-            "enum": ["historical", "synthetic"],
+            "enum": [
+              "historical",
+              "synthetic"
+            ],
             "title": "Data Kind",
             "type": "string"
           },
@@ -90,7 +111,11 @@
           },
           "reasons": {
             "items": {
-              "enum": ["frost", "heat_stress", "dry_spell"],
+              "enum": [
+                "frost",
+                "heat_stress",
+                "dry_spell"
+              ],
               "type": "string"
             },
             "title": "Reasons",
@@ -100,7 +125,10 @@
             "$ref": "#/components/schemas/WeatherShares"
           },
           "source": {
-            "enum": ["Open-Meteo ERA5", "synthetic fixture"],
+            "enum": [
+              "Open-Meteo ERA5",
+              "synthetic fixture"
+            ],
             "title": "Source",
             "type": "string"
           },
@@ -173,7 +201,10 @@
             "title": "Next Cursor"
           }
         },
-        "required": ["items", "next_cursor"],
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "title": "ChangePage",
         "type": "object"
       },
@@ -207,7 +238,14 @@
             "type": "integer"
           }
         },
-        "required": ["cursor", "record_type", "record_id", "operation", "version", "created_at"],
+        "required": [
+          "cursor",
+          "record_type",
+          "record_id",
+          "operation",
+          "version",
+          "created_at"
+        ],
         "title": "ChangeView",
         "type": "object"
       },
@@ -221,7 +259,9 @@
             "type": "string"
           }
         },
-        "required": ["password"],
+        "required": [
+          "password"
+        ],
         "title": "DeleteAccountRequest",
         "type": "object"
       },
@@ -237,7 +277,10 @@
             "type": "string"
           }
         },
-        "required": ["code", "message"],
+        "required": [
+          "code",
+          "message"
+        ],
         "title": "Error",
         "type": "object"
       },
@@ -248,7 +291,9 @@
             "$ref": "#/components/schemas/Error"
           }
         },
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "title": "ErrorResponse",
         "type": "object"
       },
@@ -272,7 +317,14 @@
           "preferred_language": {
             "anyOf": [
               {
-                "enum": ["en", "af", "nso", "st", "xh", "zu"],
+                "enum": [
+                  "en",
+                  "af",
+                  "nso",
+                  "st",
+                  "xh",
+                  "zu"
+                ],
                 "type": "string"
               },
               {
@@ -317,7 +369,14 @@
             "type": "integer"
           }
         },
-        "required": ["id", "owner_id", "version", "created_at", "updated_at", "name"],
+        "required": [
+          "id",
+          "owner_id",
+          "version",
+          "created_at",
+          "updated_at",
+          "name"
+        ],
         "title": "FarmView",
         "type": "object"
       },
@@ -388,12 +447,22 @@
             "title": "Section Id"
           },
           "type": {
-            "enum": ["expense", "income"],
+            "enum": [
+              "expense",
+              "income"
+            ],
             "title": "Type",
             "type": "string"
           }
         },
-        "required": ["mutation_id", "id", "type", "category", "amount_cents", "date"],
+        "required": [
+          "mutation_id",
+          "id",
+          "type",
+          "category",
+          "amount_cents",
+          "date"
+        ],
         "title": "FinancialCreate",
         "type": "object"
       },
@@ -413,7 +482,11 @@
             "type": "integer"
           }
         },
-        "required": ["income_cents", "expense_cents", "net_cents"],
+        "required": [
+          "income_cents",
+          "expense_cents",
+          "net_cents"
+        ],
         "title": "FinancialSummary",
         "type": "object"
       },
@@ -471,12 +544,22 @@
             "title": "Note"
           },
           "type": {
-            "enum": ["expense", "income"],
+            "enum": [
+              "expense",
+              "income"
+            ],
             "title": "Type",
             "type": "string"
           }
         },
-        "required": ["mutation_id", "expected_version", "type", "category", "amount_cents", "date"],
+        "required": [
+          "mutation_id",
+          "expected_version",
+          "type",
+          "category",
+          "amount_cents",
+          "date"
+        ],
         "title": "FinancialUpdate",
         "type": "object"
       },
@@ -584,7 +667,9 @@
             "type": "string"
           }
         },
-        "required": ["sha"],
+        "required": [
+          "sha"
+        ],
         "title": "LiveResponse",
         "type": "object"
       },
@@ -607,7 +692,10 @@
             "type": "string"
           },
           "mode": {
-            "enum": ["live", "fake"],
+            "enum": [
+              "live",
+              "fake"
+            ],
             "title": "Mode",
             "type": "string"
           },
@@ -646,9 +734,19 @@
             "minLength": 1,
             "title": "Password",
             "type": "string"
+          },
+          "turnstile_token": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Turnstile Token",
+            "type": "string"
           }
         },
-        "required": ["identifier", "password"],
+        "required": [
+          "identifier",
+          "password",
+          "turnstile_token"
+        ],
         "title": "LoginRequest",
         "type": "object"
       },
@@ -701,7 +799,12 @@
             "title": "Section Id"
           }
         },
-        "required": ["mutation_id", "id", "local_id", "media_type"],
+        "required": [
+          "mutation_id",
+          "id",
+          "local_id",
+          "media_type"
+        ],
         "title": "MediaCreate",
         "type": "object"
       },
@@ -745,7 +848,11 @@
             "title": "Section Id"
           }
         },
-        "required": ["mutation_id", "expected_version", "media_type"],
+        "required": [
+          "mutation_id",
+          "expected_version",
+          "media_type"
+        ],
         "title": "MediaUpdate",
         "type": "object"
       },
@@ -847,7 +954,14 @@
             "type": "integer"
           }
         },
-        "required": ["mutation_id", "entity_id", "owner_id", "farm_id", "version", "observation"],
+        "required": [
+          "mutation_id",
+          "entity_id",
+          "owner_id",
+          "farm_id",
+          "version",
+          "observation"
+        ],
         "title": "ObservationAck",
         "type": "object"
       },
@@ -930,7 +1044,14 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id", "observation_id", "section_id", "type", "note", "created_at"],
+        "required": [
+          "mutation_id",
+          "observation_id",
+          "section_id",
+          "type",
+          "note",
+          "created_at"
+        ],
         "title": "ObservationCreate",
         "type": "object"
       },
@@ -995,7 +1116,12 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id", "expected_version", "type", "note"],
+        "required": [
+          "mutation_id",
+          "expected_version",
+          "type",
+          "note"
+        ],
         "title": "ObservationUpdate",
         "type": "object"
       },
@@ -1142,7 +1268,10 @@
             "type": "string"
           },
           "data_kind": {
-            "enum": ["synthetic", "historical"],
+            "enum": [
+              "synthetic",
+              "historical"
+            ],
             "title": "Data Kind",
             "type": "string"
           },
@@ -1156,7 +1285,11 @@
             "type": "integer"
           },
           "method": {
-            "enum": ["fixture", "historical_range", "lightgbm"],
+            "enum": [
+              "fixture",
+              "historical_range",
+              "lightgbm"
+            ],
             "title": "Method",
             "type": "string"
           },
@@ -1254,7 +1387,10 @@
             "title": "Next Cursor"
           }
         },
-        "required": ["items", "next_cursor"],
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "title": "Page[FarmView]",
         "type": "object"
       },
@@ -1281,7 +1417,10 @@
             "title": "Next Cursor"
           }
         },
-        "required": ["items", "next_cursor"],
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "title": "Page[FinancialView]",
         "type": "object"
       },
@@ -1308,7 +1447,10 @@
             "title": "Next Cursor"
           }
         },
-        "required": ["items", "next_cursor"],
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "title": "Page[MediaView]",
         "type": "object"
       },
@@ -1335,7 +1477,10 @@
             "title": "Next Cursor"
           }
         },
-        "required": ["items", "next_cursor"],
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "title": "Page[ObservationView]",
         "type": "object"
       },
@@ -1362,7 +1507,10 @@
             "title": "Next Cursor"
           }
         },
-        "required": ["items", "next_cursor"],
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "title": "Page[PlanView]",
         "type": "object"
       },
@@ -1389,7 +1537,10 @@
             "title": "Next Cursor"
           }
         },
-        "required": ["items", "next_cursor"],
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "title": "Page[PlantingView]",
         "type": "object"
       },
@@ -1416,7 +1567,10 @@
             "title": "Next Cursor"
           }
         },
-        "required": ["items", "next_cursor"],
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "title": "Page[SectionView]",
         "type": "object"
       },
@@ -1443,7 +1597,10 @@
             "title": "Next Cursor"
           }
         },
-        "required": ["items", "next_cursor"],
+        "required": [
+          "items",
+          "next_cursor"
+        ],
         "title": "Page[TaskView]",
         "type": "object"
       },
@@ -1483,12 +1640,21 @@
           },
           "status": {
             "default": "saved",
-            "enum": ["saved", "approved", "rejected"],
+            "enum": [
+              "saved",
+              "approved",
+              "rejected"
+            ],
             "title": "Status",
             "type": "string"
           }
         },
-        "required": ["mutation_id", "id", "section_id", "plan"],
+        "required": [
+          "mutation_id",
+          "id",
+          "section_id",
+          "plan"
+        ],
         "title": "PlanCreate",
         "type": "object"
       },
@@ -1522,12 +1688,20 @@
           },
           "status": {
             "default": "saved",
-            "enum": ["saved", "approved", "rejected"],
+            "enum": [
+              "saved",
+              "approved",
+              "rejected"
+            ],
             "title": "Status",
             "type": "string"
           }
         },
-        "required": ["mutation_id", "expected_version", "plan"],
+        "required": [
+          "mutation_id",
+          "expected_version",
+          "plan"
+        ],
         "title": "PlanUpdate",
         "type": "object"
       },
@@ -1644,7 +1818,12 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id", "id", "section_id", "crop"],
+        "required": [
+          "mutation_id",
+          "id",
+          "section_id",
+          "crop"
+        ],
         "title": "PlantingCreate",
         "type": "object"
       },
@@ -1694,7 +1873,11 @@
             "title": "Planted On"
           }
         },
-        "required": ["mutation_id", "expected_version", "crop"],
+        "required": [
+          "mutation_id",
+          "expected_version",
+          "crop"
+        ],
         "title": "PlantingUpdate",
         "type": "object"
       },
@@ -1796,7 +1979,11 @@
             "type": "string"
           }
         },
-        "required": ["p10", "p50", "p90"],
+        "required": [
+          "p10",
+          "p50",
+          "p90"
+        ],
         "title": "PriceRange",
         "type": "object"
       },
@@ -1830,7 +2017,14 @@
             "type": "boolean"
           },
           "preferred_language": {
-            "enum": ["en", "af", "nso", "st", "xh", "zu"],
+            "enum": [
+              "en",
+              "af",
+              "nso",
+              "st",
+              "xh",
+              "zu"
+            ],
             "title": "Preferred Language",
             "type": "string"
           },
@@ -1872,7 +2066,14 @@
           "preferred_language": {
             "anyOf": [
               {
-                "enum": ["en", "af", "nso", "st", "xh", "zu"],
+                "enum": [
+                  "en",
+                  "af",
+                  "nso",
+                  "st",
+                  "xh",
+                  "zu"
+                ],
                 "type": "string"
               },
               {
@@ -1903,7 +2104,10 @@
         "additionalProperties": false,
         "properties": {
           "database": {
-            "enum": ["ok", "down"],
+            "enum": [
+              "ok",
+              "down"
+            ],
             "title": "Database",
             "type": "string"
           },
@@ -1912,12 +2116,19 @@
             "type": "string"
           },
           "worker": {
-            "enum": ["ok", "down"],
+            "enum": [
+              "ok",
+              "down"
+            ],
             "title": "Worker",
             "type": "string"
           }
         },
-        "required": ["database", "worker", "sha"],
+        "required": [
+          "database",
+          "worker",
+          "sha"
+        ],
         "title": "ReadyResponse",
         "type": "object"
       },
@@ -1952,7 +2163,14 @@
             "type": "integer"
           }
         },
-        "required": ["mutation_id", "entity_id", "owner_id", "farm_id", "version", "record"],
+        "required": [
+          "mutation_id",
+          "entity_id",
+          "owner_id",
+          "farm_id",
+          "version",
+          "record"
+        ],
         "title": "RecordAck[FinancialView]",
         "type": "object"
       },
@@ -1987,7 +2205,14 @@
             "type": "integer"
           }
         },
-        "required": ["mutation_id", "entity_id", "owner_id", "farm_id", "version", "record"],
+        "required": [
+          "mutation_id",
+          "entity_id",
+          "owner_id",
+          "farm_id",
+          "version",
+          "record"
+        ],
         "title": "RecordAck[MediaView]",
         "type": "object"
       },
@@ -2022,7 +2247,14 @@
             "type": "integer"
           }
         },
-        "required": ["mutation_id", "entity_id", "owner_id", "farm_id", "version", "record"],
+        "required": [
+          "mutation_id",
+          "entity_id",
+          "owner_id",
+          "farm_id",
+          "version",
+          "record"
+        ],
         "title": "RecordAck[ObservationView]",
         "type": "object"
       },
@@ -2057,7 +2289,14 @@
             "type": "integer"
           }
         },
-        "required": ["mutation_id", "entity_id", "owner_id", "farm_id", "version", "record"],
+        "required": [
+          "mutation_id",
+          "entity_id",
+          "owner_id",
+          "farm_id",
+          "version",
+          "record"
+        ],
         "title": "RecordAck[PlanView]",
         "type": "object"
       },
@@ -2092,7 +2331,14 @@
             "type": "integer"
           }
         },
-        "required": ["mutation_id", "entity_id", "owner_id", "farm_id", "version", "record"],
+        "required": [
+          "mutation_id",
+          "entity_id",
+          "owner_id",
+          "farm_id",
+          "version",
+          "record"
+        ],
         "title": "RecordAck[PlantingView]",
         "type": "object"
       },
@@ -2127,7 +2373,14 @@
             "type": "integer"
           }
         },
-        "required": ["mutation_id", "entity_id", "owner_id", "farm_id", "version", "record"],
+        "required": [
+          "mutation_id",
+          "entity_id",
+          "owner_id",
+          "farm_id",
+          "version",
+          "record"
+        ],
         "title": "RecordAck[SectionView]",
         "type": "object"
       },
@@ -2162,7 +2415,14 @@
             "type": "integer"
           }
         },
-        "required": ["mutation_id", "entity_id", "owner_id", "farm_id", "version", "record"],
+        "required": [
+          "mutation_id",
+          "entity_id",
+          "owner_id",
+          "farm_id",
+          "version",
+          "record"
+        ],
         "title": "RecordAck[TaskView]",
         "type": "object"
       },
@@ -2186,7 +2446,10 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id", "expected_version"],
+        "required": [
+          "mutation_id",
+          "expected_version"
+        ],
         "title": "RecordDelete",
         "type": "object"
       },
@@ -2200,7 +2463,9 @@
             "type": "string"
           }
         },
-        "required": ["refresh_token"],
+        "required": [
+          "refresh_token"
+        ],
         "title": "RefreshRequest",
         "type": "object"
       },
@@ -2208,7 +2473,10 @@
         "additionalProperties": false,
         "properties": {
           "channel": {
-            "enum": ["phone", "email"],
+            "enum": [
+              "phone",
+              "email"
+            ],
             "title": "Channel",
             "type": "string"
           },
@@ -2218,7 +2486,10 @@
             "type": "string"
           }
         },
-        "required": ["user_id", "channel"],
+        "required": [
+          "user_id",
+          "channel"
+        ],
         "title": "ResendOtpRequest",
         "type": "object"
       },
@@ -2279,7 +2550,11 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id", "id", "name"],
+        "required": [
+          "mutation_id",
+          "id",
+          "name"
+        ],
         "title": "SectionCreate",
         "type": "object"
       },
@@ -2407,7 +2682,11 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id", "expected_version", "name"],
+        "required": [
+          "mutation_id",
+          "expected_version",
+          "name"
+        ],
         "title": "SectionUpdate",
         "type": "object"
       },
@@ -2506,7 +2785,12 @@
             "$ref": "#/components/schemas/UserResponse"
           }
         },
-        "required": ["access_token", "refresh_token", "expires_at", "user"],
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_at",
+          "user"
+        ],
         "title": "SessionResponse",
         "type": "object"
       },
@@ -2543,9 +2827,22 @@
             "pattern": ".*\\S.*",
             "title": "Surname",
             "type": "string"
+          },
+          "turnstile_token": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Turnstile Token",
+            "type": "string"
           }
         },
-        "required": ["first_name", "surname", "phone", "email", "password"],
+        "required": [
+          "first_name",
+          "surname",
+          "phone",
+          "email",
+          "password",
+          "turnstile_token"
+        ],
         "title": "SignUpRequest",
         "type": "object"
       },
@@ -2569,7 +2866,11 @@
             "type": "string"
           }
         },
-        "required": ["url", "fields", "expires_at"],
+        "required": [
+          "url",
+          "fields",
+          "expires_at"
+        ],
         "title": "SignedForm",
         "type": "object"
       },
@@ -2634,7 +2935,12 @@
           },
           "status": {
             "default": "pending",
-            "enum": ["pending", "in_progress", "done", "cancelled"],
+            "enum": [
+              "pending",
+              "in_progress",
+              "done",
+              "cancelled"
+            ],
             "title": "Status",
             "type": "string"
           },
@@ -2646,7 +2952,13 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id", "id", "section_id", "title", "due_date"],
+        "required": [
+          "mutation_id",
+          "id",
+          "section_id",
+          "title",
+          "due_date"
+        ],
         "title": "TaskCreate",
         "type": "object"
       },
@@ -2703,7 +3015,12 @@
             "type": "string"
           },
           "status": {
-            "enum": ["pending", "in_progress", "done", "cancelled"],
+            "enum": [
+              "pending",
+              "in_progress",
+              "done",
+              "cancelled"
+            ],
             "title": "Status",
             "type": "string"
           },
@@ -2715,7 +3032,13 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id", "expected_version", "title", "due_date", "status"],
+        "required": [
+          "mutation_id",
+          "expected_version",
+          "title",
+          "due_date",
+          "status"
+        ],
         "title": "TaskUpdate",
         "type": "object"
       },
@@ -2813,7 +3136,9 @@
         "additionalProperties": false,
         "properties": {
           "reasons": {
-            "default": ["climatology_not_computed"],
+            "default": [
+              "climatology_not_computed"
+            ],
             "items": {
               "const": "climatology_not_computed",
               "type": "string"
@@ -2841,7 +3166,10 @@
             "type": "integer"
           },
           "content_type": {
-            "enum": ["image/jpeg", "image/png"],
+            "enum": [
+              "image/jpeg",
+              "image/png"
+            ],
             "title": "Content Type",
             "type": "string"
           },
@@ -2861,7 +3189,13 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id", "local_media_id", "section_id", "content_type", "byte_length"],
+        "required": [
+          "mutation_id",
+          "local_media_id",
+          "section_id",
+          "content_type",
+          "byte_length"
+        ],
         "title": "UploadCreate",
         "type": "object"
       },
@@ -2874,7 +3208,9 @@
             "type": "string"
           }
         },
-        "required": ["failed_attempt_id"],
+        "required": [
+          "failed_attempt_id"
+        ],
         "title": "UploadRetry",
         "type": "object"
       },
@@ -2950,7 +3286,14 @@
             "type": "boolean"
           },
           "state": {
-            "enum": ["awaiting_upload", "queued", "processing", "ready", "failed", "expired"],
+            "enum": [
+              "awaiting_upload",
+              "queued",
+              "processing",
+              "ready",
+              "failed",
+              "expired"
+            ],
             "title": "State",
             "type": "string"
           },
@@ -3033,7 +3376,10 @@
             "type": "string"
           }
         },
-        "required": ["user_id", "code"],
+        "required": [
+          "user_id",
+          "code"
+        ],
         "title": "VerifyOtpRequest",
         "type": "object"
       },
@@ -3059,7 +3405,11 @@
             "type": "integer"
           }
         },
-        "required": ["frost", "heat_stress", "dry_spell"],
+        "required": [
+          "frost",
+          "heat_stress",
+          "dry_spell"
+        ],
         "title": "WeatherEventYears",
         "type": "object"
       },
@@ -3085,7 +3435,11 @@
             "type": "number"
           }
         },
-        "required": ["frost", "heat_stress", "dry_spell"],
+        "required": [
+          "frost",
+          "heat_stress",
+          "dry_spell"
+        ],
         "title": "WeatherShares",
         "type": "object"
       }
@@ -3206,7 +3560,10 @@
             "required": false,
             "schema": {
               "default": "json",
-              "enum": ["json", "zip"],
+              "enum": [
+                "json",
+                "zip"
+              ],
               "title": "Format",
               "type": "string"
             }

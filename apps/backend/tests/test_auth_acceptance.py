@@ -46,6 +46,9 @@ class CountingOtpProvider:
         self.deliveries += 1
         self.inner.deliver(channel, destination, code)
 
+    def notify_existing_account(self, channel, destination):
+        self.inner.notify_existing_account(channel, destination)
+
 
 def _engine():
     from sqlalchemy.pool import StaticPool
