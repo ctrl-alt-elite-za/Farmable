@@ -1,6 +1,7 @@
 import asyncio
 import sys
 
+from farmable_backend.assistant.retention import RetentionWorker
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
 from farmable_backend.gcs_photos import create_gcs_photos
@@ -23,10 +24,14 @@ async def run() -> None:
     services = None
     weather = None
     weather_task = None
+    retention = None
+    retention_task = None
     try:
         async with app.open_async():
-            if settings.photo_bucket or services_settings.integrations_mode != "disabled":
-                database = Database(settings)
+            # Retention must continue even when generation/providers are disabled.
+            database = Database(settings)
+            retention = RetentionWorker(database.sessions)
+            retention_task = asyncio.create_task(retention.run())
             if database is not None and services_settings.integrations_mode != "disabled":
                 services = ServiceRegistry(services_settings)
                 weather = WeatherWorker(database.sessions, services.open_meteo)
@@ -40,6 +45,8 @@ async def run() -> None:
             photos.stop.set()
         if weather is not None:
             weather.stop.set()
+        if retention is not None:
+            retention.stop.set()
         try:
             if photo_task is not None:
                 await photo_task
@@ -50,10 +57,16 @@ async def run() -> None:
                 if weather_task is not None:
                     await weather_task
             finally:
-                if services is not None:
-                    await services.close()
-                if database is not None:
-                    database.close()
+                try:
+                    if retention_task is not None:
+                        await retention_task
+                finally:
+                    try:
+                        if services is not None:
+                            await services.close()
+                    finally:
+                        if database is not None:
+                            database.close()
 
 
 if __name__ == "__main__":

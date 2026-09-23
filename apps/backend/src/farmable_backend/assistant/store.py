@@ -6,6 +6,7 @@ from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 
 from farmable_backend.assistant.privacy import NOTICE_VERSION, ConsentView
+from farmable_backend.assistant.retention import erase_if_due, visible
 from farmable_backend.assistant.schemas import ConversationView, History, TurnView
 from farmable_backend.models import (
     AssistantBudget,
@@ -27,6 +28,7 @@ def view(turn):
         error=turn.error,
         created_at=utc(turn.created_at),
         deadline=utc(turn.deadline),
+        content_deleted_at=utc(turn.content_deleted_at) if turn.content_deleted_at else None,
         reserved_micro_usd=turn.reserved_micro_usd,
         usage=turn.usage,
     )
@@ -148,6 +150,8 @@ class Store:
             raise ApiError(409, "conversation_conflict") from None
 
     def expire(self, session, record):
+        if erase_if_due(record, db_now(session)):
+            return
         if record.status == "running" and utc(record.deadline) <= db_now(session):
             record.status, record.error = "failed", "turn_expired"
         if record.status == "running" and (
@@ -167,13 +171,13 @@ class Store:
                 if budget is None:
                     raise ApiError(503, "assistant_migration_required")
                 conversation = self.scope(session, auth, conversation_id, lock=True)
-                existing = session.get(AssistantTurn, payload.id)
+                existing = self.locked_turn(session, payload.id)
                 if existing is not None:
                     if existing.conversation_id != conversation_id or existing.owner_id != owner:
                         raise ApiError(409, "turn_conflict")
-                    if existing.message != payload.message:
-                        raise ApiError(409, "turn_conflict")
                     self.expire(session, existing)
+                    if existing.content_deleted_at is None and existing.message != payload.message:
+                        raise ApiError(409, "turn_conflict")
                     return view(existing), False
                 now = db_now(session)
                 model = self.model()
@@ -240,7 +244,7 @@ class Store:
     def get(self, auth, conversation_id, turn_id):
         with self.sessions.begin() as session:
             self.scope(session, auth, conversation_id, lock=True)
-            record = session.get(AssistantTurn, turn_id)
+            record = self.locked_turn(session, turn_id)
             if record is None or record.conversation_id != conversation_id:
                 raise ApiError(404, "not_found")
             self.expire(session, record)
@@ -249,7 +253,9 @@ class Store:
     def history(self, auth, conversation_id, before=None):
         with self.sessions.begin() as session:
             self.scope(session, auth, conversation_id, lock=True)
-            query = select(AssistantTurn).where(AssistantTurn.conversation_id == conversation_id)
+            query = select(AssistantTurn).where(
+                AssistantTurn.conversation_id == conversation_id, *visible(db_now(session))
+            )
             if before is not None:
                 cursor = session.get(AssistantTurn, before)
                 if cursor is None or cursor.conversation_id != conversation_id:
@@ -286,12 +292,12 @@ class Store:
     ):
         with self.sessions.begin() as session:
             self.scope(session, auth, conversation_id, lock=True)
-            record = session.get(AssistantTurn, turn_id)
+            record = self.locked_turn(session, turn_id)
             if record is None or record.conversation_id != conversation_id:
                 raise ApiError(404, "not_found")
             self.expire(session, record)
             # Cancellation wins over late provider callbacks and process restarts.
-            if record.status == "running":
+            if record.status == "running" and record.content_deleted_at is None:
                 if reply is not None:
                     record.reply = reply
                 if tools is not None:
@@ -304,3 +310,14 @@ class Store:
 
     def interrupt(self, auth, conversation_id, turn_id):
         return self.update(auth, conversation_id, turn_id, status="interrupted")
+
+    @staticmethod
+    def locked_turn(session, turn_id):
+        # The purger takes only turn locks. Reload after obtaining the same lock,
+        # so a late provider callback cannot restore erased content from an ORM snapshot.
+        return session.scalar(
+            select(AssistantTurn)
+            .where(AssistantTurn.id == turn_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )

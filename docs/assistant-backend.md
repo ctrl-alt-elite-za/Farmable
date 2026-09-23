@@ -12,16 +12,16 @@ was already present in its base commit; it is not new work delivered by PR #71.
 The following distinguishes implementation from acceptance evidence, addressing
 the scope review on PR #71.
 
-| Requirement                                                           | Evidence in this repository                                                                                                                     | Remaining acceptance                                                                                                                                             |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Per-service adapters, retries and circuit breakers                    | `integrations/registry.py`, individual service modules and `base.py`; `test_integrations.py` checks retry and circuit behavior                  | Real-provider verification; Azure REST request bounds are not the required SDK silence behavior                                                                  |
-| Success/error/slow fakes and staging-only fault flags                 | `integrations/fakes.py`, `settings.py`; parametrized fake, timeout and fault tests in `test_integrations.py`                                    | Recorded real-response comparison and consumer-level degradation checks; current fixtures are synthetic                                                          |
-| Smoke command, crop coverage, credentials/cost/fallback documentation | `integrations/smoke.py`, `make smoke`, `docs/services.md`, `docs/provider-verification.md`                                                      | Authorized real staging runs, account/security settings and crop-coverage evidence; a command existing is not a PASS                                             |
-| Twilio confined to integrations                                       | `integrations/twilio.py`; static source regression in `test_integrations.py` checks SDK imports and literal provider hosts outside the boundary | Continue enforcing this boundary; the check is not a sandbox against dynamically constructed imports/URLs                                                        |
-| Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only tools and assistant regression tests                                                                                  | Production planning, confirmed writes, stale-plan protection and grounded action results                                                                         |
-| Voice and crop diagnosis                                              | Existing provider adapters and separately disabled Live credential endpoint                                                                     | Azure streaming/language rules, sentence TTS and playback interruption, queued farm-scoped diagnosis; Flutter integration remains with its owning issues         |
-| Accounting, evaluation and privacy                                    | Bounded admission reservations, synthetic regressions, owner export/deletion and explicit conversation consent/revocation                       | Actual priced settlement, system-spend acceptance, calibrated/adversarial evaluations, retention policy/enforcement, consent UI and appropriate provider caching |
-| Deployment and full journey                                           | Existing CI checks; no live activation in this PR                                                                                               | Approved configuration, real-provider contracts, physical-device and deployed end-to-end evidence                                                                |
+| Requirement                                                           | Evidence in this repository                                                                                                                     | Remaining acceptance                                                                                                                                                 |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Per-service adapters, retries and circuit breakers                    | `integrations/registry.py`, individual service modules and `base.py`; `test_integrations.py` checks retry and circuit behavior                  | Real-provider verification; Azure REST request bounds are not the required SDK silence behavior                                                                      |
+| Success/error/slow fakes and staging-only fault flags                 | `integrations/fakes.py`, `settings.py`; parametrized fake, timeout and fault tests in `test_integrations.py`                                    | Recorded real-response comparison and consumer-level degradation checks; current fixtures are synthetic                                                              |
+| Smoke command, crop coverage, credentials/cost/fallback documentation | `integrations/smoke.py`, `make smoke`, `docs/services.md`, `docs/provider-verification.md`                                                      | Authorized real staging runs, account/security settings and crop-coverage evidence; a command existing is not a PASS                                                 |
+| Twilio confined to integrations                                       | `integrations/twilio.py`; static source regression in `test_integrations.py` checks SDK imports and literal provider hosts outside the boundary | Continue enforcing this boundary; the check is not a sandbox against dynamically constructed imports/URLs                                                            |
+| Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only tools and assistant regression tests                                                                                  | Production planning, confirmed writes, stale-plan protection and grounded action results                                                                             |
+| Voice and crop diagnosis                                              | Existing provider adapters and separately disabled Live credential endpoint                                                                     | Azure streaming/language rules, sentence TTS and playback interruption, queued farm-scoped diagnosis; Flutter integration remains with its owning issues             |
+| Accounting, evaluation and privacy                                    | Bounded admission reservations, synthetic regressions, owner export/deletion, conversation consent/revocation and 30-day chat-content expiry    | Actual priced settlement, system-spend acceptance, calibrated/adversarial evaluations, provider/backup retention review, consent UI and appropriate provider caching |
+| Deployment and full journey                                           | Existing CI checks; no live activation in this PR                                                                                               | Approved configuration, real-provider contracts, physical-device and deployed end-to-end evidence                                                                    |
 
 Keep #7 open and this PR explicitly partial. Do not substitute the synthetic
 evaluation command, the demo planner or a green CI run for these missing criteria.
@@ -60,7 +60,8 @@ not implied. GET history remains available to its owner after withdrawal.
 
 POST bodies are bounded to 64 KiB before JSON buffering. Unknown request fields
 are rejected. Missing/revoked sessions receive 401; another owner's conversation
-or turn receives 404. A repeated turn UUID with a changed message returns 409.
+or turn receives 404. A repeated turn UUID with a changed message returns 409
+while its content remains; an expired UUID returns only its erased snapshot.
 An admitted turn UUID is never generated again, including after failure or a lost
 response. Retry it to retrieve a snapshot; use a **new** UUID only when the farmer
 explicitly requests a new generation. A running replay finishes with
@@ -142,6 +143,13 @@ permission to any existing user. Receipts join account exports and cascade on
 account deletion. Disable and drain generation before downgrade; removing these
 receipts is lossy. No deployment or migration has been run against live data.
 
+Migration `0012` adds a nullable content-erasure timestamp and cleanup index.
+Apply through `0012` before deploying either the API or worker, including when
+generation is disabled. Existing history uses its original message timestamp;
+there is no fresh 30-day grace period. Downgrading cannot restore erased content.
+The index build and table alteration require migration review; the connection
+timeouts also apply to these operations. Drain workers before downgrading.
+
 The migration scanner cannot see the connection-level timeouts already applied by
 `make_engine(migration=True)` (1-second lock timeout, 5-second statement timeout).
 Its missing-`SET` warnings still require maintainer review and the
@@ -186,14 +194,43 @@ captured here. Provider-side retention is governed separately by the chosen
 provider/account terms; a local deletion does not prove upstream deletion.
 
 Before live enablement, connect the frontend's explicit consent interaction and
-complete the retention policy/enforcement with #9, verify account configuration and model support, review
+review provider/backup retention with #9, verify account configuration and model support, review
 the spending policy, and obtain explicit approval for billable acceptance calls.
 There have been **no live calls** during this implementation.
 
-The current consent notice accurately discloses that automatic retention is not
-yet enabled and local history remains until account deletion. This is not an
-approved production retention policy. A selected duration and its enforcement,
-plus review of provider-account retention terms, remain release requirements.
+### Thirty-day chat retention
+
+Each user message and its associated reply/tool results expire 30 × 24 hours
+after the server accepted that message (`created_at`). Reading, reopening,
+regranting permission or sending a new message never extends older turns.
+History, account exports and new model context exclude expired turns even if
+cleanup is delayed. Individual GET/retry requests return an empty snapshot with
+`content_deleted_at`; an expired ID never triggers another paid generation.
+
+The existing background-worker process erases `message`, `reply` and `tools` in
+batches of 100 using row locks and `SKIP LOCKED`. It checks every 60 seconds when
+idle and every second while a batch is full, including with integrations disabled.
+API reads/updates of individual expired turns also erase their content. Late
+callbacks cannot restore it. Keep the worker running: a stopped/unhealthy worker
+delays physical cleanup, although API access still expires. Monitor worker health
+and the fixed `Assistant retention cleanup unavailable` error; investigate rather
+than treating worker uptime alone as proof that cleanup succeeded.
+
+Content-free turn IDs, ownership links, timestamps, status, model/policy and
+numeric usage/reservations remain for retry safety and accounting until account
+deletion. Conversation containers and consent receipts also remain. This is chat
+**content** retention, not deletion of every account record. Approved planting
+plans are independent records and are not modified by chat cleanup.
+
+Notice `gemini-conversation-v2` describes this policy. Existing v1 grants are
+invalid for new generation and require explicit consent again; no grants are
+silently upgraded. Frontend consent controls remain a separate integration task.
+
+This implementation does not erase provider copies, snapshots, backups or
+previously downloaded exports. Operators must separately establish backup expiry
+and restore procedures: after restoring a database, migrate it and complete the
+cleanup before allowing direct access to restored content. Review the chosen
+Google account's retention terms before making any upstream deletion promise.
 
 Still required for full #7: confirmed production planning actions and stale-plan
 protection; production speech/language handling and TTS cancellation; queued crop

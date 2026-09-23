@@ -26,6 +26,7 @@ from farmable_backend.account_schemas import (
     ProfileResponse,
     ProfileUpdate,
 )
+from farmable_backend.assistant.retention import visible
 from farmable_backend.auth import PASSWORD_HASHER
 from farmable_backend.models import (
     DEFAULT_ACCOUNT_LANGUAGE,
@@ -49,7 +50,7 @@ from farmable_backend.models import (
     User,
     VerificationChallenge,
 )
-from farmable_backend.record_access import ApiError, authenticate
+from farmable_backend.record_access import ApiError, authenticate, db_now
 
 EXPORT_SCHEMA_VERSION = 1
 EXPORT_BASENAME = "farmable-export"
@@ -183,9 +184,10 @@ class AccountService:
                 ("assistant_consents", AssistantConsent),
                 ("assistant_turns", AssistantTurn),
             ):
-                rows = session.scalars(
-                    select(model).where(model.owner_id == owner).order_by(model.id)
-                ).all()
+                query = select(model).where(model.owner_id == owner).order_by(model.id)
+                if model is AssistantTurn:
+                    query = query.where(*visible(db_now(session)))
+                rows = session.scalars(query).all()
                 document[name] = [_row(row) for row in rows]
             return document
 

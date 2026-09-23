@@ -34,6 +34,7 @@ class TurnView(StrictModel):
     error: str | None
     created_at: datetime
     deadline: datetime
+    content_deleted_at: datetime | None
     # Admission reservation, NOT a claim about the provider's invoice.
     reserved_micro_usd: int
     usage: list[dict[str, int]]

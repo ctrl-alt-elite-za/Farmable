@@ -277,6 +277,7 @@ class AssistantTurn(Base):
         CheckConstraint(column("reserved_micro_usd") >= 0, name="ck_assistant_turn_reservation"),
         Index("ix_assistant_turns_history", "conversation_id", "created_at", "id"),
         Index("ix_assistant_turns_owner_created", "owner_id", "created_at"),
+        Index("ix_assistant_turns_retention", "content_deleted_at", "created_at", "id"),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
     conversation_id: Mapped[UUID] = mapped_column(Uuid)
@@ -292,6 +293,7 @@ class AssistantTurn(Base):
     reserved_micro_usd: Mapped[int] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    content_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AssistantBudget(Base):

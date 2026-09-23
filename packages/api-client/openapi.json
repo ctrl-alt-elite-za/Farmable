@@ -221,7 +221,7 @@
             "type": "string"
           },
           "notice_version": {
-            "const": "gemini-conversation-v1",
+            "const": "gemini-conversation-v2",
             "title": "Notice Version",
             "type": "string"
           }
@@ -254,12 +254,12 @@
             "type": "string"
           },
           "notice": {
-            "default": "Allow this conversation's messages, recent replies and requested farm-section and crop-outlook data to be sent to Google Gemini to generate answers. Farmable stores conversation history until you delete your account; a separate automatic retention policy is not yet enabled. Provider retention depends on the operator's Google account terms. Withdrawing permission stops further generation but cannot recall data already sent or erase provider copies. Do not include sensitive personal information in messages.",
+            "default": "Allow this conversation's messages, recent replies and requested farm-section and crop-outlook data to be sent to Google Gemini to generate answers. Each message and its reply expire from Farmable history after 30 days from sending the message. Reopening a conversation does not extend this period. Background cleanup erases expired chat content; content-free usage and retry records remain. Saved planting plans are separate and are not erased by this policy. Provider retention depends on the operator's Google account terms. Withdrawing permission stops further generation but cannot recall data already sent or erase provider copies. Do not include sensitive personal information in messages.",
             "title": "Notice",
             "type": "string"
           },
           "notice_version": {
-            "default": "gemini-conversation-v1",
+            "default": "gemini-conversation-v2",
             "title": "Notice Version",
             "type": "string"
           },
@@ -2975,6 +2975,18 @@
       "TurnView": {
         "additionalProperties": false,
         "properties": {
+          "content_deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Deleted At"
+          },
           "conversation_id": {
             "format": "uuid",
             "title": "Conversation Id",
@@ -3052,6 +3064,7 @@
           "error",
           "created_at",
           "deadline",
+          "content_deleted_at",
           "reserved_micro_usd",
           "usage"
         ],

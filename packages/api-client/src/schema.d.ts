@@ -969,7 +969,7 @@ export interface components {
        * Notice Version
        * @constant
        */
-      notice_version: 'gemini-conversation-v1';
+      notice_version: 'gemini-conversation-v2';
     };
     /** ConsentView */
     ConsentView: {
@@ -981,12 +981,12 @@ export interface components {
       model: string;
       /**
        * Notice
-       * @default Allow this conversation's messages, recent replies and requested farm-section and crop-outlook data to be sent to Google Gemini to generate answers. Farmable stores conversation history until you delete your account; a separate automatic retention policy is not yet enabled. Provider retention depends on the operator's Google account terms. Withdrawing permission stops further generation but cannot recall data already sent or erase provider copies. Do not include sensitive personal information in messages.
+       * @default Allow this conversation's messages, recent replies and requested farm-section and crop-outlook data to be sent to Google Gemini to generate answers. Each message and its reply expire from Farmable history after 30 days from sending the message. Reopening a conversation does not extend this period. Background cleanup erases expired chat content; content-free usage and retry records remain. Saved planting plans are separate and are not erased by this policy. Provider retention depends on the operator's Google account terms. Withdrawing permission stops further generation but cannot recall data already sent or erase provider copies. Do not include sensitive personal information in messages.
        */
       notice: string;
       /**
        * Notice Version
-       * @default gemini-conversation-v1
+       * @default gemini-conversation-v2
        */
       notice_version: string;
       /**
@@ -2395,6 +2395,8 @@ export interface components {
     };
     /** TurnView */
     TurnView: {
+      /** Content Deleted At */
+      content_deleted_at: string | null;
       /**
        * Conversation Id
        * Format: uuid

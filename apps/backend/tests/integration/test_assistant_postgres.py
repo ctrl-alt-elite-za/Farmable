@@ -1,12 +1,14 @@
 """Real PostgreSQL locking: no double admission or global budget overspend."""
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from threading import Barrier
 from uuid import uuid4
 
 import pytest
+from farmable_backend.assistant import retention
 from farmable_backend.assistant.privacy import NOTICE_VERSION, ConsentGrant
+from farmable_backend.assistant.retention import purge_batch
 from farmable_backend.assistant.schemas import ConversationCreate, TurnCreate
 from farmable_backend.assistant.settings import AssistantSettings
 from farmable_backend.assistant.store import Store
@@ -17,9 +19,73 @@ from farmable_backend.models import AssistantBudget, AssistantTurn, User
 from farmable_backend.record_access import ApiError
 from sqlalchemy import delete, event, func, select
 from sqlalchemy.orm import sessionmaker
-from test_assistant import seed
+from test_assistant import policy, seed
 
 pytestmark = pytest.mark.integration
+
+
+def test_retention_skips_locked_turns_and_fences_late_updates(monkeypatch):
+    engine = make_engine(Settings())
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    owner = seed(sessions)
+    store = Store(sessions, policy(), ServiceSettings(environment="ci", integrations_mode="fake"))
+    conversation = store.create(owner.auth, ConversationCreate(id=uuid4(), farm_id=owner.farm))
+    identifier = uuid4()
+    created = datetime.now(UTC)
+    # Advance only this test's purger clock. The stack's live worker must not
+    # race to erase the fixture before the locking assertions run.
+    monkeypatch.setattr(retention, "db_now", lambda _: created + timedelta(days=31))
+    try:
+        with sessions.begin() as session:
+            session.add(
+                AssistantTurn(
+                    id=identifier,
+                    conversation_id=conversation.id,
+                    owner_id=owner.owner,
+                    created_at=created,
+                    deadline=created + timedelta(seconds=90),
+                    status="running",
+                    message="private",
+                    reply="partial",
+                    tools=[{"result": "private"}],
+                    usage=[],
+                    model="fixture-model",
+                    policy="fixture",
+                    reserved_micro_usd=10,
+                )
+            )
+        with sessions.begin() as locked:
+            record = locked.scalar(
+                select(AssistantTurn)
+                .where(
+                    AssistantTurn.id == identifier,
+                )
+                .with_for_update()
+            )
+            # A second connection must skip this row, not block or erase active writes.
+            assert purge_batch(sessions) == 0
+            assert record.content_deleted_at is None
+        with sessions.begin() as stale:
+            cached = stale.get(AssistantTurn, identifier)
+            assert cached.message == "private"
+            assert purge_batch(sessions) == 1
+            refreshed = store.locked_turn(stale, identifier)
+            assert refreshed is cached and refreshed.message == ""
+            assert refreshed.content_deleted_at is not None
+        result = store.update(
+            owner.auth,
+            conversation.id,
+            identifier,
+            reply="late",
+            tools=[{"result": "late"}],
+            status="completed",
+        )
+        assert result.message == "" and result.reply == "" and result.tools == []
+        assert result.status == "failed" and result.reserved_micro_usd == 10
+    finally:
+        with sessions.begin() as session:
+            session.execute(delete(User).where(User.id == owner.owner))
+        engine.dispose()
 
 
 def test_migration_connection_applies_timeouts_on_postgres():
