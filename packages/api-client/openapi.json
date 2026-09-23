@@ -1883,16 +1883,9 @@
         ],
         "properties": {
           "expected_version": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expected Version"
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
           },
           "mutation_id": {
             "format": "uuid",
@@ -1900,7 +1893,7 @@
             "type": "string"
           }
         },
-        "required": ["mutation_id"],
+        "required": ["mutation_id", "expected_version"],
         "title": "RecordDelete",
         "type": "object"
       },

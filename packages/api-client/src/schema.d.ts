@@ -1685,7 +1685,7 @@ export interface components {
      */
     RecordDelete: {
       /** Expected Version */
-      expected_version?: number | null;
+      expected_version: number;
       /**
        * Mutation Id
        * Format: uuid
