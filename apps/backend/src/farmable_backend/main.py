@@ -28,6 +28,10 @@ from farmable_backend.config import Settings
 from farmable_backend.database import Database
 from farmable_backend.forecast_api import router as forecast_router
 from farmable_backend.gcs_photos import create_gcs_photos
+from farmable_backend.idempotency import IdempotencyConflict
+from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
+from farmable_backend.idempotency import replay as idempotency_replay
+from farmable_backend.idempotency import store as idempotency_store
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
@@ -194,6 +198,7 @@ def create_app(
             "sms_ip_rate_limited": "Please wait before requesting another code",
             "daily_sms_cap": "Please try again later",
             "login_rate_limited": "Please wait before trying again",
+            "idempotency_key_conflict": "This Idempotency-Key was already used with a different request",
         }
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
         return error_response(
@@ -210,6 +215,40 @@ def create_app(
         # Single API process; no trusted forwarding headers (see RateLimiter).
         return request.client.host if request.client else "unknown"
 
+    async def idempotent_replay(request: Request, route: str, body: dict) -> tuple[int, dict] | None:
+        # Only enforced against a real DB-backed AuthService (has .sessions);
+        # test doubles without persistence (InMemoryAuthService, etc.) can't
+        # meaningfully dedupe and are left alone.
+        key = request.headers.get("Idempotency-Key")
+        sessions = getattr(auth(request), "sessions", None)
+        if not key or sessions is None:
+            return None
+        fp = idempotency_fingerprint(body)
+        try:
+            return await run_in_threadpool(
+                idempotency_replay, sessions, route=route, key=key, request_fingerprint=fp
+            )
+        except IdempotencyConflict:
+            raise AuthError("idempotency_key_conflict", 409) from None
+
+    async def idempotent_store(
+        request: Request, route: str, body: dict, status_code: int, response: dict
+    ) -> None:
+        key = request.headers.get("Idempotency-Key")
+        sessions = getattr(auth(request), "sessions", None)
+        if not key or sessions is None:
+            return
+        fp = idempotency_fingerprint(body)
+        await run_in_threadpool(
+            idempotency_store,
+            sessions,
+            route=route,
+            key=key,
+            request_fingerprint=fp,
+            status_code=status_code,
+            body=response,
+        )
+
     async def require_turnstile(request: Request, token: str, action: str) -> None:
         # Verified before password hashing, user lookup/mutation, or OTP
         # dispatch. Any non-ok result (rejected, timeout, unavailable,
@@ -225,6 +264,11 @@ def create_app(
     @app.post("/auth/signup", response_model=AuthProgressResponse, operation_id="authSignup")
     async def signup(request: Request, payload: SignUpRequest) -> AuthProgressResponse:
         await require_turnstile(request, payload.turnstile_token, "sign_up")
+        body = payload.model_dump(mode="json")
+        replayed = await idempotent_replay(request, "auth_signup", body)
+        if replayed is not None:
+            _status, response_body = replayed
+            return AuthProgressResponse(**response_body)
         user = await call_auth(
             auth(request).signup,
             payload.first_name,
@@ -234,7 +278,9 @@ def create_app(
             payload.password,
             ip=client_ip(request),
         )
-        return AuthProgressResponse(user_id=user.id, next_step="phone")
+        response = AuthProgressResponse(user_id=user.id, next_step="phone")
+        await idempotent_store(request, "auth_signup", body, 200, response.model_dump(mode="json"))
+        return response
 
     @app.post(
         "/auth/verify/phone", response_model=AuthProgressResponse, operation_id="authVerifyPhone"
@@ -252,9 +298,14 @@ def create_app(
 
     @app.post("/auth/otp/resend", status_code=204, operation_id="authResendOtp")
     async def resend_otp(request: Request, payload: ResendOtpRequest) -> None:
+        body = payload.model_dump(mode="json")
+        replayed = await idempotent_replay(request, "auth_otp_resend", body)
+        if replayed is not None:
+            return
         await call_auth(
             auth(request).resend, payload.user_id, Channel(payload.channel), ip=client_ip(request)
         )
+        await idempotent_store(request, "auth_otp_resend", body, 204, {})
 
     @app.post("/auth/login", response_model=SessionResponse, operation_id="authLogin")
     async def login(request: Request, payload: LoginRequest) -> SessionResponse:

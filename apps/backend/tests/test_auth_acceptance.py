@@ -256,6 +256,40 @@ def test_unverified_user_blocked(settings):
         assert blocked.status_code == 401
 
 
+def test_idempotency_key_replays_the_original_signup_response(settings):
+    app, _, provider, sessions = _app(settings)
+    with TestClient(app) as client:
+        headers = {"Idempotency-Key": "signup-key-1"}
+        first = client.post("/auth/signup", json=_signup_body(), headers=headers)
+        second = client.post("/auth/signup", json=_signup_body(), headers=headers)
+        assert first.status_code == second.status_code == 200
+        assert first.json() == second.json()
+    assert provider.deliveries == 1  # only the first request actually sent an OTP
+    with sessions() as session:
+        assert len(session.scalars(select(AuthIdentity)).all()) == 1  # no second account
+
+
+def test_idempotency_key_reuse_with_different_payload_is_rejected(settings):
+    app, _, _, _ = _app(settings)
+    with TestClient(app) as client:
+        headers = {"Idempotency-Key": "signup-key-2"}
+        first = client.post("/auth/signup", json=_signup_body(), headers=headers)
+        assert first.status_code == 200
+        conflict = client.post(
+            "/auth/signup", json=_signup_body(phone="+27820000002"), headers=headers
+        )
+        assert conflict.status_code == 409
+        assert conflict.json()["error"]["code"] == "idempotency_key_conflict"
+
+
+# Concurrent-replay safety (same idempotency key, true parallel requests) is
+# not testable against SQLite here — its single shared connection under real
+# thread concurrency surfaces as request-level 500s rather than clean
+# serialization, which would make this test assert the wrong thing. NOT YET
+# COVERED: this needs a PostgreSQL-backed concurrency test (none exists yet)
+# — tracked as an open gap, see ISSUE_9_ACCEPTANCE_MATRIX.md.
+
+
 def test_turnstile_down_refuses(settings):
     engine = _engine()
     sessions = sessionmaker(engine, expire_on_commit=False)

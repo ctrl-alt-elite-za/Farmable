@@ -127,11 +127,10 @@ def test_auth_concurrent_signup_returns_conflict_without_orphans(engine, monkeyp
     try:
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = list(executor.map(signup, range(2)))
-        successes = [result for result in results if isinstance(result, AuthUser)]
-        failures = [result for result in results if isinstance(result, AuthError)]
-        assert len(successes) == len(failures) == 1
-        assert failures[0].code == "account_exists"
-        assert failures[0].status_code == 409
+        # #9 enumeration resistance: the losing signup no longer raises
+        # account_exists — it gets the same public shape as a genuine
+        # sign-up, just with a fabricated id and no account/OTP of its own.
+        assert all(isinstance(result, AuthUser) for result in results)
         assert len(deliveries) == 1
         assert len(set(created_ids)) == 2  # Even the losing user INSERT occurred.
         with Session(engine) as session:
