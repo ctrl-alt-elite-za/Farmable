@@ -9,6 +9,7 @@ import json
 import random
 from collections import defaultdict
 from dataclasses import asdict, dataclass
+from datetime import date
 from decimal import ROUND_HALF_EVEN, Decimal
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,10 @@ from farmable_ml.decision import Decision
 from farmable_ml.forecast import quantile
 
 D = Decimal
+HISTORICAL_MONTHS = tuple(
+    date(year, month, 1) for year in range(2012, 2025) for month in range(1, 13)
+)
+HISTORICAL_KEYS = frozenset((month, crop) for month in HISTORICAL_MONTHS for crop in Crop)
 CAVEATS = [
     "Simulated decisions are not observed farmer incomes.",
     "Guideline yields and Western Cape budgets are assumptions.",
@@ -126,14 +131,34 @@ def build_report(
     ordered = tuple(sorted(rows, key=lambda row: (row.origin, row.default)))
     if len({(row.origin, row.default) for row in ordered}) != len(ordered):
         raise ValueError("duplicate default/planting-month decisions")
+    keys = {(row.origin, row.default) for row in ordered}
+    if data_kind == "historical":
+        unexpected = keys - HISTORICAL_KEYS
+        missing = HISTORICAL_KEYS - keys
+        if unexpected or missing:
+            raise ValueError(
+                "insufficient historical coverage: expected every default/planting-month "
+                f"key from 2012-01 through 2024-12; {len(missing)} missing, "
+                f"{len(unexpected)} out-of-period keys"
+            )
+    months = sorted({row.origin for row in ordered})
+    coverage = {
+        "data_kind": data_kind,
+        "start_month": months[0].strftime("%Y-%m") if months else None,
+        "end_month": months[-1].strftime("%Y-%m") if months else None,
+        "observed_months": len(months),
+        "decision_keys": len(keys),
+        "complete_historical_grid": keys == HISTORICAL_KEYS,
+    }
     report = {
         crop.value: metrics(tuple(row for row in ordered if row.default == crop), config)
         for crop in Crop
     }
     report["pooled"] = metrics(ordered, config)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "data_kind": data_kind,
+        "coverage": coverage,
         "currency": "ZAR",
         "price_basis_year": 2025,
         "unit": "ZAR/ha/month",
@@ -153,10 +178,12 @@ def display(value: Decimal | None, *, percent: bool = False) -> str:
 
 
 def render_table(report: dict[str, Any]) -> str:
+    period = _report_period(report)
     lines = [
         "# Decision backtest",
         "",
         f"Data kind: **{report['data_kind']}**.",
+        f"Ledger coverage: {period} (bounds; synthetic months may be sparse).",
         "",
         "Amounts: 2025 ZAR per hectare per occupied month. Rates are percentages.",
         "",
@@ -192,7 +219,27 @@ def render_table(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _report_period(report: dict[str, Any]) -> str:
+    """Fail closed for legacy summaries lacking validated ledger coverage."""
+    coverage = report.get("coverage")
+    kind = report.get("data_kind")
+    if not coverage or kind not in {"synthetic", "historical"} or coverage["data_kind"] != kind:
+        raise ValueError("report requires validated ledger coverage and matching data kind")
+    if kind == "historical" and (
+        not coverage["complete_historical_grid"]
+        or coverage["start_month"] != HISTORICAL_MONTHS[0].strftime("%Y-%m")
+        or coverage["end_month"] != HISTORICAL_MONTHS[-1].strftime("%Y-%m")
+        or coverage["observed_months"] != len(HISTORICAL_MONTHS)
+        or coverage["decision_keys"] != len(HISTORICAL_KEYS)
+    ):
+        raise ValueError("insufficient historical coverage")
+    if coverage["start_month"] is None:
+        return "no planting months"
+    return f"{coverage['start_month']}–{coverage['end_month']}"
+
+
 def render_sentence(report: dict[str, Any]) -> str:
+    period = _report_period(report)
     pooled = report["results"]["pooled"]
     rates = [report["results"][crop.value]["switch_win_rate"] for crop in Crop]
     if pooled["median_gain_rand"] is None or any(rate is None for rate in rates):
@@ -204,7 +251,7 @@ def render_sentence(report: dict[str, Any]) -> str:
     )
     return (
         prefix + f"In a historical simulation of {pooled['decisions']} planting decisions "
-        "(2012–2024), using only data available at planting time, when Farmable recommended "
+        f"({period}), using only data available at planting time, when Farmable recommended "
         "switching away from a farmer's usual crop, the switch earned more profit "
         f"{display(pooled['switch_win_rate'], percent=True)}% of the time, with a median "
         f"increase of R {display(pooled['median_gain_rand'])} per hectare per month "

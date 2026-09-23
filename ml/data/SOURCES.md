@@ -32,7 +32,8 @@
   attributed here; no claim of an identified redistribution licence is made.
 - This is a **current-vintage reporting snapshot**, not archived releases known
   to a farmer in 2012. Do not feed its 2025 base or later revisions into historical
-  recommendation ranking. The strict historical cost/CPI policy remains open.
+  recommendation ranking. The user selected strict historical vintages; see
+  `../backtest/INFORMATION_POLICY.md`. Source release evidence remains open.
 
 ## Prices, costs and calendars
 
@@ -58,3 +59,45 @@ gross-margin replay. In particular, the processing-tomato budget must remain
 separate from a fresh-market tomato assumption.
 
 No real crop-switching profit outcome has been computed.
+
+### Follow-up: original workbook inspection
+
+Original files for every year 2008–2024 were downloaded on 23 September 2026
+from the archive above. `market_workbook_audit.json` records their direct URLs,
+original filenames, byte lengths, SHA-256 hashes, sheet and price-row locators,
+and per-crop valid/missing/inconsistent month lists. It supersedes the earlier
+statement that workbook contents had not been inspected.
+
+All seventeen `T6 JHB` sheets have monthly Johannesburg mass (T), sales value (R)
+and average price (R/T). The audit verifies the January–December header, exact
+product aliases and positive numeric mass/value/price cells. For each accepted
+month, reported R/T agrees with sales value divided by tonnes to tolerance
+`max(0.01 R/T, 1e-6 relative)`. Convert R/T to R/kg by dividing by 1,000; do not
+average annual prices into months. Current and prior-year totals are excluded.
+The 2020/2021 product labels are on mass rows; other inspected years use value rows.
+Blank, nonpositive, nonnumeric or inconsistent cells would be flagged, not imputed.
+
+These are current downloaded workbook versions. Original release dates and
+revision histories remain unknown (`available_on: null`); monthly observation
+labels cannot establish when those values became public. No redistribution
+licence has been verified. Original workbooks remain in ignored local scratch
+storage; the committed audit contains provenance/coverage metadata, not prices.
+FAOSTAT stays a distinct farm-gate source and is not substituted.
+
+To reproduce, download each audit entry's URL under its original `filename` in a
+local directory, copy the audit JSON there, and run:
+
+```text
+uv run --with xlrd==2.0.2 --with openpyxl==3.1.5 python scripts/audit_issue20_market_workbooks.py PATH/market_workbook_audit.json --output PATH/rechecked.json
+```
+
+The readers are temporary audit dependencies, not model/runtime dependencies.
+Hashes must match before parsing. This command does not import data or run models.
+
+### Follow-up: original budget inspection
+
+The eight 2025 Elsenburg PDFs and an older cabbage PDF were also downloaded and
+their text inspected on 23 September 2026. `budget_source_audit.json` records
+original-byte hashes and URLs. `BUDGET_REVIEW.md` records extracted dates,
+regions, units, subtotals and explicit unresolved issues. This supersedes the
+earlier download limitation; it does not approve modern costs for historical use.

@@ -1,0 +1,1179 @@
+{
+  "parser_version": 1,
+  "status": "not_approved_for_historical_features",
+  "sources": [
+    {
+      "year": "2008",
+      "filename": "statistics-on-fresh-produce-markets-2008-ms-excel.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2008-ms-excel.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "e811a155aa457fbecd5d7e76dc6a5edfd19908b4272b2e525e6512f124f438f0",
+      "bytes": 2144768,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2009",
+      "filename": "statistics-on-fresh-produce-markets-2009-ms-excel.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2009-ms-excel.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "5ac5d44fda3244454ca1082359c13ca708bde7785f173d259b68b13a4a605f3b",
+      "bytes": 2239488,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2010",
+      "filename": "statistics-on-fresh-produce-markets-2010-ms-excel.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2010-ms-excel.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "ff6ce2e0943a018b0f7448d1f57ee1a92bfec84bc161b382fbb6e6631e2e20e5",
+      "bytes": 2466816,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2011",
+      "filename": "statistics-on-fresh-produce-markets-2011-ms-excel.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2011-ms-excel.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "9a5448b48781de24ed21951cb4219663566b739033ad77efa289af81d675ace4",
+      "bytes": 2908672,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2012",
+      "filename": "statistics-on-fresh-produce-markets-2012-ms-excel.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2012-ms-excel.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "92814310dd2a140042c262d93659953c050b9c070881ccdcbb297371d711c5ff",
+      "bytes": 2957312,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2013",
+      "filename": "statistics-on-fresh-produce-markets-2013.xlsx",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2013.xlsx",
+      "retrieved_on": "2026-09-23",
+      "sha256": "84b842196d7e43eab0da025957ceaa288154e718c79cf13ecd2c8465159f8334",
+      "bytes": 1140593,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2014",
+      "filename": "statistics-on-fresh-produce-markets-2014.xlsx",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2014.xlsx",
+      "retrieved_on": "2026-09-23",
+      "sha256": "a66e4ab76bba14d21f867c10bd75f43763e842dc1046d8f49d46952da96c67ac",
+      "bytes": 1010615,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2015",
+      "filename": "statistics-on-fresh-produce-markets-2015-ms-excel.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2015-ms-excel.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "3fc3912a8d0c73c6e20022a9b01d3108a013413adcf67c2a754db5d344f8a0cd",
+      "bytes": 2200576,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2016",
+      "filename": "statistics-on-fresh-produce-markets-2016-ms-excel.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2016-ms-excel.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "06718acbf883fab6f0cb27f312457cc0607781fc4f1586517e4c2519cf8f01ab",
+      "bytes": 2733568,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2017",
+      "filename": "statistics-on-fresh-produce-markets-2017-ms-excel.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2017-ms-excel.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "8892faebec9a96b66a06691ba73e5317a1af2218ff274441ea966101c29a176e",
+      "bytes": 2507264,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2018",
+      "filename": "statistics-on-fresh-produce-markets-2018-ms-excel-final-for-the-web.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2018-ms-excel-final-for-the-web.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "39c61010120392ad97bdc818e517b87b33b86ed2fab0f1f9639e1edc27157b84",
+      "bytes": 6534656,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2019",
+      "filename": "statistics-on-fresh-produce-markets-2019.xls",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2019.xls",
+      "retrieved_on": "2026-09-23",
+      "sha256": "26e3ce6749f04db4f7ed8d4356c3c0faee8ffba54f6fb59e10d7f1f5d615bf36",
+      "bytes": 1706496,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 142,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 70,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 46,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 106,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 22,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 10,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 94,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 174,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2020",
+      "filename": "statistics-on-fresh-produce-markets-2020.xlsx",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2020.xlsx",
+      "retrieved_on": "2026-09-23",
+      "sha256": "fcfadd459775233adb5ae647b8efd360446c147842d147948e63a5be411a0609",
+      "bytes": 1360161,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 140,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 68,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 44,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 104,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 20,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 8,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 92,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 172,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2021",
+      "filename": "statistics-on-fresh-produce-markets-2021.xlsx",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2021.xlsx",
+      "retrieved_on": "2026-09-23",
+      "sha256": "e102f77a1ea0b7e180471a7a1a492c8cf38a4e5a0a042f26cfb8339c54df2fbf",
+      "bytes": 1324421,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 140,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 68,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 44,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 104,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 20,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 8,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 92,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 172,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2022",
+      "filename": "statistics-on-fresh-produce-markets-2022.xlsx",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2022.xlsx",
+      "retrieved_on": "2026-09-23",
+      "sha256": "119d89c2882b3a2971a4de23741fdbe6b0cb35e4360bb66541188cafa91d7e99",
+      "bytes": 1253496,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 140,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 68,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 44,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 104,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 20,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 8,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 92,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 172,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2023",
+      "filename": "statistics-on-fresh-produce-markets-2023.xlsx",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2023.xlsx",
+      "retrieved_on": "2026-09-23",
+      "sha256": "2e4f4e0a2d534452da0c5b95e7be2daefdf6d033fb9e607a7faca4bb92db97bd",
+      "bytes": 1333556,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 140,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 68,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 44,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 104,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 20,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 8,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 92,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 172,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "year": "2024",
+      "filename": "statistics-on-fresh-produce-markets-2024.xlsx",
+      "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/statistics-on-fresh-produce-markets-2024.xlsx",
+      "retrieved_on": "2026-09-23",
+      "sha256": "3a1d8fd63fb1b9876b4b72c7056e0677b02a59262f012fc2c7d26d8689645b26",
+      "bytes": 1634304,
+      "sheet": "T6 JHB",
+      "crops": {
+        "butternut": {
+          "source_label": "BUTTERNUT SQUASHES",
+          "price_row": 141,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "cabbage": {
+          "source_label": "CABBAGE",
+          "price_row": 69,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "carrots": {
+          "source_label": "CARROTS",
+          "price_row": 45,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "green_beans": {
+          "source_label": "GREEN BEANS",
+          "price_row": 105,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "onions": {
+          "source_label": "ONIONS",
+          "price_row": 21,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "potatoes": {
+          "source_label": "POTATOES",
+          "price_row": 9,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "spinach": {
+          "source_label": "SPINACH",
+          "price_row": 93,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        },
+        "tomatoes": {
+          "source_label": "TOMATOES",
+          "price_row": 173,
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          "missing_or_nonpositive_months": [],
+          "inconsistent_price_months": []
+        }
+      },
+      "available_on": null,
+      "redistribution_status": "unverified"
+    }
+  ]
+}

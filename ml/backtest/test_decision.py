@@ -79,3 +79,36 @@ def test_negative_margins_and_ties_use_fixed_alphabetical_rule():
     choice = recommend(values, eligible=frozenset((Crop.CABBAGE, Crop.CARROTS)))
     assert choice.selected == Crop.CABBAGE
     assert all(value.predicted_margin() < 0 for value in values)
+
+
+def test_future_cpi_deflation_of_modern_costs_can_reverse_the_winner():
+    # R04 counterexample: future CPI changes costs, not a common net-margin scale.
+    def margins(future_cpi):
+        return (D(100) - D(120) * 100 / future_cpi, D(70) - D(40) * 100 / future_cpi)
+
+    assert margins(D(200)) == (D(40), D(50))
+    assert margins(D(400)) == (D(70), D(60))
+
+
+@pytest.mark.parametrize("multiplier", [D("0.5"), D(2), D(100)])
+def test_reporting_cpi_changes_scores_without_changing_frozen_recommendation(multiplier):
+    values = candidates("1")
+    eligible = frozenset(value.forecast.crop for value in values)
+    choice = recommend(values, eligible=eligible)
+    keys = [(value.forecast.crop, value.forecast.target) for value in values]
+    scored = score_recommendation(
+        choice,
+        default=Crop.CABBAGE,
+        actual_prices=dict.fromkeys(keys, D(15)),
+        reporting_multipliers=dict.fromkeys(keys, multiplier),
+    )
+    assert scored.recommended == choice.selected == Crop.CARROTS
+    assert scored.default_margin == D(650) * multiplier
+    assert recommend(values, eligible=eligible) == choice
+
+
+@pytest.mark.parametrize("available_on", [date(2012, 1, 1), date(2025, 1, 1)])
+@pytest.mark.parametrize("cost", [D(1), D(999999)])
+def test_future_cost_vintage_is_rejected_regardless_of_its_value(available_on, cost):
+    with pytest.raises(ValueError, match="before planting"):
+        replace(candidates("1")[0], available_on=available_on, cost_rand_per_ha=cost)
