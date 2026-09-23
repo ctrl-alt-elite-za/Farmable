@@ -51,6 +51,14 @@ in the caller-supplied consistent price basis and do not pretend their nominal
 inputs have been converted to 2025 rand. Do not infer full no-look-ahead acceptance
 from a synthetic price-only mutation test.
 
+The 23 September source check found annual Department of Agriculture fresh-produce
+workbook links for 2012–2024, but did not verify monthly Johannesburg rows or their
+availability metadata. The 2025 Elsenburg budget links also remain unverified at
+component level. Consequently, dated cost budgets plus the currently available
+monthly Joburg evidence do **not** support an honest historical decision backtest;
+the result remains blocked until workbook contents, budget assumptions and the
+fixed-cost versus historical-information policy are resolved.
+
 ## Dependencies and next work
 
 Remote main was inspected read-only at

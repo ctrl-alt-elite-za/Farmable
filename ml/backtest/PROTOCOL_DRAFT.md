@@ -1,5 +1,12 @@
 # Issue #20 protocol proposal — not registered
 
+**Evidence checkpoint:** 23 September 2026. The strict historical-information
+requirement remains in force. The currently staged inputs do not support a real
+backtest: the Joburg source contains only recent daily observations, FAOSTAT is a
+distinct farm-gate series, and the official annual workbook links and 2025 budget
+PDF links have not yet been verified at row/component level. Do not run or publish
+decision outcomes until those checks and the cost-information policy are resolved.
+
 This is a review draft, **not `PROTOCOL.md`**. It cannot pass the history gate and
 must not authorize a real-data backtest. A finalized protocol must merge in its
 own PR before any real decision evaluation. No results have been examined here.
@@ -57,14 +64,19 @@ information available strictly before the beginning of the planting month.
 ## Decisions required before registration
 
 1. **Price source and coverage:** verify historical monthly Joburg prices, training
-   history and post-2024 harvest coverage for all eight exact crops. Inspect original
-   workbook contents and availability lags; scrape dates alone are insufficient.
+  history and post-2024 harvest coverage for all eight exact crops. The Department
+  archive currently proves only that annual candidate workbooks are linked for
+  2012–2024; inspect original workbook contents, aggregation, units and
+  availability lags. Scrape dates and archive links alone are insufficient.
 2. **Cost/CPI information policy:** fixed 2025 costs and future CPI can change
    historical recommendations. Choose historical cost vintages for a strict
    information claim, or obtain an explicit issue amendment for a fixed modern-cost
    scenario. The current issue's literal wording must not silently be weakened.
 3. **Calendar and budgets:** source region, planting windows, harvest offsets,
    occupied duration, yield midpoint and cost subtotal/VAT/marketing treatment.
+   The 2025 Elsenburg PDFs are dated leads, not verified historical cost inputs;
+   inspect their components before deciding whether the experiment is a fixed
+   modern-cost scenario or can make a strict information-availability claim.
 4. **Selection:** settle baseline eligibility, horizon pooling, failure coverage,
    training minimums and availability rules from source inventory.
 5. **Publication:** verify that the exact issue sentence's planting-time claim is

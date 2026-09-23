@@ -41,4 +41,20 @@ dataset, verified cost CSV or verified regional calendar is supplied by this
 change. FAOSTAT producer prices and combined commodities must not silently
 substitute for the issue's required market/crop series.
 
+### 23 September 2026 source check
+
+The official Department of Agriculture [fresh-produce archive](https://www.nda.gov.za/index.php/publication/336-fresh-produce)
+exposes annual workbook links for 2012 through 2024. This confirms a plausible
+source family, but not the required contents: no workbook was accepted as a
+canonical input until its sheets prove monthly Johannesburg/product rows, units,
+aggregation rules and publication availability. The archive therefore does not
+yet support a strict 2012–2024 information-available backtest.
+
+The dated 2025 Elsenburg budget PDFs listed in the research notes remain candidate
+cost sources. Their PDF text could not be inspected in this environment, so no
+claim is made about region, production period, yield, VAT, marketing costs or the
+appropriate subtotal. They cannot yet be joined to Joburg prices for a defensible
+gross-margin replay. In particular, the processing-tomato budget must remain
+separate from a fresh-market tomato assumption.
+
 No real crop-switching profit outcome has been computed.

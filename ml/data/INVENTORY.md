@@ -1,5 +1,12 @@
 # Issue #20 staged data inventory
 
+**Checkpoint:** 23 September 2026. The official Department of Agriculture archive
+was inspected as a source lead. It publishes annual fresh-produce workbook links
+for 2012 through 2024, but the archive page does not establish that each workbook
+contains monthly Johannesburg rows for the eight required crops. Workbook-level
+inspection remains required; the links alone do not clear the historical-price
+blocker.
+
 This document is generated from the existing Git ref `origin/issue-20-reference-data`.
 It records what is actually staged and the limits that must be resolved before a
 real forecast or decision backtest. It does not copy source data or claim that a
@@ -31,14 +38,19 @@ The staged ref is commit `69ff3904dd308f385b9d0b4115fac2cac92429c15`.
 
 ## Required blockers before real results
 
-1. Inspect the official Department of Agriculture annual fresh-produce workbooks for
-   2012–2024 and prove that Joburg/product/month rows exist. The staged scraper cannot
-   satisfy the required backtest period.
+1. Download and inspect the official Department of Agriculture annual fresh-produce
+   workbooks for 2012–2024 and prove that Joburg/product/month rows exist, with
+   units, aggregation definitions and publication/availability metadata. The archive
+   links are evidence that candidate files exist, not evidence that they satisfy the
+   required backtest period. The staged scraper cannot satisfy that period.
 2. Decide whether FAOSTAT producer prices are an explicitly labelled substitute for
    Joburg wholesale prices. Do not silently merge the two series or call producer prices
    Joburg prices.
 3. Add source URLs, retrieval dates, vintages/availability dates, units, flags, and
    redistribution permissions to `SOURCES.md` before committing derived inputs.
+   The 2025 Elsenburg budget links are likewise only dated source leads until each
+   budget's region, production period, yield, cost subtotal, VAT and marketing
+   treatment have been transcribed and checked.
 4. Reconcile the staged calendar with the chosen region and exact eight-crop contract.
    The current CSV includes pumpkin and beetroot and has no provenance metadata sufficient
    for a reproducible release.
