@@ -41,10 +41,12 @@ from farmable_backend.models import (
     AuthIdentity,
     AuthSession,
     Farm,
+    FarmLocation,
     FarmTask,
     FinancialRecord,
     Media,
     Observation,
+    PendingContactChange,
     PhotoAttempt,
     PhotoUpload,
     Planting,
@@ -171,7 +173,20 @@ class AccountService:
             )
             if identity is None:
                 raise ApiError(401, "invalid_session")
-            pending = identity.pending_email if channel is Channel.EMAIL else identity.pending_phone
+            pending_row = session.scalar(
+                select(PendingContactChange)
+                .where(PendingContactChange.user_id == owner)
+                .with_for_update()
+            )
+            pending = (
+                None
+                if pending_row is None
+                else (
+                    pending_row.pending_email
+                    if channel is Channel.EMAIL
+                    else pending_row.pending_phone
+                )
+            )
             if pending is None:
                 raise ApiError(400, "no_pending_change")
             challenge = session.scalar(
@@ -198,10 +213,10 @@ class AccountService:
                 with session.begin_nested():
                     if channel is Channel.EMAIL:
                         identity.email = pending
-                        identity.pending_email = None
+                        pending_row.pending_email = None
                     else:
                         identity.phone = pending
-                        identity.pending_phone = None
+                        pending_row.pending_phone = None
                     session.flush()
             except IntegrityError:
                 # Someone else claimed this email/phone between the request
@@ -217,6 +232,11 @@ class AccountService:
         normalized = new_value.strip().lower() if channel is Channel.EMAIL else new_value.strip()
         with self.sessions.begin() as session:
             owner = authenticate(session, authorization)
+            # Lock the parent identity row first so two concurrent first-use
+            # pending-change writes serialize, as _set_language does for
+            # account_profiles: without it, both could see no
+            # pending_contact_changes row and the second insert would fail
+            # the primary key with an unhandled 500.
             identity = session.scalar(
                 select(AuthIdentity).where(AuthIdentity.id == owner).with_for_update()
             )
@@ -238,10 +258,14 @@ class AccountService:
                 except _AuthError:
                     pass
                 return
+            pending_row = session.get(PendingContactChange, owner)
+            if pending_row is None:
+                pending_row = PendingContactChange(user_id=owner)
+                session.add(pending_row)
             if channel is Channel.EMAIL:
-                identity.pending_email = normalized
+                pending_row.pending_email = normalized
             else:
-                identity.pending_phone = normalized
+                pending_row.pending_phone = normalized
             session.execute(
                 update(VerificationChallenge)
                 .where(
@@ -278,10 +302,8 @@ class AccountService:
                 record.name = payload.name.strip()
             if payload.preferred_language is not None:
                 self._set_language(session, owner, payload.preferred_language)
-            if payload.latitude is not None:
-                record.latitude_tenths = round(payload.latitude * 10)
-            if payload.longitude is not None:
-                record.longitude_tenths = round(payload.longitude * 10)
+            if payload.latitude is not None or payload.longitude is not None:
+                self._set_location(session, record.id, payload.latitude, payload.longitude)
             session.flush()
             return self._farm_response(session, record)
 
@@ -392,6 +414,11 @@ class AccountService:
                 .values(state="failed", error_code="scope_unavailable")
             )
             session.execute(delete(AccountProfile).where(AccountProfile.user_id == owner))
+            session.execute(
+                delete(PendingContactChange).where(PendingContactChange.user_id == owner)
+            )
+            owned_farms = select(Farm.id).where(Farm.owner_id == owner)
+            session.execute(delete(FarmLocation).where(FarmLocation.farm_id.in_(owned_farms)))
             session.execute(delete(AuthSession).where(AuthSession.user_id == owner))
             session.execute(
                 delete(VerificationChallenge).where(VerificationChallenge.user_id == owner)
@@ -438,7 +465,34 @@ class AccountService:
         else:
             profile.preferred_language = language
 
+    @staticmethod
+    def _set_location(
+        session: Session, farm_id: UUID, latitude: float | None, longitude: float | None
+    ) -> None:
+        # Lock the parent farm row first, matching _set_language's get-or-insert
+        # locking so two concurrent first-use writes cannot both miss and race
+        # the farm_locations primary key.
+        session.scalar(select(Farm).where(Farm.id == farm_id).with_for_update())
+        location = session.get(FarmLocation, farm_id)
+        if location is None:
+            location = FarmLocation(farm_id=farm_id)
+            session.add(location)
+        if latitude is not None:
+            location.latitude_tenths = round(latitude * 10)
+        if longitude is not None:
+            location.longitude_tenths = round(longitude * 10)
+
+    @staticmethod
+    def _location(session: Session, farm_id: UUID) -> tuple[float | None, float | None]:
+        location = session.get(FarmLocation, farm_id)
+        if location is None:
+            return None, None
+        lat = None if location.latitude_tenths is None else location.latitude_tenths / 10
+        lon = None if location.longitude_tenths is None else location.longitude_tenths / 10
+        return lat, lon
+
     def _profile(self, session: Session, identity: AuthIdentity) -> ProfileResponse:
+        pending = session.get(PendingContactChange, identity.id)
         return ProfileResponse(
             id=identity.id,
             first_name=identity.first_name,
@@ -448,18 +502,19 @@ class AccountService:
             phone_verified=identity.phone_verified,
             email_verified=identity.email_verified,
             preferred_language=self._language(session, identity.id),
-            pending_email=identity.pending_email,
-            pending_phone=identity.pending_phone,
+            pending_email=None if pending is None else pending.pending_email,
+            pending_phone=None if pending is None else pending.pending_phone,
         )
 
     def _farm_response(self, session: Session, record: Farm) -> AccountFarmResponse:
+        latitude, longitude = self._location(session, record.id)
         return AccountFarmResponse(
             id=record.id,
             owner_id=record.owner_id,
             name=record.name,
             preferred_language=self._language(session, record.owner_id),
-            latitude=None if record.latitude_tenths is None else record.latitude_tenths / 10,
-            longitude=None if record.longitude_tenths is None else record.longitude_tenths / 10,
+            latitude=latitude,
+            longitude=longitude,
         )
 
     @staticmethod

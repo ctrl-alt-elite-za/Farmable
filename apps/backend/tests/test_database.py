@@ -14,6 +14,8 @@ from pydantic import SecretStr, ValidationError
 def test_only_owned_application_tables_are_registered():
     assert set(Base.metadata.tables) == {
         "account_profiles",
+        "pending_contact_changes",
+        "farm_locations",
         "detector_models",
         "weight_formulas",
         "users",

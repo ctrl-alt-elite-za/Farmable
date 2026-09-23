@@ -143,8 +143,6 @@ class AuthIdentity(Base):
         _max_length("surname", "auth_identities", 100),
         _max_length("phone", "auth_identities", 32),
         _max_length("email", "auth_identities", 320),
-        _max_length("pending_email", "auth_identities", 320),
-        _max_length("pending_phone", "auth_identities", 32),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -157,11 +155,6 @@ class AuthIdentity(Base):
     password_hash: Mapped[str] = mapped_column(Text)
     phone_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    # A verified account's requested-but-unconfirmed email/phone change. Never
-    # applied to email/phone until the matching VerificationChallenge is
-    # consumed via AccountService.confirm_contact_change.
-    pending_email: Mapped[str | None] = mapped_column(Text)
-    pending_phone: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -234,6 +227,59 @@ class AccountProfile(Base):
     )
 
 
+class PendingContactChange(Base):
+    """A verified account's requested-but-unconfirmed email/phone change.
+
+    A separate table, not new columns on auth_identities, for the same reason
+    as AccountProfile: migration 0004 is immutable and pinned against the
+    current ORM by tests/test_auth_migration.py. Never applied to
+    auth_identities.email/phone until the matching VerificationChallenge is
+    consumed via AccountService.confirm_contact_change.
+    """
+
+    __tablename__ = "pending_contact_changes"
+    __table_args__ = (
+        _max_length("pending_email", "pending_contact_changes", 320),
+        _max_length("pending_phone", "pending_contact_changes", 32),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE"), primary_key=True
+    )
+    pending_email: Mapped[str | None] = mapped_column(Text)
+    pending_phone: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class FarmLocation(Base):
+    """A farm's optional coordinates, rounded to tenths of a degree like
+    WeatherJob's existing lat/lon representation, for consistency.
+
+    A separate table, not new columns on farms, for the same reason as
+    AccountProfile/PendingContactChange: migration 0003 is immutable and
+    pinned against the current ORM by tests/test_farm_schema.py.
+    """
+
+    __tablename__ = "farm_locations"
+    __table_args__ = (
+        CheckConstraint(column("latitude_tenths").between(-900, 900), name="ck_farm_locations_lat"),
+        CheckConstraint(
+            column("longitude_tenths").between(-1800, 1799), name="ck_farm_locations_lon"
+        ),
+    )
+
+    farm_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("farms.id", ondelete="CASCADE"), primary_key=True
+    )
+    latitude_tenths: Mapped[int | None] = mapped_column(BigInteger)
+    longitude_tenths: Mapped[int | None] = mapped_column(BigInteger)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class Farm(Base):
     __tablename__ = "farms"
     __table_args__ = (
@@ -242,17 +288,11 @@ class Farm(Base):
         _max_length("name", "farms", 200),
         UniqueConstraint("id", "owner_id", name="uq_farms_id_owner_id"),
         Index("ix_farms_owner_active", "owner_id", "deleted_at"),
-        CheckConstraint(column("latitude_tenths").between(-900, 900), name="ck_farms_lat"),
-        CheckConstraint(column("longitude_tenths").between(-1800, 1799), name="ck_farms_lon"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(Text)
-    # Tenths of a degree, matching WeatherJob's existing lat/lon representation
-    # for consistency (issue #9 "farm location").
-    latitude_tenths: Mapped[int | None] = mapped_column(BigInteger)
-    longitude_tenths: Mapped[int | None] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

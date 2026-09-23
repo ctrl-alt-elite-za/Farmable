@@ -21,6 +21,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/account/contact/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Confirm Contact Change */
+    post: operations['confirmAccountContactChange'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/account/export': {
     parameters: {
       query?: never;
@@ -762,6 +779,10 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /** Latitude */
+      latitude?: number | null;
+      /** Longitude */
+      longitude?: number | null;
       /** Name */
       name: string;
       /**
@@ -873,6 +894,16 @@ export interface components {
       /** Version */
       version: number;
     };
+    /** ContactChangeConfirm */
+    ContactChangeConfirm: {
+      /**
+       * Channel
+       * @enum {string}
+       */
+      channel: 'phone' | 'email';
+      /** Code */
+      code: string;
+    };
     /** DeleteAccountRequest */
     DeleteAccountRequest: {
       /** Password */
@@ -891,6 +922,10 @@ export interface components {
     };
     /** FarmUpdate */
     FarmUpdate: {
+      /** Latitude */
+      latitude?: number | null;
+      /** Longitude */
+      longitude?: number | null;
       /** Name */
       name?: string | null;
       /** Preferred Language */
@@ -1102,6 +1137,8 @@ export interface components {
       identifier: string;
       /** Password */
       password: string;
+      /** Turnstile Token */
+      turnstile_token: string;
     };
     /**
      * MediaCreate
@@ -1690,6 +1727,10 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /** Pending Email */
+      pending_email?: string | null;
+      /** Pending Phone */
+      pending_phone?: string | null;
       /** Phone */
       phone: string;
       /** Phone Verified */
@@ -1704,8 +1745,12 @@ export interface components {
     };
     /** ProfileUpdate */
     ProfileUpdate: {
+      /** Email */
+      email?: string | null;
       /** First Name */
       first_name?: string | null;
+      /** Phone */
+      phone?: string | null;
       /** Preferred Language */
       preferred_language?: ('en' | 'af' | 'nso' | 'st' | 'xh' | 'zu') | null;
       /** Surname */
@@ -2076,6 +2121,8 @@ export interface components {
       phone: string;
       /** Surname */
       surname: string;
+      /** Turnstile Token */
+      turnstile_token: string;
     };
     /** SignedForm */
     SignedForm: {
@@ -2394,6 +2441,85 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  confirmAccountContactChange: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ContactChangeConfirm'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProfileResponse'];
+        };
       };
       /** @description Unauthorized */
       401: {
