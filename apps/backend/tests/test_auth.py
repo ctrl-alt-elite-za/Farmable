@@ -1,7 +1,7 @@
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from types import SimpleNamespace
 from time import time
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
