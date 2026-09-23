@@ -6,6 +6,7 @@ from threading import Barrier
 from uuid import uuid4
 
 import pytest
+from farmable_backend.assistant.privacy import NOTICE_VERSION, ConsentGrant
 from farmable_backend.assistant.schemas import ConversationCreate, TurnCreate
 from farmable_backend.assistant.settings import AssistantSettings
 from farmable_backend.assistant.store import Store
@@ -50,6 +51,12 @@ def test_concurrent_admissions_share_a_durable_budget(same_owner):
         store.create(owner.auth, ConversationCreate(id=uuid4(), farm_id=owner.farm))
         for owner in owners
     ]
+    for owner, conversation in zip(owners, conversations, strict=True):
+        store.consent(
+            owner.auth,
+            conversation.id,
+            ConsentGrant(notice_version=NOTICE_VERSION, model="fixture-model"),
+        )
     with sessions.begin() as session:
         budget = session.get(AssistantBudget, 1)
         old = budget.day, budget.policy, budget.reserved_micro_usd
@@ -89,6 +96,23 @@ def test_concurrent_admissions_share_a_durable_budget(same_owner):
                 )
                 == 1
             )
+            admitted = session.scalar(
+                select(AssistantTurn).where(
+                    AssistantTurn.owner_id.in_([owner.owner for owner in owners])
+                )
+            )
+            turn_id, conversation_id, owner_id = (
+                admitted.id,
+                admitted.conversation_id,
+                admitted.owner_id,
+            )
+        owner = next(item for item in owners if item.owner == owner_id)
+        other = Store(sessions, policy, store.services)
+        other.consent(owner.auth, conversation_id, withdraw=True)
+        late = store.update(owner.auth, conversation_id, turn_id, reply="late", status="completed")
+        assert late.status == "interrupted" and late.reply == ""
+        with sessions() as session:
+            assert session.get(AssistantBudget, 1).reserved_micro_usd == 10
     finally:
         event.remove(engine, "before_cursor_execute", before_lock)
         with sessions.begin() as session:

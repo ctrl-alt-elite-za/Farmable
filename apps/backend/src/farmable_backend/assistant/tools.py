@@ -41,6 +41,7 @@ def execute(store, auth, conversation_id, name, args, mode):
             payload = SectionListArgs.model_validate(args)
             with store.sessions() as session:
                 conversation = store.scope(session, auth, conversation_id)
+                store.require_consent(session, conversation_id)
                 rows = list(
                     session.scalars(
                         select(Section)
@@ -68,6 +69,7 @@ def execute(store, auth, conversation_id, name, args, mode):
             query = OutlookArgs.model_validate(args)
             with store.sessions() as session:
                 conversation = store.scope(session, auth, conversation_id)
+                store.require_consent(session, conversation_id)
                 section_scope(
                     session, conversation.owner_id, conversation.farm_id, query.section_id
                 )
@@ -88,6 +90,6 @@ def execute(store, auth, conversation_id, name, args, mode):
         return {"error": "invalid_tool_arguments"}
     except ApiError as error:
         # Authentication loss ends the turn; scope failures reveal no resource details.
-        if error.status == 401:
+        if error.status in {401, 403}:
             raise
         return {"error": error.code}

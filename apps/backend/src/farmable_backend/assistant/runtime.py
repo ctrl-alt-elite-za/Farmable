@@ -138,6 +138,13 @@ class Runtime:
                 watcher = asyncio.create_task(self.watch(auth, conversation, turn.id))
                 tool_count, event_count = 0, 0
                 for round_index in range(MAX_ROUNDS):
+                    # Check durable withdrawal before each network request, including
+                    # a turn revoked after admission but before this stream started.
+                    current = await self.worker.call(self.store.get, auth, conversation, turn.id)
+                    if current.status != "running":
+                        yield terminal(current)
+                        final = True
+                        return
                     payload = {
                         "systemInstruction": {"parts": [{"text": SYSTEM}]},
                         "contents": contents,
@@ -302,15 +309,18 @@ class Runtime:
                     )
         except (ApiError, TimeoutError) as exc:
             code = exc.code if isinstance(exc, ApiError) else "assistant_timeout"
+            outcome = {"type": "error", "data": {"code": code}}
             with suppress(Exception):
-                await self.worker.call(
+                result = await self.worker.call(
                     self.store.update, auth, conversation, turn.id, status="failed", error=code
                 )
-            yield {"type": "error", "data": {"code": code}}
+                outcome = terminal(result)
+            yield outcome
             final = True
         except Exception:
+            outcome = {"type": "error", "data": {"code": "assistant_unavailable"}}
             with suppress(Exception):
-                await self.worker.call(
+                result = await self.worker.call(
                     self.store.update,
                     auth,
                     conversation,
@@ -318,7 +328,8 @@ class Runtime:
                     status="failed",
                     error="assistant_unavailable",
                 )
-            yield {"type": "error", "data": {"code": "assistant_unavailable"}}
+                outcome = terminal(result)
+            yield outcome
             final = True
         finally:
             if watcher is not None:

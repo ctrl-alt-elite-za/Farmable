@@ -242,6 +242,25 @@ class AssistantConversation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class AssistantConsent(Base):
+    __tablename__ = "assistant_consents"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("id", "owner_id"),
+            ("assistant_conversations.id", "assistant_conversations.owner_id"),
+            ondelete="CASCADE",
+            name="fk_assistant_consent_conversation_owner",
+        ),
+        Index("ix_assistant_consents_owner", "owner_id"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    model: Mapped[str] = mapped_column(Text)
+    notice_version: Mapped[str] = mapped_column(Text)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class AssistantTurn(Base):
     __tablename__ = "assistant_turns"
     __table_args__ = (

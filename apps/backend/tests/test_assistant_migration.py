@@ -15,3 +15,13 @@ def test_assistant_migration_matches_models_and_seeds_budget_lock():
     for name in ("assistant_conversations", "assistant_turns", "assistant_budget"):
         assert _table_elements(sql, name) == _table_elements(_orm_sql(name), name)
         assert _index_statements(sql, name) == _index_statements(_orm_sql(name), name)
+
+
+def test_consent_migration_requires_explicit_grants():
+    output = io.StringIO()
+    command.upgrade(Config("alembic.ini", output_buffer=output), "0010:0011", sql=True)
+    sql = output.getvalue()
+    assert "INSERT INTO assistant_consents" not in sql
+    name = "assistant_consents"
+    assert _table_elements(sql, name) == _table_elements(_orm_sql(name), name)
+    assert _index_statements(sql, name) == _index_statements(_orm_sql(name), name)

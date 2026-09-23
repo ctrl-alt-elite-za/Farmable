@@ -6,6 +6,7 @@ import anyio
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 
+from farmable_backend.assistant.privacy import ConsentGrant, ConsentView
 from farmable_backend.assistant.schemas import (
     ConversationCreate,
     ConversationView,
@@ -20,7 +21,7 @@ from farmable_backend.schemas import ErrorResponse
 
 router = APIRouter(
     dependencies=[Depends(bearer)],
-    responses={status: {"model": ErrorResponse} for status in (401, 404, 409, 503)},
+    responses={status: {"model": ErrorResponse} for status in (401, 403, 404, 409, 503)},
 )
 SEND_SECONDS = 5
 
@@ -63,6 +64,43 @@ async def create(request: Request, response: Response, payload: ConversationCrea
     value = runtime(request)
     response.headers["Cache-Control"] = "no-store"
     return await value.worker.call(value.store.create, token(request), payload)
+
+
+@router.get(
+    "/assistant/conversations/{conversation_id}/consent",
+    response_model=ConsentView,
+    operation_id="getAssistantConsent",
+)
+async def consent(request: Request, response: Response, conversation_id: UUID):
+    value = runtime(request)
+    response.headers["Cache-Control"] = "no-store"
+    return await value.worker.call(value.store.consent, token(request), conversation_id)
+
+
+@router.put(
+    "/assistant/conversations/{conversation_id}/consent",
+    response_model=ConsentView,
+    operation_id="grantAssistantConsent",
+)
+async def grant_consent(
+    request: Request, response: Response, conversation_id: UUID, payload: ConsentGrant
+):
+    value = runtime(request)
+    response.headers["Cache-Control"] = "no-store"
+    return await value.worker.call(value.store.consent, token(request), conversation_id, payload)
+
+
+@router.delete(
+    "/assistant/conversations/{conversation_id}/consent",
+    response_model=ConsentView,
+    operation_id="withdrawAssistantConsent",
+)
+async def withdraw_consent(request: Request, response: Response, conversation_id: UUID):
+    value = runtime(request)
+    response.headers["Cache-Control"] = "no-store"
+    return await value.worker.call(
+        value.store.consent, token(request), conversation_id, withdraw=True
+    )
 
 
 @router.get(

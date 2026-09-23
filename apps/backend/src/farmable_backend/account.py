@@ -30,6 +30,7 @@ from farmable_backend.auth import PASSWORD_HASHER
 from farmable_backend.models import (
     DEFAULT_ACCOUNT_LANGUAGE,
     AccountProfile,
+    AssistantConsent,
     AssistantConversation,
     AssistantTurn,
     AuthIdentity,
@@ -179,6 +180,7 @@ class AccountService:
             # deletion; exports include only this owner's plain text/tool history.
             for name, model in (
                 ("assistant_conversations", AssistantConversation),
+                ("assistant_consents", AssistantConsent),
                 ("assistant_turns", AssistantTurn),
             ):
                 rows = session.scalars(

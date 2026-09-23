@@ -2,11 +2,17 @@
 
 from datetime import timedelta
 
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 
+from farmable_backend.assistant.privacy import NOTICE_VERSION, ConsentView
 from farmable_backend.assistant.schemas import ConversationView, History, TurnView
-from farmable_backend.models import AssistantBudget, AssistantConversation, AssistantTurn
+from farmable_backend.models import (
+    AssistantBudget,
+    AssistantConsent,
+    AssistantConversation,
+    AssistantTurn,
+)
 from farmable_backend.record_access import ApiError, authenticate, db_now, farm_scope, utc
 
 
@@ -29,6 +35,72 @@ def view(turn):
 class Store:
     def __init__(self, sessions, policy, services):
         self.sessions, self.policy, self.services = sessions, policy, services
+
+    def model(self):
+        return (
+            "fixture-model"
+            if self.services.integrations_mode == "fake"
+            else self.services.gemini_model or ""
+        )
+
+    def consent_valid(self, record):
+        return bool(
+            record is not None
+            and record.withdrawn_at is None
+            and record.notice_version == NOTICE_VERSION
+            and record.model == self.model()
+            and record.model
+        )
+
+    def require_consent(self, session, conversation_id):
+        if not self.consent_valid(session.get(AssistantConsent, conversation_id)):
+            raise ApiError(403, "assistant_consent_required")
+
+    def consent(self, auth, conversation_id, payload=None, *, withdraw=False):
+        with self.sessions.begin() as session:
+            conversation = self.scope(session, auth, conversation_id, lock=True)
+            record = session.get(AssistantConsent, conversation_id)
+            if withdraw:
+                if record is not None and record.withdrawn_at is None:
+                    record.withdrawn_at = db_now(session)
+                # Always fence running turns, including legacy/unconsented ones.
+                self.cancel_conversation(session, conversation_id)
+            elif payload is not None:
+                if not self.model() or payload.model != self.model():
+                    raise ApiError(409, "assistant_consent_model_changed")
+                if payload.notice_version != NOTICE_VERSION:
+                    raise ApiError(409, "assistant_consent_notice_changed")
+                if not self.consent_valid(record):
+                    # A regrant must not revive a turn admitted under old consent.
+                    self.cancel_conversation(session, conversation_id)
+                    if record is None:
+                        record = AssistantConsent(
+                            id=conversation.id, owner_id=conversation.owner_id
+                        )
+                        session.add(record)
+                    record.model, record.notice_version = self.model(), NOTICE_VERSION
+                    record.granted_at, record.withdrawn_at = db_now(session), None
+            return ConsentView(
+                model=self.model(),
+                granted=self.consent_valid(record),
+                granted_at=utc(record.granted_at) if record is not None else None,
+                withdrawn_at=(
+                    utc(record.withdrawn_at)
+                    if record is not None and record.withdrawn_at is not None
+                    else None
+                ),
+            )
+
+    @staticmethod
+    def cancel_conversation(session, conversation_id):
+        session.execute(
+            update(AssistantTurn)
+            .where(
+                AssistantTurn.conversation_id == conversation_id,
+                AssistantTurn.status == "running",
+            )
+            .values(status="interrupted", error="assistant_consent_withdrawn")
+        )
 
     def scope(self, session, auth, conversation_id, *, lock=False):
         owner = authenticate(session, auth)
@@ -75,10 +147,14 @@ class Store:
         except IntegrityError:
             raise ApiError(409, "conversation_conflict") from None
 
-    @staticmethod
-    def expire(session, record):
+    def expire(self, session, record):
         if record.status == "running" and utc(record.deadline) <= db_now(session):
             record.status, record.error = "failed", "turn_expired"
+        if record.status == "running" and (
+            record.model != self.model()
+            or not self.consent_valid(session.get(AssistantConsent, record.conversation_id))
+        ):
+            record.status, record.error = "interrupted", "assistant_consent_required"
 
     def admit(self, auth, conversation_id, payload):
         try:
@@ -100,16 +176,13 @@ class Store:
                     self.expire(session, existing)
                     return view(existing), False
                 now = db_now(session)
-                model = (
-                    "fixture-model"
-                    if self.services.integrations_mode == "fake"
-                    else self.services.gemini_model
-                )
+                model = self.model()
                 if not self.policy.enabled or self.services.integrations_mode == "disabled":
                     raise ApiError(503, "assistant_disabled")
                 if self.services.integrations_mode == "live" and not self.services.gemini_api_key:
                     raise ApiError(503, "assistant_unconfigured")
                 self.policy.validate_live(now.date(), model)
+                self.require_consent(session, conversation_id)
                 policy_hash = self.policy.fingerprint()
                 if budget.day != now.date():
                     budget.day, budget.policy, budget.reserved_micro_usd = (
