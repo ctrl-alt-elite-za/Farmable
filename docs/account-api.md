@@ -88,3 +88,14 @@ Per-account login-failure and refresh-abuse counters, the durable
 `rate_limit_counters` table, Turnstile on sign-up and login, `Idempotency-Key`
 handling and the live Twilio adapter remain #7/#8 work. Only the existing global
 per-IP limiter, the OTP send window and the OTP attempt cap apply here.
+
+## Checks run for this change
+
+- `uv run pytest` - full suite (`scripts/tests` and `apps/backend`)
+- `uv run ruff format .`, `uv run ruff check .`, `uv run mypy`
+- `bash scripts/check-no-raw-sql.sh`
+- `uv run python scripts/migration_safety.py`
+- `uv run python scripts/generate_client.py` with no remaining contract diff
+- `pnpm -r --if-present run typecheck`
+- `apps/backend/tests/integration/test_account_postgres.py` is collected here but
+  needs the disposable Compose stack (`make test-integration`) to execute.
