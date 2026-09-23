@@ -105,6 +105,18 @@ jobs:
           gcloud run jobs execute "$MIGRATION_JOB" \
             --project="$PROJECT" --region="$GCP_REGION" --wait --quiet
 
+      - name: Import reviewed forecast results after migrations
+        env:
+          GCP_PROJECT: ${{ steps.config.outputs.project }}
+          ARTIFACT_REPOSITORY: ${{ steps.config.outputs.repository }}
+          CLOUD_SQL_CONNECTION: ${{ steps.config.outputs.sql_connection }}
+          DATABASE_SECRET: ${{ steps.config.outputs.database_secret }}
+          FORECAST_IMPORT_ACCOUNT: ${{ vars.GCP_FORECAST_IMPORT_ACCOUNT }}
+          FORECAST_GITHUB_TOKEN_SECRET: ${{ vars.GCP_FORECAST_GITHUB_TOKEN_SECRET }}
+          FORECAST_DATA_MODE: ${{ vars.FORECAST_DATA_MODE || 'disabled' }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: bash infra/gcp-forecast-import.sh
+
       - name: Deploy, verify, smoke test, and route traffic
         env:
           GCP_PROJECT: ${{ steps.config.outputs.project }}
@@ -115,6 +127,7 @@ jobs:
           GEMINI_SECRET: ${{ steps.config.outputs.gemini_secret }}
           GCS_BUCKET: ${{ steps.config.outputs.media_bucket }}
           COMMIT_SHA: ${{ github.sha }}
+          FORECAST_DATA_MODE: ${{ vars.FORECAST_DATA_MODE || 'disabled' }}
         run: bash infra/gcp-rollout.sh
 
   frozen:

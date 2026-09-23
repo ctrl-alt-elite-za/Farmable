@@ -116,8 +116,10 @@ snapshot in one query and do not depend on an application-process cache.
 Import failures emit fixed warning codes and return exit 0 so an operator/deploy
 can retain the last active snapshot; rollback failures return nonzero. Failed runs
 persist their check names. The CLI can report failures to GitHub using the opt-in
-configuration below. Deployment wiring is still separate; a console warning is
-not proof that an issue was created.
+configuration below. The trusted post-migration job and nightly HTTP check are
+wired as described in [forecast-deployment.md](forecast-deployment.md); operator
+configuration and live evidence are still required. A console warning is not
+proof that an issue was created.
 
 ## GitHub failure reporting (import job only)
 
@@ -204,8 +206,8 @@ Still required for full #21:
 3. Validate the weather screening policy agronomically and verify real-provider
    operation in the deployment; the queue, calculation, cache and unavailable
    fallback are documented in [weather-risk.md](weather-risk.md).
-4. Configure and verify the opt-in GitHub notifier in the trusted import job and
-   wire the after-migration deployment step. No deployment permissions are changed here.
-5. Obtain passing evidence from the seeded PostgreSQL performance check and add
-   the all-demo-crops check to the actual staging rehearsal. Unit timing is not
-   evidence for production latency.
+4. Configure and verify the notifier and separate import identity, and run the
+   wired after-migration deployment step in staging; see [forecast-deployment.md](forecast-deployment.md).
+5. Record the wired all-demo-crops nightly check against the actual staging
+   deployment. Seeded PostgreSQL performance passes in CI; that is not deployed
+   production-latency evidence.
