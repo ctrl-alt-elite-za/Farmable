@@ -1,14 +1,21 @@
 SHELL := /bin/bash
 export PATH := $(HOME)/.local/bin:$(PATH)
 
-PY_DIRS := apps/backend apps/ml-service scripts migrations e2e conftest.py
+PY_DIRS := apps/backend apps/ml-service ml scripts migrations e2e conftest.py
 MYPY_ML_DIR := apps/ml-service
+MYPY_ML_ADAPTER_ROOTS := ml/forecast ml/backtest
 PY_FILES := $(shell scripts/has-py-files.sh $(PY_DIRS))
 # mypy errors on a directory with no .py files, so pass only populated ones.
-# apps/ml-service is not a valid package name; it gets its own mypy run below.
-MYPY_DIRS := $(shell for d in $(filter-out $(MYPY_ML_DIR),$(PY_DIRS)); do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
+# The ML implementation and public adapters are separate invocations: the
+# former contains the existing vision namespace and the latter contains the
+# issue-compatible `ml` scripts, which must not be discovered as duplicates.
+MYPY_DIRS := $(shell for d in $(filter-out $(MYPY_ML_DIR) ml,$(PY_DIRS)); do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
+MYPY_ML_IMPL_DIRS := $(shell for d in apps/ml-service/vision apps/ml-service/src/farmable_ml; do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$${d#apps/ml-service/}"; done)
+MYPY_ML_ADAPTER_DIRS := $(shell for d in $(MYPY_ML_ADAPTER_ROOTS); do [ -n "$$(scripts/has-py-files.sh $$d)" ] && printf '%s ' "$$d"; done)
 PY_TEST_FILES := $(shell find apps/backend -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
 SCRIPT_TEST_FILES := $(shell find scripts/tests -name 'test_*.py' 2>/dev/null)
+ML_SERVICE_TEST_FILES := $(shell find apps/ml-service -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
+ML_ADAPTER_TEST_FILES := $(shell find $(MYPY_ML_ADAPTER_ROOTS) -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
 
 .PHONY: setup lint format typecheck test test-integration hooks check-no-raw-sql client db-migrate queue-schema
 .PHONY: client-check security-audit migration-safety deployability e2e-api e2e-degradation e2e-mobile mobile-test-build
@@ -59,12 +66,15 @@ format:
 
 typecheck:
 	@if [ -n "$(PY_FILES)" ]; then uv run mypy $(MYPY_DIRS); else echo "no Python files yet, skipping mypy"; fi
-	@if [ -n "$(shell scripts/has-py-files.sh $(MYPY_ML_DIR))" ]; then (cd $(MYPY_ML_DIR) && uv run mypy --explicit-package-bases --ignore-missing-imports vision); fi
+	@if [ -n "$(MYPY_ML_IMPL_DIRS)" ]; then (cd $(MYPY_ML_DIR) && MYPYPATH=src uv run mypy --explicit-package-bases --ignore-missing-imports $(MYPY_ML_IMPL_DIRS)); fi
+	@if [ -n "$(MYPY_ML_ADAPTER_DIRS)" ]; then uv run mypy --explicit-package-bases --ignore-missing-imports $(MYPY_ML_ADAPTER_DIRS); fi
 	pnpm -r --if-present run typecheck
 
 test:
 	@if [ -n "$(SCRIPT_TEST_FILES)" ]; then uv run pytest scripts/tests -q; fi
 	@if [ -n "$(PY_TEST_FILES)" ]; then uv run pytest apps/backend; else echo "no backend tests yet, skipping pytest"; fi
+	@if [ -n "$(ML_SERVICE_TEST_FILES)" ]; then uv run pytest apps/ml-service; else echo "no ML service tests yet, skipping pytest"; fi
+	@if [ -n "$(ML_ADAPTER_TEST_FILES)" ]; then uv run pytest $(MYPY_ML_ADAPTER_ROOTS); else echo "no ML adapter tests yet, skipping pytest"; fi
 	pnpm -r --if-present run test
 
 check-no-raw-sql:

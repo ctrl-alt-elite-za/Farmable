@@ -3,7 +3,7 @@ name = "farmable"
 version = "0.0.0"
 description = "Farmable monorepo tooling (root project; apps/backend/ and apps/ml-service/ have their own manifests once they exist)"
 requires-python = ">=3.12"
-dependencies = ["farmable-backend"]
+dependencies = ["farmable-backend", "farmable-ml"]
 
 [dependency-groups]
 dev = [
@@ -68,14 +68,15 @@ exclude = []
 package = false
 
 [tool.uv.workspace]
-members = ["apps/backend"]
+members = ["apps/backend", "apps/ml-service"]
 
 [tool.uv.sources]
 farmable-backend = { workspace = true }
+farmable-ml = { workspace = true }
 
 [tool.pytest.ini_options]
-pythonpath = ["apps/backend/src", "scripts"]
-testpaths = ["scripts/tests", "apps/backend/tests"]
+pythonpath = ["apps/backend/src", "apps/ml-service/src", "scripts"]
+testpaths = ["scripts/tests", "apps/backend/tests", "apps/ml-service", "ml/forecast", "ml/backtest"]
 addopts = "-m 'not integration' -r s"
 markers = [
     "integration: requires the isolated Docker Compose test stack",
