@@ -46,16 +46,16 @@ changed mutation automatically.
 The production API scopes records under a farm. The issue shorthand
 `/sections` therefore maps to `/farms/{farm_id}/sections`.
 
-| Resource | Collection | Item | Supported writes |
-| --- | --- | --- | --- |
-| Farms | `GET /farms` | — | read-only |
-| Sections | `GET /farms/{farm_id}/sections` | `GET /farms/{farm_id}/sections/{id}` | `POST`, `PUT`, tombstone |
-| Plantings | `GET/POST /farms/{farm_id}/plantings` | `GET/PUT .../{id}` | tombstone |
-| Observations | `GET /farms/{farm_id}/observations` | `GET/PUT .../{id}` | existing idempotent create, tombstone |
-| Tasks | `GET/POST /farms/{farm_id}/tasks` | `GET/PUT .../{id}` | tombstone |
-| Financials | `GET/POST /farms/{farm_id}/financials` | `GET/PUT .../{id}` | tombstone |
-| Plans | `GET/POST /farms/{farm_id}/plans` | `GET/PUT .../{id}` | tombstone |
-| Media metadata | `GET/POST /farms/{farm_id}/media` | `GET/PUT .../{id}` | tombstone |
+| Resource       | Collection                             | Item                                 | Supported writes                      |
+| -------------- | -------------------------------------- | ------------------------------------ | ------------------------------------- |
+| Farms          | `GET /farms`                           | —                                    | read-only                             |
+| Sections       | `GET /farms/{farm_id}/sections`        | `GET /farms/{farm_id}/sections/{id}` | `POST`, `PUT`, tombstone              |
+| Plantings      | `GET/POST /farms/{farm_id}/plantings`  | `GET/PUT .../{id}`                   | tombstone                             |
+| Observations   | `GET /farms/{farm_id}/observations`    | `GET/PUT .../{id}`                   | existing idempotent create, tombstone |
+| Tasks          | `GET/POST /farms/{farm_id}/tasks`      | `GET/PUT .../{id}`                   | tombstone                             |
+| Financials     | `GET/POST /farms/{farm_id}/financials` | `GET/PUT .../{id}`                   | tombstone                             |
+| Plans          | `GET/POST /farms/{farm_id}/plans`      | `GET/PUT .../{id}`                   | tombstone                             |
+| Media metadata | `GET/POST /farms/{farm_id}/media`      | `GET/PUT .../{id}`                   | tombstone                             |
 
 Delete is a `POST` to `.../{id}/delete`. It is a tombstone mutation and
 requires both `mutation_id` and the client-observed `expected_version`. The
@@ -78,7 +78,7 @@ transaction:
 1. An identical replay returns the existing logical result and creates no
    duplicate record or change-feed item.
 2. Reusing a mutation ID with a different payload returns `409
-   mutation_conflict`.
+mutation_conflict`.
 3. A duplicate record ID or other real database uniqueness failure returns
    `409 record_conflict`/the stable conflict code, never a misleading replay
    error.
@@ -99,17 +99,17 @@ active-record lists.
 
 ## Acceptance-to-evidence map
 
-| Issue requirement | Evidence |
-| --- | --- |
-| New farm has no visible records | `test_authenticated_crud_round_trip` and owner-scoped list tests in `test_sync_api.py` |
-| Planting records are returned in section detail | `test_section_detail_exposes_the_flutter_summary` |
-| Same mutation is idempotent | `test_replaying_a_mutation_creates_one_logical_record`, plus update/delete replay tests |
-| Unknown or malformed input is rejected | strict DTO and bounded-body tests in `test_sync_api.py` |
-| Foreign farm IDs are hidden | `test_writes_to_a_foreign_farm_are_not_found`, `test_records_cannot_be_reached_through_another_owned_farm` |
-| Optimistic deletion is safe offline | stale-delete and deleted-record version tests |
-| Sync has no gaps or duplicates | `test_change_polling_resumes_from_a_cursor_without_gaps_or_duplicates` |
-| Generated client matches the API | `make client-check` |
-| Raw SQL guardrail remains clean | `make check-no-raw-sql` |
+| Issue requirement                               | Evidence                                                                                                   |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| New farm has no visible records                 | `test_authenticated_crud_round_trip` and owner-scoped list tests in `test_sync_api.py`                     |
+| Planting records are returned in section detail | `test_section_detail_exposes_the_flutter_summary`                                                          |
+| Same mutation is idempotent                     | `test_replaying_a_mutation_creates_one_logical_record`, plus update/delete replay tests                    |
+| Unknown or malformed input is rejected          | strict DTO and bounded-body tests in `test_sync_api.py`                                                    |
+| Foreign farm IDs are hidden                     | `test_writes_to_a_foreign_farm_are_not_found`, `test_records_cannot_be_reached_through_another_owned_farm` |
+| Optimistic deletion is safe offline             | stale-delete and deleted-record version tests                                                              |
+| Sync has no gaps or duplicates                  | `test_change_polling_resumes_from_a_cursor_without_gaps_or_duplicates`                                     |
+| Generated client matches the API                | `make client-check`                                                                                        |
+| Raw SQL guardrail remains clean                 | `make check-no-raw-sql`                                                                                    |
 
 The named issue examples use the repository's farm-scoped production routes;
 they are not a second unscoped API surface.
