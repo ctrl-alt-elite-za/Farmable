@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal as D
 
@@ -61,7 +62,7 @@ def test_slide_sentence_from_results():
     assert document["results"]["pooled"]["median_gain_rand"] == D(6)
     assert sentence == (
         "SYNTHETIC TEST FIXTURE — NOT A REAL RESULT.\n"
-        "In a historical simulation of 24 planting decisions (2012–2024), using only data "
+        "In a historical simulation of 24 planting decisions (2012-01–2014-01), using only data "
         "available at planting time, when Farmable recommended switching away from a farmer's "
         "usual crop, the switch earned more profit 58.3% of the time, with a median increase "
         "of R 6.0 per hectare per month (ranging from 0.0% to 100.0% across the 8 starting "
@@ -116,6 +117,95 @@ def test_no_switches_are_undefined_and_do_not_generate_a_headline():
 def test_duplicate_decisions_fail():
     with pytest.raises(ValueError, match="duplicate"):
         build_report(ledger() * 2, input_hashes={"fixture": "a" * 64}, data_kind="synthetic")
+
+
+def complete_ledger():
+    # Fabricated values exercise validation only; never publish as real evidence.
+    return tuple(
+        replace(row, origin=date(year, month, 1))
+        for year in range(2012, 2025)
+        for month in range(1, 13)
+        for row in ledger()[:8]
+    )
+
+
+def historical_report(rows):
+    return build_report(
+        rows,
+        data_kind="historical",
+        input_hashes={"fixture": "a" * 64},
+        config=Bootstrap(replicates=100),
+    )
+
+
+@pytest.mark.parametrize("gap", ["first", "last", "interior_month", "default", "one_key", "empty"])
+def test_historical_coverage_rejects_missing_keys(gap):
+    rows = complete_ledger()
+    partial = {
+        "first": rows[8:],
+        "last": rows[:-8],
+        "interior_month": tuple(row for row in rows if row.origin != date(2018, 6, 1)),
+        "default": tuple(row for row in rows if row.default != Crop.CABBAGE),
+        "one_key": rows[:500] + rows[501:],
+        "empty": (),
+    }[gap]
+    with pytest.raises(ValueError, match="insufficient historical coverage.*missing"):
+        historical_report(partial)
+
+
+def test_partial_synthetic_ledger_cannot_be_used_as_historical():
+    with pytest.raises(ValueError, match="insufficient historical coverage"):
+        historical_report(ledger())
+    document = report()
+    document["data_kind"] = "historical"
+    with pytest.raises(ValueError, match="matching data kind"):
+        render_sentence(document)
+
+
+@pytest.mark.parametrize("origin", [date(2011, 12, 1), date(2025, 1, 1)])
+def test_historical_coverage_rejects_out_of_period_rows(origin):
+    rows = complete_ledger()
+    with pytest.raises(ValueError, match="1 out-of-period"):
+        historical_report(rows + (replace(rows[0], origin=origin),))
+
+
+def test_historical_coverage_rejects_duplicate_keys():
+    rows = complete_ledger()
+    with pytest.raises(ValueError, match="duplicate"):
+        historical_report(rows + rows[:1])
+
+
+def test_complete_historical_coverage_and_sentence():
+    document = historical_report(complete_ledger())
+    assert document["coverage"] == {
+        "data_kind": "historical",
+        "start_month": "2012-01",
+        "end_month": "2024-12",
+        "observed_months": 156,
+        "decision_keys": 1248,
+        "complete_historical_grid": True,
+    }
+    assert "1248 planting decisions (2012-01–2024-12)" in render_sentence(document)
+    assert "2012-01–2024-12" in render_table(document)
+
+
+def test_explicit_skips_preserve_coverage_without_counting_as_scored_decisions():
+    rows = complete_ledger()
+    skipped = replace(
+        rows[0], default_margin=None, recommended_margin=None, skip_reason="out_of_season"
+    )
+    document = historical_report((skipped,) + rows[1:])
+    assert document["coverage"]["decision_keys"] == 1248
+    assert document["results"]["pooled"]["decisions"] == 1247
+    assert document["results"]["pooled"]["skipped"] == 1
+
+
+@pytest.mark.parametrize("renderer", [render_sentence, render_table])
+def test_legacy_report_without_coverage_cannot_be_rendered(renderer):
+    document = report()
+    del document["coverage"]
+    with pytest.raises(ValueError, match="validated ledger coverage"):
+        renderer(document)
 
 
 def test_reproducible_output(tmp_path):
