@@ -37,6 +37,46 @@ void _block(Directory dir, {String name = _fileName}) {
   Directory('${dir.path}/$name').createSync();
 }
 
+/// A real storage that also records when a write has finished trying.
+///
+/// The submit handler is async and `tester.tap` does not await it, so the test
+/// has no way of its own to know the write is over. It used to sleep 200 ms
+/// and hope, which passed alone and failed inside the full suite, where the
+/// machine is busier: a sleep is a guess about someone else's timing, and the
+/// guess is wrong exactly when everything is under load.
+///
+/// A flag rather than a Future on purpose. The write is real file I/O started
+/// under a widget test's fake clock, so its continuation sits on the fake
+/// queue while the I/O itself runs on the real one — a Future completed from
+/// in here cannot be awaited from either side without deadlocking. A flag can
+/// simply be read between turns of both clocks.
+class _AnnouncedStorage implements SessionStorage {
+  _AnnouncedStorage(this._inner);
+
+  final SessionStorage _inner;
+  bool _settled = false;
+
+  /// True once a write has succeeded **or** failed. The failure itself is the
+  /// screen's to catch and to show, which is what this test is about, so it
+  /// is deliberately not re-raised here.
+  bool get writeSettled => _settled;
+
+  @override
+  Future<Map<String, Object?>?> read() => _inner.read();
+
+  @override
+  Future<void> write(Map<String, Object?> value) async {
+    try {
+      await _inner.write(value);
+    } finally {
+      _settled = true;
+    }
+  }
+
+  @override
+  Future<void> clear() => _inner.clear();
+}
+
 void main() {
   group('FileSessionStorage', () {
     test('a write that cannot land throws rather than reporting success', () {
@@ -189,12 +229,9 @@ void main() {
   ) async {
     final dir = _scratch();
     _block(dir);
+    final storage = _AnnouncedStorage(_storageIn(dir));
 
-    await pumpAuthApp(
-      tester,
-      location: '/auth/signup',
-      session: _storageIn(dir),
-    );
+    await pumpAuthApp(tester, location: '/auth/signup', session: storage);
     await enterField(tester, 'Name', 'Sipho');
     await enterField(tester, 'Surname', 'Dlamini');
     await enterField(tester, 'Phone number', '82 555 0123');
@@ -209,10 +246,26 @@ void main() {
     final submit = find.text('Create account');
     await tester.ensureVisible(submit.first);
     await pumpBriefly(tester);
-    await tester.runAsync(() async {
-      await tester.tap(submit.first);
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    });
+    await tester.tap(submit.first);
+
+    // Turn both clocks until the write reports back. `pump` drains the fake
+    // queue the continuation is scheduled on; `runAsync` gives the real file
+    // I/O a turn. Neither finishes this alone, which is why the original
+    // sleep was unreliable rather than merely slow.
+    //
+    // The cap is a failure guard, not a budget — it makes a screen that never
+    // writes say so, instead of hanging until the runner gives up with
+    // nothing to point at.
+    for (var turn = 0; turn < 200 && !storage.writeSettled; turn++) {
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    }
+    expect(
+      storage.writeSettled,
+      isTrue,
+      reason: 'the signup never finished attempting its write',
+    );
+
     await pumpBriefly(tester);
 
     expect(
