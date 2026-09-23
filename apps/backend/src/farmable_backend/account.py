@@ -205,6 +205,21 @@ class AccountService:
             if not _verify_password(identity.password_hash, password):
                 raise ApiError(401, "invalid_credentials")
             now = datetime.now(UTC)
+            # Deliberate deviation from the tombstone contract that
+            # farm_records.tombstone_* follows (deleted_at + version bump +
+            # sync_state="pending" + a SyncChange row). That contract exists to
+            # publish a delete to the owner's other devices through /changes,
+            # and here there is no reader left to publish to: every AuthSession
+            # for this owner is hard-deleted a few lines below, in this same
+            # transaction, and record_access.authenticate admits a caller only
+            # against a live, unrevoked auth_sessions row. The account can never
+            # be authenticated again, so nothing can ever pull this feed.
+            # It is also structurally unavailable: SyncChange.mutation_id is NOT
+            # NULL and foreign-keys to sync_mutations, so each change row needs a
+            # real client-supplied, idempotency-keyed mutation. A server-initiated
+            # bulk delete has none, and synthesising fake mutations to satisfy the
+            # constraint would corrupt the replay-detection they exist for.
+            # test_deletion_tombstones_without_publishing_sync_changes pins this.
             for _name, model in EXPORTED_RECORDS:
                 if model is SyncMutation:
                     continue  # Immutable audit rows; they carry no deleted_at.

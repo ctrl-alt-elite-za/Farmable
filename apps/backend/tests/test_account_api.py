@@ -26,6 +26,7 @@ from farmable_backend.models import (
     PhotoAttempt,
     PhotoUpload,
     Section,
+    SyncChange,
     SyncMutation,
     User,
     VerificationChallenge,
@@ -145,6 +146,36 @@ def _seed_photo_upload(accounts, tokens):
             )
         )
         return upload.id
+
+
+def _seed_sync_change(accounts, tokens):
+    """A pre-existing change-feed row, so the post-deletion count assertion is
+    not vacuously satisfied by there never having been any rows."""
+    with accounts.sessions.begin() as session:
+        farm = session.scalar(select(Farm).where(Farm.owner_id == tokens.user.id))
+        section = session.scalar(select(Section).where(Section.owner_id == tokens.user.id))
+        mutation = SyncMutation(
+            mutation_id=uuid4(),
+            farm_id=farm.id,
+            owner_id=tokens.user.id,
+            record_type="section",
+            operation="create",
+            record_id=section.id,
+            request_fingerprint="1" * 64,
+        )
+        session.add(mutation)
+        session.flush()
+        session.add(
+            SyncChange(
+                farm_id=farm.id,
+                owner_id=tokens.user.id,
+                mutation_id=mutation.id,
+                record_type="section",
+                record_id=section.id,
+                operation="create",
+                version=1,
+            )
+        )
 
 
 def test_language_options_match_the_database_constraint():
@@ -450,6 +481,47 @@ def test_deletion_removes_the_owners_photo_upload_rows(accounts):
             session.scalars(select(PhotoAttempt).where(PhotoAttempt.upload_id == bob_upload)).all()
             != []
         )
+
+
+def test_deletion_tombstones_without_publishing_sync_changes(accounts):
+    # Pins the documented deviation in delete_account: unlike tombstone_observation
+    # and its siblings, the bulk deletion loop sets deleted_at only -- it does not
+    # bump version, flip sync_state to "pending", or write a SyncChange row.
+    # See the comment on delete_account's loop for why. If that ever changes
+    # silently, this test fails rather than the contract drifting unnoticed.
+    _seed_records(accounts)
+    _seed_sync_change(accounts, accounts.alice)
+    owner_id = accounts.alice.user.id
+    with accounts.sessions() as session:
+        before = {
+            model: [
+                (row.id, row.version, row.sync_state)
+                for row in session.scalars(
+                    select(model).where(model.owner_id == owner_id).order_by(model.id)
+                )
+            ]
+            for model in (Farm, Section, FinancialRecord)
+        }
+        changes_before = session.scalars(
+            select(SyncChange).where(SyncChange.owner_id == owner_id)
+        ).all()
+    assert all(rows for rows in before.values())
+    assert len(changes_before) == 1
+    removed = accounts.client.request(
+        "DELETE", "/account", headers=_headers(accounts.alice), json={"password": PASSWORD}
+    )
+    assert removed.status_code == 204
+    with accounts.sessions() as session:
+        for model, rows in before.items():
+            after = session.scalars(
+                select(model).where(model.owner_id == owner_id).order_by(model.id)
+            ).all()
+            assert [(row.id, row.version, row.sync_state) for row in after] == rows
+            assert all(row.deleted_at is not None for row in after)
+        changes_after = session.scalars(
+            select(SyncChange).where(SyncChange.owner_id == owner_id)
+        ).all()
+        assert len(changes_after) == len(changes_before)
 
 
 def test_deletion_leaves_other_owners_untouched(accounts):
