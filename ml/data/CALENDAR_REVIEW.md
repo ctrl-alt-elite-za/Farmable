@@ -25,13 +25,15 @@ suitability varies by region.
 
 ## Normalization decision
 
-R03.05 remains open. The sources provide useful planting and harvest evidence, but
-they cannot produce a complete eight-crop calendar without material inference.
+The sources provide useful planting and harvest evidence, but they cannot produce
+a complete eight-crop calendar without material inference.
 In particular, carrots, potatoes and tomatoes lack numeric yield ranges; onions
 lack a calendar window and post-transplant duration; tomatoes lack duration;
 butternut's yield unit is unsafe; and several crops require region, cultivar/type
 or crop-identity decisions. Historical release timing is also unknown.
 
-No value from these booklets may enter a historical recommendation until the
-registered protocol resolves those choices and a dated source vintage satisfies
-the strict pre-planting availability policy.
+Registered protocol version 1 therefore freezes the staged calendar as a clearly
+labelled provisional scenario rather than claiming these booklets prove every
+value. R03.05 is complete for that scenario; source verification remains deferred
+data cleanup. A future strict planting-time run still requires dated source
+vintages and protocol-approved canonical values.

@@ -30,10 +30,11 @@
   PDF bytes**. Independent comparison to a locally downloaded original remains
   outstanding. The original PDF is not redistributed. The numeric facts are
   attributed here; no claim of an identified redistribution licence is made.
-- This is a **current-vintage reporting snapshot**, not archived releases known
-  to a farmer in 2012. Do not feed its 2025 base or later revisions into historical
-  recommendation ranking. The user selected strict historical vintages; see
-  `../backtest/INFORMATION_POLICY.md`. Source release evidence remains open.
+- This is a **current-vintage snapshot**, not an archived release known to a
+  farmer in 2012. Registered protocol version 1 explicitly uses it for retrospective
+  constant-2025-rand transformation and disclaims historical publication-time
+  availability. The deferred strict policy still prohibits that use; see
+  `../backtest/INFORMATION_POLICY.md`. Source cleanup remains open.
 
 ## Prices, costs and calendars
 

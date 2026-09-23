@@ -6,11 +6,13 @@ and LightGBM forecasts, temporal method selection, decision scoring, report gene
 Parquet validation, a staged-data inventory and a protocol-history checker. The package
 lives in `apps/ml-service/src/farmable_ml`; public checks and artifacts use `ml/`.
 
-These components are exercised on synthetic fixtures. No real decision simulation,
-production forecast snapshot or approved protocol is included yet. NumPy, PyArrow
+These components are exercised on synthetic fixtures. No real decision simulation
+or production forecast snapshot is included yet. The registered retrospective
+fixed-input rules are in `ml/backtest/PROTOCOL.md`; they must merge independently
+before any result run. NumPy, PyArrow
 and LightGBM are pinned in the package manifest and workspace lockfile. Reporting
 CPI data and extraction provenance are in `ml/data/SOURCES.md`. Proposed statistical
-settings and unresolved decisions are in `ml/backtest/PROTOCOL_DRAFT.md`.
+settings and source caveats are in `ml/backtest/PROTOCOL.md`.
 
 ## Run the foundation checks
 
@@ -26,8 +28,8 @@ The inventory reads committed CSV blobs without checking out the data branch or
 writing raw input files. It reports staged coverage, hashes and limitations; it does
 not certify that the inputs satisfy the experiment.
 
-The protocol checker currently fails because `ml/backtest/PROTOCOL.md` has not been
-merged on main. This is intentional. Preparation mode requires the local protocol to
+The protocol checker fails until `ml/backtest/PROTOCOL.md` has been merged on main.
+This is intentional. Preparation mode requires the local protocol to
 exactly match the merged mainline tip. Default mode also requires mainline results
 whose first introduction is strictly later than the protocol. Use `--repo` and
 `--main-ref` for a different repository or mainline reference. All tracked files in
@@ -94,8 +96,8 @@ fixed 2025 budgets with future CPI cannot silently become the recommendation rul
 1. Verify sufficient monthly Joburg history; staged FAOSTAT data is a different
    price source and the combined pumpkin/butternut series remains unresolved.
 2. Verify source calendars, budget subtotals and the CPI transcription against the original PDF.
-3. Resolve fixed modern budgets versus the literal planting-time-information claim.
-4. Freeze and separately merge the protocol before real decision evaluation.
+3. Preserve the registered retrospective fixed-input caveats during source cleanup.
+4. Separately merge the protocol before real decision evaluation.
 5. Integrate the tested components into a gated real-data runner, implement ORM
    reference imports on the current mainline schema, and verify the Colab workflow.
 

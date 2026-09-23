@@ -7,7 +7,7 @@
 **Status:** PR #61 is a tested foundation and remains separate from closing #20.
 
 **Implementation checkpoint, 23 September 2026:** R01 is implemented and tested.
-25 of 53 individual checklist items are complete; 28 remain open. R02's original
+29 of 53 individual checklist items are complete; 24 remain open. R02's original
 workbook coverage is audited for 2008–2024. Official archive captures establish
 conservative availability bounds for 2008–2020, while 2021–2024 remain unknown.
 The official Q1 2025 report adds six months for seven crops but omits spinach, so
@@ -15,11 +15,12 @@ post-2024 harvest coverage still does not clear the source gate. R03
 has complete modern-budget extracts, a frozen subtotal mapping, and named
 calendar/cost blockers. The official ARC summer and winter booklets are now
 downloaded, structurally checked and reviewed in `ml/data/CALENDAR_REVIEW.md`.
-The review identifies material missing/ambiguous fields for all eight crops, so
-R03.05 remains open. R04's strict historical-vintage policy, selector and
-mutation/report-claim tests are implemented. R06.01 now records the current-main
-schema and migration constraints; no protocol registration, import completion,
-or real result is claimed.
+The review identifies material missing/ambiguous fields for all eight crops. The
+project owner elected to freeze the staged calendar values as provisional scenario
+assumptions and clean the sources later. R04's retrospective fixed-input policy is
+now registered in `ml/backtest/PROTOCOL.md`; no real result has been inspected.
+R06.01 records the current-main schema and migration constraints. Import completion
+and real results remain open.
 
 Evidence: [acceptance checks](../ml/ACCEPTANCE.md),
 [source inventory](../ml/data/INVENTORY.md),
@@ -71,7 +72,7 @@ fixtures, and the report-safety fix may proceed before that gate.
 - [x] **R03.02** Extract budget region, update date, production period, yield units, VAT treatment, marketing costs, and every relevant subtotal.
 - [x] **R03.03** Decide which subtotal is compatible with the gross-margin formula and document exclusions or inclusions.
 - [x] **R03.04** Keep the processing-tomato budget caveat separate from fresh-market tomato prices.
-- [ ] **R03.05** Verify planting windows, harvest offsets, occupied months, and guideline yield midpoints against the cited calendar sources.
+- [x] **R03.05** Freeze planting windows, harvest offsets, occupied months, and yield midpoints as explicit provisional scenario assumptions; retain the source-verification gaps for later cleanup.
 - [x] **R03.06** Record regional assumptions, source versions, permissions, and unresolved calendar values.
 
 **Completion evidence:** each crop has a traceable normalized cost and calendar record, or a named blocker.
@@ -93,9 +94,9 @@ fixtures, and the report-safety fix may proceed before that gate.
 
 **Depends on:** R01, R04, and the existing contract/methodology tasks. **Owner:** lead. **Deliverable:** independently merged `ml/backtest/PROTOCOL.md`.
 
-- [ ] **R05.01** Replace the draft with a registered protocol containing period, crops, exclusions, source vintages, formulas, forecast selection, missing-data rules, metrics, bootstrap, and sentence template.
-- [ ] **R05.02** Include the approved cost/CPI policy and all budget/calendar assumptions.
-- [ ] **R05.03** Review every rule against the Issue #20 acceptance criteria.
+- [x] **R05.01** Replace the draft with a registered protocol containing period, crops, exclusions, source vintages, formulas, forecast selection, missing-data rules, metrics, bootstrap, and sentence template.
+- [x] **R05.02** Include the approved cost/CPI policy and all budget/calendar assumptions.
+- [x] **R05.03** Review every rule against the amended Issue #20 acceptance criteria.
 - [ ] **R05.04** Open a protocol-only PR with no real decision results.
 - [ ] **R05.05** Merge the protocol on `main` before running any real decision evaluation.
 - [ ] **R05.06** Record the merged protocol commit and verify the history gate against the actual mainline ancestry.
