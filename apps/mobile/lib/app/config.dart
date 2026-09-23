@@ -32,6 +32,25 @@ const demoMode = bool.fromEnvironment('DEMO_MODE');
 /// Stamped by CI so a report can be traced back to the build that produced it.
 const buildSha = String.fromEnvironment('BUILD_SHA', defaultValue: 'unknown');
 
+/// Where the app opens. `/home` for every build anyone will ever install.
+///
+/// Overridden only to photograph or drive a screen that sits several taps
+/// down, so a capture is a build flag rather than a sequence of blind
+/// coordinates on an emulator two sessions are sharing:
+///
+///   flutter build apk --debug \
+///     --dart-define=INITIAL_ROUTE=/farm/zone/`section-id`/plant
+///
+/// Safe because it can only reach routes the router already serves, and every
+/// screen reads its own data by id — arriving here cold is the same code path
+/// as arriving by tap, which `router.dart` calls a property of the
+/// architecture. An unknown path falls through to the router's own "nothing
+/// here" screen.
+const initialRoute = String.fromEnvironment(
+  'INITIAL_ROUTE',
+  defaultValue: '/home',
+);
+
 /// True when the app has no usable API and should present itself as offline
 /// rather than appearing broken.
 bool get isOfflineBuild => Uri.parse(apiUrl).host.endsWith('.invalid');

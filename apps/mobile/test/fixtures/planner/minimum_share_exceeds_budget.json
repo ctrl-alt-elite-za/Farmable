@@ -1,0 +1,194 @@
+{
+  "name": "minimum_share_exceeds_budget",
+  "note": "Infeasible for a *different* reason than budget alone - the share.",
+  "area_m2": "400.00",
+  "request": {
+    "crops": [
+      "cabbage",
+      "spinach"
+    ],
+    "block_count": 4,
+    "min_crop_shares": [
+      {
+        "crop": "cabbage",
+        "percent": 50
+      }
+    ],
+    "max_results": 3,
+    "planting_date": "2026-09-18",
+    "budget_cents": 100000
+  },
+  "response": {
+    "request": {
+      "section_id": "fixture-demo",
+      "area_m2": "400.00",
+      "planting_date": "2026-09-18",
+      "budget_cents": 100000,
+      "crops": [
+        "cabbage",
+        "spinach"
+      ],
+      "block_count": 4,
+      "min_crop_shares": [
+        {
+          "crop": "cabbage",
+          "percent": 50
+        }
+      ],
+      "max_results": 3
+    },
+    "scenario": {
+      "scenario_id": "hammanskraal-september-2026",
+      "data_version": "sample-v1",
+      "label": "Prototype using sample crop and market data. Not a live forecast.",
+      "planting_start": "2026-09-01",
+      "planting_end": "2026-09-30",
+      "crops": [
+        {
+          "crop": "cabbage",
+          "yield_kg_per_m2": "2",
+          "price_cents_per_kg": 500,
+          "costs": [
+            {
+              "category": "seed",
+              "cents_per_m2": 120
+            },
+            {
+              "category": "fertiliser",
+              "cents_per_m2": 180
+            },
+            {
+              "category": "water",
+              "cents_per_m2": 90
+            },
+            {
+              "category": "labour",
+              "cents_per_m2": 210
+            },
+            {
+              "category": "transport_packaging",
+              "cents_per_m2": 150
+            }
+          ],
+          "harvest_days_min": 90,
+          "harvest_days_max": 110
+        },
+        {
+          "crop": "spinach",
+          "yield_kg_per_m2": "1.5",
+          "price_cents_per_kg": 800,
+          "costs": [
+            {
+              "category": "seed",
+              "cents_per_m2": 80
+            },
+            {
+              "category": "fertiliser",
+              "cents_per_m2": 120
+            },
+            {
+              "category": "water",
+              "cents_per_m2": 80
+            },
+            {
+              "category": "labour",
+              "cents_per_m2": 170
+            },
+            {
+              "category": "transport_packaging",
+              "cents_per_m2": 150
+            }
+          ],
+          "harvest_days_min": 35,
+          "harvest_days_max": 50
+        }
+      ],
+      "assumptions": [
+        "All yields, prices, costs and growth durations are invented demonstration inputs.",
+        "Quantity = allocated square metres multiplied by sample kilograms per square metre.",
+        "Sales = quantity multiplied by sample price; margin subtracts only the listed costs.",
+        "Budget means total listed spending fits starting cash; this is not a cash-flow forecast.",
+        "Market/agent commissions, losses, taxes and unlisted overheads are not included.",
+        "No soil suitability, irrigation availability or weather risk has been assessed.",
+        "Allocation uses equal blocks; unplanted blocks are allowed and earn no sales.",
+        "Harvest dates are illustrative windows, not promised yields or payment dates."
+      ]
+    },
+    "soil_information": "unknown",
+    "feasible": false,
+    "comparisons": [
+      {
+        "crop": "spinach",
+        "area_m2": "400.00",
+        "estimated_quantity_kg": "600.000",
+        "price_cents_per_kg": 800,
+        "sales_cents": 480000,
+        "costs": [
+          {
+            "category": "seed",
+            "cost_cents": 32000
+          },
+          {
+            "category": "fertiliser",
+            "cost_cents": 48000
+          },
+          {
+            "category": "water",
+            "cost_cents": 32000
+          },
+          {
+            "category": "labour",
+            "cost_cents": 68000
+          },
+          {
+            "category": "transport_packaging",
+            "cost_cents": 60000
+          }
+        ],
+        "total_cost_cents": 240000,
+        "margin_cents": 240000,
+        "harvest_start": "2026-10-23",
+        "harvest_end": "2026-11-07"
+      },
+      {
+        "crop": "cabbage",
+        "area_m2": "400.00",
+        "estimated_quantity_kg": "800.00",
+        "price_cents_per_kg": 500,
+        "sales_cents": 400000,
+        "costs": [
+          {
+            "category": "seed",
+            "cost_cents": 48000
+          },
+          {
+            "category": "fertiliser",
+            "cost_cents": 72000
+          },
+          {
+            "category": "water",
+            "cost_cents": 36000
+          },
+          {
+            "category": "labour",
+            "cost_cents": 84000
+          },
+          {
+            "category": "transport_packaging",
+            "cost_cents": 60000
+          }
+        ],
+        "total_cost_cents": 300000,
+        "margin_cents": 100000,
+        "harvest_start": "2026-12-17",
+        "harvest_end": "2027-01-06"
+      }
+    ],
+    "plans": [],
+    "reason": {
+      "code": "minimum_share_exceeds_budget",
+      "message": "No planted allocation meets the budget under these sample assumptions. Increase the budget, reduce the section area or relax a minimum crop share.",
+      "minimum_required_budget_cents": 150000
+    }
+  }
+}
