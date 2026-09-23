@@ -404,13 +404,13 @@ The protocol must merge in its own PR before running the decision backtest on re
 
 Use this compact record when assigning a group of subtasks:
 
-| Field | What to record |
-| --- | --- |
-| Subtask IDs | Exact IDs from this checklist |
-| Owner | Person or agent responsible |
-| Dependencies | Required completed IDs or decisions |
-| Files | Module/configuration paths the owner may change |
-| Evidence | Test output, artifact path or review/PR link |
-| State | Open, in progress, blocked, or complete |
+| Field        | What to record                                  |
+| ------------ | ----------------------------------------------- |
+| Subtask IDs  | Exact IDs from this checklist                   |
+| Owner        | Person or agent responsible                     |
+| Dependencies | Required completed IDs or decisions             |
+| Files        | Module/configuration paths the owner may change |
+| Evidence     | Test output, artifact path or review/PR link    |
+| State        | Open, in progress, blocked, or complete         |
 
 Assign source inspection, parsers, report generation and bounded synthetic tests to lower-cost agents where useful. Keep CPI/scenario decisions, schema reconciliation, shared-contract edits and final acceptance review with the lead. Avoid simultaneous edits to the same configuration or model files.

@@ -9,16 +9,16 @@ This document breaks the PRD into separately reviewable changes. Completing rese
 
 ## 1. Delivery order and ownership
 
-| Work package | Depends on | Suggested owner | Review boundary |
-| --- | --- | --- | --- |
-| T01–T03: baseline, sources, contracts | Nothing | Lower-cost agent for inspection; lead for decisions | Evidence and schema contracts |
-| T04–T05: methodology and protocol | T02–T03 | Lead | Protocol-only PR merged on main |
-| T06–T08: environment, canonical data, CPI | T02–T04 | Lower-cost implementation agents | Small infrastructure/data PRs |
-| T09: reference imports | T01, T03, T07 | Backend agent | ORM import PR with database tests |
-| T10–T12: forecasts and temporal selection | T06–T08, frozen methodology | Model agent; lead reviews leakage | Forecast implementation PRs |
-| T13–T15: decisions, statistics, reports | T04, T06–T08, T12 | Separate bounded agents after contracts settle | Synthetic backtest implementation PRs |
-| T16–T18: snapshot, reproducibility, notebook | T10–T15 | Lower-cost implementation agent | Consumer and execution integration PRs |
-| T19: real run and results | All earlier tasks, including merged T05 | Lead with independent review | Results PR; complete acceptance evidence |
+| Work package                                 | Depends on                              | Suggested owner                                     | Review boundary                          |
+| -------------------------------------------- | --------------------------------------- | --------------------------------------------------- | ---------------------------------------- |
+| T01–T03: baseline, sources, contracts        | Nothing                                 | Lower-cost agent for inspection; lead for decisions | Evidence and schema contracts            |
+| T04–T05: methodology and protocol            | T02–T03                                 | Lead                                                | Protocol-only PR merged on main          |
+| T06–T08: environment, canonical data, CPI    | T02–T04                                 | Lower-cost implementation agents                    | Small infrastructure/data PRs            |
+| T09: reference imports                       | T01, T03, T07                           | Backend agent                                       | ORM import PR with database tests        |
+| T10–T12: forecasts and temporal selection    | T06–T08, frozen methodology             | Model agent; lead reviews leakage                   | Forecast implementation PRs              |
+| T13–T15: decisions, statistics, reports      | T04, T06–T08, T12                       | Separate bounded agents after contracts settle      | Synthetic backtest implementation PRs    |
+| T16–T18: snapshot, reproducibility, notebook | T10–T15                                 | Lower-cost implementation agent                     | Consumer and execution integration PRs   |
+| T19: real run and results                    | All earlier tasks, including merged T05 | Lead with independent review                        | Results PR; complete acceptance evidence |
 
 Keep ownership at file/module boundaries when delegating. Do not ask multiple agents to change the same shared config or schema simultaneously. The lead owns statistical choices, schema reconciliation, cross-module contracts and final evidence review. Lower-cost agents can handle bounded research, parsers, command adapters, synthetic tests and report generators after those contracts are fixed.
 
@@ -277,20 +277,20 @@ Keep ownership at file/module boundaries when delegating. Do not ask multiple ag
 
 ## 3. Acceptance coverage
 
-| Issue requirement | Tasks |
-| --- | --- |
+| Issue requirement                                     | Tasks         |
+| ----------------------------------------------------- | ------------- |
 | Public source hashes and idempotent reference imports | T02, T07, T09 |
-| Committed CPI and `test_cpi_adjustment` | T08 |
-| No look-ahead in forecasts and recommendations | T04, T10–T13 |
-| Walk-forward winner selection | T12 |
-| Protocol merged before real execution/results | T05, T18–T19 |
-| Gross margin formula | T13 |
-| Eight defaults, pooled metrics, exclusions/caveats | T14–T15 |
-| Every-default table and generated sentence tests | T15 |
-| Validated Parquet output | T16 |
-| Byte-identical output | T17, T19 |
-| Credential-free Colab and secret scanning | T18–T19 |
-| Repository lint/typecheck/test integration | T06, T19 |
+| Committed CPI and `test_cpi_adjustment`               | T08           |
+| No look-ahead in forecasts and recommendations        | T04, T10–T13  |
+| Walk-forward winner selection                         | T12           |
+| Protocol merged before real execution/results         | T05, T18–T19  |
+| Gross margin formula                                  | T13           |
+| Eight defaults, pooled metrics, exclusions/caveats    | T14–T15       |
+| Every-default table and generated sentence tests      | T15           |
+| Validated Parquet output                              | T16           |
+| Byte-identical output                                 | T17, T19      |
+| Credential-free Colab and secret scanning             | T18–T19       |
+| Repository lint/typecheck/test integration            | T06, T19      |
 
 ## 4. Research findings and open dependencies
 

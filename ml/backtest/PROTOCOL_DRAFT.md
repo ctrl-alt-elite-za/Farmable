@@ -64,10 +64,10 @@ information available strictly before the beginning of the planting month.
 ## Decisions required before registration
 
 1. **Price source and coverage:** verify historical monthly Joburg prices, training
-  history and post-2024 harvest coverage for all eight exact crops. The Department
-  archive currently proves only that annual candidate workbooks are linked for
-  2012–2024; inspect original workbook contents, aggregation, units and
-  availability lags. Scrape dates and archive links alone are insufficient.
+   history and post-2024 harvest coverage for all eight exact crops. The Department
+   archive currently proves only that annual candidate workbooks are linked for
+   2012–2024; inspect original workbook contents, aggregation, units and
+   availability lags. Scrape dates and archive links alone are insufficient.
 2. **Cost/CPI information policy:** fixed 2025 costs and future CPI can change
    historical recommendations. Choose historical cost vintages for a strict
    information claim, or obtain an explicit issue amendment for a fixed modern-cost

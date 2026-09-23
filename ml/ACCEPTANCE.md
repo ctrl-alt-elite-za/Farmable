@@ -30,21 +30,21 @@ only to the explicitly parametrized concurrency test; production code is unchang
 
 ## Acceptance mapping
 
-| Required evidence | Current evidence | Still needed |
-| --- | --- | --- |
-| `test_no_lookahead_forecast` | Simple forecast future-price mutation passes; separate real LightGBM fit/mutation test passes | Agreed inflation-adjusted prediction basis and end-to-end CPI/vintage invariance |
-| `test_no_lookahead_recommendation` | Synthetic cutoff-aware forecasts/costs and frozen recommendation pass | Integrated method selection/calendar/CPI policy on audited inputs |
-| `test_method_selection_picks_backtest_winner` | Controlled temporal winners, changing winners over time and common-target failure tests pass | Multi-horizon aggregation, diagnostic baseline and forecast evaluation artifact |
-| `test_reproducible_output` | Separate-process report/manifest byte equality passes; Parquet order stability also passes | Complete independent real-run equality, code/protocol/input/config run identity |
-| `test_cpi_adjustment` | On-disk Stats SA 2012 observation and full 2025 base conversion pass | Commit reviewed data; independent original-PDF transcription check; historical cost policy |
-| `test_gross_margin_formula` | Explicit-unit, loss and duration arithmetic passes | Real scenario inputs and approved money basis |
-| Protocol history exits 0 | Merge/squash/order fixtures pass; actual checker correctly rejects missing protocol | Finalized separate protocol PR merged before execution/results |
-| JSON eight crops + pooled, fields and exclusions | Synthetic generated report shape and null/denominator tests pass | Real validated report and full source manifest |
-| Every-default table | `test_table_lists_every_default` passes | Real artifact |
-| Generated slide sentence | `test_slide_sentence_from_results` passes, synthetic warning retained | Real artifact with evidence supporting the exact wording |
-| Parquet validator exits 0 | CLI actually exits 0 against temporary 96-row Parquet fixture; rejects invalid grid/prices/basis | Real `results/<run_id>/forecasts.parquet` and consumer integration |
-| `test_import_idempotent` | Not implemented for #20 reference imports | Current-main reconciliation, reference schema/migrations and ORM import commands/tests |
-| Gitleaks | Local directory and available full-history scans passed | Repeat in eventual PR CI with complete fetched history |
+| Required evidence                                | Current evidence                                                                                 | Still needed                                                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `test_no_lookahead_forecast`                     | Simple forecast future-price mutation passes; separate real LightGBM fit/mutation test passes    | Agreed inflation-adjusted prediction basis and end-to-end CPI/vintage invariance           |
+| `test_no_lookahead_recommendation`               | Synthetic cutoff-aware forecasts/costs and frozen recommendation pass                            | Integrated method selection/calendar/CPI policy on audited inputs                          |
+| `test_method_selection_picks_backtest_winner`    | Controlled temporal winners, changing winners over time and common-target failure tests pass     | Multi-horizon aggregation, diagnostic baseline and forecast evaluation artifact            |
+| `test_reproducible_output`                       | Separate-process report/manifest byte equality passes; Parquet order stability also passes       | Complete independent real-run equality, code/protocol/input/config run identity            |
+| `test_cpi_adjustment`                            | On-disk Stats SA 2012 observation and full 2025 base conversion pass                             | Commit reviewed data; independent original-PDF transcription check; historical cost policy |
+| `test_gross_margin_formula`                      | Explicit-unit, loss and duration arithmetic passes                                               | Real scenario inputs and approved money basis                                              |
+| Protocol history exits 0                         | Merge/squash/order fixtures pass; actual checker correctly rejects missing protocol              | Finalized separate protocol PR merged before execution/results                             |
+| JSON eight crops + pooled, fields and exclusions | Synthetic generated report shape and null/denominator tests pass                                 | Real validated report and full source manifest                                             |
+| Every-default table                              | `test_table_lists_every_default` passes                                                          | Real artifact                                                                              |
+| Generated slide sentence                         | `test_slide_sentence_from_results` passes, synthetic warning retained                            | Real artifact with evidence supporting the exact wording                                   |
+| Parquet validator exits 0                        | CLI actually exits 0 against temporary 96-row Parquet fixture; rejects invalid grid/prices/basis | Real `results/<run_id>/forecasts.parquet` and consumer integration                         |
+| `test_import_idempotent`                         | Not implemented for #20 reference imports                                                        | Current-main reconciliation, reference schema/migrations and ORM import commands/tests     |
+| Gitleaks                                         | Local directory and available full-history scans passed                                          | Repeat in eventual PR CI with complete fetched history                                     |
 
 The CPI snapshot is a current-vintage **reporting** series. Models currently work
 in the caller-supplied consistent price basis and do not pretend their nominal
