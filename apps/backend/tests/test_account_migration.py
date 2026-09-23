@@ -9,7 +9,7 @@ from test_farm_schema import _index_statements, _orm_sql, _table_elements
 
 def test_account_profiles_migration_is_additive_and_matches_the_orm():
     output = io.StringIO()
-    command.upgrade(Config("alembic.ini", output_buffer=output), "0006:0007", sql=True)
+    command.upgrade(Config("alembic.ini", output_buffer=output), "0008:0009", sql=True)
     sql = output.getvalue()
     assert "ALTER TABLE" not in sql
     assert "DROP TABLE" not in sql
