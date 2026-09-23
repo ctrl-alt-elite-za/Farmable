@@ -17,16 +17,16 @@ expired sessions, malformed tokens and deleted accounts all return
 `401 invalid_session` with `WWW-Authenticate: Bearer`. Request models reject
 unknown fields with `422 validation_error`.
 
-| Endpoint                     | Purpose                                                    |
-| ---------------------------- | ---------------------------------------------------------- |
-| `POST /auth/logout`          | Revoke the calling session only (204)                      |
-| `POST /auth/revoke-all`      | Revoke every session the caller owns (204)                 |
-| `GET /account/profile`       | First name, surname, phone, email, verification, language  |
-| `PATCH /account/profile`     | Update first name, surname and/or preferred language       |
-| `GET /account/farm`          | The caller's farm: id, owner, name, preferred language     |
-| `PATCH /account/farm`        | Update the farm name and/or preferred language             |
-| `GET /account/export`        | `?format=json` or `?format=zip`                            |
-| `DELETE /account`            | Password-confirmed account deletion (204)                  |
+| Endpoint                 | Purpose                                                   |
+| ------------------------ | --------------------------------------------------------- |
+| `POST /auth/logout`      | Revoke the calling session only (204)                     |
+| `POST /auth/revoke-all`  | Revoke every session the caller owns (204)                |
+| `GET /account/profile`   | First name, surname, phone, email, verification, language |
+| `PATCH /account/profile` | Update first name, surname and/or preferred language      |
+| `GET /account/farm`      | The caller's farm: id, owner, name, preferred language    |
+| `PATCH /account/farm`    | Update the farm name and/or preferred language            |
+| `GET /account/export`    | `?format=json` or `?format=zip`                           |
+| `DELETE /account`        | Password-confirmed account deletion (204)                 |
 
 Every account owns exactly one farm, created empty and named `My farm` at
 sign-up. `GET /account/farm` returns the caller's oldest active farm and `404
