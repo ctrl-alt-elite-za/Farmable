@@ -839,3 +839,21 @@ def test_required_config_names_the_variable_that_is_unset(tmp_path: Path, unset:
     assert result.returncode != 0
     assert unset in result.stderr
     assert not (tmp_path / "github-output").exists()
+
+
+def test_required_config_runs_before_authentication_and_feeds_the_backup() -> None:
+    """GCP_CLOUD_SQL_INSTANCE reached gcp-backup.sh straight from `vars`, unchecked,
+    so an operator who had not set it lost a build and push before finding out. The
+    check now runs first, ahead of the Google Cloud auth step, and the backup step
+    consumes the validated output instead of the raw variable.
+    """
+    workflow = read(".github/workflows/deploy-staging.yml")
+    assert "bash infra/gcp-required-config.sh" in workflow
+    assert workflow.index("infra/gcp-required-config.sh") < workflow.index(
+        "google-github-actions/auth@"
+    )
+    assert "GCP_CLOUD_SQL_INSTANCE: ${{ vars.GCP_CLOUD_SQL_INSTANCE }}" in workflow
+    assert "CLOUD_SQL_INSTANCE: ${{ steps.config.outputs.sql_instance }}" in workflow
+    assert 'test -n "$PROJECT"' not in workflow
+    for name in _REQUIRED_CONFIG_VARS:
+        assert name in read("infra/gcp-required-config.sh"), name
