@@ -168,6 +168,8 @@ def test_export_and_revoke_all_stay_owner_scoped(engine):
     second = _register(auth, suffix, 1)
     owners = [first.user.id, second.user.id]
     try:
+        account.set_consent(f"Bearer {first.access_token}", "data_export", "1", True)
+        account.set_consent(f"Bearer {second.access_token}", "data_export", "1", True)
         document = account.export_document(f"Bearer {first.access_token}")
         body = json.dumps(document)
         assert document["account"]["id"] == str(first.user.id)
