@@ -1,5 +1,9 @@
 {
   "status": "not_approved_for_historical_costs",
+  "availability_policy": {
+    "status": "unknown_blocks_historical_use",
+    "evidence": "PDF update dates, URL paths, retrieval times and file metadata are not publication or revision dates."
+  },
   "sources": [
     {
       "url": "https://www.elsenburg.com/wp-content/uploads/2025/06/CABBAGE.pdf",

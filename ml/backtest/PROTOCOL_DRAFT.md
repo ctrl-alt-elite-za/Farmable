@@ -2,11 +2,14 @@
 
 **Evidence checkpoint:** 23 September 2026. The strict historical-information
 requirement remains in force. The official workbooks now have verified monthly
-Joburg coverage for 2008–2024, but release vintages and post-2024 harvest coverage
-are unresolved. Modern budget fields have been extracted; historical costs,
-calendar values and cost-component reconciliation remain missing. FAOSTAT remains
-a distinct farm-gate series. Do not run or publish decision outcomes until those
-source checks and protocol registration are complete.
+Joburg coverage for 2008–2024. Official archive captures bound availability for
+2008–2020, but 2021–2024 remain unresolved. An official quarterly report adds
+October 2024–March 2025 outcomes for seven crops but omits spinach. Modern budget
+fields have been extracted; historical costs, complete calendar values and VAT
+compatibility remain missing; the cost-subtotal
+mapping is frozen. FAOSTAT remains a distinct farm-gate series. Do not run or
+publish decision outcomes until those source checks and protocol registration are
+complete.
 
 This is a review draft, **not `PROTOCOL.md`**. It cannot pass the history gate and
 must not authorize a real-data backtest. A finalized protocol must merge in its
@@ -67,17 +70,22 @@ information available strictly before the beginning of the planting month.
 1. **Price source and coverage:** verify historical monthly Joburg prices, training
    history and post-2024 harvest coverage for all eight exact crops. The Department
    workbooks now prove monthly content coverage for 2008–2024; see the committed
-   source audit. Establish historical release dates/revisions and later harvest
-   observations. Scrape dates and workbook modification dates are insufficient.
+   source audit. Archived official payloads conservatively bound 2008–2020
+   availability. Establish 2021–2024 release/revision evidence and obtain the
+   missing post-2024 spinach observations. Scrape dates, server timestamps and
+   workbook/PDF modification dates are insufficient.
 2. **Cost/CPI information policy:** the user selected strict historical cost/input
    vintages. Fixed 2025 costs deflated by future CPI are prohibited for ranking.
    See `INFORMATION_POLICY.md` for the selected rule and executable counterexample.
    Historical source vintages and their release evidence still need verification.
 3. **Calendar and budgets:** source region, planting windows, harvest offsets,
    occupied duration, yield midpoint and cost subtotal/VAT/marketing treatment.
-   The 2025 Elsenburg PDFs have extracted fields, not verified historical inputs;
-   inspect their components and obtain historical versions published before each
-   origin. A modern budget's original creation date cannot date its revised values.
+   The Elsenburg subtotal/marketing mapping is frozen but the 2025 PDFs are not
+   verified historical inputs. The ARC booklets have been reviewed page by page;
+   `CALENDAR_REVIEW.md` records missing yield/duration fields, ambiguous units and
+   unresolved region/cultivar/crop-identity choices. Obtain approved values and
+   historical source versions published before each origin. A modern document's
+   creation date cannot date its revised values.
 4. **Selection:** settle baseline eligibility, horizon pooling, failure coverage,
    training minimums and availability rules from source inventory.
 5. **Publication:** verify that the exact issue sentence's planting-time claim is

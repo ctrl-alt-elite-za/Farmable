@@ -1,7 +1,12 @@
 """Source audit must distinguish valid months from absent or inconsistent cells."""
 
+import json
+from pathlib import Path
+
 import pytest
-from audit_issue20_market_workbooks import ALIASES, audit_rows
+from audit_issue20_market_workbooks import ALIASES, audit_rows, json_payload
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def workbook_rows(label_on_mass=False):
@@ -41,3 +46,35 @@ def test_wrong_year_and_duplicate_alias_fail():
     rows.extend(rows[2:5])
     with pytest.raises(ValueError, match="exactly one"):
         audit_rows(rows, 2024)
+
+
+def test_committed_audit_uses_only_conservative_archive_availability():
+    audit = json.loads((ROOT / "ml/data/market_workbook_audit.json").read_text())
+    assert len(audit["sources"]) == 17
+    dated = [source for source in audit["sources"] if source["available_on"] is not None]
+    unknown = [source for source in audit["sources"] if source["available_on"] is None]
+    assert [source["year"] for source in dated] == [str(year) for year in range(2008, 2021)]
+    assert [source["year"] for source in unknown] == ["2021", "2022", "2023", "2024"]
+    assert all(
+        source["availability_status"] == "archived_official_payload_capture"
+        and source["availability_time_utc"].startswith(source["available_on"])
+        and source["availability_source_url"].startswith(
+            ("http://www.daff.gov.za", "https://www.dalrrd.gov.za")
+        )
+        and source["availability_capture_url"].startswith("https://web.archive.org/web/")
+        and len(source["availability_cdx_digest"]) == 32
+        and "not a publication date" in source["availability_evidence"]
+        for source in dated
+    )
+    assert all(
+        source["availability_status"] == "unknown_blocks_historical_use"
+        and "not release evidence" in source["availability_evidence"]
+        for source in unknown
+    )
+
+
+def test_json_payload_keeps_month_arrays_reviewable_and_round_trips():
+    document = {"months": list(range(1, 13)), "empty": [], "nested": {"year": 2024}}
+    payload = json_payload(document)
+    assert '"months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]' in payload
+    assert json.loads(payload) == document

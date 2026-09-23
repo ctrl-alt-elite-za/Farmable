@@ -7,18 +7,29 @@
 **Status:** PR #61 is a tested foundation and remains separate from closing #20.
 
 **Implementation checkpoint, 23 September 2026:** R01 is implemented and tested.
-18 of 53 individual checklist items are complete; 35 remain open. R02's original
-workbook coverage is audited for 2008–2024, but historical availability and
-post-2024 harvest coverage do not clear the source gate. R03 has dated modern
-budget extracts and named calendar/cost blockers. The user selected strict
-historical vintages for R04; component tests are not end-to-end policy approval.
-No protocol registration, import completion, or real result is claimed.
+25 of 53 individual checklist items are complete; 28 remain open. R02's original
+workbook coverage is audited for 2008–2024. Official archive captures establish
+conservative availability bounds for 2008–2020, while 2021–2024 remain unknown.
+The official Q1 2025 report adds six months for seven crops but omits spinach, so
+post-2024 harvest coverage still does not clear the source gate. R03
+has complete modern-budget extracts, a frozen subtotal mapping, and named
+calendar/cost blockers. The official ARC summer and winter booklets are now
+downloaded, structurally checked and reviewed in `ml/data/CALENDAR_REVIEW.md`.
+The review identifies material missing/ambiguous fields for all eight crops, so
+R03.05 remains open. R04's strict historical-vintage policy, selector and
+mutation/report-claim tests are implemented. R06.01 now records the current-main
+schema and migration constraints; no protocol registration, import completion,
+or real result is claimed.
 
 Evidence: [acceptance checks](../ml/ACCEPTANCE.md),
 [source inventory](../ml/data/INVENTORY.md),
 [market workbook audit](../ml/data/market_workbook_audit.json),
-[budget review](../ml/data/BUDGET_REVIEW.md), and
-[information policy and coverage contract](../ml/backtest/INFORMATION_POLICY.md).
+[post-2024 market audit](../ml/data/post_2024_market_source_audit.json),
+[publisher data-request draft](../ml/data/PUBLISHER_DATA_REQUEST.md),
+[budget review](../ml/data/BUDGET_REVIEW.md),
+[calendar review](../ml/data/CALENDAR_REVIEW.md),
+[information policy and coverage contract](../ml/backtest/INFORMATION_POLICY.md),
+and [reference-schema reconciliation](../ml/data/REFERENCE_SCHEMA_RECONCILIATION.md).
 
 This checklist converts the senior review into bounded implementation work. No real
 forecast, recommendation, or decision result may be published before the protocol
@@ -44,7 +55,7 @@ fixtures, and the report-safety fix may proceed before that gate.
 
 - [x] **R02.01** Download representative Department of Agriculture Fresh Produce Market workbooks for 2012–2024.
 - [x] **R02.02** Confirm workbook sheets contain Johannesburg, the required crops, monthly observations, units, and aggregation definitions.
-- [ ] **R02.03** Record publication or availability dates; do not infer planting-time availability from download dates.
+- [x] **R02.03** Record publication or availability dates; do not infer planting-time availability from download dates.
 - [x] **R02.04** Inventory pre-2012 training history and post-2024 harvest coverage for late-2024 plantings.
 - [x] **R02.05** Measure missing months and crop aliases for all eight included crops.
 - [x] **R02.06** Preserve FAOSTAT as a distinct farm-gate source unless an explicit issue amendment authorizes substitution.
@@ -57,8 +68,8 @@ fixtures, and the report-safety fix may proceed before that gate.
 **Depends on:** R02. **Owner:** data research owner. **Deliverable:** normalized cost/calendar review sheet.
 
 - [x] **R03.01** Obtain the dated Elsenburg budget for each of the eight included crops.
-- [ ] **R03.02** Extract budget region, update date, production period, yield units, VAT treatment, marketing costs, and every relevant subtotal.
-- [ ] **R03.03** Decide which subtotal is compatible with the gross-margin formula and document exclusions or inclusions.
+- [x] **R03.02** Extract budget region, update date, production period, yield units, VAT treatment, marketing costs, and every relevant subtotal.
+- [x] **R03.03** Decide which subtotal is compatible with the gross-margin formula and document exclusions or inclusions.
 - [x] **R03.04** Keep the processing-tomato budget caveat separate from fresh-market tomato prices.
 - [ ] **R03.05** Verify planting windows, harvest offsets, occupied months, and guideline yield midpoints against the cited calendar sources.
 - [x] **R03.06** Record regional assumptions, source versions, permissions, and unresolved calendar values.
@@ -72,9 +83,9 @@ fixtures, and the report-safety fix may proceed before that gate.
 - [x] **R04.01** Reproduce the CPI/cost ranking counterexample from the research notes.
 - [x] **R04.02** Choose either historical cost/input vintages for a strict information-availability claim or an explicitly scoped fixed-modern-cost scenario.
 - [x] **R04.03** Specify which CPI transformations are reporting-only and which, if any, may affect recommendation ranking.
-- [ ] **R04.04** Define the availability lag and revision policy for prices, CPI, costs, and calendars.
-- [ ] **R04.05** Update the issue wording or generated sentence if the selected scenario cannot support the literal planting-time claim.
-- [ ] **R04.06** Add synthetic future-data mutation tests for the approved decision policy.
+- [x] **R04.04** Define the availability lag and revision policy for prices, CPI, costs, and calendars.
+- [x] **R04.05** Update the issue wording or generated sentence if the selected scenario cannot support the literal planting-time claim.
+- [x] **R04.06** Add synthetic future-data mutation tests for the approved decision policy.
 
 **Completion evidence:** a reviewed decision memo or protocol section with no unresolved information-availability contradiction.
 
@@ -95,7 +106,7 @@ fixtures, and the report-safety fix may proceed before that gate.
 
 **Depends on:** R02–R03, current-main schema reconciliation, and the existing package contracts. **Owner:** backend/data implementation owner. **Deliverable:** validated ORM imports.
 
-- [ ] **R06.01** Reconcile the current #8 reference schema, identifiers, migration head, and constraints.
+- [x] **R06.01** Reconcile the current #8 reference schema, identifiers, migration head, and constraints.
 - [ ] **R06.02** Add only required additive ORM models/fields and migrations.
 - [ ] **R06.03** Implement market-price, calendar, and cost import commands.
 - [ ] **R06.04** Validate the complete source before opening the write transaction.

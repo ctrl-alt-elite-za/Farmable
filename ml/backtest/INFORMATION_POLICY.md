@@ -11,6 +11,23 @@ Use only revisions released before the origin; later revisions cannot overwrite
 the historical feature record. Unknown release dates block use. Do not invent a
 fixed release lag until publisher evidence supports it.
 
+The rule is source-specific:
+
+- A market observation is eligible only when the publisher's documented release
+  date is strictly before the planting origin. A month label does not establish
+  availability. Later corrected workbooks do not replace the selected vintage.
+- A cost or calendar row must select the latest version whose effective date is
+  on or before the origin and whose documented release is strictly before it.
+  Later revisions remain excluded even when they describe an earlier season.
+- A CPI observation used in ranking follows the same strict release cutoff. The
+  current-vintage series may convert frozen outcomes for reporting only.
+- The realized harvest price may be read after the target month solely to score
+  an already frozen recommendation. It cannot affect feature construction,
+  method selection, eligibility or the recommendation itself.
+
+`farmable_ml.vintage.select_as_of` implements the deterministic cost/calendar
+selection rule and rejects missing, cutoff-day, future and conflicting versions.
+
 Forecasts and costs must share an explicit monetary basis established solely with
 information available at the origin. If CPI is used in that transformation, its
 release vintage must meet the same cutoff. The current committed Stats SA series
@@ -25,13 +42,17 @@ The prohibited shortcut has a reproducible counterexample. With revenues 100 and
 CPI 200 gives margins 40 and 50. Changing only future CPI to 400 gives margins 70
 and 60 and reverses the winner. `test_future_cpi_deflation_of_modern_costs_can_reverse_the_winner`
 checks this arithmetic. The decision tests also reject future-dated costs and
-vary reporting multipliers after freezing a recommendation. These component tests
-do not certify a future loader's vintage selection or a real historical run.
+vary reporting multipliers after freezing a recommendation. The vintage mutation
+tests prove that adding a future value or revision cannot change the selected
+inputs. These component tests do not certify a real historical run.
 
 Missing historical budgets/calendars remain blockers. The 2025 budgets may inform
 source review but cannot be substituted into 2012 decisions. Processing-tomato
 costs remain a separate fresh-market compatibility caveat. The literal planting-time
-claim is retained as a requirement, not claimed as achieved.
+claim is retained as a requirement, not claimed as achieved. `build_report`
+therefore requires an explicit verified-cutoff attestation for historical data,
+stores it in the report, and refuses to render a historical headline if it is
+missing or changed. Synthetic fixtures cannot set that attestation.
 
 ## Report coverage contract
 

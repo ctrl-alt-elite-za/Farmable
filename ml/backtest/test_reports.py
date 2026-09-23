@@ -133,6 +133,7 @@ def historical_report(rows):
     return build_report(
         rows,
         data_kind="historical",
+        information_cutoff_verified=True,
         input_hashes={"fixture": "a" * 64},
         config=Bootstrap(replicates=100),
     )
@@ -162,6 +163,22 @@ def test_partial_synthetic_ledger_cannot_be_used_as_historical():
         render_sentence(document)
 
 
+def test_historical_claim_requires_verified_information_cutoffs():
+    with pytest.raises(ValueError, match="information cutoff is not verified"):
+        build_report(
+            complete_ledger(),
+            data_kind="historical",
+            input_hashes={"fixture": "a" * 64},
+        )
+    with pytest.raises(ValueError, match="synthetic fixtures cannot claim"):
+        build_report(
+            ledger(),
+            data_kind="synthetic",
+            information_cutoff_verified=True,
+            input_hashes={"fixture": "a" * 64},
+        )
+
+
 @pytest.mark.parametrize("origin", [date(2011, 12, 1), date(2025, 1, 1)])
 def test_historical_coverage_rejects_out_of_period_rows(origin):
     rows = complete_ledger()
@@ -187,6 +204,13 @@ def test_complete_historical_coverage_and_sentence():
     }
     assert "1248 planting decisions (2012-01–2024-12)" in render_sentence(document)
     assert "2012-01–2024-12" in render_table(document)
+
+
+def test_historical_report_with_tampered_information_policy_cannot_render():
+    document = historical_report(complete_ledger())
+    document["information_policy"]["status"] = "unknown"
+    with pytest.raises(ValueError, match="information-cutoff evidence"):
+        render_sentence(document)
 
 
 def test_explicit_skips_preserve_coverage_without_counting_as_scored_decisions():
