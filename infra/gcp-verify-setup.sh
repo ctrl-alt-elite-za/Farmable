@@ -70,18 +70,19 @@ else
 fi
 
 # Terraform creates empty Secret Manager containers and never receives a value, so
-# a container with no enabled version is the likeliest first-deploy failure. Only
-# version names and states are read here.
+# a missing or disabled `latest` version is the likeliest first-deploy failure.
+# Read only the version state; never fetch a secret payload.
 required_secrets=(
   "${SECRET_PREFIX}-database-url"
   "${SECRET_PREFIX}-gemini-api-key"
 )
 for secret in "${required_secrets[@]}"; do
-  if [[ -n "$(gcloud secrets versions list "$secret" --project="$GCP_PROJECT" \
-    --filter='state=enabled' --format='value(name)' --limit=1 2>/dev/null)" ]]; then
-    pass "Secret has an enabled version: ${secret}"
+  latest_state="$(gcloud secrets versions describe latest --secret="$secret" \
+    --project="$GCP_PROJECT" --format='value(state)' 2>/dev/null || true)"
+  if [[ "$latest_state" == "ENABLED" ]]; then
+    pass "Secret latest version is enabled: ${secret}"
   else
-    fail "Secret has no enabled version: ${secret}"
+    fail "Secret latest version is '${latest_state}', expected 'ENABLED': ${secret}"
   fi
 done
 
@@ -89,7 +90,8 @@ condition="$(gcloud iam workload-identity-pools providers describe \
   "$WORKLOAD_IDENTITY_PROVIDER_ID" --project="$GCP_PROJECT" --location=global \
   --workload-identity-pool="$WORKLOAD_IDENTITY_POOL" \
   --format='value(attributeCondition)' 2>/dev/null || true)"
-if [[ "$condition" == *"$EXPECTED_REPOSITORY"* ]]; then
+expected_condition="assertion.repository == '${EXPECTED_REPOSITORY}' && assertion.ref == 'refs/heads/main'"
+if [[ "$condition" == "$expected_condition" ]]; then
   pass "Workload identity provider is pinned to ${EXPECTED_REPOSITORY}"
 else
   fail "Workload identity provider is not pinned to ${EXPECTED_REPOSITORY}"

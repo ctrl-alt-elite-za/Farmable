@@ -858,9 +858,8 @@ def test_required_config_runs_before_authentication_and_feeds_the_backup() -> No
         assert name in read("infra/gcp-required-config.sh"), name
 
 
-# `${VAR-default}`, not `${VAR:-default}`: a case that sets FAKE_SECRET_VERSION to
-# the empty string is asking for "this secret has no enabled version", which `:-`
-# would quietly turn back into the default and make the test pass for free.
+# `${VAR-default}`, not `${VAR:-default}`: a case that sets a fake value to the
+# empty string must remain a failing state rather than falling back to a default.
 _VERIFY_SETUP_STUB = r"""
 case "$*" in
   *"services list"*)
@@ -870,10 +869,12 @@ case "$*" in
       *public_access_prevention*) printf '%s\n' "${FAKE_PREVENTION-enforced}" ;;
       *uniform_bucket_level_access*) printf '%s\n' "${FAKE_UNIFORM-True}" ;;
     esac ;;
-  *"secrets versions list"*)
-    printf '%s\n' "${FAKE_SECRET_VERSION-1}" ;;
+  *"secrets versions describe latest"*)
+    printf '%s\n' "${FAKE_SECRET_STATE-ENABLED}" ;;
   *"providers describe"*)
-    printf '%s\n' "${FAKE_CONDITION-assertion.repository == ctrl-alt-elite-za/Farmable}" ;;
+    default_condition="assertion.repository == 'ctrl-alt-elite-za/Farmable' && "
+    default_condition+="assertion.ref == 'refs/heads/main'"
+    printf '%s\n' "${FAKE_CONDITION-$default_condition}" ;;
 esac
 exit 0
 """
@@ -900,25 +901,71 @@ def test_verify_setup_passes_when_the_live_project_matches_the_contract(
 
 
 def test_verify_setup_reports_every_unmet_check_not_only_the_first(tmp_path: Path) -> None:
-    """Terraform creates empty Secret Manager containers, so "no enabled version" is
-    the likeliest first-deploy failure and must be named, not hidden behind an
-    earlier failing check. One run has to produce the operator's whole to-do list.
+    """Terraform creates empty Secret Manager containers, so a disabled ``latest``
+    version is a likely first-deploy failure and must be named, not hidden behind
+    an earlier failing check. One run has to produce the operator's whole to-do list.
     """
     _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
     environment = {
         **_verify_setup_env(tmp_path),
         "FAKE_PREVENTION": "inherited",
-        "FAKE_SECRET_VERSION": "",
-        "FAKE_CONDITION": "assertion.repository == someone-else/Fork",
+        "FAKE_SECRET_STATE": "DISABLED",
+        "FAKE_CONDITION": (
+            "assertion.repository == 'someone-else/Fork' && " "assertion.ref == 'refs/heads/main'"
+        ),
     }
     result = _run("infra/gcp-verify-setup.sh", environment)
     assert result.returncode != 0
     assert "FAIL: Media bucket public access prevention is 'inherited'" in result.stderr
-    assert "FAIL: Secret has no enabled version: farmable-staging-database-url" in result.stderr
-    assert "FAIL: Secret has no enabled version: farmable-staging-gemini-api-key" in result.stderr
+    assert (
+        "FAIL: Secret latest version is 'DISABLED', expected 'ENABLED': "
+        "farmable-staging-database-url" in result.stderr
+    )
+    assert (
+        "FAIL: Secret latest version is 'DISABLED', expected 'ENABLED': "
+        "farmable-staging-gemini-api-key" in result.stderr
+    )
     assert "ctrl-alt-elite-za/Farmable" in result.stderr
     assert "4 Google Cloud setup check(s) failed" in result.stderr
     assert "PASS: Media bucket uses uniform bucket-level access" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "assertion.repository == 'ctrl-alt-elite-za/Farmable' || true",
+        (
+            "assertion.repository == 'ctrl-alt-elite-za/Farmable-other' && "
+            "assertion.ref == 'refs/heads/main'"
+        ),
+        "assertion.repository == 'ctrl-alt-elite-za/Farmable'",
+    ],
+)
+def test_verify_setup_rejects_unsafe_workload_identity_conditions(
+    tmp_path: Path, condition: str
+) -> None:
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    environment = {**_verify_setup_env(tmp_path), "FAKE_CONDITION": condition}
+    result = _run("infra/gcp-verify-setup.sh", environment)
+    assert result.returncode != 0
+    assert "Workload identity provider is not pinned" in result.stderr
+
+
+def test_verify_setup_checks_the_deployment_secret_latest_version(
+    tmp_path: Path,
+) -> None:
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    environment = {**_verify_setup_env(tmp_path), "FAKE_SECRET_STATE": "DISABLED"}
+    result = _run("infra/gcp-verify-setup.sh", environment)
+    assert result.returncode != 0
+    assert "Secret latest version is 'DISABLED'" in result.stderr
+
+
+def test_verify_setup_accepts_an_enabled_latest_version(tmp_path: Path) -> None:
+    _fake_gcloud(tmp_path, _VERIFY_SETUP_STUB)
+    result = _run("infra/gcp-verify-setup.sh", _verify_setup_env(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert "PASS: Secret latest version is enabled: farmable-staging-database-url" in result.stdout
 
 
 def test_operator_acceptance_evidence_is_documented() -> None:
