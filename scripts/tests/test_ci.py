@@ -363,6 +363,11 @@ def test_mobile_e2e_bootstraps_a_standalone_build_and_real_offline_scenario():
     offline = stack.index("maestro test e2e/mobile/offline_launch.yaml")
     assert online < stop < offline
 
+    # The adb readiness wait lives in scripts/await-device.sh so it can be
+    # driven against stub adb binaries. Its ordering, its boundedness and the
+    # carriage-return strip are covered by test_await_device.py, which runs the
+    # helper rather than reading it.
+
 
 def test_mobile_maestro_flows_wait_for_release_app_startup():
     repo = Path(__file__).resolve().parents[2]
