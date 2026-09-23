@@ -20,13 +20,13 @@ def upgrade() -> None:
     op.create_table(
         "weather_jobs",
         sa.Column("id", sa.Text(), nullable=False),
-        sa.Column("latitude_tenths", sa.Integer(), nullable=False),
-        sa.Column("longitude_tenths", sa.Integer(), nullable=False),
-        sa.Column("first_year", sa.Integer(), nullable=False),
-        sa.Column("last_year", sa.Integer(), nullable=False),
+        sa.Column("latitude_tenths", sa.BigInteger(), nullable=False),
+        sa.Column("longitude_tenths", sa.BigInteger(), nullable=False),
+        sa.Column("first_year", sa.BigInteger(), nullable=False),
+        sa.Column("last_year", sa.BigInteger(), nullable=False),
         sa.Column("policy_hash", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False),
-        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("attempt_count", sa.BigInteger(), nullable=False),
         sa.Column("next_attempt_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("lease_token", sa.Uuid(), nullable=True),
         sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True),
@@ -51,7 +51,7 @@ def upgrade() -> None:
         "weather_risk_climatology",
         sa.Column("job_id", sa.Text(), nullable=False),
         sa.Column("crop", sa.Text(), nullable=False),
-        sa.Column("plant_month", sa.Integer(), nullable=False),
+        sa.Column("plant_month", sa.BigInteger(), nullable=False),
         sa.Column(
             "payload", sa.JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False
         ),
