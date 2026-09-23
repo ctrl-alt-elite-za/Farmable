@@ -1,25 +1,27 @@
-# Issue #11 closure guide: farm records REST and sync API
+# Issue #11 farm-records REST and sync contract guide
 
-This guide is the reviewer and client-integration contract for issue #11. The
-implementation is already present in the PR #72 stack through the merged farm
-records work; this document makes the behavior explicit and records how to
-verify it without replaying the implementation commits.
+This guide documents the delivered generic farm-records and synchronization
+behavior for issue #11. The implementation is already present in the PR #72
+stack through the merged farm-records work. This document makes that subset
+explicit and records how to verify it without replaying the implementation
+commits. It is not, by itself, evidence that every issue-level acceptance
+criterion is complete.
 
 ## Stack relationship
 
 PR #72 is the parent stack. The farm-record implementation was merged earlier
-by PR #59 and is an ancestor of PR #72's head. A stacked closure PR therefore
-must contain only this contract guide and the `Closes #11` reference. It must
-not copy the records routes, repositories, or generated client files again.
+by PR #59 and is an ancestor of PR #72's head. This documentation PR therefore
+contains only the contract guide; it must not copy the records routes,
+repositories, or generated client files again.
 
 Useful checks when reviewing the stack:
 
 ```sh
-git merge-base --is-ancestor issue-11-backend-rest-and-sync-api origin/pr-72-head
-git diff --stat origin/pr-72-head...HEAD
+git merge-base --is-ancestor origin/resolve-issue/9-complete-backend-identity HEAD
+git diff --stat origin/resolve-issue/9-complete-backend-identity...HEAD
 ```
 
-The first command must succeed. The second should show only the closure
+The first command must succeed. The second should show only the contract
 artifact (and any deliberately related documentation change).
 
 ## Authentication and tenant isolation
@@ -93,9 +95,34 @@ GET /farms/{farm_id}/changes?since=<cursor>&limit=<n>
 ```
 
 `since=0` starts at the beginning. Each item has a monotonic cursor, record
-type, record ID, operation, version, and timestamp. Resume from `next_cursor`
-and apply delete entries even though deleted records are absent from ordinary
+type, record ID, operation, version, and timestamp. Keep a durable polling
+watermark equal to the last item successfully applied. `next_cursor` is only a
+page-continuation hint: it is null on the terminal page, even when that page
+contains items. A terminal page must therefore advance the watermark from its
+last item, not reset it to zero or send null as the next request.
+
+For example, if a poll with `since=0&limit=2` returns cursors `1` and `2` with
+`next_cursor=null`, apply both entries and persist watermark `2`. A later poll
+uses `since=2`; it will return a newly-created cursor `3` when one exists.
+Apply delete entries even though deleted records are absent from ordinary
 active-record lists.
+
+## Delivered subset and outstanding issue requirements
+
+The current stack provides the generic owner/farm-scoped records, strict DTOs,
+optimistic versions, mutation replay, tombstones, and change-feed behavior
+described above. The following issue-level requirements are not established by
+this guide or by the generic contract tests and remain outstanding before
+claiming issue #11 complete:
+
+- crop choices must be restricted to the `crop_types` catalogue;
+- planting dates must produce the required `crop_calendar` harvest window;
+- animal sections (`kind=animal`) must be accepted where required; and
+- deleting a section must cascade cleanup/tombstones to its attached records
+  and stored media.
+
+These gaps should be implemented and covered by dedicated acceptance tests in
+the appropriate application PR. This PR documents the existing subset only.
 
 ## Acceptance-to-evidence map
 
@@ -108,6 +135,7 @@ active-record lists.
 | Foreign farm IDs are hidden                     | `test_writes_to_a_foreign_farm_are_not_found`, `test_records_cannot_be_reached_through_another_owned_farm` |
 | Optimistic deletion is safe offline             | stale-delete and deleted-record version tests                                                              |
 | Sync has no gaps or duplicates                  | `test_change_polling_resumes_from_a_cursor_without_gaps_or_duplicates`                                     |
+| Crop catalogue/calendar, animal sections, and cascading cleanup | Outstanding; generic contract tests do not establish these issue-specific requirements. |
 | Generated client matches the API                | `make client-check`                                                                                        |
 | Raw SQL guardrail remains clean                 | `make check-no-raw-sql`                                                                                    |
 
@@ -149,7 +177,10 @@ deployability checks.
 - Treat `409` as a reconciliation event, not as permission to invent a new
   record ID immediately.
 - Refresh the local record when a revision conflict is returned.
-- Advance the change cursor only after the page has been applied successfully.
+- Advance the durable change watermark to the last applied item's cursor only
+  after a nonempty page has been applied successfully. Keep the previous
+  watermark when the page is empty; do not use a null `next_cursor` as a
+  watermark.
 - Never infer ownership from a returned ID; the authenticated farm scope is the
   authority.
 
