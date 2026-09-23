@@ -464,30 +464,38 @@ def test_deleted_account_loses_login_refresh_and_record_access(accounts):
         assert section is not None and section.deleted_at is not None
 
 
-def test_deletion_removes_the_owners_photo_upload_rows(accounts):
+def test_deletion_retains_photo_upload_rows_for_the_cleanup_worker(accounts):
+    # photo_uploads/photo_attempts are deliberately NOT removed by account
+    # deletion. PhotoJobs.cleanup_candidates (photo_jobs.py) is a real janitor
+    # that finds terminal/expired uploads by joining these two tables and
+    # deletes their GCS blobs using a key derived from upload.media_id +
+    # attempt.id, stored nowhere else. Hard-deleting these rows here would
+    # destroy that key before the janitor ever runs, orphaning the blob in
+    # GCS permanently. See account.py:delete_account.
     alice_upload = _seed_photo_upload(accounts, accounts.alice)
     bob_upload = _seed_photo_upload(accounts, accounts.bob)
-    owner_id = accounts.alice.user.id
     removed = accounts.client.request(
         "DELETE", "/account", headers=_headers(accounts.alice), json={"password": PASSWORD}
     )
     assert removed.status_code == 204
     with accounts.sessions() as session:
-        assert (
-            session.scalars(select(PhotoUpload).where(PhotoUpload.owner_id == owner_id)).all() == []
-        )
+        assert session.get(PhotoUpload, alice_upload) is not None
         assert (
             session.scalars(
                 select(PhotoAttempt).where(PhotoAttempt.upload_id == alice_upload)
             ).all()
-            == []
+            != []
         )
-        # The other owner's upload and attempt rows must survive untouched.
+        # The other owner's rows are naturally untouched either way.
         assert session.get(PhotoUpload, bob_upload) is not None
         assert (
             session.scalars(select(PhotoAttempt).where(PhotoAttempt.upload_id == bob_upload)).all()
             != []
         )
+    # Unreachable afterward: every account/records route requires a live
+    # session, and all of this owner's sessions were revoked by the deletion.
+    still_authorized = accounts.client.get("/account/profile", headers=_headers(accounts.alice))
+    assert still_authorized.status_code == 401
 
 
 def test_deletion_tombstones_without_publishing_sync_changes(accounts):
