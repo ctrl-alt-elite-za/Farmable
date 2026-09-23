@@ -11,9 +11,12 @@
 workbook coverage is audited for 2008–2024, with unknown publication dates recorded
 as blockers; post-2024 harvest coverage still does not clear the source gate. R03
 has complete modern-budget extracts, a frozen subtotal mapping, and named
-calendar/cost blockers. R04's strict historical-vintage policy, selector and
-mutation/report-claim tests are implemented. No protocol registration, import
-completion, or real result is claimed.
+calendar/cost blockers. The official ARC summer and winter booklets are now
+downloaded and hashed in `ml/data/calendar_source_audit.json`; their crop topics
+are identified, but regional applicability, release evidence, permission and
+guideline yield midpoints remain unresolved. R04's strict historical-vintage
+policy, selector and mutation/report-claim tests are implemented. No protocol
+registration, import completion, or real result is claimed.
 
 Evidence: [acceptance checks](../ml/ACCEPTANCE.md),
 [source inventory](../ml/data/INVENTORY.md),

@@ -117,3 +117,11 @@ record the relevant crop/region planting windows, harvest offsets, occupied-mont
 mapping, guideline yield midpoint, document version/release evidence and
 redistribution terms. Do not treat the staged calendar CSV or the Elsenburg budget
 durations as verified replacements for those fields.
+
+`calendar_source_audit.json` records the downloaded source hashes, sizes, ARC
+copyright notices and crop topics. The summer booklet exposes an RSA sowing and
+planting chart and guidance for green beans, spinach, tomatoes and cucurbits;
+the winter booklet covers cabbage, carrots, onions and potatoes. These are source
+provenance facts only. The audit deliberately leaves regional applicability,
+historical release dates, redistribution permission and canonical guideline yield
+midpoints unresolved, so no calendar row is imported from the PDFs yet.
