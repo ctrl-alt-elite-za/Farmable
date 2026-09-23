@@ -88,8 +88,6 @@ EXPORT_CONSENT_TYPE = "data_export"
 EXPORT_CONSENT_VERSION = "1"
 # A fixed entry timestamp keeps the archive byte-for-byte reproducible.
 EXPORT_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
-AMBIGUOUS_DELIVERY_CODES = frozenset({"sms_unavailable", "email_delivery_unknown"})
-
 # Owner-scoped record tables, in export order. auth_identities,
 # verification_challenges and auth_sessions are deliberately absent: password
 # hashes, OTP hashes and token hashes must never reach an export.
@@ -201,6 +199,7 @@ class AccountService:
                         error.get("retry_after"),
                     )
                 return ProfileResponse(**body)
+        contact_started = False
         try:
             with self.sessions.begin() as session:
                 owner = authenticate(session, authorization)
@@ -219,6 +218,7 @@ class AccountService:
             # transaction commits so a request that changes name+email still
             # persists the name even if the OTP send fails.
             if payload.email is not None:
+                contact_started = True
                 if idempotency_key is not None:
                     idempotency_store(
                         self.sessions,
@@ -233,6 +233,7 @@ class AccountService:
                     authorization, Channel.EMAIL, payload.email, idempotency_key=idempotency_key
                 )
             if payload.phone is not None:
+                contact_started = True
                 if idempotency_key is not None:
                     idempotency_store(
                         self.sessions,
@@ -263,11 +264,12 @@ class AccountService:
                     request_fingerprint=request_fingerprint,
                     status_code=200,
                     body=response.model_dump(mode="json"),
+                    overwrite=True,
                 )
             return response
         except Exception as exc:
             if idempotency_key is not None:
-                if isinstance(exc, ApiError) and exc.code in AMBIGUOUS_DELIVERY_CODES:
+                if contact_started and isinstance(exc, ApiError):
                     idempotency_store(
                         self.sessions,
                         route="account_profile",
@@ -281,6 +283,7 @@ class AccountService:
                                 "retry_after": exc.retry_after,
                             }
                         },
+                        overwrite=True,
                     )
                 else:
                     idempotency_abandon(

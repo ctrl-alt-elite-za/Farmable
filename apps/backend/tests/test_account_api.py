@@ -366,6 +366,20 @@ def test_email_change_requires_confirmation_before_it_applies(accounts):
     )
 
 
+def test_contact_change_success_replays_without_redelivery(accounts):
+    headers = _headers(accounts.alice, "email-success-replay")
+    payload = {"email": "sipho.replay@example.com"}
+
+    first = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert first.status_code == 200
+    assert accounts.provider.deliver.call_count == 1
+
+    replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert replay.status_code == 200
+    assert replay.json() == first.json()
+    assert accounts.provider.deliver.call_count == 1
+
+
 def test_ambiguous_combined_contact_delivery_is_replayed_without_duplicates(accounts):
     deliveries = []
     provider = accounts.provider
@@ -396,6 +410,31 @@ def test_ambiguous_combined_contact_delivery_is_replayed_without_duplicates(acco
     with accounts.sessions() as session:
         identity = session.get(AuthIdentity, accounts.alice.user.id)
         assert identity is not None and identity.email == "sipho@example.com"
+
+
+def test_failed_combined_contact_delivery_does_not_repeat_first_success(accounts):
+    deliveries = []
+    provider = accounts.provider
+
+    def deliver(channel, destination, code):
+        deliveries.append((channel, destination))
+        if channel is Channel.PHONE:
+            raise AuthError("sms_rate_limited", 429, 60)
+
+    provider.deliver.side_effect = deliver
+    headers = _headers(accounts.alice, "definite-combined")
+    payload = {"email": "sipho.definite@example.com", "phone": "+27821234568"}
+
+    first = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert first.status_code == 429
+    assert deliveries == [
+        (Channel.EMAIL, "sipho.definite@example.com"),
+        (Channel.PHONE, "+27821234568"),
+    ]
+
+    replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert replay.status_code == 429
+    assert len(deliveries) == 2
 
 
 def test_phone_change_requires_confirmation_before_it_applies(accounts):

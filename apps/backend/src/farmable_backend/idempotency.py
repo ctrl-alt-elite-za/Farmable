@@ -120,8 +120,9 @@ def store(
     request_fingerprint: str,
     status_code: int,
     body: dict[str, Any],
+    overwrite: bool = False,
 ) -> None:
-    """Complete a previously claimed key, inserting only for legacy callers."""
+    """Complete a key, optionally replacing a prior durable delivery outcome."""
     with sessions.begin() as session:
         record = session.get(IdempotencyRecord, (route, scope, key), with_for_update=True)
         if record is None:
@@ -138,7 +139,7 @@ def store(
             return
         if record.request_fingerprint != request_fingerprint:
             raise IdempotencyConflict
-        if record.status_code == IN_PROGRESS_STATUS:
+        if record.status_code == IN_PROGRESS_STATUS or overwrite:
             record.status_code = status_code
             record.response_body = body
 
