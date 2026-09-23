@@ -14,160 +14,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -187,160 +83,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -360,160 +152,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -533,160 +221,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -706,160 +290,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -879,160 +359,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -1052,160 +428,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -1225,160 +497,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -1398,160 +566,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -1571,160 +635,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -1744,160 +704,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -1917,160 +773,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 142,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 70,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 46,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 106,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 22,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 10,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 94,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 174,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -2090,160 +842,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 140,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 68,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 44,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 104,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 20,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 8,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 92,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 172,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -2263,160 +911,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 140,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 68,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 44,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 104,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 20,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 8,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 92,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 172,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -2436,160 +980,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 140,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 68,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 44,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 104,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 20,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 8,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 92,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 172,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -2609,160 +1049,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 140,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 68,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 44,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 104,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 20,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 8,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 92,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 172,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }
@@ -2782,160 +1118,56 @@
         "butternut": {
           "source_label": "BUTTERNUT SQUASHES",
           "price_row": 141,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "cabbage": {
           "source_label": "CABBAGE",
           "price_row": 69,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "carrots": {
           "source_label": "CARROTS",
           "price_row": 45,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "green_beans": {
           "source_label": "GREEN BEANS",
           "price_row": 105,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "onions": {
           "source_label": "ONIONS",
           "price_row": 21,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "potatoes": {
           "source_label": "POTATOES",
           "price_row": 9,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "spinach": {
           "source_label": "SPINACH",
           "price_row": 93,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         },
         "tomatoes": {
           "source_label": "TOMATOES",
           "price_row": 173,
-          "valid_months": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12
-          ],
+          "valid_months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
           "missing_or_nonpositive_months": [],
           "inconsistent_price_months": []
         }

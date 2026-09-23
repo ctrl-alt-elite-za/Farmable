@@ -61,16 +61,16 @@ positive, internally consistent monthly prices per crop. No missing or inconsist
 cells were found in these eight rows. This is current-vintage coverage, not proof
 of unrevised historical availability.
 
-| Crop | Exact workbook label | 2008–2011 training months | 2012–2024 months | After 2024 verified |
-| --- | --- | ---: | ---: | ---: |
-| butternut | BUTTERNUT SQUASHES | 48 | 156 | 0 |
-| cabbage | CABBAGE | 48 | 156 | 0 |
-| carrots | CARROTS | 48 | 156 | 0 |
-| green_beans | GREEN BEANS | 48 | 156 | 0 |
-| onions | ONIONS | 48 | 156 | 0 |
-| potatoes | POTATOES | 48 | 156 | 0 |
-| spinach | SPINACH | 48 | 156 | 0 |
-| tomatoes | TOMATOES | 48 | 156 | 0 |
+| Crop        | Exact workbook label | 2008–2011 training months | 2012–2024 months | After 2024 verified |
+| ----------- | -------------------- | ------------------------: | ---------------: | ------------------: |
+| butternut   | BUTTERNUT SQUASHES   |                        48 |              156 |                   0 |
+| cabbage     | CABBAGE              |                        48 |              156 |                   0 |
+| carrots     | CARROTS              |                        48 |              156 |                   0 |
+| green_beans | GREEN BEANS          |                        48 |              156 |                   0 |
+| onions      | ONIONS               |                        48 |              156 |                   0 |
+| potatoes    | POTATOES             |                        48 |              156 |                   0 |
+| spinach     | SPINACH              |                        48 |              156 |                   0 |
+| tomatoes    | TOMATOES             |                        48 |              156 |                   0 |
 
 The inspected archive lists 2008–2024, with no 2025 workbook link. Late-2024
 plantings need later harvest prices; absence from this archive does not prove

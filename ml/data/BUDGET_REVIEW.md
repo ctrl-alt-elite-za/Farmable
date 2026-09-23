@@ -6,16 +6,16 @@ The numbers below are source-budget inputs, not Farmable backtest outcomes.
 All are Western Cape, one-hectare budgets. These modern revisions are **not
 approved historical inputs**. Document update dates do not prove publication dates.
 
-| Crop | Budget locality | Latest update in PDF | Budget yield | Growing months | Direct variable R/ha | Indirect variable R/ha | Total variable R/ha | Marketing |
-| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| butternut | Witzenberg, Cape Winelands | 2025-09-16 | 23.25 t/ha | 6 | 49,234.09 | 11,522.78 | 60,756.87 | 12.5% |
-| cabbage | Phillipi, Cape Metropole | 2025-03-19 | 51.15 t/ha | 3 | 111,602.23 | 3,581.62 | 115,183.85 | 12.5% |
-| carrots | Phillipi, Cape Metropole | 2025-03-12 | 55,800 kg/ha | 3 | 65,751.61 | 2,561.33 | 68,312.94 | 12.5% |
-| green_beans | Stellenbosch, Cape Winelands | 2025-03-17 | 14,400 kg/ha | 2.5 | 134,857.36 | 1,499.68 | 136,357.03 | 12.5% |
-| onions | Witzenberg, Cape Winelands | 2025-09-04 | 60.45 t/ha | 6 | 100,925.07 | 7,858.34 | 108,783.41 | 12.5% |
-| potatoes | Witzenberg, Cape Winelands | 2025-09-04 | 51.15 t/ha | 6 | 173,140.11 | 7,957.75 | 181,097.86 | 12.5% |
-| spinach | Kuilsriver/Kraaifontein, Cape Metropole | 2025-08-26 | 35 t/ha | 3 | 164,352.08 | 3,060.58 | 167,412.66 | 12.5% |
-| tomatoes | Lutzville, North West Coast | 2025-08-23 | 100 t/ha, processing | 3 | 156,812.16 | 12,156.03 | 168,968.20 | 0% |
+| Crop        | Budget locality                         | Latest update in PDF | Budget yield         | Growing months | Direct variable R/ha | Indirect variable R/ha | Total variable R/ha | Marketing |
+| ----------- | --------------------------------------- | -------------------- | -------------------- | -------------: | -------------------: | ---------------------: | ------------------: | --------- |
+| butternut   | Witzenberg, Cape Winelands              | 2025-09-16           | 23.25 t/ha           |              6 |            49,234.09 |              11,522.78 |           60,756.87 | 12.5%     |
+| cabbage     | Phillipi, Cape Metropole                | 2025-03-19           | 51.15 t/ha           |              3 |           111,602.23 |               3,581.62 |          115,183.85 | 12.5%     |
+| carrots     | Phillipi, Cape Metropole                | 2025-03-12           | 55,800 kg/ha         |              3 |            65,751.61 |               2,561.33 |           68,312.94 | 12.5%     |
+| green_beans | Stellenbosch, Cape Winelands            | 2025-03-17           | 14,400 kg/ha         |            2.5 |           134,857.36 |               1,499.68 |          136,357.03 | 12.5%     |
+| onions      | Witzenberg, Cape Winelands              | 2025-09-04           | 60.45 t/ha           |              6 |           100,925.07 |               7,858.34 |          108,783.41 | 12.5%     |
+| potatoes    | Witzenberg, Cape Winelands              | 2025-09-04           | 51.15 t/ha           |              6 |           173,140.11 |               7,957.75 |          181,097.86 | 12.5%     |
+| spinach     | Kuilsriver/Kraaifontein, Cape Metropole | 2025-08-26           | 35 t/ha              |              3 |           164,352.08 |               3,060.58 |          167,412.66 | 12.5%     |
+| tomatoes    | Lutzville, North West Coast             | 2025-08-23           | 100 t/ha, processing |              3 |           156,812.16 |              12,156.03 |          168,968.20 | 0%        |
 
 These are transcribed displayed subtotals; some rounded components differ from the
 displayed total by one cent. Do not silently change source amounts to reconcile
