@@ -198,7 +198,10 @@ def create_app(
             "sms_ip_rate_limited": "Please wait before requesting another code",
             "daily_sms_cap": "Please try again later",
             "login_rate_limited": "Please wait before trying again",
-            "idempotency_key_conflict": "This Idempotency-Key was already used with a different request",
+            "idempotency_key_conflict": (
+                "This Idempotency-Key was already used with a different request"
+            ),
+            "consent_required": "Required consent has not been granted",
         }
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
         return error_response(
@@ -215,7 +218,9 @@ def create_app(
         # Single API process; no trusted forwarding headers (see RateLimiter).
         return request.client.host if request.client else "unknown"
 
-    async def idempotent_replay(request: Request, route: str, body: dict) -> tuple[int, dict] | None:
+    async def idempotent_replay(
+        request: Request, route: str, body: dict, *, scope: str
+    ) -> tuple[int, dict] | None:
         # Only enforced against a real DB-backed AuthService (has .sessions);
         # test doubles without persistence (InMemoryAuthService, etc.) can't
         # meaningfully dedupe and are left alone.
@@ -226,13 +231,18 @@ def create_app(
         fp = idempotency_fingerprint(body)
         try:
             return await run_in_threadpool(
-                idempotency_replay, sessions, route=route, key=key, request_fingerprint=fp
+                idempotency_replay,
+                sessions,
+                route=route,
+                scope=scope,
+                key=key,
+                request_fingerprint=fp,
             )
         except IdempotencyConflict:
             raise AuthError("idempotency_key_conflict", 409) from None
 
     async def idempotent_store(
-        request: Request, route: str, body: dict, status_code: int, response: dict
+        request: Request, route: str, body: dict, status_code: int, response: dict, *, scope: str
     ) -> None:
         key = request.headers.get("Idempotency-Key")
         sessions = getattr(auth(request), "sessions", None)
@@ -243,6 +253,7 @@ def create_app(
             idempotency_store,
             sessions,
             route=route,
+            scope=scope,
             key=key,
             request_fingerprint=fp,
             status_code=status_code,
@@ -265,7 +276,7 @@ def create_app(
     async def signup(request: Request, payload: SignUpRequest) -> AuthProgressResponse:
         await require_turnstile(request, payload.turnstile_token, "sign_up")
         body = payload.model_dump(mode="json")
-        replayed = await idempotent_replay(request, "auth_signup", body)
+        replayed = await idempotent_replay(request, "auth_signup", body, scope=client_ip(request))
         if replayed is not None:
             _status, response_body = replayed
             return AuthProgressResponse(**response_body)
@@ -279,7 +290,14 @@ def create_app(
             ip=client_ip(request),
         )
         response = AuthProgressResponse(user_id=user.id, next_step="phone")
-        await idempotent_store(request, "auth_signup", body, 200, response.model_dump(mode="json"))
+        await idempotent_store(
+            request,
+            "auth_signup",
+            body,
+            200,
+            response.model_dump(mode="json"),
+            scope=client_ip(request),
+        )
         return response
 
     @app.post(
@@ -299,13 +317,17 @@ def create_app(
     @app.post("/auth/otp/resend", status_code=204, operation_id="authResendOtp")
     async def resend_otp(request: Request, payload: ResendOtpRequest) -> None:
         body = payload.model_dump(mode="json")
-        replayed = await idempotent_replay(request, "auth_otp_resend", body)
+        replayed = await idempotent_replay(
+            request, "auth_otp_resend", body, scope=str(payload.user_id)
+        )
         if replayed is not None:
             return
         await call_auth(
             auth(request).resend, payload.user_id, Channel(payload.channel), ip=client_ip(request)
         )
-        await idempotent_store(request, "auth_otp_resend", body, 204, {})
+        await idempotent_store(
+            request, "auth_otp_resend", body, 204, {}, scope=str(payload.user_id)
+        )
 
     @app.post("/auth/login", response_model=SessionResponse, operation_id="authLogin")
     async def login(request: Request, payload: LoginRequest) -> SessionResponse:

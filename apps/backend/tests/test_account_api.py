@@ -81,7 +81,10 @@ def accounts(settings):
         service_settings=ServiceSettings(environment="ci", integrations_mode="fake"),
     )
     app.state.auth = auth
-    app.state.account = AccountRuntime(AccountService(sessions, DeterministicFakeOtpProvider()))
+    account_service = AccountService(sessions, DeterministicFakeOtpProvider())
+    account_service.set_consent(_headers(alice)["Authorization"], "data_export", "1", True)
+    account_service.set_consent(_headers(bob)["Authorization"], "data_export", "1", True)
+    app.state.account = AccountRuntime(account_service)
     app.state.records = RecordRuntime(RecordsService(sessions), lambda: None)
     with TestClient(app) as client:
         yield SimpleNamespace(
@@ -628,6 +631,25 @@ def test_export_job_creation_replays_idempotently(accounts):
             select(ExportJob).where(ExportJob.owner_id == accounts.alice.user.id)
         ).all()
         assert len(jobs) == 1
+
+
+def test_export_job_idempotency_is_scoped_to_the_account(accounts):
+    alice = {**_headers(accounts.alice), "Idempotency-Key": "shared-export-key"}
+    bob = {**_headers(accounts.bob), "Idempotency-Key": "shared-export-key"}
+    alice_job = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    bob_job = accounts.client.post("/account/export/jobs?format=json", headers=bob)
+    assert alice_job.status_code == bob_job.status_code == 201
+    assert alice_job.json()["id"] != bob_job.json()["id"]
+
+
+def test_export_requires_active_consent(accounts):
+    alice = _headers(accounts.alice)
+    accounts.app.state.account.service.set_consent(
+        alice["Authorization"], "data_export", "1", False
+    )
+    response = accounts.client.post("/account/export/jobs", headers=alice)
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "consent_required"
 
 
 def test_export_job_download_is_single_use_state_tracked(accounts):

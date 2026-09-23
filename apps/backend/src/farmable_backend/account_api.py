@@ -12,7 +12,6 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.security import HTTPBearer
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import TimeoutError as DatabaseTimeout
-from starlette.responses import JSONResponse
 
 from farmable_backend.account import EXPORT_BASENAME, AccountService, json_bytes, zip_bytes
 from farmable_backend.account_schemas import (
@@ -28,18 +27,7 @@ from farmable_backend.account_schemas import (
     ProfileUpdate,
 )
 from farmable_backend.auth import Channel
-from farmable_backend.idempotency import (
-    IdempotencyConflict,
-)
-from farmable_backend.idempotency import (
-    fingerprint as idempotency_fingerprint,
-)
-from farmable_backend.idempotency import (
-    replay as idempotency_replay,
-)
-from farmable_backend.idempotency import (
-    store as idempotency_store,
-)
+from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import token
 from farmable_backend.schemas import ErrorResponse
@@ -210,41 +198,23 @@ async def create_export_job(
     worker = runtime(request)
     key = request.headers.get("Idempotency-Key")
     body = {"format": format}
+    scope = ""
     if key:
+        scope = str(await worker.call(worker.service.owner_id, token(request)))
         request_fingerprint = idempotency_fingerprint(body)
-        try:
-            replayed = await worker.call(
-                partial(
-                    idempotency_replay,
-                    worker.service.sessions,
-                    route="account_export_job_create",
-                    key=key,
-                    request_fingerprint=request_fingerprint,
-                )
-            )
-        except IdempotencyConflict:
-            raise ApiError(409, "idempotency_key_conflict") from None
-        if replayed is not None:
-            status_code, stored_body = replayed
-            return JSONResponse(
-                stored_body, status_code=status_code, headers={"Cache-Control": "no-store"}
-            )
+    else:
+        request_fingerprint = None
     job_id, download_token = await worker.call(
-        worker.service.create_export_job, token(request), format
+        partial(
+            worker.service.create_export_job,
+            token(request),
+            format,
+            idempotency_key=key,
+            idempotency_scope=scope,
+            request_fingerprint=request_fingerprint,
+        )
     )
     result = ExportJobCreateResponse(id=job_id, download_token=download_token)
-    if key:
-        await worker.call(
-            partial(
-                idempotency_store,
-                worker.service.sessions,
-                route="account_export_job_create",
-                key=key,
-                request_fingerprint=request_fingerprint,
-                status_code=201,
-                body=result.model_dump(mode="json"),
-            )
-        )
     return result
 
 

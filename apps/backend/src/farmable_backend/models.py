@@ -879,6 +879,7 @@ class IdempotencyRecord(Base):
     __tablename__ = "idempotency_records"
     __table_args__ = (
         _nonblank("route", "idempotency_records"),
+        _max_length("scope", "idempotency_records", 128),
         _max_length("route", "idempotency_records", 60),
         _max_length("idempotency_key", "idempotency_records", 200),
         CheckConstraint(
@@ -888,6 +889,7 @@ class IdempotencyRecord(Base):
     )
 
     route: Mapped[str] = mapped_column(Text, primary_key=True)
+    scope: Mapped[str] = mapped_column(Text, primary_key=True, default="", server_default="")
     idempotency_key: Mapped[str] = mapped_column(Text, primary_key=True)
     request_fingerprint: Mapped[str] = mapped_column(Text)
     status_code: Mapped[int] = mapped_column(Integer)

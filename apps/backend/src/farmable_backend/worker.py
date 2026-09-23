@@ -8,6 +8,7 @@ from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
 from farmable_backend.photo_worker import PhotoWorker
+from farmable_backend.retention import cleanup
 from farmable_backend.tasks import create_task_app
 from farmable_backend.weather_worker import WeatherWorker
 
@@ -23,10 +24,22 @@ async def run() -> None:
     services = None
     weather = None
     weather_task = None
+    retention_task = None
+    retention_stop = asyncio.Event()
+
+    async def run_retention() -> None:
+        while not retention_stop.is_set():
+            if database is not None:
+                await asyncio.to_thread(cleanup, database.sessions)
+            try:
+                await asyncio.wait_for(retention_stop.wait(), timeout=3600)
+            except TimeoutError:
+                pass
+
     try:
         async with app.open_async():
-            if settings.photo_bucket or services_settings.integrations_mode != "disabled":
-                database = Database(settings)
+            database = Database(settings)
+            retention_task = asyncio.create_task(run_retention())
             if database is not None and services_settings.integrations_mode != "disabled":
                 services = ServiceRegistry(services_settings)
                 weather = WeatherWorker(database.sessions, services.open_meteo)
@@ -36,6 +49,9 @@ async def run() -> None:
                 photo_task = asyncio.create_task(photos.run())
             await app.run_worker_async(queues=["default"], update_heartbeat_interval=5.0)
     finally:
+        retention_stop.set()
+        if retention_task is not None:
+            await retention_task
         if photos is not None:
             photos.stop.set()
         if weather is not None:

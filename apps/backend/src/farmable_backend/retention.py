@@ -2,7 +2,8 @@
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
+from sqlalchemy.inspection import inspect
 
 from farmable_backend.models import (
     AuthSession,
@@ -54,8 +55,18 @@ def cleanup(sessions, *, now: datetime | None = None, batch_size: int = 500) -> 
     counts: dict[str, int] = {}
     with sessions.begin() as session:
         for name, model, predicate in predicates:
-            rows = session.execute(
-                delete(model).where(predicate).execution_options(synchronize_session=False)
-            )
-            counts[name] = rows.rowcount or 0
+            primary_key = inspect(model).primary_key
+            keys = session.execute(
+                select(*primary_key).where(predicate).limit(batch_size)
+            ).all()
+            deleted = 0
+            for key in keys:
+                identity = dict(zip(primary_key, key, strict=True))
+                result = session.execute(
+                    delete(model)
+                    .where(*[column == value for column, value in identity.items()])
+                    .execution_options(synchronize_session=False)
+                )
+                deleted += result.rowcount or 0
+            counts[name] = deleted
     return counts

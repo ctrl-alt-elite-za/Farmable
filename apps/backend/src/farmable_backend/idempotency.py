@@ -32,11 +32,11 @@ def fingerprint(payload: dict[str, Any]) -> str:
 
 
 def replay(
-    sessions: sessionmaker[Session], *, route: str, key: str, request_fingerprint: str
+    sessions: sessionmaker[Session], *, route: str, scope: str, key: str, request_fingerprint: str
 ) -> tuple[int, dict[str, Any]] | None:
     """Return the stored (status_code, body) for a prior identical request, if any."""
     with sessions.begin() as session:
-        record = session.get(IdempotencyRecord, (route, key))
+        record = session.get(IdempotencyRecord, (route, scope, key))
         if record is None:
             return None
         if record.request_fingerprint != request_fingerprint:
@@ -48,6 +48,7 @@ def store(
     sessions: sessionmaker[Session],
     *,
     route: str,
+    scope: str,
     key: str,
     request_fingerprint: str,
     status_code: int,
@@ -59,6 +60,7 @@ def store(
             session.add(
                 IdempotencyRecord(
                     route=route,
+                    scope=scope,
                     idempotency_key=key,
                     request_fingerprint=request_fingerprint,
                     status_code=status_code,

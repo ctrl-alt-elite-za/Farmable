@@ -47,6 +47,7 @@ from farmable_backend.models import (
     FarmLocation,
     FarmTask,
     FinancialRecord,
+    IdempotencyRecord,
     Media,
     Observation,
     PendingContactChange,
@@ -69,6 +70,8 @@ EXPORT_ENTRY_NAME = "export.json"
 EXPORT_JOB_TTL = timedelta(hours=24)
 EXPORT_JOB_RATE_WINDOW_SECONDS = 3600
 EXPORT_JOB_RATE_LIMIT = 5
+EXPORT_CONSENT_TYPE = "data_export"
+EXPORT_CONSENT_VERSION = "1"
 # A fixed entry timestamp keeps the archive byte-for-byte reproducible.
 EXPORT_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
@@ -138,6 +141,10 @@ class AccountService:
     def __init__(self, sessions: sessionmaker[Session], provider: OtpProvider | None = None):
         self.sessions = sessions
         self.provider = provider or DisabledOtpProvider()
+
+    def owner_id(self, authorization: str | None) -> UUID:
+        with self.sessions.begin() as session:
+            return authenticate(session, authorization)
 
     def profile(self, authorization: str | None) -> ProfileResponse:
         with self.sessions.begin() as session:
@@ -321,7 +328,13 @@ class AccountService:
             return self._export_document_for(session, owner)
 
     def create_export_job(
-        self, authorization: str | None, format: str
+        self,
+        authorization: str | None,
+        format: str,
+        *,
+        idempotency_key: str | None = None,
+        idempotency_scope: str = "",
+        request_fingerprint: str | None = None,
     ) -> tuple[UUID, str]:
         """Create (or, on request-collapse, reuse) an export job.
 
@@ -331,21 +344,40 @@ class AccountService:
         """
         with self.sessions.begin() as session:
             owner = authenticate(session, authorization)
-        try:
-            rate_limit_check(
-                self.sessions,
-                scope="export_job",
-                subject=str(owner),
-                window_seconds=EXPORT_JOB_RATE_WINDOW_SECONDS,
-                limit=EXPORT_JOB_RATE_LIMIT,
-                code="export_rate_limited",
+            session.execute(
+                select(AuthIdentity).where(AuthIdentity.id == owner).with_for_update()
+            ).scalar_one()
+            consent = session.scalar(
+                select(Consent).where(
+                    Consent.user_id == owner,
+                    Consent.consent_type == EXPORT_CONSENT_TYPE,
+                    Consent.version == EXPORT_CONSENT_VERSION,
+                )
             )
-        except RateLimited as exc:
-            raise ApiError(429, exc.code, exc.retry_after) from None
-        token = secrets.token_urlsafe(32)
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
-        with self.sessions.begin() as session:
-            owner = authenticate(session, authorization)
+            if consent is None or consent.granted_at is None or consent.withdrawn_at is not None:
+                raise ApiError(403, "consent_required")
+            if idempotency_key is not None:
+                record = session.get(
+                    IdempotencyRecord,
+                    ("account_export_job_create", idempotency_scope, idempotency_key),
+                )
+                if record is not None:
+                    if record.request_fingerprint != request_fingerprint:
+                        raise ApiError(409, "idempotency_key_conflict")
+                    return UUID(record.response_body["id"]), record.response_body["download_token"]
+            try:
+                rate_limit_check(
+                    self.sessions,
+                    scope="export_job",
+                    subject=str(owner),
+                    window_seconds=EXPORT_JOB_RATE_WINDOW_SECONDS,
+                    limit=EXPORT_JOB_RATE_LIMIT,
+                    code="export_rate_limited",
+                )
+            except RateLimited as exc:
+                raise ApiError(429, exc.code, exc.retry_after) from None
+            token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
             document = self._export_document_for(session, owner)
             job = ExportJob(
                 owner_id=owner,
@@ -358,6 +390,17 @@ class AccountService:
             session.add(job)
             session.flush()
             job_id = job.id
+            if idempotency_key is not None:
+                session.add(
+                    IdempotencyRecord(
+                        route="account_export_job_create",
+                        scope=idempotency_scope,
+                        idempotency_key=idempotency_key,
+                        request_fingerprint=request_fingerprint or "",
+                        status_code=201,
+                        response_body={"id": str(job_id), "download_token": token},
+                    )
+                )
         return job_id, token
 
     def export_job_status(self, authorization: str | None, job_id: UUID) -> dict[str, Any]:

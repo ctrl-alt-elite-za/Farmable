@@ -104,6 +104,8 @@ def test_worker_shares_example_task(settings):
     app = create_task_app(settings)
     assert "example_job" in app.tasks
     assert app.tasks["example_job"].queue == "default"
+    assert "retention_cleanup" in app.tasks
+    assert app.tasks["retention_cleanup"].queue == "default"
     assert app.connector._pool_args["kwargs"] == {
         "connect_timeout": 5,
         "options": "-c statement_timeout=5000 -c search_path=public",
