@@ -163,6 +163,44 @@ fi
     assert "exactly one revision" in rejected.stderr
 
 
+def test_deployer_may_list_the_secrets_the_rollout_discovers() -> None:
+    """The rollout discovers which provider secrets hold an enabled version before
+    wiring them, so the deployer needs Secret Manager *metadata* reads.
+
+    `roles/secretmanager.secretAccessor` does not cover this: it grants
+    `secretmanager.versions.access` and nothing else, and it is bound to the runtime
+    account rather than the deployer. Without a metadata grant the discovery call fails
+    closed and the deploy aborts before `gcloud run deploy` -- so the permission and the
+    script that depends on it are asserted together, from the verbs actually used.
+    """
+    rollout = read("infra/gcp-rollout.sh")
+    terraform = read("infra/gcp-staging.tf")
+
+    verbs = {
+        "gcloud secrets list": "secretmanager.secrets.list",
+        "gcloud secrets versions list": "secretmanager.versions.list",
+    }
+    used = {command for command in verbs if command in rollout}
+    assert used, "the rollout no longer discovers secrets; drop this test with the grant"
+
+    block = re.search(
+        r'resource\s+"google_project_iam_member"\s+"deployer_secret_viewer"\s*\{(.*?)\n\}',
+        terraform,
+        re.DOTALL,
+    )
+    assert block, "the deployer has no Secret Manager metadata grant"
+    # Assert on what the block grants, not on its prose: the comment explains why
+    # secretAccessor is the wrong role, and that explanation must not read as a grant.
+    granted = "\n".join(
+        line for line in block.group(1).splitlines() if not line.lstrip().startswith("#")
+    )
+    # viewer carries secrets.list and versions.list; it does not carry versions.access.
+    assert re.search(r'role\s*=\s*"roles/secretmanager\.viewer"', granted)
+    assert "google_service_account.deployer.email" in granted
+    # The deployer reads which secrets exist, never what any of them contains.
+    assert "secretAccessor" not in granted
+
+
 def test_backup_verifies_completed_operation_before_returning() -> None:
     backup = read("infra/gcp-backup.sh")
     assert "--async" in backup

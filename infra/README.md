@@ -56,7 +56,7 @@ terraform -chdir=infra plan  -var=project_id=almanac-staging-za
 terraform -chdir=infra apply -var=project_id=almanac-staging-za
 ```
 
-Expect **58 to add, 0 to change, 0 to destroy**. If the plan reports destroys, stop and
+Expect **59 to add, 0 to change, 0 to destroy**. If the plan reports destroys, stop and
 escalate — a clean project has nothing to destroy.
 
 Then capture the outputs; Phase 4 needs them:

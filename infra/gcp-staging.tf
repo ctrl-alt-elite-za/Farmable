@@ -215,6 +215,23 @@ resource "google_project_iam_member" "deployer_service_usage" {
   member  = "serviceAccount:${google_service_account.deployer.email}"
 }
 
+resource "google_project_iam_member" "deployer_secret_viewer" {
+  project = var.project_id
+  # gcp-rollout.sh discovers which provider secrets hold an enabled version before
+  # wiring them, using `gcloud secrets list` and `gcloud secrets versions list`. Both
+  # are metadata reads, and secretmanager.secrets.list is scoped to the project by
+  # definition -- it enumerates the project -- so this is the narrowest role that
+  # authorizes them.
+  #
+  # Deliberately not secretAccessor: that grants secretmanager.versions.access and
+  # nothing else, which is payload access rather than listing. It is bound to the
+  # runtime account, which must read the values; the deployer must not. viewer carries
+  # secrets.list and versions.list without versions.access, so the deploy can see which
+  # secrets exist while remaining unable to read a single one.
+  role   = "roles/secretmanager.viewer"
+  member = "serviceAccount:${google_service_account.deployer.email}"
+}
+
 resource "google_storage_bucket_iam_member" "deployer_storage_smoke" {
   bucket = google_storage_bucket.media.name
   role   = "roles/storage.objectAdmin"
