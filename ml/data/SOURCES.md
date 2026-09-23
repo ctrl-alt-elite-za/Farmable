@@ -98,3 +98,22 @@ their text inspected on 23 September 2026. `budget_source_audit.json` records
 original-byte hashes and URLs. `BUDGET_REVIEW.md` records extracted dates,
 regions, units, subtotals and explicit unresolved issues. This supersedes the
 earlier download limitation; it does not approve modern costs for historical use.
+
+### Follow-up: calendar source identified
+
+The official [ARC production-guidelines page](https://www.arc.agric.za/arc-vopi/Pages/Production-Guidelines.aspx)
+links the relevant source booklets:
+
+- [Production Guideline for Summer Vegetables](https://www.arc.agric.za/arc-vopi/Leaflets%20Library/Production%20Guideline%20for%20Summer%20Vegetables.pdf)
+  covers tomatoes, Swiss chard/spinach, cucurbits including butternut, and green
+  beans.
+- [Production Guideline for Winter Vegetables](https://www.arc.agric.za/arc-vopi/Leaflets%20Library/Production%20Guideline%20for%20Winter%20Vegetables.pdf)
+  covers cabbage, carrots, onions and potatoes.
+
+This identifies the primary calendar source family and supersedes the earlier
+statement that the exact ARC documents had not been located. The booklets still
+need file-level extraction and review before calendar verification is complete:
+record the relevant crop/region planting windows, harvest offsets, occupied-month
+mapping, guideline yield midpoint, document version/release evidence and
+redistribution terms. Do not treat the staged calendar CSV or the Elsenburg budget
+durations as verified replacements for those fields.
