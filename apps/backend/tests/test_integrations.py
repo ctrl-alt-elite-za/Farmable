@@ -1,8 +1,10 @@
+import ast
 import asyncio
 import base64
 import json
 import time
 from collections.abc import AsyncIterator
+from pathlib import Path
 from urllib.parse import parse_qs
 
 import httpx
@@ -18,6 +20,30 @@ from farmable_backend.main import create_app
 from pydantic import SecretStr, ValidationError
 
 PHONE = "+27820000000"  # Synthetic: only used with the isolated fake / MockTransport.
+
+
+def test_twilio_sdk_and_literal_hosts_stay_inside_integrations():
+    root = Path(__file__).resolve().parents[1] / "src/farmable_backend"
+    violations = []
+    for path in root.rglob("*.py"):
+        relative = path.relative_to(root)
+        if relative.parts[0] == "integrations":
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            modules = []
+            if isinstance(node, ast.Import):
+                modules = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                modules = [node.module or ""]
+            sdk_import = any(name == "twilio" or name.startswith("twilio.") for name in modules)
+            provider_host = (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and ".twilio.com" in node.value.lower()
+            )
+            if sdk_import or provider_host:
+                violations.append(f"{relative}:{node.lineno}")
+    assert not violations, "Twilio provider access outside integrations: " + ", ".join(violations)
 
 
 async def no_wait(delay: float) -> None:

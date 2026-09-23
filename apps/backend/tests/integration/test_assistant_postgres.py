@@ -14,11 +14,23 @@ from farmable_backend.database import make_engine
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.models import AssistantBudget, AssistantTurn, User
 from farmable_backend.record_access import ApiError
-from sqlalchemy import delete, event, select
+from sqlalchemy import delete, event, func, select
 from sqlalchemy.orm import sessionmaker
 from test_assistant import seed
 
 pytestmark = pytest.mark.integration
+
+
+def test_migration_connection_applies_timeouts_on_postgres():
+    # Squawk cannot see libpq startup options in offline SQL. Verify the actual
+    # server settings, without suppressing warnings or self-approving the migration.
+    engine = make_engine(Settings(), migration=True)
+    try:
+        with engine.connect() as connection:
+            assert connection.scalar(select(func.current_setting("lock_timeout"))) == "1s"
+            assert connection.scalar(select(func.current_setting("statement_timeout"))) == "5s"
+    finally:
+        engine.dispose()
 
 
 @pytest.mark.parametrize("same_owner", [True, False])

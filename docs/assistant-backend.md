@@ -5,6 +5,27 @@ bounded provider orchestration and read-only farm tools. It does **not** complet
 the promised voice-to-approved-plan journey. Do not enable live operation merely
 because the synthetic tests pass.
 
+## Issue #7 acceptance map
+
+This PR does not reduce issue #7's production requirements. The provider foundation
+was already present in its base commit; it is not new work delivered by PR #71.
+The following distinguishes implementation from acceptance evidence, addressing
+the scope review on PR #71.
+
+| Requirement                                                           | Evidence in this repository                                                                                                                     | Remaining acceptance                                                                                                                                     |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Per-service adapters, retries and circuit breakers                    | `integrations/registry.py`, individual service modules and `base.py`; `test_integrations.py` checks retry and circuit behavior                  | Real-provider verification; Azure REST request bounds are not the required SDK silence behavior                                                          |
+| Success/error/slow fakes and staging-only fault flags                 | `integrations/fakes.py`, `settings.py`; parametrized fake, timeout and fault tests in `test_integrations.py`                                    | Recorded real-response comparison and consumer-level degradation checks; current fixtures are synthetic                                                  |
+| Smoke command, crop coverage, credentials/cost/fallback documentation | `integrations/smoke.py`, `make smoke`, `docs/services.md`, `docs/provider-verification.md`                                                      | Authorized real staging runs, account/security settings and crop-coverage evidence; a command existing is not a PASS                                     |
+| Twilio confined to integrations                                       | `integrations/twilio.py`; static source regression in `test_integrations.py` checks SDK imports and literal provider hosts outside the boundary | Continue enforcing this boundary; the check is not a sandbox against dynamically constructed imports/URLs                                                |
+| Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only tools and assistant regression tests                                                                                  | Production planning, confirmed writes, stale-plan protection and grounded action results                                                                 |
+| Voice and crop diagnosis                                              | Existing provider adapters and separately disabled Live credential endpoint                                                                     | Azure streaming/language rules, sentence TTS and playback interruption, queued farm-scoped diagnosis; Flutter integration remains with its owning issues |
+| Accounting, evaluation and privacy                                    | Bounded admission reservations, synthetic regressions, owner export/deletion                                                                    | Actual priced settlement, system-spend acceptance, calibrated/adversarial evaluations, consent/retention and appropriate provider caching                |
+| Deployment and full journey                                           | Existing CI checks; no live activation in this PR                                                                                               | Approved configuration, real-provider contracts, physical-device and deployed end-to-end evidence                                                        |
+
+Keep #7 open and this PR explicitly partial. Do not substitute the synthetic
+evaluation command, the demo planner or a green CI run for these missing criteria.
+
 ## Implemented contract
 
 All routes use the existing phone- and email-verified Farmable Bearer session.
