@@ -81,6 +81,15 @@ licence has been verified. Original workbooks remain in ignored local scratch
 storage; the committed audit contains provenance/coverage metadata, not prices.
 FAOSTAT stays a distinct farm-gate source and is not substituted.
 
+The audited 17 workbooks were re-downloaded into ignored scratch storage on
+23 September 2026 and every byte matched the committed SHA-256 audit. Exact-URL
+CDX queries returned one HTTP-200 capture for the 2012 workbook, at 1 December
+2025 15:08:34 UTC, and no captures for the 2024 workbook. This does not establish
+release before the relevant historical planting origins or exhaustively cover
+possible historical URL aliases. The strict market-vintage gate remains blocked
+pending publisher release records, archived pre-origin captures, or an official
+response confirming historical availability.
+
 To reproduce, download each audit entry's URL under its original `filename` in a
 local directory, copy the audit JSON there, and run:
 
@@ -98,6 +107,10 @@ their text inspected on 23 September 2026. `budget_source_audit.json` records
 original-byte hashes and URLs. `BUDGET_REVIEW.md` records extracted dates,
 regions, units, subtotals and explicit unresolved issues. This supersedes the
 earlier download limitation; it does not approve modern costs for historical use.
+The eight current budget files plus the older cabbage candidate were also
+re-downloaded into ignored scratch storage and matched their committed hashes.
+No download date, URL path, or PDF metadata was treated as a historical release
+date.
 
 ### Follow-up: calendar source identified
 
