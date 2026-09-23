@@ -65,6 +65,30 @@ postgis;`). The current migrations do not execute handwritten SQL, so this
    environment variable would be invisible to both and the freeze would
    silently fail open.
 
+6. Set a Cloud Billing budget on the project before the first deploy, with
+   email alerts at 50%, 90% and 100% of actual spend. Google Cloud does not cap
+   spend, so the alert is the only warning before the demo project overruns.
+
+7. Once gcloud is authenticated, `terraform apply` has run, and the secret
+   versions exist, run the read-only setup check:
+
+   ```bash
+   GCP_PROJECT=YOUR_PROJECT_ID GCS_BUCKET=YOUR_PROJECT_ID-farmable-staging-media \
+     bash infra/gcp-verify-setup.sh
+   ```
+
+   It reports `PASS:` or `FAIL:` per check, reports all of them rather than
+   stopping at the first, and creates nothing. The GitHub side is checked by
+   `infra/gcp-required-config.sh`, the deploy workflow's first step, which names
+   any variable from step 4 that is still unset and stops before authenticating,
+   so a missing variable never costs an image build.
+
+What to run and what to capture for each of issue #6's acceptance criteria — a
+real deploy, a freeze, a rollback, a backup before migration, the nightly run,
+and the absence of any service-account key — is in
+`docs/deploy-staging-acceptance.md`.
+
+
 The nightly workflow resolves the service URL and expected commit SHA from the
 single revision receiving 100 percent of live traffic. It does not rely on a
 manually updated URL or SHA variable, and it fails if the live service,
