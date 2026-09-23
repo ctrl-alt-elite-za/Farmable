@@ -13,7 +13,12 @@
       "copyright_notice": "2013 Agricultural Research Council; permission required for copying or transmitting the work",
       "crop_topics": ["green_beans", "spinach", "tomatoes", "butternut"],
       "source_evidence": ["RSA sowing and planting chart", "crop production guidance"],
-      "unresolved": ["regional applicability", "historical release date", "redistribution permission", "canonical guideline yield midpoint per crop"]
+      "unresolved": [
+        "regional applicability",
+        "historical release date",
+        "redistribution permission",
+        "canonical guideline yield midpoint per crop"
+      ]
     },
     {
       "kind": "winter",
@@ -25,7 +30,12 @@
       "copyright_notice": "2013 Agricultural Research Council; permission required for copying or transmitting the work",
       "crop_topics": ["cabbage", "carrots", "onions", "potatoes"],
       "source_evidence": ["vegetable production guidance"],
-      "unresolved": ["regional applicability", "historical release date", "redistribution permission", "canonical guideline yield midpoint per crop"]
+      "unresolved": [
+        "regional applicability",
+        "historical release date",
+        "redistribution permission",
+        "canonical guideline yield midpoint per crop"
+      ]
     }
   ],
   "decision": "Do not import calendar values or run historical recommendations from these files until the unresolved fields are reviewed and the protocol records the selected region, planting windows, harvest offsets, occupied months and yield midpoints."
