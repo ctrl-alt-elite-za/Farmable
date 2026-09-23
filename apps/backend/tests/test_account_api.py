@@ -650,6 +650,9 @@ def test_export_requires_active_consent(accounts):
     response = accounts.client.post("/account/export/jobs", headers=alice)
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "consent_required"
+    synchronous = accounts.client.get("/account/export", headers=alice)
+    assert synchronous.status_code == 403
+    assert synchronous.json()["error"]["code"] == "consent_required"
 
 
 def test_export_job_download_is_single_use_state_tracked(accounts):

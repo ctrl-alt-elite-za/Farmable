@@ -325,6 +325,7 @@ class AccountService:
     def export_document(self, authorization: str | None) -> dict[str, Any]:
         with self.sessions.begin() as session:
             owner = authenticate(session, authorization)
+            self._require_export_consent(session, owner)
             return self._export_document_for(session, owner)
 
     def create_export_job(
@@ -347,15 +348,7 @@ class AccountService:
             session.execute(
                 select(AuthIdentity).where(AuthIdentity.id == owner).with_for_update()
             ).scalar_one()
-            consent = session.scalar(
-                select(Consent).where(
-                    Consent.user_id == owner,
-                    Consent.consent_type == EXPORT_CONSENT_TYPE,
-                    Consent.version == EXPORT_CONSENT_VERSION,
-                )
-            )
-            if consent is None or consent.granted_at is None or consent.withdrawn_at is not None:
-                raise ApiError(403, "consent_required")
+            self._require_export_consent(session, owner)
             if idempotency_key is not None:
                 record = session.get(
                     IdempotencyRecord,
@@ -402,6 +395,18 @@ class AccountService:
                     )
                 )
         return job_id, token
+
+    @staticmethod
+    def _require_export_consent(session: Session, owner: UUID) -> None:
+        consent = session.scalar(
+            select(Consent).where(
+                Consent.user_id == owner,
+                Consent.consent_type == EXPORT_CONSENT_TYPE,
+                Consent.version == EXPORT_CONSENT_VERSION,
+            )
+        )
+        if consent is None or consent.granted_at is None or consent.withdrawn_at is not None:
+            raise ApiError(403, "consent_required")
 
     def export_job_status(self, authorization: str | None, job_id: UUID) -> dict[str, Any]:
         with self.sessions.begin() as session:
