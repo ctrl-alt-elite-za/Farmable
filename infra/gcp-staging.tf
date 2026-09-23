@@ -91,7 +91,7 @@ resource "google_storage_bucket" "media" {
   lifecycle_rule {
     condition {
       days_since_noncurrent_time = 30
-      with_state                  = "ARCHIVED"
+      with_state                 = "ARCHIVED"
     }
     action { type = "Delete" }
   }
@@ -103,7 +103,11 @@ resource "google_sql_database_instance" "postgres" {
   region           = var.region
 
   settings {
-    tier              = "db-f1-micro"
+    tier = "db-f1-micro"
+    # PostgreSQL 16 defaults new Cloud SQL instances to Enterprise Plus, which
+    # rejects the shared-core demo tier. Keep the low-cost tier explicitly on
+    # the Enterprise edition.
+    edition           = "ENTERPRISE"
     availability_type = "ZONAL"
     disk_type         = "PD_SSD"
     disk_size         = 10
@@ -160,8 +164,8 @@ resource "google_storage_bucket_iam_member" "runtime_storage" {
 }
 
 resource "google_secret_manager_secret_iam_member" "runtime_secrets" {
-  for_each  = google_secret_manager_secret.runtime
-  secret_id = each.value.id
+  for_each  = local.provider_secrets
+  secret_id = google_secret_manager_secret.runtime[each.key].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.runtime.email}"
 }

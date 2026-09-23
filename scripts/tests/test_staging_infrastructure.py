@@ -28,6 +28,7 @@ def test_gcp_stack_is_johannesburg_and_private() -> None:
         'default     = "africa-south1"',
         "google_artifact_registry_repository",
         "google_sql_database_instance",
+        'edition           = "ENTERPRISE"',
         "POSTGRES_16",
         "google_storage_bucket",
         'public_access_prevention    = "enforced"',
@@ -36,6 +37,7 @@ def test_gcp_stack_is_johannesburg_and_private() -> None:
         "days_since_noncurrent_time = 30",
         "google_secret_manager_secret",
         "google_iam_workload_identity_pool_provider",
+        "for_each  = local.provider_secrets",
         "token.actions.githubusercontent.com",
     ):
         assert marker in terraform
