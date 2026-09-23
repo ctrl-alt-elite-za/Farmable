@@ -33,7 +33,7 @@ def test_gcp_stack_is_johannesburg_and_private() -> None:
         "google_storage_bucket",
         'public_access_prevention    = "enforced"',
         "uniform_bucket_level_access = true",
-        'with_state                  = "ARCHIVED"',
+        'with_state                 = "ARCHIVED"',
         "days_since_noncurrent_time = 30",
         "google_secret_manager_secret",
         "google_iam_workload_identity_pool_provider",
