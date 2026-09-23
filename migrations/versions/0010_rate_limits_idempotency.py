@@ -22,9 +22,7 @@ def upgrade() -> None:
         "rate_limit_counters",
         sa.Column("scope", sa.Text(), primary_key=True),
         sa.Column("subject_hash", sa.Text(), primary_key=True),
-        sa.Column(
-            "hits", sa.JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False
-        ),
+        sa.Column("hits", sa.JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False),
         sa.Column(
             "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),

@@ -128,12 +128,18 @@ def test_sms_rate_limit_per_phone(settings):
         signup = client.post("/auth/signup", json=_signup_body())
         user_id = signup.json()["user_id"]
         # Sign-up already sent send #1. Two explicit resends bring it to 3.
-        assert client.post(
-            "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"}
-        ).status_code == 204
-        assert client.post(
-            "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"}
-        ).status_code == 204
+        assert (
+            client.post(
+                "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"}
+            ).status_code
+            == 204
+        )
+        assert (
+            client.post(
+                "/auth/otp/resend", json={"user_id": user_id, "channel": "phone"}
+            ).status_code
+            == 204
+        )
         fourth = client.post("/auth/otp/resend", json={"user_id": user_id, "channel": "phone"})
         assert fourth.status_code == 429
         assert "Retry-After" in fourth.headers

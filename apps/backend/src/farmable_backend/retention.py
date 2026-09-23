@@ -56,9 +56,7 @@ def cleanup(sessions, *, now: datetime | None = None, batch_size: int = 500) -> 
     with sessions.begin() as session:
         for name, model, predicate in predicates:
             primary_key = inspect(model).primary_key
-            keys = session.execute(
-                select(*primary_key).where(predicate).limit(batch_size)
-            ).all()
+            keys = session.execute(select(*primary_key).where(predicate).limit(batch_size)).all()
             deleted = 0
             for key in keys:
                 identity = dict(zip(primary_key, key, strict=True))

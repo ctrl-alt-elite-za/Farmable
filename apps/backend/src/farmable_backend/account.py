@@ -196,9 +196,7 @@ class AccountService:
             if pending_row is None:
                 raise ApiError(400, "no_pending_change")
             pending = (
-                pending_row.pending_email
-                if channel is Channel.EMAIL
-                else pending_row.pending_phone
+                pending_row.pending_email if channel is Channel.EMAIL else pending_row.pending_phone
             )
             if pending is None:
                 raise ApiError(400, "no_pending_change")
@@ -418,9 +416,7 @@ class AccountService:
                 "expires_at": _value(job.expires_at),
             }
 
-    def download_export_job(
-        self, job_id: UUID, token: str
-    ) -> tuple[bytes, str]:
+    def download_export_job(self, job_id: UUID, token: str) -> tuple[bytes, str]:
         """Authorize solely by the possession of ``token`` (a bearer session
         is never required here, matching the issue's "authorized download
         link" — the link itself is the credential, short-lived and
@@ -441,8 +437,9 @@ class AccountService:
                 or _as_utc(job.expires_at) < datetime.now(UTC)
             ):
                 raise ApiError(404, "export_not_found")
-            artifact, media_type = job.artifact, (
-                "application/zip" if job.format == "zip" else "application/json"
+            artifact, media_type = (
+                job.artifact,
+                ("application/zip" if job.format == "zip" else "application/json"),
             )
             job.downloaded_at = datetime.now(UTC)
             return artifact, media_type
