@@ -1,7 +1,13 @@
 # Issue #20 acceptance evidence
 
 Updated 2026-09-23. This is implementation evidence for the senior-review
-follow-up, **not a completed issue**. No real decision backtest was executed.
+follow-up and retrospective-scenario registration, **not a completed issue**. No
+real decision backtest was executed.
+
+The project owner selected the retrospective fixed-2025-input scenario so code and
+artifacts can be completed before historical data cleanup. `backtest/PROTOCOL.md`
+freezes the current-vintage price, CPI, cost, calendar and reporting rules and
+prohibits the historical publication-availability claim.
 
 ## Verified locally
 
@@ -33,11 +39,10 @@ follow-up, **not a completed issue**. No real decision backtest was executed.
   recorded; these are not historical input approvals. The official ARC calendar
   booklets are now hashed and reviewed, with page-level missing/ambiguous fields
   recorded rather than inferred.
-- The user-selected strict historical-input policy is recorded in
-  `backtest/INFORMATION_POLICY.md`, with the CPI ranking counterexample and tests
-  for future costs, deterministic as-of vintage selection, mutation invariance,
-  post-decision reporting conversions and historical report attestation. Real
-  source release evidence and runner integration remain open.
+- `backtest/INFORMATION_POLICY.md` preserves the deferred strict policy and records
+  the selected retrospective fixed-input scenario. Existing cutoff, vintage and
+  mutation tests remain as guardrails; version 1 instead uses an analytical
+  next-month observation cutoff and must carry the retrospective caveat.
 
 ### Earlier foundation checks
 
@@ -88,12 +93,11 @@ inputs have been converted to 2025 rand. Do not infer full no-look-ahead accepta
 from a synthetic price-only mutation test.
 
 The follow-up confirms monthly Johannesburg workbook contents. Conservative
-archive bounds are recorded for 2008–2020, while unknown 2021–2024 availability
-still blocks the complete run. The post-2024 quarterly report omits spinach.
-Modern budget fields and the subtotal policy have been extracted, but historical
-cost releases, VAT compatibility and complete approved calendar values remain unresolved.
-The user selected strict historical inputs. The real decision backtest remains
-blocked by those sources and separate protocol registration.
+archive bounds are recorded for 2008–2020, while 2021–2024 publication timing and
+post-2024 spinach remain data-cleanup gaps. Version 1 proceeds as an explicitly
+retrospective current-vintage scenario with frozen assumptions. Its real decision
+backtest remains blocked only by separate protocol registration and runner/import
+implementation, not by the deferred source cleanup.
 
 ## Dependencies and next work
 

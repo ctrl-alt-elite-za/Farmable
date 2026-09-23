@@ -1,7 +1,27 @@
 # Issue 20 information policy
 
-The user selected the strict historical-information approach. This records that
-choice; it does not register the protocol or certify any source as available.
+## Registered version 1 scenario
+
+The project owner superseded the strict historical-vintage proposal on 23 September
+2026 so implementation can finish before historical source cleanup. Version 1 is
+a **retrospective fixed-2025-input scenario** governed by `PROTOCOL.md`:
+
+- current-vintage monthly Joburg observations become analytically eligible in the
+  month after observation, solely to prevent future observation leakage;
+- the current CPI series converts prices to constant 2025 rand before forecasting,
+  ranking and scoring;
+- one reviewed 2025 cost snapshot and one explicitly frozen calendar/yield scenario
+  apply to every origin; and
+- the generated result states that it does not represent information historically
+  published at planting time.
+
+Future source cleanup may enable the stricter policy preserved below, but adopting
+it will require a dated protocol amendment and a separate result run.
+
+## Deferred strict historical-vintage policy
+
+This section records the deferred stricter design; it does not describe version 1
+and does not certify any source as historically available.
 
 At each first-of-month planting origin, all price, cost, yield and calendar inputs
 must have a documented release strictly before that origin. Retain observation
