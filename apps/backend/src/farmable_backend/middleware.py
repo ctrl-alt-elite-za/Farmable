@@ -82,7 +82,7 @@ class SafeDefaultsMiddleware:
                 try:
                     await self.app(scope, receive, safe_send)
                 except Exception:
-                    logger.error("Unhandled request failure")
+                    logger.error("Unhandled request failure", exc_info=True)
                     if started:
                         raise
                     await error_response(500, "internal_error", "Internal server error")(

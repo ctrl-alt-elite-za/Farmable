@@ -6,9 +6,11 @@ from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from functools import partial
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.security import HTTPBearer
+from starlette.responses import JSONResponse
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import TimeoutError as DatabaseTimeout
 
@@ -17,11 +19,19 @@ from farmable_backend.account_schemas import (
     AccountFarmResponse,
     ContactChangeConfirm,
     DeleteAccountRequest,
+    ExportJobCreateResponse,
+    ExportJobStatusResponse,
     FarmUpdate,
     ProfileResponse,
     ProfileUpdate,
 )
 from farmable_backend.auth import Channel
+from farmable_backend.idempotency import (
+    IdempotencyConflict,
+    fingerprint as idempotency_fingerprint,
+    replay as idempotency_replay,
+    store as idempotency_store,
+)
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import token
 from farmable_backend.schemas import ErrorResponse
@@ -142,6 +152,91 @@ async def export_account(request: Request, format: Literal["json", "zip"] = "jso
         media_type=media_type,
         headers={
             "Content-Disposition": f'attachment; filename="{EXPORT_BASENAME}.{format}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@router.post(
+    "/account/export/jobs",
+    response_model=ExportJobCreateResponse,
+    status_code=201,
+    operation_id="createAccountExportJob",
+)
+async def create_export_job(
+    request: Request, response: Response, format: Literal["json", "zip"] = "json"
+):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    key = request.headers.get("Idempotency-Key")
+    body = {"format": format}
+    if key:
+        request_fingerprint = idempotency_fingerprint(body)
+        try:
+            replayed = await worker.call(
+                partial(
+                    idempotency_replay,
+                    worker.service.sessions,
+                    route="account_export_job_create",
+                    key=key,
+                    request_fingerprint=request_fingerprint,
+                )
+            )
+        except IdempotencyConflict:
+            raise ApiError(409, "idempotency_key_conflict") from None
+        if replayed is not None:
+            status_code, stored_body = replayed
+            return JSONResponse(
+                stored_body, status_code=status_code, headers={"Cache-Control": "no-store"}
+            )
+    job_id, download_token = await worker.call(
+        worker.service.create_export_job, token(request), format
+    )
+    result = ExportJobCreateResponse(id=job_id, download_token=download_token)
+    if key:
+        await worker.call(
+            partial(
+                idempotency_store,
+                worker.service.sessions,
+                route="account_export_job_create",
+                key=key,
+                request_fingerprint=request_fingerprint,
+                status_code=201,
+                body=result.model_dump(mode="json"),
+            )
+        )
+    return result
+
+
+@router.get(
+    "/account/export/jobs/{job_id}",
+    response_model=ExportJobStatusResponse,
+    operation_id="getAccountExportJob",
+)
+async def read_export_job(request: Request, response: Response, job_id: UUID):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    return await worker.call(worker.service.export_job_status, token(request), job_id)
+
+
+@router.get(
+    "/account/export/jobs/{job_id}/download",
+    operation_id="downloadAccountExportJob",
+    response_class=Response,
+    responses={200: {"content": {"application/json": {}, "application/zip": {}}}},
+)
+async def download_export_job(request: Request, job_id: UUID, token: str) -> Response:
+    # Authorized by the download token alone, not the caller's own session
+    # bearer: the link is meant to be usable on its own, short-lived and
+    # single-purpose, matching issue #9's "expiring authorized download link".
+    worker = runtime(request)
+    body, media_type = await worker.call(worker.service.download_export_job, job_id, token)
+    extension = "zip" if media_type == "application/zip" else "json"
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{EXPORT_BASENAME}.{extension}"',
             "Cache-Control": "no-store",
         },
     )

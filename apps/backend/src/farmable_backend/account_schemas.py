@@ -1,5 +1,6 @@
 """Account and profile DTOs. Credentials and session material are never fields."""
 
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -60,3 +61,17 @@ class AccountFarmResponse(StrictModel):
     preferred_language: Language
     latitude: float | None = None
     longitude: float | None = None
+
+
+class ExportJobCreateResponse(StrictModel):
+    id: UUID
+    # Returned once, at creation, and never persisted or logged in the clear.
+    download_token: str
+
+
+class ExportJobStatusResponse(StrictModel):
+    id: UUID
+    status: Literal["pending", "ready", "failed", "expired"]
+    format: Literal["json", "zip"]
+    created_at: datetime
+    expires_at: datetime | None = None

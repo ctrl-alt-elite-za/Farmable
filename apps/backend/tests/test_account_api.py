@@ -506,6 +506,175 @@ def test_export_rejects_an_unsupported_format(accounts):
     assert response.json()["error"]["code"] == "validation_error"
 
 
+def test_export_job_create_poll_download_round_trip(accounts):
+    _seed_records(accounts)
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert created.status_code == 201
+    job_id = created.json()["id"]
+    download_token = created.json()["download_token"]
+
+    status = accounts.client.get(f"/account/export/jobs/{job_id}", headers=alice)
+    assert status.status_code == 200
+    assert status.json()["status"] == "ready"
+    assert status.json()["format"] == "json"
+
+    downloaded = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    assert downloaded.status_code == 200
+    assert downloaded.headers["content-type"] == "application/json"
+    document = downloaded.json()
+    expected = accounts.client.get("/account/export?format=json", headers=alice).json()
+    assert document == expected
+
+
+def test_export_job_zip_download_matches_synchronous_export(accounts):
+    _seed_records(accounts)
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=zip", headers=alice)
+    job_id, download_token = created.json()["id"], created.json()["download_token"]
+    downloaded = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    assert downloaded.headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(downloaded.content)) as archive:
+        document = json.loads(archive.read("export.json"))
+    expected = accounts.client.get("/account/export?format=json", headers=alice).json()
+    assert document == expected
+
+
+def test_export_job_is_scoped_to_owner(accounts):
+    alice = _headers(accounts.alice)
+    bob = _headers(accounts.bob)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id = created.json()["id"]
+    status = accounts.client.get(f"/account/export/jobs/{job_id}", headers=bob)
+    assert status.status_code == 404
+
+
+def test_export_job_download_rejects_wrong_token(accounts):
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id = created.json()["id"]
+    response = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": "not-the-real-token"}
+    )
+    assert response.status_code == 404
+
+
+def test_export_job_download_rejects_unknown_job(accounts):
+    response = accounts.client.get(
+        f"/account/export/jobs/{uuid4()}/download", params={"token": "anything"}
+    )
+    assert response.status_code == 404
+
+
+def test_export_job_never_contains_credential_or_session_material(accounts):
+    alice = _headers(accounts.alice)
+    owner_id = accounts.alice.user.id
+    with accounts.sessions() as session:
+        identity = session.get(AuthIdentity, owner_id)
+        material = [identity.password_hash]
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id, download_token = created.json()["id"], created.json()["download_token"]
+    downloaded = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    for value in material:
+        assert value not in downloaded.text
+    assert PASSWORD not in downloaded.text
+    for table in ("verification_challenges", "auth_sessions", "auth_identities"):
+        assert table not in downloaded.text
+
+
+def test_export_job_creation_is_rate_limited(accounts):
+    alice = _headers(accounts.alice)
+    for _ in range(5):
+        response = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+        assert response.status_code == 201
+    limited = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert limited.status_code == 429
+    assert limited.json()["error"]["code"] == "export_rate_limited"
+    assert "Retry-After" in limited.headers
+    # A rejected creation must not have built or stored a sixth artifact.
+    with accounts.sessions() as session:
+        from farmable_backend.models import ExportJob
+
+        count = len(
+            session.scalars(
+                select(ExportJob).where(ExportJob.owner_id == accounts.alice.user.id)
+            ).all()
+        )
+        assert count == 5
+
+
+def test_export_job_creation_replays_idempotently(accounts):
+    alice = _headers(accounts.alice)
+    alice["Idempotency-Key"] = "export-job-key-1"
+    first = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    replay = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert first.status_code == replay.status_code == 201
+    assert replay.json() == first.json()
+
+    conflict = accounts.client.post("/account/export/jobs?format=zip", headers=alice)
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "idempotency_key_conflict"
+
+    with accounts.sessions() as session:
+        from farmable_backend.models import ExportJob
+
+        jobs = session.scalars(
+            select(ExportJob).where(ExportJob.owner_id == accounts.alice.user.id)
+        ).all()
+        assert len(jobs) == 1
+
+
+def test_export_job_download_is_single_use_state_tracked(accounts):
+    """The token is not literally one-shot (polling status must not consume
+    it), but each download is recorded, and an already-expired/cleaned-up job
+    consistently 404s — pinned by the cleanup test below."""
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id, download_token = created.json()["id"], created.json()["download_token"]
+    first = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    second = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.content == second.content
+
+
+def test_expired_export_job_cleanup_clears_artifact_and_blocks_download(accounts):
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id, download_token = created.json()["id"], created.json()["download_token"]
+    from farmable_backend.models import ExportJob
+
+    with accounts.sessions.begin() as session:
+        job = session.get(ExportJob, UUID(job_id))
+        job.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+
+    cleared = accounts.app.state.account.service.cleanup_expired_export_jobs()
+    assert cleared == 1
+
+    response = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    assert response.status_code == 404
+    with accounts.sessions() as session:
+        job = session.get(ExportJob, UUID(job_id))
+        assert job.artifact is None
+        assert job.download_token_hash is None
+        assert job.status == "expired"
+
+    # Idempotent / retry-safe: running the sweep again finds nothing more.
+    assert accounts.app.state.account.service.cleanup_expired_export_jobs() == 0
+
+
 def test_logout_revokes_only_the_current_session(accounts):
     alice = _headers(accounts.alice)
     second = accounts.auth.login("sipho@example.com", PASSWORD)

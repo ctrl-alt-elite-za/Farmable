@@ -17,6 +17,7 @@ from sqlalchemy import (
     Identity,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     Text,
     UniqueConstraint,
@@ -805,6 +806,43 @@ class RateLimitCounter(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ExportJob(Base):
+    """A durable, owner-scoped account-data export job (#9).
+
+    Job creation builds the artifact synchronously (the underlying query is
+    cheap) but is modelled as a job — not a synchronous response — so the
+    contract (status polling, an expiring signed download link, rate
+    limiting, idempotent creation) matches the issue regardless of how long
+    artifact assembly ever needs to take. ``download_token_hash`` is the only
+    persisted trace of the download credential; the raw token is returned to
+    the caller once, at creation, and never logged or stored.
+    """
+
+    __tablename__ = "export_jobs"
+    __table_args__ = (
+        _max_length("status", "export_jobs", 20),
+        _max_length("format", "export_jobs", 4),
+        _max_length("download_token_hash", "export_jobs", 64),
+        CheckConstraint(
+            column("status").in_(["pending", "ready", "failed", "expired"]),
+            name="ck_export_jobs_status",
+        ),
+        CheckConstraint(column("format").in_(["json", "zip"]), name="ck_export_jobs_format"),
+        Index("ix_export_jobs_owner_created", "owner_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    format: Mapped[str] = mapped_column(Text)
+    artifact: Mapped[bytes | None] = mapped_column(LargeBinary)
+    download_token_hash: Mapped[str | None] = mapped_column(Text, unique=True)
+    error_code: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    downloaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class IdempotencyRecord(Base):

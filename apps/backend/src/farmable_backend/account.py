@@ -9,8 +9,9 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import secrets
 import zipfile
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
@@ -40,6 +41,7 @@ from farmable_backend.models import (
     AccountProfile,
     AuthIdentity,
     AuthSession,
+    ExportJob,
     Farm,
     FarmLocation,
     FarmTask,
@@ -56,11 +58,16 @@ from farmable_backend.models import (
     User,
     VerificationChallenge,
 )
+from farmable_backend.rate_limits import RateLimited
+from farmable_backend.rate_limits import check as rate_limit_check
 from farmable_backend.record_access import ApiError, authenticate
 
 EXPORT_SCHEMA_VERSION = 1
 EXPORT_BASENAME = "farmable-export"
 EXPORT_ENTRY_NAME = "export.json"
+EXPORT_JOB_TTL = timedelta(hours=24)
+EXPORT_JOB_RATE_WINDOW_SECONDS = 3600
+EXPORT_JOB_RATE_LIMIT = 5
 # A fixed entry timestamp keeps the archive byte-for-byte reproducible.
 EXPORT_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
@@ -310,27 +317,139 @@ class AccountService:
     def export_document(self, authorization: str | None) -> dict[str, Any]:
         with self.sessions.begin() as session:
             owner = authenticate(session, authorization)
-            identity = self._identity(session, owner)
-            document: dict[str, Any] = {
-                "schema_version": EXPORT_SCHEMA_VERSION,
-                "account": {
-                    "id": str(identity.id),
-                    "first_name": identity.first_name,
-                    "surname": identity.surname,
-                    "phone": identity.phone,
-                    "email": identity.email,
-                    "phone_verified": identity.phone_verified,
-                    "email_verified": identity.email_verified,
-                    "preferred_language": self._language(session, owner),
-                    "created_at": _value(identity.created_at),
-                },
+            return self._export_document_for(session, owner)
+
+    def create_export_job(
+        self, authorization: str | None, format: str
+    ) -> tuple[UUID, str]:
+        """Create (or, on request-collapse, reuse) an export job.
+
+        Rate-limited per account, in its own short transaction, before any
+        other work — a rejected request builds no artifact. The raw download
+        token is returned only here, once; only its hash is ever persisted.
+        """
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+        try:
+            rate_limit_check(
+                self.sessions,
+                scope="export_job",
+                subject=str(owner),
+                window_seconds=EXPORT_JOB_RATE_WINDOW_SECONDS,
+                limit=EXPORT_JOB_RATE_LIMIT,
+                code="export_rate_limited",
+            )
+        except RateLimited as exc:
+            raise ApiError(429, exc.code, exc.retry_after) from None
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            document = self._export_document_for(session, owner)
+            job = ExportJob(
+                owner_id=owner,
+                status="ready",
+                format=format,
+                artifact=zip_bytes(document) if format == "zip" else json_bytes(document),
+                download_token_hash=token_hash,
+                expires_at=datetime.now(UTC) + EXPORT_JOB_TTL,
+            )
+            session.add(job)
+            session.flush()
+            job_id = job.id
+        return job_id, token
+
+    def export_job_status(self, authorization: str | None, job_id: UUID) -> dict[str, Any]:
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            job = self._owned_export_job(session, owner, job_id)
+            return {
+                "id": str(job.id),
+                "status": job.status,
+                "format": job.format,
+                "created_at": _value(job.created_at),
+                "expires_at": _value(job.expires_at),
             }
-            for name, model in EXPORTED_RECORDS:
-                rows = session.scalars(
-                    select(model).where(model.owner_id == owner).order_by(model.id)
-                ).all()
-                document[name] = [_row(row) for row in rows]
-            return document
+
+    def download_export_job(
+        self, job_id: UUID, token: str
+    ) -> tuple[bytes, str]:
+        """Authorize solely by the possession of ``token`` (a bearer session
+        is never required here, matching the issue's "authorized download
+        link" — the link itself is the credential, short-lived and
+        single-purpose). An already-downloaded or expired job is treated the
+        same as an unknown one: no information about its existence leaks."""
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        with self.sessions.begin() as session:
+            job = session.scalar(
+                select(ExportJob)
+                .where(ExportJob.id == job_id, ExportJob.download_token_hash == token_hash)
+                .with_for_update()
+            )
+            if (
+                job is None
+                or job.status != "ready"
+                or job.artifact is None
+                or job.expires_at is None
+                or _as_utc(job.expires_at) < datetime.now(UTC)
+            ):
+                raise ApiError(404, "export_not_found")
+            artifact, media_type = job.artifact, (
+                "application/zip" if job.format == "zip" else "application/json"
+            )
+            job.downloaded_at = datetime.now(UTC)
+            return artifact, media_type
+
+    def cleanup_expired_export_jobs(self, *, limit: int = 200) -> int:
+        """Bounded, retryable sweep: clears artifacts/tokens past expiry so
+        storage does not grow unboundedly. Safe to call repeatedly/concurrently
+        — each row transitions at most once (``status == "ready"`` guards it)."""
+        now = datetime.now(UTC)
+        cleared = 0
+        with self.sessions.begin() as session:
+            jobs = session.scalars(
+                select(ExportJob)
+                .where(ExportJob.status == "ready", ExportJob.expires_at < now)
+                .order_by(ExportJob.expires_at)
+                .limit(limit)
+                .with_for_update(skip_locked=True)
+            ).all()
+            for job in jobs:
+                job.status = "expired"
+                job.artifact = None
+                job.download_token_hash = None
+                cleared += 1
+        return cleared
+
+    def _export_document_for(self, session: Session, owner: UUID) -> dict[str, Any]:
+        identity = self._identity(session, owner)
+        document: dict[str, Any] = {
+            "schema_version": EXPORT_SCHEMA_VERSION,
+            "account": {
+                "id": str(identity.id),
+                "first_name": identity.first_name,
+                "surname": identity.surname,
+                "phone": identity.phone,
+                "email": identity.email,
+                "phone_verified": identity.phone_verified,
+                "email_verified": identity.email_verified,
+                "preferred_language": self._language(session, owner),
+                "created_at": _value(identity.created_at),
+            },
+        }
+        for name, model in EXPORTED_RECORDS:
+            rows = session.scalars(
+                select(model).where(model.owner_id == owner).order_by(model.id)
+            ).all()
+            document[name] = [_row(row) for row in rows]
+        return document
+
+    @staticmethod
+    def _owned_export_job(session: Session, owner: UUID, job_id: UUID) -> ExportJob:
+        job = session.get(ExportJob, job_id)
+        if job is None or job.owner_id != owner:
+            raise ApiError(404, "export_not_found")
+        return job
 
     def logout(self, authorization: str | None) -> None:
         digest = _bearer_digest(authorization)
@@ -419,6 +538,10 @@ class AccountService:
             )
             owned_farms = select(Farm.id).where(Farm.owner_id == owner)
             session.execute(delete(FarmLocation).where(FarmLocation.farm_id.in_(owned_farms)))
+            # Export artifacts contain the same owner-scoped data as the rows
+            # just tombstoned above; purge them outright rather than leaving
+            # a still-downloadable copy of a deleted account's data.
+            session.execute(delete(ExportJob).where(ExportJob.owner_id == owner))
             session.execute(delete(AuthSession).where(AuthSession.user_id == owner))
             session.execute(
                 delete(VerificationChallenge).where(VerificationChallenge.user_id == owner)
