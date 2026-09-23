@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import or_, select
 
+from farmable_backend.account import purge_deleted_owner
 from farmable_backend.gcs_photos import clean_key
 from farmable_backend.models import Farm, Media, PhotoAttempt, PhotoUpload, Section, SyncChange
 from farmable_backend.photo_policy import MAX_CLAIMS, RETRY_DELAYS
@@ -261,3 +262,6 @@ class PhotoJobs:
                 attempt.cleaned_at = db_now(session)
             attempt.cleanup_token = None
             attempt.cleanup_expires_at = None
+            if done:
+                session.flush()
+                purge_deleted_owner(session, upload.owner_id)

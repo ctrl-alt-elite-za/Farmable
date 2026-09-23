@@ -52,7 +52,16 @@ the archive uses a fixed entry timestamp, and no generation timestamp is
 included, so two consecutive exports are byte-identical. It contains
 `schema_version`, `account` (identity and language, never credentials), and the
 caller's `farms`, `sections`, `plantings`, `media`, `observations`, `tasks`,
-`financial_records`, `saved_plans` and `sync_mutations`.
+`financial_records`, `saved_plans`, `sync_mutations`, safe photo-upload metadata,
+and a manifest. Photo object bytes are not included in this demo endpoint; the
+manifest labels the archive `metadata_only` instead of implying a complete file
+archive. Worker leases, storage generations and security counters are excluded.
+
+The synchronous demo export is intentionally bounded to 5,000 rows and 8 MiB
+while it is assembled, and only one export is generated per API process at a
+time. Oversized exports fail with `413 export_too_large`; overlapping exports
+fail with `429 export_in_progress`. Production-scale file archives remain a
+separate asynchronous export-job change.
 
 It never contains password hashes, OTP hashes or challenge rows, access- or
 refresh-token hashes, internal secrets, or any other account's data.
@@ -71,11 +80,14 @@ cascade through `farms` into `sync_mutations` while `photo_uploads` and
 would either fail or destroy referenced history. Keeping the ownership row
 preserves referential integrity while removing every credential, so a deleted
 account cannot log in, cannot refresh a previously issued token, and cannot
-reach any authenticated endpoint. Other owners are unaffected.
+reach any authenticated endpoint. After the janitor confirms every photo object
+has been removed, it durably purges the retained upload metadata, owned records,
+rate rows and ownership row. Accounts with no photo cleanup pending are purged
+in the deletion transaction. Other owners are unaffected.
 
 ## Schema
 
-Revision `0007` adds one new, empty table, `account_profiles`, keyed by the
+Revision `0009` adds one new, empty table, `account_profiles`, keyed by the
 identity UUID with `ON DELETE CASCADE` and a check constraint on the language
 vocabulary. No existing table is altered and no data is backfilled, so legacy
 `users` rows and existing farm ownership are preserved. The downgrade drops the

@@ -69,7 +69,7 @@ def test_account_deletion_is_scoped_to_the_confirming_owner(engine):
         account.delete_account(f"Bearer {first.access_token}", PASSWORD)
         with Session(engine) as session:
             assert session.get(AuthIdentity, first.user.id) is None
-            assert session.get(User, first.user.id) is not None
+            assert session.get(User, first.user.id) is None
             assert session.get(AccountProfile, first.user.id) is None
             remaining = session.scalar(
                 select(func.count())
@@ -78,7 +78,7 @@ def test_account_deletion_is_scoped_to_the_confirming_owner(engine):
             )
             assert remaining == 0
             farm = session.scalar(select(Farm).where(Farm.owner_id == first.user.id))
-            assert farm is not None and farm.deleted_at is not None
+            assert farm is None
         with pytest.raises(ApiError) as blocked:
             account.profile(f"Bearer {first.access_token}")
         assert blocked.value.status == 401

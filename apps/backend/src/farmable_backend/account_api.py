@@ -31,6 +31,7 @@ class AccountRuntime:
     def __init__(self, service: AccountService):
         self.service = service
         self.slots = threading.BoundedSemaphore(4)
+        self.export_slots = threading.BoundedSemaphore(1)
         self.executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="farmable-account")
 
     async def call(self, function, *args):
@@ -48,6 +49,14 @@ class AccountRuntime:
         except (OperationalError, DatabaseTimeout):
             raise ApiError(503, "dependency_unavailable", 5) from None
 
+    async def call_export(self, authorization: str | None):
+        if not self.export_slots.acquire(blocking=False):
+            raise ApiError(429, "export_in_progress", 1)
+        try:
+            return await self.call(self.service.export_document, authorization)
+        finally:
+            self.export_slots.release()
+
     def close(self) -> None:
         self.executor.shutdown(wait=True, cancel_futures=True)
 
@@ -55,7 +64,7 @@ class AccountRuntime:
 bearer = HTTPBearer(auto_error=False, scheme_name="SessionBearer")
 router = APIRouter(
     dependencies=[Depends(bearer)],
-    responses={status: {"model": ErrorResponse} for status in (401, 404, 503)},
+    responses={status: {"model": ErrorResponse} for status in (401, 404, 413, 429, 503)},
 )
 
 
@@ -116,7 +125,7 @@ async def write_farm(request: Request, response: Response, payload: FarmUpdate):
 )
 async def export_account(request: Request, format: Literal["json", "zip"] = "json") -> Response:
     worker = runtime(request)
-    document = await worker.call(worker.service.export_document, token(request))
+    document = await worker.call_export(token(request))
     if format == "zip":
         body, media_type = zip_bytes(document), "application/zip"
     else:

@@ -2413,6 +2413,15 @@ export interface operations {
           'application/json': components['schemas']['ErrorResponse'];
         };
       };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
       /** @description Unprocessable Entity */
       422: {
         headers: {
@@ -2425,7 +2434,6 @@ export interface operations {
       /** @description Too Many Requests */
       429: {
         headers: {
-          'Retry-After'?: number;
           [name: string]: unknown;
         };
         content: {
@@ -2491,6 +2499,15 @@ export interface operations {
           'application/json': components['schemas']['ErrorResponse'];
         };
       };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
       /** @description Unprocessable Entity */
       422: {
         headers: {
@@ -2503,7 +2520,6 @@ export interface operations {
       /** @description Too Many Requests */
       429: {
         headers: {
-          'Retry-After'?: number;
           [name: string]: unknown;
         };
         content: {
@@ -2566,6 +2582,15 @@ export interface operations {
           'application/json': components['schemas']['ErrorResponse'];
         };
       };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
       /** @description Unprocessable Entity */
       422: {
         headers: {
@@ -2578,7 +2603,6 @@ export interface operations {
       /** @description Too Many Requests */
       429: {
         headers: {
-          'Retry-After'?: number;
           [name: string]: unknown;
         };
         content: {
@@ -2645,6 +2669,15 @@ export interface operations {
           'application/json': components['schemas']['ErrorResponse'];
         };
       };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
       /** @description Unprocessable Entity */
       422: {
         headers: {
@@ -2657,7 +2690,6 @@ export interface operations {
       /** @description Too Many Requests */
       429: {
         headers: {
-          'Retry-After'?: number;
           [name: string]: unknown;
         };
         content: {
@@ -2720,6 +2752,15 @@ export interface operations {
           'application/json': components['schemas']['ErrorResponse'];
         };
       };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
       /** @description Unprocessable Entity */
       422: {
         headers: {
@@ -2732,7 +2773,6 @@ export interface operations {
       /** @description Too Many Requests */
       429: {
         headers: {
-          'Retry-After'?: number;
           [name: string]: unknown;
         };
         content: {
@@ -2799,6 +2839,15 @@ export interface operations {
           'application/json': components['schemas']['ErrorResponse'];
         };
       };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
       /** @description Unprocessable Entity */
       422: {
         headers: {
@@ -2811,7 +2860,6 @@ export interface operations {
       /** @description Too Many Requests */
       429: {
         headers: {
-          'Retry-After'?: number;
           [name: string]: unknown;
         };
         content: {
@@ -2924,6 +2972,15 @@ export interface operations {
           'application/json': components['schemas']['ErrorResponse'];
         };
       };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
       /** @description Unprocessable Entity */
       422: {
         headers: {
@@ -2936,7 +2993,6 @@ export interface operations {
       /** @description Too Many Requests */
       429: {
         headers: {
-          'Retry-After'?: number;
           [name: string]: unknown;
         };
         content: {
@@ -3099,6 +3155,15 @@ export interface operations {
           'application/json': components['schemas']['ErrorResponse'];
         };
       };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
       /** @description Unprocessable Entity */
       422: {
         headers: {
@@ -3111,7 +3176,6 @@ export interface operations {
       /** @description Too Many Requests */
       429: {
         headers: {
-          'Retry-After'?: number;
           [name: string]: unknown;
         };
         content: {

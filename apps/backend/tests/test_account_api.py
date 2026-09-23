@@ -4,7 +4,9 @@ import hashlib
 import io
 import json
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
+from threading import Event
 from types import SimpleNamespace
 from typing import get_args
 from uuid import UUID, uuid4
@@ -335,7 +337,8 @@ def test_json_export_contains_only_the_callers_data(accounts):
         'attachment; filename="farmable-export.json"'
     )
     document = response.json()
-    assert document["schema_version"] == 1
+    assert document["schema_version"] == 2
+    assert document["manifest"]["uploaded_files"] == "metadata_only"
     assert document["account"]["email"] == "sipho@example.com"
     assert [farm["name"] for farm in document["farms"]] == ["My farm"]
     assert [item["name"] for item in document["sections"]] == ["Cabbage"]
@@ -347,6 +350,59 @@ def test_json_export_contains_only_the_callers_data(accounts):
     assert "nandi@example.com" not in response.text
     assert "+27820000000" not in response.text
     assert "Spinach" not in response.text
+
+
+def test_export_includes_safe_photo_metadata_and_enforces_row_limit(accounts, monkeypatch):
+    upload_id = _seed_photo_upload(accounts, accounts.alice)
+    response = accounts.client.get("/account/export?format=json", headers=_headers(accounts.alice))
+    assert response.status_code == 200
+    uploads = response.json()["photo_uploads"]
+    assert [item["id"] for item in uploads] == [str(upload_id)]
+    assert uploads[0]["content_type"] == "image/jpeg"
+    assert "lease_token" not in response.text
+    assert "clean_generation" not in response.text
+
+    monkeypatch.setattr("farmable_backend.account.MAX_EXPORT_BYTES", 1)
+    too_many_bytes = accounts.client.get(
+        "/account/export?format=json", headers=_headers(accounts.alice)
+    )
+    assert too_many_bytes.status_code == 413
+    monkeypatch.setattr("farmable_backend.account.MAX_EXPORT_BYTES", 8 * 1024 * 1024)
+    monkeypatch.setattr("farmable_backend.account.MAX_EXPORT_ROWS", 0)
+    rejected = accounts.client.get("/account/export?format=json", headers=_headers(accounts.alice))
+    assert rejected.status_code == 413
+    assert rejected.json()["error"]["code"] == "export_too_large"
+
+
+def test_overlapping_exports_are_rejected_without_starting_second_build(accounts, monkeypatch):
+    entered = Event()
+    release = Event()
+    original = accounts.app.state.account.service.export_document
+    calls = 0
+
+    def held_export(authorization):
+        nonlocal calls
+        calls += 1
+        entered.set()
+        assert release.wait(timeout=5)
+        return original(authorization)
+
+    monkeypatch.setattr(accounts.app.state.account.service, "export_document", held_export)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first = executor.submit(
+            accounts.client.get,
+            "/account/export?format=json",
+            headers=_headers(accounts.alice),
+        )
+        assert entered.wait(timeout=5)
+        second = accounts.client.get(
+            "/account/export?format=json", headers=_headers(accounts.alice)
+        )
+        assert second.status_code == 429
+        assert second.json()["error"]["code"] == "export_in_progress"
+        release.set()
+        assert first.result(timeout=10).status_code == 200
+    assert calls == 1
 
 
 def test_export_never_contains_credential_or_session_material(accounts):
@@ -462,7 +518,7 @@ def test_deleted_account_loses_login_refresh_and_record_access(accounts):
     assert login.json()["error"]["code"] == "invalid_credentials"
     with accounts.sessions() as session:
         assert session.get(AuthIdentity, owner_id) is None
-        assert session.get(User, owner_id) is not None
+        assert session.get(User, owner_id) is None
         sessions_left = session.scalars(
             select(AuthSession).where(AuthSession.user_id == owner_id)
         ).all()
@@ -472,9 +528,9 @@ def test_deleted_account_loses_login_refresh_and_record_access(accounts):
         assert list(sessions_left) == []
         assert list(challenges_left) == []
         farm = session.get(Farm, UUID(farm_id))
-        assert farm is not None and farm.deleted_at is not None
+        assert farm is None
         section = session.scalar(select(Section).where(Section.owner_id == owner_id))
-        assert section is not None and section.deleted_at is not None
+        assert section is None
 
 
 def test_deletion_retains_photo_upload_rows_for_the_cleanup_worker(accounts):
@@ -553,6 +609,14 @@ def test_deletion_requeues_ready_photos_for_full_cleanup(accounts):
     assert cleaned_claim is not None and cleaned_claim[2] is False
     assert bob_claim is not None and bob_claim[2] is True
 
+    jobs.cleanup_finish(pending_upload, pending_attempt, pending_claim[1].cleanup_token, True)
+    jobs.cleanup_finish(cleaned_upload, cleaned_attempt, cleaned_claim[1].cleanup_token, True)
+    with accounts.sessions() as session:
+        assert session.get(User, accounts.alice.user.id) is None
+        assert session.get(PhotoUpload, pending_upload) is None
+        assert session.get(PhotoUpload, cleaned_upload) is None
+        assert session.get(PhotoUpload, bob_upload) is not None
+
 
 def test_deletion_tombstones_without_publishing_sync_changes(accounts):
     # Pins the documented deviation in delete_account: unlike tombstone_observation
@@ -561,6 +625,9 @@ def test_deletion_tombstones_without_publishing_sync_changes(accounts):
     # See the comment on delete_account's loop for why. If that ever changes
     # silently, this test fails rather than the contract drifting unnoticed.
     _seed_records(accounts)
+    # Keep a cleanup intent pending so the durable erasure phase cannot purge
+    # the tombstones before this intermediate-state contract is inspected.
+    _seed_photo_upload(accounts, accounts.alice)
     _seed_sync_change(accounts, accounts.alice)
     owner_id = accounts.alice.user.id
     with accounts.sessions.begin() as session:

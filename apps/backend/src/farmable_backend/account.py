@@ -10,13 +10,14 @@ import hashlib
 import io
 import json
 import zipfile
+from collections.abc import Callable, Iterable
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
 from argon2.exceptions import InvalidHashError, VerificationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.account_schemas import (
@@ -38,19 +39,24 @@ from farmable_backend.models import (
     Media,
     Observation,
     PhotoAttempt,
+    PhotoRate,
     PhotoUpload,
     Planting,
     SavedPlan,
     Section,
+    SyncChange,
     SyncMutation,
     User,
     VerificationChallenge,
+    VoiceSessionRate,
 )
 from farmable_backend.record_access import ApiError, authenticate
 
-EXPORT_SCHEMA_VERSION = 1
+EXPORT_SCHEMA_VERSION = 2
 EXPORT_BASENAME = "farmable-export"
 EXPORT_ENTRY_NAME = "export.json"
+MAX_EXPORT_ROWS = 5_000
+MAX_EXPORT_BYTES = 8 * 1024 * 1024
 # A fixed entry timestamp keeps the archive byte-for-byte reproducible.
 EXPORT_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
@@ -85,6 +91,73 @@ def _row(record: Any) -> dict[str, Any]:
     return {name: _value(getattr(record, name)) for name in columns}
 
 
+def _photo_upload_row(record: PhotoUpload) -> dict[str, Any]:
+    """Export subject-owned metadata, never worker leases or storage generations."""
+    return {
+        "id": str(record.id),
+        "media_id": str(record.media_id),
+        "local_media_id": str(record.local_media_id),
+        "farm_id": str(record.farm_id),
+        "section_id": str(record.section_id),
+        "content_type": record.content_type,
+        "byte_length": record.byte_length,
+        "state": record.state,
+        "created_at": _value(record.created_at),
+    }
+
+
+def _append_bounded(
+    document: dict[str, Any],
+    name: str,
+    records: Iterable[Any],
+    mapper: Callable[[Any], dict[str, Any]],
+    row_count: int,
+    byte_count: int,
+) -> tuple[int, int]:
+    rows: list[dict[str, Any]] = []
+    document[name] = rows
+    byte_count += len(name.encode("utf-8")) + 8
+    for record in records:
+        if row_count >= MAX_EXPORT_ROWS:
+            raise ApiError(413, "export_too_large")
+        row = mapper(record)
+        byte_count += (
+            len(json.dumps(row, sort_keys=True, separators=(",", ":")).encode("utf-8")) + 1
+        )
+        if byte_count > MAX_EXPORT_BYTES:
+            raise ApiError(413, "export_too_large")
+        rows.append(row)
+        row_count += 1
+    return row_count, byte_count
+
+
+def purge_deleted_owner(session: Session, owner: UUID) -> bool:
+    """Erase a credential-less owner once every external photo object is clean."""
+    if session.get(AuthIdentity, owner) is not None:
+        return False
+    pending = session.scalar(
+        select(func.count())
+        .select_from(PhotoAttempt)
+        .join(PhotoUpload, PhotoAttempt.upload_id == PhotoUpload.id)
+        .where(PhotoUpload.owner_id == owner, PhotoAttempt.cleaned_at.is_(None))
+    )
+    if pending:
+        return False
+
+    upload_ids = select(PhotoUpload.id).where(PhotoUpload.owner_id == owner)
+    session.execute(delete(PhotoAttempt).where(PhotoAttempt.upload_id.in_(upload_ids)))
+    session.execute(delete(PhotoUpload).where(PhotoUpload.owner_id == owner))
+    session.execute(delete(SyncChange).where(SyncChange.owner_id == owner))
+    for model in (Observation, FarmTask, FinancialRecord, SavedPlan, Planting, Media, Section):
+        session.execute(delete(model).where(model.owner_id == owner))
+    session.execute(delete(SyncMutation).where(SyncMutation.owner_id == owner))
+    session.execute(delete(PhotoRate).where(PhotoRate.owner_id == owner))
+    session.execute(delete(VoiceSessionRate).where(VoiceSessionRate.owner_id == owner))
+    session.execute(delete(Farm).where(Farm.owner_id == owner))
+    session.execute(delete(User).where(User.id == owner))
+    return True
+
+
 def _verify_password(password_hash: str, password: str) -> bool:
     try:
         return PASSWORD_HASHER.verify(password_hash, password)
@@ -99,7 +172,7 @@ def _bearer_digest(authorization: str | None) -> str:
 
 
 def json_bytes(document: dict[str, Any]) -> bytes:
-    return (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return (json.dumps(document, separators=(",", ":"), sort_keys=True) + "\n").encode("utf-8")
 
 
 def zip_bytes(document: dict[str, Any]) -> bytes:
@@ -156,6 +229,15 @@ class AccountService:
             identity = self._identity(session, owner)
             document: dict[str, Any] = {
                 "schema_version": EXPORT_SCHEMA_VERSION,
+                "manifest": {
+                    "uploaded_files": "metadata_only",
+                    "excluded": [
+                        "photo_object_bytes",
+                        "credential_and_session_material",
+                        "security_rate_counters",
+                        "worker_leases_and_storage_generations",
+                    ],
+                },
                 "account": {
                     "id": str(identity.id),
                     "first_name": identity.first_name,
@@ -168,11 +250,32 @@ class AccountService:
                     "created_at": _value(identity.created_at),
                 },
             }
+            row_count = 0
+            byte_count = len(json_bytes(document))
             for name, model in EXPORTED_RECORDS:
-                rows = session.scalars(
-                    select(model).where(model.owner_id == owner).order_by(model.id)
-                ).all()
-                document[name] = [_row(row) for row in rows]
+                records = session.scalars(
+                    select(model)
+                    .where(model.owner_id == owner)
+                    .order_by(model.id)
+                    .execution_options(yield_per=100)
+                )
+                row_count, byte_count = _append_bounded(
+                    document, name, records, _row, row_count, byte_count
+                )
+            uploads = session.scalars(
+                select(PhotoUpload)
+                .where(PhotoUpload.owner_id == owner)
+                .order_by(PhotoUpload.id)
+                .execution_options(yield_per=100)
+            )
+            row_count, byte_count = _append_bounded(
+                document,
+                "photo_uploads",
+                uploads,
+                _photo_upload_row,
+                row_count,
+                byte_count,
+            )
             return document
 
     def logout(self, authorization: str | None) -> None:
@@ -262,6 +365,8 @@ class AccountService:
                 delete(VerificationChallenge).where(VerificationChallenge.user_id == owner)
             )
             session.delete(identity)
+            session.flush()
+            purge_deleted_owner(session, owner)
 
     @staticmethod
     def _identity(session: Session, owner: UUID) -> AuthIdentity:

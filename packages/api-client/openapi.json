@@ -3140,6 +3140,16 @@
             },
             "description": "Not Found"
           },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3158,14 +3168,7 @@
                 }
               }
             },
-            "description": "Too Many Requests",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            }
+            "description": "Too Many Requests"
           },
           "500": {
             "content": {
@@ -3240,6 +3243,16 @@
             },
             "description": "Not Found"
           },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3258,14 +3271,7 @@
                 }
               }
             },
-            "description": "Too Many Requests",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            }
+            "description": "Too Many Requests"
           },
           "500": {
             "content": {
@@ -3330,6 +3336,16 @@
             },
             "description": "Not Found"
           },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3348,14 +3364,7 @@
                 }
               }
             },
-            "description": "Too Many Requests",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            }
+            "description": "Too Many Requests"
           },
           "500": {
             "content": {
@@ -3428,6 +3437,16 @@
             },
             "description": "Not Found"
           },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3446,14 +3465,7 @@
                 }
               }
             },
-            "description": "Too Many Requests",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            }
+            "description": "Too Many Requests"
           },
           "500": {
             "content": {
@@ -3518,6 +3530,16 @@
             },
             "description": "Not Found"
           },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3536,14 +3558,7 @@
                 }
               }
             },
-            "description": "Too Many Requests",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            }
+            "description": "Too Many Requests"
           },
           "500": {
             "content": {
@@ -3616,6 +3631,16 @@
             },
             "description": "Not Found"
           },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3634,14 +3659,7 @@
                 }
               }
             },
-            "description": "Too Many Requests",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            }
+            "description": "Too Many Requests"
           },
           "500": {
             "content": {
@@ -3764,6 +3782,16 @@
             },
             "description": "Not Found"
           },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3782,14 +3810,7 @@
                 }
               }
             },
-            "description": "Too Many Requests",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            }
+            "description": "Too Many Requests"
           },
           "500": {
             "content": {
@@ -3970,6 +3991,16 @@
             },
             "description": "Not Found"
           },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3988,14 +4019,7 @@
                 }
               }
             },
-            "description": "Too Many Requests",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "integer"
-                }
-              }
-            }
+            "description": "Too Many Requests"
           },
           "500": {
             "content": {
