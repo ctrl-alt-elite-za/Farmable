@@ -133,7 +133,10 @@ class SyncRecordRepository:
         if record is None:
             raise ApiError(404, "not_found")
         if operation == "delete":
-            if expected_version is not None and expected_version != record.version:
+            # RecordDelete.expected_version is required (PR #59 review: an offline
+            # delete that never saw a newer edit must not be able to silently
+            # tombstone it), so this is always set here.
+            if expected_version != record.version:
                 raise ApiError(409, "revision_conflict")
             if record.deleted_at is None:
                 record.deleted_at = db_now(self.session)

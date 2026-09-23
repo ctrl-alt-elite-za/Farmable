@@ -124,7 +124,9 @@ def test_authenticated_crud_round_trip(records, resource):
     updated = records.client.put(f"{base}/{record_id}", json=update_body(records, resource))
     assert updated.status_code == 200, updated.text
     assert updated.json()["version"] == 2
-    removed = records.client.post(f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4())})
+    removed = records.client.post(
+        f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4()), "expected_version": 2}
+    )
     assert removed.status_code == 200, removed.text
     assert removed.json()["version"] == 3
 
@@ -137,7 +139,9 @@ def test_list_and_get_expose_active_records_only(records, resource):
     assert created.status_code == 200, created.text
     assert records.client.get(f"{base}/{record_id}").json()["id"] == record_id
     assert [item["id"] for item in records.client.get(base).json()["items"]] == [record_id]
-    removed = records.client.post(f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4())})
+    removed = records.client.post(
+        f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4()), "expected_version": 1}
+    )
     assert removed.status_code == 200, removed.text
     assert records.client.get(base).json()["items"] == []
     assert records.client.get(f"{base}/{record_id}").status_code == 404
@@ -255,13 +259,62 @@ def test_delete_enforces_optimistic_concurrency(records):
     assert records.client.get(f"{base}/{record_id}").status_code == 200
 
 
+def test_deleting_with_omitted_expected_version_is_rejected(records):
+    base = f"/farms/{records.ids.farm}/tasks"
+    record_id = str(uuid4())
+    created = records.client.post(base, json=create_body(records, "tasks", record_id))
+    assert created.status_code == 200, created.text
+    removed = records.client.post(f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4())})
+    assert removed.status_code == 422
+    assert records.client.get(f"{base}/{record_id}").status_code == 200
+
+
+def test_deleting_with_null_expected_version_is_rejected(records):
+    base = f"/farms/{records.ids.farm}/tasks"
+    record_id = str(uuid4())
+    created = records.client.post(base, json=create_body(records, "tasks", record_id))
+    assert created.status_code == 200, created.text
+    removed = records.client.post(
+        f"{base}/{record_id}/delete",
+        json={"mutation_id": str(uuid4()), "expected_version": None},
+    )
+    assert removed.status_code == 422
+    assert records.client.get(f"{base}/{record_id}").status_code == 200
+
+
+def test_a_delayed_offline_delete_cannot_silently_erase_a_newer_edit(records):
+    base = f"/farms/{records.ids.farm}/tasks"
+    record_id = str(uuid4())
+    created = records.client.post(base, json=create_body(records, "tasks", record_id))
+    assert created.status_code == 200, created.text
+    updated = records.client.put(f"{base}/{record_id}", json=update_body(records, "tasks"))
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["version"] == 2
+    stale = records.client.post(
+        f"{base}/{record_id}/delete",
+        json={"mutation_id": str(uuid4()), "expected_version": 1},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "revision_conflict"
+    assert records.client.get(f"{base}/{record_id}").json()["title"] == "Weed again"
+    with records.sessions() as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SyncChange)
+                .where(SyncChange.record_id == UUID(record_id), SyncChange.operation == "delete")
+            )
+            == 0
+        )
+
+
 def test_deleting_an_already_deleted_record_still_enforces_expected_version(records):
     base = f"/farms/{records.ids.farm}/tasks"
     record_id = str(uuid4())
     created = records.client.post(base, json=create_body(records, "tasks", record_id))
     assert created.status_code == 200, created.text
     first_delete = records.client.post(
-        f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4())}
+        f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4()), "expected_version": 1}
     )
     assert first_delete.status_code == 200, first_delete.text
     current_version = first_delete.json()["version"]
@@ -279,7 +332,7 @@ def test_deleting_an_already_deleted_record_with_matching_expected_version_succe
     created = records.client.post(base, json=create_body(records, "tasks", record_id))
     assert created.status_code == 200, created.text
     first_delete = records.client.post(
-        f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4())}
+        f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4()), "expected_version": 1}
     )
     assert first_delete.status_code == 200, first_delete.text
     current_version = first_delete.json()["version"]
@@ -332,7 +385,7 @@ def test_replaying_a_delete_mutation_does_not_double_apply(records):
     record_id = str(uuid4())
     created = records.client.post(base, json=create_body(records, "tasks", record_id))
     assert created.status_code == 200, created.text
-    delete_payload = {"mutation_id": str(uuid4())}
+    delete_payload = {"mutation_id": str(uuid4()), "expected_version": 1}
     first = records.client.post(f"{base}/{record_id}/delete", json=delete_payload)
     assert first.status_code == 200, first.text
     replay = records.client.post(f"{base}/{record_id}/delete", json=delete_payload)
@@ -376,7 +429,9 @@ def test_tombstone_is_preserved_and_not_resurrected(records):
     record_id = str(uuid4())
     created = records.client.post(base, json=create_body(records, "tasks", record_id))
     assert created.status_code == 200, created.text
-    removed = records.client.post(f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4())})
+    removed = records.client.post(
+        f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4()), "expected_version": 1}
+    )
     assert removed.status_code == 200, removed.text
     stale = records.client.put(f"{base}/{record_id}", json=update_body(records, "tasks"))
     assert stale.status_code == 409
@@ -423,7 +478,9 @@ def test_writes_to_a_foreign_farm_are_not_found(records, resource):
     assert created.status_code == 404
     updated = records.client.put(f"{base}/{record_id}", json=update_body(records, resource))
     assert updated.status_code == 404
-    removed = records.client.post(f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4())})
+    removed = records.client.post(
+        f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4()), "expected_version": 1}
+    )
     assert removed.status_code == 404
 
 
@@ -435,7 +492,9 @@ def test_records_cannot_be_reached_through_another_owned_farm(records):
     other = f"/farms/{records.ids.second}/tasks/{record_id}"
     assert records.client.get(other).status_code == 404
     assert records.client.put(other, json=update_body(records, "tasks")).status_code == 404
-    removed = records.client.post(f"{other}/delete", json={"mutation_id": str(uuid4())})
+    removed = records.client.post(
+        f"{other}/delete", json={"mutation_id": str(uuid4()), "expected_version": 1}
+    )
     assert removed.status_code == 404
     assert records.client.get(f"/farms/{records.ids.second}/changes").json()["items"] == []
 
@@ -485,7 +544,9 @@ def test_observations_support_update_and_tombstone(records):
     assert updated.status_code == 200, updated.text
     assert updated.json()["record"]["note"] == "Aphids found"
     assert updated.json()["version"] == 2
-    removed = records.client.post(f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4())})
+    removed = records.client.post(
+        f"{base}/{record_id}/delete", json={"mutation_id": str(uuid4()), "expected_version": 2}
+    )
     assert removed.status_code == 200, removed.text
     assert records.client.get(f"{base}/{record_id}").status_code == 404
 
