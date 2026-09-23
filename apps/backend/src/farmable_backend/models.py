@@ -227,6 +227,68 @@ class AccountProfile(Base):
     )
 
 
+class AssistantConversation(Base):
+    __tablename__ = "assistant_conversations"
+    __table_args__ = (
+        _farm_owner_fk("assistant_conversations"),
+        UniqueConstraint("id", "owner_id", name="uq_assistant_conversation_owner"),
+        Index("ix_assistant_conversations_owner", "owner_id"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE")
+    )
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AssistantTurn(Base):
+    __tablename__ = "assistant_turns"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("conversation_id", "owner_id"),
+            ("assistant_conversations.id", "assistant_conversations.owner_id"),
+            ondelete="CASCADE",
+            name="fk_assistant_turn_conversation_owner",
+        ),
+        CheckConstraint(
+            column("status").in_(("running", "completed", "interrupted", "failed")),
+            name="ck_assistant_turn_status",
+        ),
+        CheckConstraint(column("reserved_micro_usd") >= 0, name="ck_assistant_turn_reservation"),
+        Index("ix_assistant_turns_history", "conversation_id", "created_at", "id"),
+        Index("ix_assistant_turns_owner_created", "owner_id", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    conversation_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    message: Mapped[str] = mapped_column(Text)
+    reply: Mapped[str] = mapped_column(Text, default="", server_default="")
+    status: Mapped[str] = mapped_column(Text, default="running")
+    error: Mapped[str | None] = mapped_column(Text)
+    tools: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list)
+    usage: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list)
+    model: Mapped[str] = mapped_column(Text)
+    policy: Mapped[str] = mapped_column(Text)
+    reserved_micro_usd: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantBudget(Base):
+    """One migration-seeded lock serializes global and per-user admission."""
+
+    __tablename__ = "assistant_budget"
+    __table_args__ = (
+        CheckConstraint(column("id") == 1, name="ck_assistant_budget_singleton"),
+        CheckConstraint(column("reserved_micro_usd") >= 0, name="ck_assistant_budget_nonnegative"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    day: Mapped[date | None] = mapped_column(Date)
+    policy: Mapped[str | None] = mapped_column(Text)
+    reserved_micro_usd: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+
+
 class Farm(Base):
     __tablename__ = "farms"
     __table_args__ = (

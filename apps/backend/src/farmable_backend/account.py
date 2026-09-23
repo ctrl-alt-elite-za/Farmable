@@ -30,6 +30,8 @@ from farmable_backend.auth import PASSWORD_HASHER
 from farmable_backend.models import (
     DEFAULT_ACCOUNT_LANGUAGE,
     AccountProfile,
+    AssistantConversation,
+    AssistantTurn,
     AuthIdentity,
     AuthSession,
     Farm,
@@ -169,6 +171,16 @@ class AccountService:
                 },
             }
             for name, model in EXPORTED_RECORDS:
+                rows = session.scalars(
+                    select(model).where(model.owner_id == owner).order_by(model.id)
+                ).all()
+                document[name] = [_row(row) for row in rows]
+            # Assistant content is personal data too. Its FK cascades on identity
+            # deletion; exports include only this owner's plain text/tool history.
+            for name, model in (
+                ("assistant_conversations", AssistantConversation),
+                ("assistant_turns", AssistantTurn),
+            ):
                 rows = session.scalars(
                     select(model).where(model.owner_id == owner).order_by(model.id)
                 ).all()

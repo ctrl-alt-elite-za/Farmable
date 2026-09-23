@@ -16,6 +16,10 @@ from starlette.exceptions import HTTPException
 from farmable_backend.account import AccountService
 from farmable_backend.account_api import AccountRuntime
 from farmable_backend.account_api import router as account_router
+from farmable_backend.assistant.api import router as assistant_router
+from farmable_backend.assistant.runtime import Runtime as AssistantRuntime
+from farmable_backend.assistant.settings import AssistantSettings
+from farmable_backend.assistant.store import Store as AssistantStore
 from farmable_backend.auth import (
     AuthError,
     AuthService,
@@ -115,10 +119,19 @@ def create_app(
                     RecordsService(database.sessions), lambda: create_gcs_photos(config)
                 )
                 app.state.account = AccountRuntime(AccountService(database.sessions))
+                app.state.assistant = AssistantRuntime(
+                    AssistantStore(database.sessions, AssistantSettings(), integration_config),
+                    app.state.records,
+                    services,
+                    config.forecast_data_mode,
+                )
             yield
         finally:
             try:
                 # Drain uncancelled database work before disposing its pool.
+                assistant = getattr(app.state, "assistant", None)
+                if assistant is not None:
+                    await assistant.close()
                 await run_in_threadpool(auth_executor.shutdown, wait=True, cancel_futures=True)
                 records = getattr(app.state, "records", None)
                 if records is not None:
@@ -152,6 +165,7 @@ def create_app(
     app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
     app.include_router(records_router)
     app.include_router(account_router)
+    app.include_router(assistant_router)
     app.include_router(voice_router)
     app.include_router(forecast_router)
 
