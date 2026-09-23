@@ -8,6 +8,7 @@ Reading the script did not catch that. Running it does.
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -171,6 +172,25 @@ def test_a_device_that_boots_late_is_still_accepted(tmp_path: Path) -> None:
     # The boundedness tests above are where the deadline is actually proved.
     result = run(tmp_path, script, timeout_seconds="20")
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_the_stack_waits_after_installing_the_apk() -> None:
+    """A gate before a slow step proves nothing about the moment after it.
+
+    PR #53's run passed the readiness check, installed the APK successfully,
+    and then failed Maestro's very first command with
+    "Command failed (host:transport:emulator-5554): device offline". The
+    transport went away during the install, which streams a release APK and
+    takes seconds. So the device is checked again immediately before the flow
+    that needs it, not only before the install.
+    """
+    stack = (ROOT / "scripts" / "ci-stack.sh").read_text(encoding="utf-8")
+    install = stack.index("adb install -r")
+    online = stack.index("maestro test e2e/mobile/online_launch.yaml")
+    gates = [m.start() for m in re.finditer(r"bash scripts/await-device\.sh", stack)]
+    assert any(
+        install < gate < online for gate in gates
+    ), "nothing re-checks the device between the install and the first flow"
 
 
 def test_the_stack_waits_after_stopping_the_api() -> None:
