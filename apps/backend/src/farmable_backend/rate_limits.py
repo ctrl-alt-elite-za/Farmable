@@ -2,13 +2,15 @@
 
 Every limit is a sliding-window counter persisted in ``rate_limit_counters``,
 so it survives process restarts and is safe under concurrent PostgreSQL
-requests: the subject row is locked (``with_for_update``) for the rest of
-the caller's transaction, so two concurrent hits against the same
-scope+subject serialize instead of both reading a stale count.
-
-Callers must run ``check()`` inside an already-open ``session.begin()``
-transaction (mirroring the existing ``VoiceSessionRate``/``PhotoRate``
-pattern in ``voice_api.py``/``records_service.py``).
+requests: the subject row is locked (``with_for_update``) only for the
+duration of this short, dedicated transaction — never for the rest of the
+caller's own transaction. Locking for the caller's whole transaction (an
+earlier version of this module did) would serialize unrelated concurrent
+requests from the same subject behind each other's full work, including
+slow provider calls; this mirrors the existing ``VoiceSessionRate``/
+``PhotoRate`` pattern in ``voice_api.py``/``records_service.py``, where the
+rate check is its own short transaction, committed before the caller's
+actual (possibly slow) work begins.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ import math
 from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.models import RateLimitCounter
 
@@ -40,7 +42,7 @@ def _now_ts() -> float:
 
 
 def check(
-    session: Session,
+    sessions: sessionmaker[Session],
     *,
     scope: str,
     subject: str,
@@ -50,25 +52,33 @@ def check(
 ) -> None:
     """Record one hit for ``scope``+``subject``; raise RateLimited over the cap.
 
-    Recording happens up front (not only on success) so a burst of requests
-    that are each individually rejected still counts toward the window —
-    otherwise a caller could retry indefinitely without ever being charged.
+    Runs and commits its own short transaction — the row lock is released
+    before this returns, regardless of how long the caller's subsequent work
+    takes. Recording happens up front (not only on success) so a burst of
+    requests that are each individually rejected still counts toward the
+    window — otherwise a caller could retry indefinitely without ever being
+    charged.
     """
     subject_hash = hash_subject(subject)
     now = _now_ts()
-    counter = session.get(RateLimitCounter, (scope, subject_hash), with_for_update=True)
-    if counter is None:
-        try:
-            with session.begin_nested():
-                counter = RateLimitCounter(scope=scope, subject_hash=subject_hash, hits=[])
-                session.add(counter)
-                session.flush()
-        except IntegrityError:
-            # Lost the race to create the row; the winner's row is now visible.
-            counter = session.get(RateLimitCounter, (scope, subject_hash), with_for_update=True)
-    hits = [hit for hit in counter.hits if hit > now - window_seconds]
-    if len(hits) >= limit:
-        retry_after = max(1, math.ceil(min(hits) + window_seconds - now))
-        counter.hits = hits
-        raise RateLimited(code, retry_after)
-    counter.hits = [*hits, now]
+    with sessions.begin() as session:
+        counter = session.get(RateLimitCounter, (scope, subject_hash), with_for_update=True)
+        if counter is None:
+            try:
+                with session.begin_nested():
+                    counter = RateLimitCounter(scope=scope, subject_hash=subject_hash, hits=[])
+                    session.add(counter)
+                    session.flush()
+            except IntegrityError:
+                # Lost the race to create the row; the winner's row is now visible.
+                counter = session.get(RateLimitCounter, (scope, subject_hash), with_for_update=True)
+        hits = [hit for hit in counter.hits if hit > now - window_seconds]
+        if len(hits) >= limit:
+            retry_after = max(1, math.ceil(min(hits) + window_seconds - now))
+            counter.hits = hits
+            rejected = RateLimited(code, retry_after)
+        else:
+            counter.hits = [*hits, now]
+            rejected = None
+    if rejected is not None:
+        raise rejected

@@ -263,19 +263,21 @@ def test_signup_only_translates_credential_unique_violations(sqlstate, constrain
     transaction = sessions.begin.return_value
     session = transaction.__enter__.return_value
     session.scalar.return_value = None
-    session.get.return_value = None  # No rate-limit counter row yet.
+    # An existing counter row for every rate-limit scope checked (signup_ip,
+    # sms_ip, sms_daily), so none of those take the row-creation branch and
+    # add their own flush() calls — only the real owner/identity inserts do.
+    session.get.return_value = RateLimitCounter(scope="x", subject_hash="y", hits=[])
     # A real SAVEPOINT context manager propagates an exception raised inside
     # it; MagicMock's auto-mocked __exit__ would otherwise swallow it (any
     # truthy return value suppresses the exception).
     session.begin_nested.return_value.__exit__.return_value = False
-    # The rate-limit counter insert and the owner-row insert each flush first;
-    # only the credential (AuthIdentity) insert's flush should hit the
-    # simulated unique-constraint failure.
+    # The owner-row insert flushes first; only the credential (AuthIdentity)
+    # insert's flush should hit the simulated unique-constraint failure.
     calls = {"n": 0}
 
     def flush_side_effect():
         calls["n"] += 1
-        if calls["n"] == 3:
+        if calls["n"] == 2:
             raise failure
 
     session.flush.side_effect = flush_side_effect

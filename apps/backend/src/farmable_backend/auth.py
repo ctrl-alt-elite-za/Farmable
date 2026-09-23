@@ -50,9 +50,13 @@ COMMON_PASSWORDS = frozenset(
 )
 
 
-def _rate_limit(session: Session, **kwargs: object) -> None:
+def _rate_limit(sessions: sessionmaker[Session], **kwargs: object) -> None:
+    # Its own short, immediately-committing transaction (see rate_limits.py)
+    # — never nested inside the caller's own signup/login/_send transaction,
+    # so the row lock never blocks on password hashing, inserts, or an OTP
+    # provider call.
     try:
-        rate_check(session, **kwargs)  # type: ignore[arg-type]
+        rate_check(sessions, **kwargs)  # type: ignore[arg-type]
     except RateLimited as exc:
         raise AuthError(exc.code, 429, exc.retry_after) from exc
 
@@ -186,19 +190,21 @@ class AuthService:
         # sign-up without creating a second account or a fake DB row (#9
         # enumeration resistance).
         placeholder = AuthUser(uuid4(), first_name.strip(), surname.strip(), phone, email, False, False)
+        # Its own short transaction, committed before the (possibly slow)
+        # work below even starts — see rate_limits.py.
+        _rate_limit(
+            self.sessions,
+            scope="signup_ip",
+            subject=ip,
+            window_seconds=3600,
+            limit=5,
+            code="signup_rate_limited",
+        )
+        # Signup always sends exactly one phone OTP; check its cost-abuse
+        # limits upfront too, so a rejection here never leaves an orphaned
+        # owner/identity/farm row from a transaction rolled back mid-flight.
+        self._check_sms_limits(ip)
         with self.sessions.begin() as session:
-            # Recorded (and committed with this transaction) before anything
-            # that can fail below, including the enumeration-safe collision
-            # paths — an IntegrityError inside the nested block only rolls
-            # back the nested savepoint, never this hit.
-            _rate_limit(
-                session,
-                scope="signup_ip",
-                subject=ip,
-                window_seconds=3600,
-                limit=5,
-                code="signup_rate_limited",
-            )
             existing = session.scalar(
                 select(AuthIdentity).where(
                     (AuthIdentity.email == email) | (AuthIdentity.phone == phone)
@@ -251,7 +257,7 @@ class AuthService:
                         self._notify_collision(winner, email, phone)
                     return placeholder
                 raise
-            self._send(session, user, Channel.PHONE, ip=ip)
+            self._send(session, user, Channel.PHONE)
             return _user(user)
 
     def _notify_collision(self, existing: AuthIdentity, email: str, phone: str) -> None:
@@ -316,6 +322,8 @@ class AuthService:
         return result
 
     def resend(self, user_id: UUID, channel: Channel, *, ip: str = "unknown") -> None:
+        if channel is Channel.PHONE:
+            self._check_sms_limits(ip)
         with self.sessions.begin() as session:
             user = session.scalar(
                 select(AuthIdentity).where(AuthIdentity.id == user_id).with_for_update()
@@ -326,15 +334,11 @@ class AuthService:
                 channel is Channel.EMAIL and user.email_verified
             ):
                 raise AuthError("invalid_verification", 400)
-            self._send(session, user, channel, ip=ip)
+            self._send(session, user, channel)
 
     def login(self, identifier: str, password: str, *, ip: str = "unknown") -> SessionTokens:
-        # As in refresh(): raising inside `with self.sessions.begin()` rolls
-        # back everything in the transaction, including the failure-counter
-        # hits recorded just above the raise. So the generic-credentials
-        # failure is raised after the block commits, not from inside it.
         identifier = identifier.strip()
-        failure: AuthError | None = None
+        failed = False
         result: SessionTokens | None = None
         with self.sessions.begin() as session:
             user = session.scalar(
@@ -350,34 +354,34 @@ class AuthService:
             password_valid = self._verify_password(password_hash, password)
             verified = user is not None and (user.phone_verified and user.email_verified)
             if user is None or user.password_hash is None or not password_valid or not verified:
-                # Record the failure against both the account and the caller's
-                # IP; only failures count toward these limits, so legitimate
-                # repeated logins are never throttled. An unknown identifier
-                # still hashes to a stable per-identifier bucket, matching the
-                # dummy-hash timing defense above. A rate-limit AuthError
-                # raised here still aborts the transaction, but check() never
-                # records a hit on the call that rejects, so nothing is lost.
-                _rate_limit(
-                    session,
-                    scope="login_fail_account",
-                    subject=identifier.lower(),
-                    window_seconds=900,
-                    limit=5,
-                    code="login_rate_limited",
-                )
-                _rate_limit(
-                    session,
-                    scope="login_fail_ip",
-                    subject=ip,
-                    window_seconds=900,
-                    limit=20,
-                    code="login_rate_limited",
-                )
-                failure = AuthError("invalid_credentials", 401)
+                failed = True
             else:
                 result = self._new_session(session, user)
-        if failure is not None:
-            raise failure
+        if failed:
+            # Recorded after the login transaction has already committed, in
+            # their own short transactions (see rate_limits.py) — never
+            # holding a lock across the login work above. Only failures
+            # count toward these limits, so legitimate repeated logins are
+            # never throttled. An unknown identifier still hashes to a
+            # stable per-identifier bucket, matching the dummy-hash timing
+            # defense above.
+            _rate_limit(
+                self.sessions,
+                scope="login_fail_account",
+                subject=identifier.lower(),
+                window_seconds=900,
+                limit=5,
+                code="login_rate_limited",
+            )
+            _rate_limit(
+                self.sessions,
+                scope="login_fail_ip",
+                subject=ip,
+                window_seconds=900,
+                limit=20,
+                code="login_rate_limited",
+            )
+            raise AuthError("invalid_credentials", 401)
         if result is None:  # Defensive: every successful branch assigns a result.
             raise AuthError("invalid_credentials", 401)
         return result
@@ -428,9 +432,31 @@ class AuthService:
             raise AuthError("invalid_session", 401)
         return result
 
-    def _send(
-        self, session: Session, user: AuthIdentity, channel: Channel, *, ip: str = "unknown"
-    ) -> None:
+    def _check_sms_limits(self, ip: str) -> None:
+        # SMS costs money per send (~$0.19); gate on IP and a system-wide
+        # daily cap. Called by signup()/resend() *before* their own
+        # transaction opens (and before _send() is reached), so a rejection
+        # here never leaves an orphaned owner/identity/farm row, and the
+        # provider is never called. Each check is its own short,
+        # already-committed transaction (see rate_limits.py).
+        _rate_limit(
+            self.sessions,
+            scope="sms_ip",
+            subject=ip,
+            window_seconds=3600,
+            limit=10,
+            code="sms_ip_rate_limited",
+        )
+        _rate_limit(
+            self.sessions,
+            scope="sms_daily",
+            subject="global",
+            window_seconds=86400,
+            limit=50,
+            code="daily_sms_cap",
+        )
+
+    def _send(self, session: Session, user: AuthIdentity, channel: Channel) -> None:
         recent = session.scalars(
             select(VerificationChallenge).where(
                 VerificationChallenge.user_id == user.id,
@@ -442,26 +468,6 @@ class AuthService:
             oldest = min(c.created_at for c in recent)
             retry = max(1, int((_as_utc(oldest) + OTP_SEND_WINDOW - _now()).total_seconds()) + 1)
             raise AuthError("otp_rate_limited", 429, retry)
-        if channel is Channel.PHONE:
-            # SMS costs money per send (~$0.19); gate on IP and a system-wide
-            # daily cap in addition to the per-phone window above, and never
-            # let a rejected request reach the provider.
-            _rate_limit(
-                session,
-                scope="sms_ip",
-                subject=ip,
-                window_seconds=3600,
-                limit=10,
-                code="sms_ip_rate_limited",
-            )
-            _rate_limit(
-                session,
-                scope="sms_daily",
-                subject="global",
-                window_seconds=86400,
-                limit=50,
-                code="daily_sms_cap",
-            )
         session.execute(
             update(VerificationChallenge)
             .where(
