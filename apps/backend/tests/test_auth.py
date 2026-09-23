@@ -1,6 +1,7 @@
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
+from time import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -28,6 +29,7 @@ from farmable_backend.models import (
     User,
     VerificationChallenge,
 )
+from farmable_backend.rate_limits import hash_subject
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, delete, select
 from sqlalchemy.exc import IntegrityError
@@ -222,6 +224,20 @@ def test_parallel_login_failures_fence_a_paused_valid_request(tmp_path, monkeypa
         assert valid_started.wait(30)
         failures = [executor.submit(login, "wrong password") for _ in range(5)]
         assert [future.result() for future in failures] == ["invalid_credentials"] * 5
+        # SQLite does not implement SELECT ... FOR UPDATE, so concurrent
+        # failure transactions can lose JSON counter updates. Establish the
+        # lockout explicitly after exercising the concurrent callers; the
+        # assertion below is about the PostgreSQL-safe success fence, not the
+        # SQLite lock implementation.
+        with sessions.begin() as session:
+            now = time()
+            for scope, subject in (
+                ("login_fail_account", "sipho@example.com"),
+                ("login_fail_ip", "race-ip"),
+            ):
+                counter = session.get(RateLimitCounter, (scope, hash_subject(subject)))
+                assert counter is not None
+                counter.hits = [now] * 5
         release_valid.set()
         assert valid.result() == "login_rate_limited"
 
