@@ -13,6 +13,9 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
+from farmable_backend.account import AccountService
+from farmable_backend.account_api import AccountRuntime
+from farmable_backend.account_api import router as account_router
 from farmable_backend.auth import (
     AuthError,
     AuthService,
@@ -111,6 +114,7 @@ def create_app(
                 app.state.records = RecordRuntime(
                     RecordsService(database.sessions), lambda: create_gcs_photos(config)
                 )
+                app.state.account = AccountRuntime(AccountService(database.sessions))
             yield
         finally:
             try:
@@ -119,6 +123,9 @@ def create_app(
                 records = getattr(app.state, "records", None)
                 if records is not None:
                     await run_in_threadpool(records.close)
+                account = getattr(app.state, "account", None)
+                if account is not None:
+                    await run_in_threadpool(account.close)
             finally:
                 try:
                     if database is not None:
@@ -144,6 +151,7 @@ def create_app(
     app.add_middleware(RecordBodyLimit)
     app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
     app.include_router(records_router)
+    app.include_router(account_router)
     app.include_router(voice_router)
     app.include_router(forecast_router)
 
