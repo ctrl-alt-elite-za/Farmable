@@ -78,7 +78,7 @@ def upgrade():
     )
     op.create_table(
         "assistant_budget",
-        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=False),
         sa.Column("day", sa.Date()),
         sa.Column("policy", sa.Text()),
         sa.Column("reserved_micro_usd", sa.BigInteger(), nullable=False, server_default="0"),
@@ -87,7 +87,7 @@ def upgrade():
             sa.column("reserved_micro_usd") >= 0, name="ck_assistant_budget_nonnegative"
         ),
     )
-    op.bulk_insert(sa.table("assistant_budget", sa.column("id", sa.Integer())), [{"id": 1}])
+    op.bulk_insert(sa.table("assistant_budget", sa.column("id", sa.BigInteger())), [{"id": 1}])
 
 
 def downgrade():

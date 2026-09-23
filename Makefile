@@ -20,7 +20,9 @@ smoke:
 smoke-voice:
 	uv run python scripts/smoke_gemini_live.py $(SMOKE_ARGS)
 
-.PHONY: eval-assistant
+.PHONY: eval-assistant assistant-evals
+assistant-evals: eval-assistant
+
 eval-assistant:
 	uv run python -m farmable_backend.assistant.evaluate --set $(or $(SET),dev)
 

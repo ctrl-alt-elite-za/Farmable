@@ -100,6 +100,11 @@ Apply migration `0010` before using the feature. It creates three additive table
 and the budget-lock singleton; startup never runs migrations. Downgrade is lossy:
 disable the feature and drain requests first; it removes history and reservations.
 
+The migration scanner cannot see the connection-level timeouts already applied by
+`make_engine(migration=True)` (1-second lock timeout, 5-second statement timeout).
+Its missing-`SET` warnings still require maintainer review and the
+`migration-approved` label; this PR does not suppress them or approve itself.
+
 Generation defaults to disabled. Operators must supply all of:
 
 | Setting                            | Meaning                                                                     |
@@ -156,6 +161,7 @@ waived scope.
 
 `make eval-assistant SET=dev` runs deterministic protocol/security regression
 checks, explicitly labelled as synthetic—not a calibrated model judge report.
+`make assistant-evals` is the CI runner's alias for the same command.
 `make test` includes these tests and migration-shape checks.
 `make test-integration` explicitly runs the PostgreSQL admission/budget races
 against the disposable migrated stack. Ordinary SQLite tests do not establish

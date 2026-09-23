@@ -283,7 +283,7 @@ class AssistantBudget(Base):
         CheckConstraint(column("id") == 1, name="ck_assistant_budget_singleton"),
         CheckConstraint(column("reserved_micro_usd") >= 0, name="ck_assistant_budget_nonnegative"),
     )
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     day: Mapped[date | None] = mapped_column(Date)
     policy: Mapped[str | None] = mapped_column(Text)
     reserved_micro_usd: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")

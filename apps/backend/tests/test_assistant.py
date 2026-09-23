@@ -638,6 +638,8 @@ def test_sql_ci_runner_explicitly_selects_concurrency_tests():
         "pytest apps/backend/tests/integration/test_assistant_postgres.py -m integration -q"
         in runner.read_text()
     )
+    makefile = runner.parents[1] / "Makefile"
+    assert "assistant-evals: eval-assistant" in makefile.read_text()
 
 
 def test_conversation_retry_is_idempotent_and_cross_farm_conflicts(assistant):
