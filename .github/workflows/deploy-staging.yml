@@ -115,6 +115,12 @@ jobs:
           GEMINI_SECRET: ${{ steps.config.outputs.gemini_secret }}
           GCS_BUCKET: ${{ steps.config.outputs.media_bucket }}
           COMMIT_SHA: ${{ github.sha }}
+          # The backend holds the provider keys so the mobile app never ships them.
+          # Override to `disabled` to deploy without calling any provider.
+          INTEGRATIONS_MODE: ${{ vars.INTEGRATIONS_MODE || 'live' }}
+          # Optional. Empty falls back to the prefix implied by GCP_DATABASE_SECRET,
+          # which Terraform guarantees is "${name_prefix}-database-url".
+          SECRET_PREFIX: ${{ vars.GCP_SECRET_PREFIX }}
         run: bash infra/gcp-rollout.sh
 
   frozen:

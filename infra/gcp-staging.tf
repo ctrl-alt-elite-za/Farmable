@@ -78,6 +78,25 @@ resource "google_artifact_registry_repository" "backend" {
   description   = "SHA-tagged Farmable backend images"
   format        = "DOCKER"
   depends_on    = [google_project_service.required]
+
+  # Every merge to main pushes an immutable SHA-tagged image and nothing removed the
+  # old ones, so storage grew with the commit count. KEEP is evaluated ahead of DELETE,
+  # so the newest images survive regardless of age and a rollback target still exists.
+  cleanup_policies {
+    id     = "keep-recent-images"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 10
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-stale-images"
+    action = "DELETE"
+    condition {
+      older_than = "2592000s" # 30 days
+    }
+  }
 }
 
 resource "google_storage_bucket" "media" {
@@ -91,7 +110,7 @@ resource "google_storage_bucket" "media" {
   lifecycle_rule {
     condition {
       days_since_noncurrent_time = 30
-      with_state                  = "ARCHIVED"
+      with_state                 = "ARCHIVED"
     }
     action { type = "Delete" }
   }
