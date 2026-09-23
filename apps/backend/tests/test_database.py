@@ -16,6 +16,8 @@ def test_only_owned_application_tables_are_registered():
         "account_profiles",
         "assistant_conversations",
         "assistant_consents",
+        "assistant_live_consents",
+        "assistant_live_sessions",
         "assistant_turns",
         "assistant_budget",
         "plan_revisions",

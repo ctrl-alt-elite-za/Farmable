@@ -33,6 +33,8 @@ from farmable_backend.models import (
     AccountProfile,
     AssistantConsent,
     AssistantConversation,
+    AssistantLiveConsent,
+    AssistantLiveSession,
     AssistantTurn,
     AuthIdentity,
     AuthSession,
@@ -184,6 +186,8 @@ class AccountService:
                 ("plan_revisions", PlanRevision),
                 ("assistant_conversations", AssistantConversation),
                 ("assistant_consents", AssistantConsent),
+                ("assistant_live_consents", AssistantLiveConsent),
+                ("assistant_live_sessions", AssistantLiveSession),
                 ("assistant_turns", AssistantTurn),
             ):
                 query = select(model).where(model.owner_id == owner).order_by(model.id)

@@ -3,11 +3,13 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from threading import Barrier, Event
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from farmable_backend.account import AccountService
 from farmable_backend.assistant import retention
+from farmable_backend.assistant.live import LIVE_NOTICE_VERSION, LiveConsentGrant, LiveStore
 from farmable_backend.assistant.privacy import NOTICE_VERSION, ConsentGrant
 from farmable_backend.assistant.retention import purge_batch
 from farmable_backend.assistant.schemas import ConversationCreate, TurnCreate
@@ -19,14 +21,17 @@ from farmable_backend.database import make_engine
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.models import (
     AssistantBudget,
+    AssistantLiveSession,
     AssistantTurn,
     AuthIdentity,
+    Farm,
     ForecastRun,
     ForecastState,
     PlanRevision,
     SavedPlan,
     SyncChange,
     User,
+    VoiceSessionRate,
 )
 from farmable_backend.planning import service as planning_service
 from farmable_backend.planning.contracts import PlanConfirmation, PlanRequest
@@ -40,6 +45,71 @@ from test_assistant import policy, seed
 from test_forecasts import bundle
 
 pytestmark = pytest.mark.integration
+
+
+def test_live_admission_across_farms_and_withdrawal_across_replicas():
+    engine = make_engine(Settings())
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    owner = seed(sessions)
+    other_farm = uuid4()
+    with sessions.begin() as session:
+        session.add(Farm(id=other_farm, owner_id=owner.owner, name="Second farm"))
+    services = ServiceSettings(
+        environment="ci", integrations_mode="fake", gemini_live_model="fixture-live-model"
+    )
+    store = Store(sessions, policy(), services)
+    conversations = [
+        store.create(owner.auth, ConversationCreate(id=uuid4(), farm_id=farm))
+        for farm in (owner.farm, other_farm)
+    ]
+    live = LiveStore(store, SimpleNamespace(configured=True))
+    for conversation in conversations:
+        live.consent(
+            owner.auth,
+            conversation.id,
+            LiveConsentGrant(notice_version=LIVE_NOTICE_VERSION, model="fixture-live-model"),
+        )
+    barrier = Barrier(2, timeout=10)
+
+    def before_lock(conn, cursor, statement, params, context, many):
+        if statement.startswith("SELECT farms.") and "FOR UPDATE" in statement:
+            barrier.wait()
+
+    def admit(conversation):
+        try:
+            return live.admit(owner.auth, conversation.id, uuid4())
+        except ApiError as error:
+            return error.code
+
+    try:
+        event.listen(engine, "before_cursor_execute", before_lock)
+        try:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(admit, conversations))
+        finally:
+            event.remove(engine, "before_cursor_execute", before_lock)
+        assert sorted(results) == sorted(["fixture-live-model", "voice_session_in_progress"])
+        with sessions() as session:
+            records = session.scalars(
+                select(AssistantLiveSession).where(AssistantLiveSession.owner_id == owner.owner)
+            ).all()
+            assert len(records) == 1
+            identifier, conversation_id = records[0].id, records[0].conversation_id
+            assert len(session.get(VoiceSessionRate, owner.owner).hits) == 1
+        replica = LiveStore(Store(sessions, policy(), services), SimpleNamespace(configured=True))
+        replica.consent(owner.auth, conversation_id, withdraw=True)
+        replica.consent(
+            owner.auth,
+            conversation_id,
+            LiveConsentGrant(notice_version=LIVE_NOTICE_VERSION, model="fixture-live-model"),
+        )
+        with pytest.raises(ApiError) as error:
+            live.activate(owner.auth, conversation_id, identifier, "models/fixture-live-model")
+        assert error.value.code == "voice_session_ended"
+    finally:
+        with sessions.begin() as session:
+            session.execute(delete(User).where(User.id == owner.owner))
+        engine.dispose()
 
 
 def test_account_erasure_fences_a_waiting_plan_edit():

@@ -17,6 +17,7 @@ from farmable_backend.account import AccountService
 from farmable_backend.account_api import AccountRuntime
 from farmable_backend.account_api import router as account_router
 from farmable_backend.assistant.api import router as assistant_router
+from farmable_backend.assistant.live_api import router as assistant_live_router
 from farmable_backend.assistant.runtime import Runtime as AssistantRuntime
 from farmable_backend.assistant.settings import AssistantSettings
 from farmable_backend.assistant.store import Store as AssistantStore
@@ -167,6 +168,7 @@ def create_app(
     app.include_router(records_router)
     app.include_router(account_router)
     app.include_router(assistant_router)
+    app.include_router(assistant_live_router)
     app.include_router(voice_router)
     app.include_router(forecast_router)
     app.include_router(planning_router)

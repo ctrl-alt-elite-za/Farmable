@@ -5,6 +5,11 @@ bounded provider orchestration and read-only farm tools. It does **not** complet
 the promised voice-to-approved-plan journey. Do not enable live operation merely
 because the synthetic tests pass.
 
+The selected voice path remains Gemini Live. Its new
+[conversation-scoped backend contract](assistant-live.md) adds explicit audio
+consent, locked read tools and durable session interruption without modifying the
+Flutter UI. It does not implement microphone/playback or prove Zulu quality.
+
 ## Issue #7 acceptance map
 
 This PR does not reduce issue #7's production requirements. The provider foundation
@@ -19,7 +24,7 @@ the scope review on PR #71.
 | Smoke command, crop coverage, credentials/cost/fallback documentation | `integrations/smoke.py`, `make smoke`, `docs/services.md`, `docs/provider-verification.md`                                                      | Authorized real staging runs, account/security settings and crop-coverage evidence; a command existing is not a PASS                                                 |
 | Twilio confined to integrations                                       | `integrations/twilio.py`; static source regression in `test_integrations.py` checks SDK imports and literal provider hosts outside the boundary | Continue enforcing this boundary; the check is not a sandbox against dynamically constructed imports/URLs                                                            |
 | Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only planning previews, explicit confirmation API and stale-plan checks                                                    | Frontend confirmation journey, production input acceptance and real-model grounded action verification                                                               |
-| Voice and crop diagnosis                                              | Existing provider adapters and separately disabled Live credential endpoint                                                                     | Azure streaming/language rules, sentence TTS and playback interruption, queued farm-scoped diagnosis; Flutter integration remains with its owning issues             |
+| Voice and crop diagnosis                                              | Gemini Live handoff plus conversation-scoped voice consent, read tools and durable session interruption                                          | Selected Gemini device-audio/language acceptance and playback interruption, queued farm-scoped diagnosis; Azure-specific criteria are not claimed as implemented      |
 | Accounting, evaluation and privacy                                    | Bounded admission reservations, synthetic regressions, owner export/deletion, conversation consent/revocation and 30-day chat-content expiry    | Actual priced settlement, system-spend acceptance, calibrated/adversarial evaluations, provider/backup retention review, consent UI and appropriate provider caching |
 | Deployment and full journey                                           | Existing CI checks; no live activation in this PR                                                                                               | Approved configuration, real-provider contracts, physical-device and deployed end-to-end evidence                                                                    |
 

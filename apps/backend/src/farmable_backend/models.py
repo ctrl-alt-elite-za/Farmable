@@ -261,6 +261,55 @@ class AssistantConsent(Base):
     withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class AssistantLiveConsent(Base):
+    __tablename__ = "assistant_live_consents"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("id", "owner_id"),
+            ("assistant_conversations.id", "assistant_conversations.owner_id"),
+            ondelete="CASCADE",
+            name="fk_assistant_live_consent_owner",
+        ),
+        Index("ix_assistant_live_consents_owner", "owner_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    model: Mapped[str] = mapped_column(Text)
+    notice_version: Mapped[str] = mapped_column(Text)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantLiveSession(Base):
+    """Content-free capability metadata, never audio, transcripts or credentials."""
+
+    __tablename__ = "assistant_live_sessions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("conversation_id", "owner_id"),
+            ("assistant_conversations.id", "assistant_conversations.owner_id"),
+            ondelete="CASCADE",
+            name="fk_assistant_live_session_owner",
+        ),
+        CheckConstraint(
+            column("state").in_(("issuing", "active", "interrupted", "failed")),
+            name="ck_assistant_live_session_state",
+        ),
+        CheckConstraint(column("tool_count").between(0, 32), name="ck_assistant_live_tool_count"),
+        Index("ix_assistant_live_sessions_owner_expiry", "owner_id", "expires_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    conversation_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    model: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text, default="issuing", server_default="issuing")
+    tool_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class AssistantTurn(Base):
     __tablename__ = "assistant_turns"
     __table_args__ = (
