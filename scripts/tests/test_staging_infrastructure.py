@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -41,6 +42,10 @@ def test_gcp_stack_is_johannesburg_and_private() -> None:
         "token.actions.githubusercontent.com",
     ):
         assert marker in terraform
+    # Matched on structure, not on column alignment. Pinning the exact run of spaces
+    # meant `terraform fmt` -- which the runbook tells operators to run -- broke this
+    # test, so the formatter and the contract disagreed about the same file.
+    assert re.search(r'with_state\s*=\s*"ARCHIVED"', terraform)
     assert "AWS::" not in terraform
     assert "serviceAccountKey" not in terraform
 
@@ -156,6 +161,44 @@ fi
     )
     assert rejected.returncode != 0
     assert "exactly one revision" in rejected.stderr
+
+
+def test_deployer_may_list_the_secrets_the_rollout_discovers() -> None:
+    """The rollout discovers which provider secrets hold an enabled version before
+    wiring them, so the deployer needs Secret Manager *metadata* reads.
+
+    `roles/secretmanager.secretAccessor` does not cover this: it grants
+    `secretmanager.versions.access` and nothing else, and it is bound to the runtime
+    account rather than the deployer. Without a metadata grant the discovery call fails
+    closed and the deploy aborts before `gcloud run deploy` -- so the permission and the
+    script that depends on it are asserted together, from the verbs actually used.
+    """
+    rollout = read("infra/gcp-rollout.sh")
+    terraform = read("infra/gcp-staging.tf")
+
+    verbs = {
+        "gcloud secrets list": "secretmanager.secrets.list",
+        "gcloud secrets versions list": "secretmanager.versions.list",
+    }
+    used = {command for command in verbs if command in rollout}
+    assert used, "the rollout no longer discovers secrets; drop this test with the grant"
+
+    block = re.search(
+        r'resource\s+"google_project_iam_member"\s+"deployer_secret_viewer"\s*\{(.*?)\n\}',
+        terraform,
+        re.DOTALL,
+    )
+    assert block, "the deployer has no Secret Manager metadata grant"
+    # Assert on what the block grants, not on its prose: the comment explains why
+    # secretAccessor is the wrong role, and that explanation must not read as a grant.
+    granted = "\n".join(
+        line for line in block.group(1).splitlines() if not line.lstrip().startswith("#")
+    )
+    # viewer carries secrets.list and versions.list; it does not carry versions.access.
+    assert re.search(r'role\s*=\s*"roles/secretmanager\.viewer"', granted)
+    assert "google_service_account.deployer.email" in granted
+    # The deployer reads which secrets exist, never what any of them contains.
+    assert "secretAccessor" not in granted
 
 
 def test_backup_verifies_completed_operation_before_returning() -> None:
@@ -787,6 +830,169 @@ def test_failed_first_deploy_refuses_to_delete_when_the_revision_probe_fails(
     assert result.returncode != 0
     assert "services delete" not in log.read_text(encoding="utf-8")
     assert "operator action required" in result.stderr
+
+
+def _provider_secret_gcloud(log: Path, sha: str, *, secrets: str, versions: str) -> str:
+    """Successful-path gcloud stub that also answers Secret Manager discovery.
+
+    `secrets list` and `secrets versions list` are matched separately: "secrets list"
+    is not a substring of "secrets versions list", so the two cannot be confused.
+    """
+    service_json = (
+        '{"status":{"traffic":[{"tag":"sha-' + sha + '",'
+        '"url":"https://sha-' + sha[:8] + '---farmable.run.app",'
+        '"revisionName":"farmable-00002"}]},' + _service_spec(REFERENCE_ENV_V1)[1:]
+    )
+    return (
+        _log_calls(log) + 'if [[ "$*" == *"secrets versions list"* ]]; then\n'
+        f"  printf '%s\\n' '{versions}'; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"secrets list"* ]]; then\n'
+        f"  printf '%s\\n' '{secrets}'; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"run services list"* ]]; then exit 0; fi\n'
+        'if [[ "$*" == *"latestCreatedRevisionName"* ]]; then\n'
+        "  printf '%s\\n' 'farmable-00002'; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"run services describe"* ]]; then\n'
+        "  cat <<'FAKEJSON'\n" + service_json + "\nFAKEJSON\n"
+        "  exit 0\n"
+        "fi\n" + _STORAGE_STUB + "exit 0\n"
+    )
+
+
+def _provider_secret_run(tmp_path: Path, log: Path, *, secrets: str, versions: str):
+    sha = "0123456789abcdef0123456789abcdef01234567"
+    _fake_gcloud(tmp_path, _provider_secret_gcloud(log, sha, secrets=secrets, versions=versions))
+    _fake_curl(tmp_path)
+    bucket = tmp_path / "bucket"
+    bucket.mkdir()
+    return _run("infra/gcp-rollout.sh", {**_rollout_env(tmp_path), "FAKE_BUCKET": str(bucket)})
+
+
+@requires_jq
+def test_rollout_runs_integrations_live_so_the_backend_holds_the_provider_keys() -> None:
+    """The mobile app is offline-first but must not ship provider keys, so the backend
+    calls providers on its behalf. A key extracted from an APK is a key leaked, which
+    is why INTEGRATIONS_MODE must not deploy as `disabled`.
+    """
+    rollout = read("infra/gcp-rollout.sh")
+    assert 'INTEGRATIONS_MODE="${INTEGRATIONS_MODE:-live}"' in rollout
+    assert "INTEGRATIONS_MODE=disabled" not in rollout
+
+
+@requires_jq
+def test_rollout_wires_a_provider_secret_that_holds_an_enabled_version(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(
+        tmp_path,
+        log,
+        secrets="farmable-staging-twilio-auth-token",
+        versions="projects/1/secrets/farmable-staging-twilio-auth-token/versions/1",
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    calls = log.read_text(encoding="utf-8")
+    assert "TWILIO_AUTH_TOKEN=farmable-staging-twilio-auth-token:latest" in calls
+    assert "INTEGRATIONS_MODE=live" in calls
+    assert "Provider secrets wired: TWILIO_AUTH_TOKEN" in result.stdout
+
+
+@requires_jq
+def test_rollout_skips_a_provider_secret_with_no_enabled_version(tmp_path: Path) -> None:
+    """Referencing a secret that holds no version makes the container fail to start,
+    while omitting it leaves one integration unavailable. Omitting is the safe half of
+    that trade, so an empty version list must skip rather than reference.
+    """
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(
+        tmp_path, log, secrets="farmable-staging-twilio-auth-token", versions=""
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    calls = log.read_text(encoding="utf-8")
+    assert "TWILIO_AUTH_TOKEN" not in calls
+    assert "DATABASE_URL=farmable-staging-database-url:latest" in calls
+    assert "TWILIO_AUTH_TOKEN" in result.stdout.split("skipped", 1)[1]
+
+
+@requires_jq
+def test_rollout_aborts_when_secret_manager_cannot_be_listed(tmp_path: Path) -> None:
+    """A transient listing failure must not read as "no provider secrets exist" and
+    deploy a service with none of them wired.
+    """
+    log = tmp_path / "calls.log"
+    _fake_gcloud(
+        tmp_path,
+        _log_calls(log) + 'if [[ "$*" == *"secrets list"* ]]; then\n'
+        "  echo 'ERROR: HTTPError 503: backend error' >&2; exit 1\n"
+        "fi\n"
+        'if [[ "$*" == *"run services list"* ]]; then exit 0; fi\n'
+        "exit 0\n",
+    )
+    result = _run("infra/gcp-rollout.sh", _rollout_env(tmp_path))
+    assert result.returncode != 0
+    assert "refusing to deploy" in result.stderr
+    assert "run deploy" not in log.read_text(encoding="utf-8")
+
+
+@requires_jq
+def test_secret_smoke_rejects_a_literal_provider_key(tmp_path: Path) -> None:
+    """A provider key pasted into a workflow argument instead of Secret Manager is the
+    failure this smoke exists to catch, and it must name the variable without echoing
+    the value it just found.
+    """
+    leaked = REFERENCE_ENV_V1 + ',{"name":"TWILIO_AUTH_TOKEN","value":"super-secret-token"}'
+    _fake_gcloud(tmp_path, _describe_body(leaked))
+    result = _run("infra/gcp-secret-smoke.sh", _secret_env(tmp_path))
+    assert result.returncode != 0
+    assert "TWILIO_AUTH_TOKEN" in result.stderr
+    assert "super-secret-token" not in result.stderr + result.stdout
+
+
+def test_entrypoint_supervises_the_worker_instead_of_dying_with_it() -> None:
+    entrypoint = read("infra/cloudrun-entrypoint.sh")
+    # `wait -n "$worker_pid" "$api_pid"` returned on whichever child exited first, and
+    # the EXIT trap then killed the other. Only the API's exit may end the container.
+    assert 'wait -n "$worker_pid" "$api_pid"' not in entrypoint
+    assert 'while kill -0 "$api_pid"' in entrypoint
+    assert "start_worker" in entrypoint
+
+
+def test_entrypoint_keeps_the_api_serving_when_the_worker_keeps_crashing(
+    tmp_path: Path,
+) -> None:
+    """A fault in the background queue must not take the HTTP service down with it: at
+    `--max=1` that is total downtime, and the queue currently carries no demo-critical
+    work. Stub both children so a crash loop is observable without a real worker.
+
+    Output goes to a file rather than a pipe: on timeout the stubbed `sleep` outlives
+    the shell, and a grandchild holding a pipe open can wedge `communicate()`.
+    """
+    starts = tmp_path / "starts.log"
+    for name, body in (
+        ("python", f'printf "worker\\n" >>"{starts}"\nexit 1\n'),
+        ("uvicorn", f'printf "api\\n" >>"{starts}"\nsleep 6\n'),
+    ):
+        stub = tmp_path / name
+        stub.write_text("#!/usr/bin/env bash\n" + body, encoding="utf-8")
+        stub.chmod(0o755)
+
+    output = tmp_path / "output.log"
+    with output.open("w", encoding="utf-8") as handle:
+        with pytest.raises(subprocess.TimeoutExpired):
+            subprocess.run(  # noqa: S603 - fixed shell and repository script
+                [_bash(), str(ROOT / "infra/cloudrun-entrypoint.sh")],
+                check=False,
+                env={**os.environ, "PATH": _path(tmp_path)},
+                stdout=handle,
+                stderr=handle,
+                timeout=5,
+            )
+
+    observed = starts.read_text(encoding="utf-8").split()
+    # Timing out is the assertion: the script was still running after the worker died.
+    assert observed.count("api") == 1
+    assert observed.count("worker") > 1
+    assert "restarting it and leaving the API serving" in output.read_text(encoding="utf-8")
 
 
 _REQUIRED_CONFIG_VARS = (

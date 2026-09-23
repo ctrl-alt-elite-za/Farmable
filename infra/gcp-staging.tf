@@ -78,6 +78,25 @@ resource "google_artifact_registry_repository" "backend" {
   description   = "SHA-tagged Farmable backend images"
   format        = "DOCKER"
   depends_on    = [google_project_service.required]
+
+  # Every merge to main pushes an immutable SHA-tagged image and nothing removed the
+  # old ones, so storage grew with the commit count. KEEP is evaluated ahead of DELETE,
+  # so the newest images survive regardless of age and a rollback target still exists.
+  cleanup_policies {
+    id     = "keep-recent-images"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 10
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-stale-images"
+    action = "DELETE"
+    condition {
+      older_than = "2592000s" # 30 days
+    }
+  }
 }
 
 resource "google_storage_bucket" "media" {
@@ -194,6 +213,23 @@ resource "google_project_iam_member" "deployer_service_usage" {
   project = var.project_id
   role    = "roles/serviceusage.serviceUsageConsumer"
   member  = "serviceAccount:${google_service_account.deployer.email}"
+}
+
+resource "google_project_iam_member" "deployer_secret_viewer" {
+  project = var.project_id
+  # gcp-rollout.sh discovers which provider secrets hold an enabled version before
+  # wiring them, using `gcloud secrets list` and `gcloud secrets versions list`. Both
+  # are metadata reads, and secretmanager.secrets.list is scoped to the project by
+  # definition -- it enumerates the project -- so this is the narrowest role that
+  # authorizes them.
+  #
+  # Deliberately not secretAccessor: that grants secretmanager.versions.access and
+  # nothing else, which is payload access rather than listing. It is bound to the
+  # runtime account, which must read the values; the deployer must not. viewer carries
+  # secrets.list and versions.list without versions.access, so the deploy can see which
+  # secrets exist while remaining unable to read a single one.
+  role   = "roles/secretmanager.viewer"
+  member = "serviceAccount:${google_service_account.deployer.email}"
 }
 
 resource "google_storage_bucket_iam_member" "deployer_storage_smoke" {
