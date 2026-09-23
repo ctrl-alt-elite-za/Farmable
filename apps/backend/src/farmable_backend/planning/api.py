@@ -39,7 +39,7 @@ async def history(
     response: Response,
     farm_id: UUID,
     plan_id: UUID,
-    before_version: Annotated[int | None, Query(ge=1)] = None,
+    before_version: Annotated[int | None, Query(ge=1, le=2**63 - 1)] = None,
     limit: Annotated[int, Query(ge=1, le=20)] = 10,
 ):
     worker, service = planner(request)

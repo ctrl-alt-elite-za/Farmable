@@ -46,6 +46,7 @@ def test_confirmed_versions_are_preserved_and_paginated(planner):
     assert len(history(planner, first["plan_id"]).json()["revisions"]) == 2
     assert history(planner, first["plan_id"], limit=21).status_code == 422
     assert history(planner, first["plan_id"], before_version=0).status_code == 422
+    assert history(planner, first["plan_id"], before_version=2**63).status_code == 422
 
 
 def test_manual_edits_cannot_replace_or_forge_confirmation_history(planner):
