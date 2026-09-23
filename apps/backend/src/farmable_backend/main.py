@@ -118,7 +118,7 @@ def create_app(
                 app.state.records = RecordRuntime(
                     RecordsService(database.sessions), lambda: create_gcs_photos(config)
                 )
-                app.state.account = AccountRuntime(AccountService(database.sessions))
+                app.state.account = AccountRuntime(AccountService(database.sessions, provider))
             yield
         finally:
             try:

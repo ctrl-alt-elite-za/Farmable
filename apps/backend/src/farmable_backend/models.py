@@ -143,6 +143,8 @@ class AuthIdentity(Base):
         _max_length("surname", "auth_identities", 100),
         _max_length("phone", "auth_identities", 32),
         _max_length("email", "auth_identities", 320),
+        _max_length("pending_email", "auth_identities", 320),
+        _max_length("pending_phone", "auth_identities", 32),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -155,6 +157,11 @@ class AuthIdentity(Base):
     password_hash: Mapped[str] = mapped_column(Text)
     phone_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # A verified account's requested-but-unconfirmed email/phone change. Never
+    # applied to email/phone until the matching VerificationChallenge is
+    # consumed via AccountService.confirm_contact_change.
+    pending_email: Mapped[str | None] = mapped_column(Text)
+    pending_phone: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -235,11 +242,17 @@ class Farm(Base):
         _max_length("name", "farms", 200),
         UniqueConstraint("id", "owner_id", name="uq_farms_id_owner_id"),
         Index("ix_farms_owner_active", "owner_id", "deleted_at"),
+        CheckConstraint(column("latitude_tenths").between(-900, 900), name="ck_farms_lat"),
+        CheckConstraint(column("longitude_tenths").between(-1800, 1799), name="ck_farms_lon"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(Text)
+    # Tenths of a degree, matching WeatherJob's existing lat/lon representation
+    # for consistency (issue #9 "farm location").
+    latitude_tenths: Mapped[int | None] = mapped_column(BigInteger)
+    longitude_tenths: Mapped[int | None] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

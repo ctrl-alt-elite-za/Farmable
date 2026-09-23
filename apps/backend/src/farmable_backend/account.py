@@ -17,6 +17,7 @@ from uuid import UUID
 
 from argon2.exceptions import InvalidHashError, VerificationError
 from sqlalchemy import delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.account_schemas import (
@@ -26,7 +27,14 @@ from farmable_backend.account_schemas import (
     ProfileResponse,
     ProfileUpdate,
 )
-from farmable_backend.auth import PASSWORD_HASHER
+from farmable_backend.auth import (
+    OTP_TTL,
+    PASSWORD_HASHER,
+    Channel,
+    DisabledOtpProvider,
+    OtpProvider,
+)
+from farmable_backend.auth import AuthError as _AuthError
 from farmable_backend.models import (
     DEFAULT_ACCOUNT_LANGUAGE,
     AccountProfile,
@@ -92,6 +100,10 @@ def _verify_password(password_hash: str, password: str) -> bool:
         return False
 
 
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
 def _bearer_digest(authorization: str | None) -> str:
     if authorization is None:
         raise ApiError(401, "invalid_session")
@@ -113,8 +125,9 @@ def zip_bytes(document: dict[str, Any]) -> bytes:
 
 
 class AccountService:
-    def __init__(self, sessions: sessionmaker[Session]):
+    def __init__(self, sessions: sessionmaker[Session], provider: OtpProvider | None = None):
         self.sessions = sessions
+        self.provider = provider or DisabledOtpProvider()
 
     def profile(self, authorization: str | None) -> ProfileResponse:
         with self.sessions.begin() as session:
@@ -132,7 +145,125 @@ class AccountService:
             if payload.preferred_language is not None:
                 self._set_language(session, owner, payload.preferred_language)
             session.flush()
+            response = self._profile(session, identity)
+        # Email/phone changes never apply inline: they only ever take effect
+        # through confirm_contact_change, after the destination proves control
+        # by returning the OTP it received. Requested after the main profile
+        # transaction commits so a request that changes name+email still
+        # persists the name even if the OTP send fails.
+        if payload.email is not None:
+            self._request_contact_change(authorization, Channel.EMAIL, payload.email)
+        if payload.phone is not None:
+            self._request_contact_change(authorization, Channel.PHONE, payload.phone)
+        if payload.email is not None or payload.phone is not None:
+            with self.sessions.begin() as session:
+                owner = authenticate(session, authorization)
+                response = self._profile(session, self._identity(session, owner))
+        return response
+
+    def confirm_contact_change(
+        self, authorization: str | None, channel: Channel, code: str
+    ) -> ProfileResponse:
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            identity = session.scalar(
+                select(AuthIdentity).where(AuthIdentity.id == owner).with_for_update()
+            )
+            if identity is None:
+                raise ApiError(401, "invalid_session")
+            pending = identity.pending_email if channel is Channel.EMAIL else identity.pending_phone
+            if pending is None:
+                raise ApiError(400, "no_pending_change")
+            challenge = session.scalar(
+                select(VerificationChallenge)
+                .where(
+                    VerificationChallenge.user_id == owner,
+                    VerificationChallenge.channel == channel.value,
+                    VerificationChallenge.consumed_at.is_(None),
+                )
+                .order_by(VerificationChallenge.created_at.desc())
+                .with_for_update()
+            )
+            if (
+                challenge is None
+                or _as_utc(challenge.expires_at) <= datetime.now(UTC)
+                or challenge.attempts >= 5
+            ):
+                raise ApiError(400, "invalid_verification")
+            if not self._verify_code(challenge.code_hash, code):
+                challenge.attempts += 1
+                raise ApiError(400, "invalid_verification")
+            challenge.consumed_at = datetime.now(UTC)
+            try:
+                with session.begin_nested():
+                    if channel is Channel.EMAIL:
+                        identity.email = pending
+                        identity.pending_email = None
+                    else:
+                        identity.phone = pending
+                        identity.pending_phone = None
+                    session.flush()
+            except IntegrityError:
+                # Someone else claimed this email/phone between the request
+                # and the confirm step. The caller already proved control of
+                # the destination by returning its OTP, so a direct error here
+                # is not an enumeration oracle (unlike signup/request).
+                raise ApiError(409, "contact_unavailable") from None
             return self._profile(session, identity)
+
+    def _request_contact_change(
+        self, authorization: str | None, channel: Channel, new_value: str
+    ) -> None:
+        normalized = new_value.strip().lower() if channel is Channel.EMAIL else new_value.strip()
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            identity = session.scalar(
+                select(AuthIdentity).where(AuthIdentity.id == owner).with_for_update()
+            )
+            if identity is None:
+                raise ApiError(401, "invalid_session")
+            current = identity.email if channel is Channel.EMAIL else identity.phone
+            if normalized == current:
+                return  # No-op: already the caller's own verified value.
+            column = AuthIdentity.email if channel is Channel.EMAIL else AuthIdentity.phone
+            collision = session.scalar(
+                select(AuthIdentity.id).where(column == normalized, AuthIdentity.id != owner)
+            )
+            if collision is not None:
+                # Enumeration-safe: identical to a fresh request either way.
+                # Warn the real owner instead of confirming existence to the
+                # caller, and never store a pending value that would collide.
+                try:
+                    self.provider.notify_existing_account(channel, normalized)
+                except _AuthError:
+                    pass
+                return
+            if channel is Channel.EMAIL:
+                identity.pending_email = normalized
+            else:
+                identity.pending_phone = normalized
+            session.execute(
+                update(VerificationChallenge)
+                .where(
+                    VerificationChallenge.user_id == owner,
+                    VerificationChallenge.channel == channel.value,
+                    VerificationChallenge.consumed_at.is_(None),
+                )
+                .values(consumed_at=datetime.now(UTC))
+            )
+            code = self.provider.create_code(channel)
+            try:
+                self.provider.deliver(channel, normalized, code)
+            except _AuthError as exc:
+                raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
+            session.add(
+                VerificationChallenge(
+                    user_id=owner,
+                    channel=channel.value,
+                    code_hash=PASSWORD_HASHER.hash(code),
+                    expires_at=datetime.now(UTC) + OTP_TTL,
+                )
+            )
 
     def farm(self, authorization: str | None) -> AccountFarmResponse:
         with self.sessions.begin() as session:
@@ -147,6 +278,10 @@ class AccountService:
                 record.name = payload.name.strip()
             if payload.preferred_language is not None:
                 self._set_language(session, owner, payload.preferred_language)
+            if payload.latitude is not None:
+                record.latitude_tenths = round(payload.latitude * 10)
+            if payload.longitude is not None:
+                record.longitude_tenths = round(payload.longitude * 10)
             session.flush()
             return self._farm_response(session, record)
 
@@ -313,6 +448,8 @@ class AccountService:
             phone_verified=identity.phone_verified,
             email_verified=identity.email_verified,
             preferred_language=self._language(session, identity.id),
+            pending_email=identity.pending_email,
+            pending_phone=identity.pending_phone,
         )
 
     def _farm_response(self, session: Session, record: Farm) -> AccountFarmResponse:
@@ -321,4 +458,13 @@ class AccountService:
             owner_id=record.owner_id,
             name=record.name,
             preferred_language=self._language(session, record.owner_id),
+            latitude=None if record.latitude_tenths is None else record.latitude_tenths / 10,
+            longitude=None if record.longitude_tenths is None else record.longitude_tenths / 10,
         )
+
+    @staticmethod
+    def _verify_code(code_hash: str, code: str) -> bool:
+        try:
+            return PASSWORD_HASHER.verify(code_hash, code)
+        except (VerificationError, InvalidHashError):
+            return False

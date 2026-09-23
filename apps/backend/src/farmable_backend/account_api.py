@@ -15,11 +15,13 @@ from sqlalchemy.exc import TimeoutError as DatabaseTimeout
 from farmable_backend.account import EXPORT_BASENAME, AccountService, json_bytes, zip_bytes
 from farmable_backend.account_schemas import (
     AccountFarmResponse,
+    ContactChangeConfirm,
     DeleteAccountRequest,
     FarmUpdate,
     ProfileResponse,
     ProfileUpdate,
 )
+from farmable_backend.auth import Channel
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import token
 from farmable_backend.schemas import ErrorResponse
@@ -92,6 +94,18 @@ async def write_profile(request: Request, response: Response, payload: ProfileUp
     response.headers["Cache-Control"] = "no-store"
     worker = runtime(request)
     return await worker.call(worker.service.update_profile, token(request), payload)
+
+
+@router.post(
+    "/account/contact/confirm",
+    response_model=ProfileResponse,
+    operation_id="confirmAccountContactChange",
+)
+async def confirm_contact_change(request: Request, response: Response, payload: ContactChangeConfirm):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    channel = Channel.EMAIL if payload.channel == "email" else Channel.PHONE
+    return await worker.call(worker.service.confirm_contact_change, token(request), channel, payload.code)
 
 
 @router.get("/account/farm", response_model=AccountFarmResponse, operation_id="getAccountFarm")

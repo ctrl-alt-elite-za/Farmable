@@ -81,7 +81,7 @@ def accounts(settings):
         service_settings=ServiceSettings(environment="ci", integrations_mode="fake"),
     )
     app.state.auth = auth
-    app.state.account = AccountRuntime(AccountService(sessions))
+    app.state.account = AccountRuntime(AccountService(sessions, DeterministicFakeOtpProvider()))
     app.state.records = RecordRuntime(RecordsService(sessions), lambda: None)
     with TestClient(app) as client:
         yield SimpleNamespace(
@@ -214,6 +214,8 @@ def test_profile_returns_only_the_authenticated_account(accounts):
         "phone_verified": True,
         "email_verified": True,
         "preferred_language": "en",
+        "pending_email": None,
+        "pending_phone": None,
     }
     assert response.headers["cache-control"] == "no-store"
 
@@ -300,6 +302,110 @@ def test_farm_details_and_preferred_language_updates_persist(accounts):
     other = accounts.client.get("/account/farm", headers=_headers(accounts.bob)).json()
     assert other["name"] == "My farm"
     assert other["owner_id"] == str(accounts.bob.user.id)
+
+
+def test_farm_location_updates_persist(accounts):
+    alice = _headers(accounts.alice)
+    updated = accounts.client.patch(
+        "/account/farm", headers=alice, json={"latitude": -26.2, "longitude": 28.3}
+    )
+    assert updated.status_code == 200
+    assert updated.json()["latitude"] == -26.2
+    assert updated.json()["longitude"] == 28.3
+    assert accounts.client.get("/account/farm", headers=alice).json() == updated.json()
+    other = accounts.client.get("/account/farm", headers=_headers(accounts.bob)).json()
+    assert other["latitude"] is None
+    assert other["longitude"] is None
+
+
+def test_farm_location_out_of_range_is_rejected(accounts):
+    alice = _headers(accounts.alice)
+    response = accounts.client.patch("/account/farm", headers=alice, json={"latitude": 95})
+    assert response.status_code == 422
+
+
+def test_email_change_requires_confirmation_before_it_applies(accounts):
+    alice = _headers(accounts.alice)
+    patched = accounts.client.patch(
+        "/account/profile", headers=alice, json={"email": "sipho.new@example.com"}
+    )
+    assert patched.status_code == 200
+    assert patched.json()["email"] == "sipho@example.com"  # Unchanged until confirmed.
+    assert patched.json()["pending_email"] == "sipho.new@example.com"
+    confirmed = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "222222"}
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["email"] == "sipho.new@example.com"
+    assert confirmed.json()["pending_email"] is None
+    assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (
+        "sipho.new@example.com"
+    )
+
+
+def test_phone_change_requires_confirmation_before_it_applies(accounts):
+    alice = _headers(accounts.alice)
+    patched = accounts.client.patch(
+        "/account/profile", headers=alice, json={"phone": "+27821234567"}
+    )
+    assert patched.status_code == 200
+    assert patched.json()["phone"] == "+27123456789"
+    assert patched.json()["pending_phone"] == "+27821234567"
+    confirmed = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "phone", "code": "111111"}
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["phone"] == "+27821234567"
+
+
+def test_contact_change_wrong_code_is_rejected_and_does_not_apply(accounts):
+    alice = _headers(accounts.alice)
+    accounts.client.patch("/account/profile", headers=alice, json={"email": "sipho.new@example.com"})
+    wrong = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "000000"}
+    )
+    assert wrong.status_code == 400
+    assert wrong.json()["error"]["code"] == "invalid_verification"
+    assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (
+        "sipho@example.com"
+    )
+
+
+def test_confirm_without_a_pending_change_is_rejected(accounts):
+    alice = _headers(accounts.alice)
+    response = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "222222"}
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "no_pending_change"
+
+
+def test_email_change_to_an_existing_account_is_enumeration_safe(accounts):
+    alice = _headers(accounts.alice)
+    # Bob's email already exists. The response must look identical to a
+    # genuine pending change, and the value must never actually go pending
+    # (a later confirm attempt has nothing to confirm).
+    patched = accounts.client.patch(
+        "/account/profile", headers=alice, json={"email": "nandi@example.com"}
+    )
+    assert patched.status_code == 200
+    assert patched.json()["email"] == "sipho@example.com"
+    assert patched.json()["pending_email"] is None
+    confirm = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "222222"}
+    )
+    assert confirm.status_code == 400
+    assert confirm.json()["error"]["code"] == "no_pending_change"
+    # Bob's own account is completely unaffected.
+    bob_profile = accounts.client.get("/account/profile", headers=_headers(accounts.bob)).json()
+    assert bob_profile["email"] == "nandi@example.com"
+
+
+def test_contact_change_rejects_unauthenticated_callers(accounts):
+    response = accounts.client.post(
+        "/account/contact/confirm", json={"channel": "email", "code": "222222"}
+    )
+    assert response.status_code == 401
 
 
 def test_owner_scope_blocks_cross_account_reads_and_mutations(accounts):
