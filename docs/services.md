@@ -138,6 +138,12 @@ validate literal success, expected hostname, and expected action.
 
 ## Staging smoke (explicitly billable)
 
+Checks can now be selected with repeatable `--service` flags; omission keeps the
+full suite. `make smoke-voice` separately checks the authenticated Gemini Live
+client path with a temporary token. See [provider verification](provider-verification.md)
+for exact opt-ins, bounds, prerequisites and what each PASS proves. Neither tool
+is evidence of a live run until an authorized operator executes it successfully.
+
 Set `ENVIRONMENT=staging`, `INTEGRATIONS_MODE=live`, all required configuration,
 and `TWILIO_FRAUD_GUARD_CONFIRMED=true` only after checking the console. Supply
 `SMOKE_PHONE` (a team-owned, trial-verified recipient), a fresh production-widget
