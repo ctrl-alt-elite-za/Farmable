@@ -1,0 +1,49 @@
+name: cloud-review-policy
+
+# Who must approve a cloud change depends on who opened it, which CODEOWNERS
+# cannot express: Bandile approves everyone else's cloud changes, and Tshego
+# approves Bandile's. The rule lives in .github/cloud_review_policy.py.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Re-judge when an approval is given or withdrawn, so the check turns green
+  # the moment the right person approves.
+  pull_request_review:
+    types: [submitted, dismissed]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  cloud-review-policy:
+    # A push has no approver to judge. The skipped run still gives main this
+    # check, which scripts/required_checks.py requires before enabling it.
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # The rule is read from the base branch, never from the pull request under
+      # review, so a pull request cannot rewrite the check that judges it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Require the right approver for cloud changes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -Eeuo pipefail
+          # Only true for the pull request that introduces the policy: its base
+          # does not have it yet. Once merged, main always has it.
+          if [[ ! -f .github/cloud_review_policy.py ]]; then
+            echo "Cloud review policy is not on the base branch yet; nothing to enforce."
+            exit 0
+          fi
+          python3 .github/cloud_review_policy.py
