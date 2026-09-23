@@ -75,6 +75,11 @@ activates billing/deployment. Do not bundle the server key in Flutter.
 
 ## Provider contract and remaining verification
 
+The operator's `make smoke-voice` tool now exercises authenticated issuance and
+one bounded text-input/audio-output Live turn without a Flutter client. Follow
+[provider verification](provider-verification.md). This does not replace the
+device, microphone, token-reuse, expiry or resumption acceptance checks below.
+
 The adapter uses Google's
 [v1beta REST discovery schema](https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta),
 checked 2026-09-22: `POST /v1beta/auth_tokens`, `uses`, expiry timestamps, and
