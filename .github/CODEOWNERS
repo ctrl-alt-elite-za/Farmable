@@ -15,23 +15,17 @@
 # The protection still holds where it matters: whoever opens the pull request
 # cannot approve it, so a change to someone else's lane always needs a pair of
 # eyes from outside it.
-#
-# The cloud lane at the bottom is the one exception: it has a single owner on
-# purpose. Bandile leads the cloud but does not author changes to it; Tshego and
-# Kea do. So the lock-out that makes a single owner wrong elsewhere is the point
-# here -- every change to how the demo backend is built, deployed and paid for
-# gets one accountable reviewer who is never also its author. If Bandile ever
-# needs a cloud change, a teammate opens it.
 
 # Anything not claimed below still needs a second pair of eyes.
 *                       @TshegofatsoMkhabela @Kea-nhlapo @lungilemooketsi @bandilleee
 
 # ---------------------------------------------------------------------------
-# Frontend and CI — Bandile
+# Frontend, CI and cloud — Bandile
 # ---------------------------------------------------------------------------
 /apps/mobile/           @bandilleee @TshegofatsoMkhabela
 /e2e/mobile/            @bandilleee @TshegofatsoMkhabela
 /.github/               @bandilleee @TshegofatsoMkhabela
+/infra/                 @bandilleee @TshegofatsoMkhabela
 
 # ---------------------------------------------------------------------------
 # Backend — Tshego and Kea
@@ -54,22 +48,11 @@
 /Makefile               @bandilleee @TshegofatsoMkhabela @Kea-nhlapo
 
 # ---------------------------------------------------------------------------
-# Cloud — Bandile alone. Deliberately last: last match wins, so these override
-# the /.github/ and /scripts/ lanes above for the files that decide what gets
-# deployed, where, and with what permissions.
-#
-# The contract tests and acceptance docs are listed too. A change that weakens
-# the test guarding a deploy script is a change to that deploy script, and must
-# not be able to route around the owner by touching only /scripts/.
-#
-# This file is listed so that the rule cannot be edited away by the people it
-# applies to.
+# Cloud tests and docs — same owners as /infra/ and /.github/ above. Listed
+# explicitly because /scripts/ and the catch-all would otherwise let a change to
+# the checks that guard a deploy be approved from outside the cloud lane.
 # ---------------------------------------------------------------------------
-/infra/                                          @bandilleee
-/.github/CODEOWNERS                              @bandilleee
-/.github/workflows/deploy-staging.yml            @bandilleee
-/.github/workflows/nightly-staging.yml           @bandilleee
-/scripts/tests/test_staging_infrastructure.py    @bandilleee
-/scripts/tests/test_forecast_deployment.py       @bandilleee
-/docs/deploy-staging-acceptance.md               @bandilleee
-/docs/forecast-deployment.md                     @bandilleee
+/scripts/tests/test_staging_infrastructure.py    @bandilleee @TshegofatsoMkhabela
+/scripts/tests/test_forecast_deployment.py       @bandilleee @TshegofatsoMkhabela
+/docs/deploy-staging-acceptance.md               @bandilleee @TshegofatsoMkhabela
+/docs/forecast-deployment.md                     @bandilleee @TshegofatsoMkhabela
