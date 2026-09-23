@@ -142,31 +142,40 @@ class _AppTextFieldState extends State<AppTextField> {
                   const SizedBox(width: AlmanacDimens.sp3),
                 ],
                 Expanded(
-                  child: TextField(
-                    controller: widget.controller,
-                    focusNode: _focus,
-                    enabled: widget.enabled,
-                    obscureText: widget.obscureText,
-                    keyboardType: widget.keyboardType,
-                    textInputAction: widget.textInputAction,
-                    textCapitalization: widget.textCapitalization,
-                    autofillHints: widget.autofillHints,
-                    inputFormatters: widget.inputFormatters,
-                    maxLength: widget.maxLength,
-                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                    onChanged: widget.onChanged,
-                    onSubmitted: (_) => widget.onSubmitted?.call(),
-                    style: text.bodyLarge,
-                    cursorColor: c.primary,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      counterText: '',
-                      hintText: widget.hint,
-                      hintStyle: text.bodyLarge?.copyWith(
-                        color: c.onSurfaceVariant,
+                  // A stable handle for UI automation. The label is a sibling
+                  // Text rather than part of the field's own semantics, so
+                  // Maestro has nothing on the input itself to find it by.
+                  child: Semantics(
+                    container: true,
+                    identifier: fieldIdentifier(widget.label),
+                    child: TextField(
+                      controller: widget.controller,
+                      focusNode: _focus,
+                      enabled: widget.enabled,
+                      obscureText: widget.obscureText,
+                      keyboardType: widget.keyboardType,
+                      textInputAction: widget.textInputAction,
+                      textCapitalization: widget.textCapitalization,
+                      autofillHints: widget.autofillHints,
+                      inputFormatters: widget.inputFormatters,
+                      maxLength: widget.maxLength,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                      onChanged: widget.onChanged,
+                      onSubmitted: (_) => widget.onSubmitted?.call(),
+                      style: text.bodyLarge,
+                      cursorColor: c.primary,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                        counterText: '',
+                        hintText: widget.hint,
+                        hintStyle: text.bodyLarge?.copyWith(
+                          color: c.onSurfaceVariant,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
                 ),
@@ -183,6 +192,11 @@ class _AppTextFieldState extends State<AppTextField> {
     );
   }
 }
+
+/// `field-confirm-password` for a field labelled "Confirm password". What the
+/// Maestro flows in `e2e/mobile/` select inputs by.
+String fieldIdentifier(String label) =>
+    'field-${label.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-')}';
 
 /// The helper line. Glyph, colour and words — three carriers, always.
 class FieldHelper extends StatelessWidget {

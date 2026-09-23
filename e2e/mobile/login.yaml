@@ -1,0 +1,54 @@
+# Log out, log back in against the real API, and stay signed in across a
+# restart.
+#
+# Creates its own account first (signup.yaml), so it depends on nothing but
+# the isolated CI stack - see signup.yaml for why the codes are fixed.
+#
+#   maestro test e2e/mobile/login.yaml
+appId: za.co.almanac.app
+name: A farmer logs out, logs back in, and is still signed in after a restart
+---
+- evalScript: ${output.suffix = String(Date.now()).slice(-7)}
+- runFlow: signup.yaml
+# signup.yaml finishes on Profile, signed in.
+- tapOn: 'Log out'
+- extendedWaitUntil:
+    visible: '.*Not logged in.*'
+    timeout: 10000
+# Logging out keeps the farm.
+- tapOn:
+    id: 'nav-home'
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 10000
+- tapOn:
+    id: 'nav-profile'
+- tapOn: 'Log in'
+- extendedWaitUntil:
+    visible: '.*Welcome back.*'
+    timeout: 10000
+# Email is the login screen's default mode.
+- tapOn:
+    id: 'field-email'
+- inputText: 'farmer${output.suffix}@example.com'
+- tapOn:
+    id: 'field-password'
+- inputText: 'three blind field mice'
+- hideKeyboard
+- tapOn: 'Log in'
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 30000
+- tapOn:
+    id: 'nav-profile'
+- assertVisible: '.*Thandi Mokoena.*'
+# A cold restart WITHOUT clearing state: the session comes back out of the
+# Android Keystore, with no login in front of Home.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+- tapOn:
+    id: 'nav-profile'
+- assertVisible: '.*Thandi Mokoena.*'

@@ -257,6 +257,20 @@ class _PressableState extends State<_Pressable> {
       ],
     );
 
+    // One node, announced as a button, labelled with its words. Without this
+    // the InkWell contributes only a tap action and the label can fold into
+    // whatever text sits beside the button — on Android that makes it
+    // unreachable by name for TalkBack and for the Maestro flows alike.
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        enabled: enabled,
+        child: _visual(enabled, motion, content),
+      ),
+    );
+  }
+
+  Widget _visual(bool enabled, AppMotion motion, Widget content) {
     return Opacity(
       opacity: enabled ? 1 : 0.45,
       child: AnimatedScale(
