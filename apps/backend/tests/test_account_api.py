@@ -736,6 +736,46 @@ def test_deletion_leaves_other_owners_untouched(accounts):
     assert stale.status_code == 401
 
 
+def test_delete_is_retry_safe_after_session_already_revoked(accounts):
+    # Simulates a client retrying a DELETE whose response was lost: the first
+    # call's session-revocation has already landed, so the retry has no live
+    # session to authenticate with. It must fail safely (401, no 500) rather
+    # than double-run cleanup or raise on an already-deleted identity.
+    alice = _headers(accounts.alice)
+    first = accounts.client.request("DELETE", "/account", headers=alice, json={"password": PASSWORD})
+    assert first.status_code == 204
+    retry = accounts.client.request("DELETE", "/account", headers=alice, json={"password": PASSWORD})
+    assert retry.status_code == 401
+    assert retry.json()["error"]["code"] == "invalid_session"
+
+
+def test_deletion_leaves_only_anonymous_audit_rows(accounts):
+    _seed_records(accounts)
+    owner_id = accounts.alice.user.id
+    removed = accounts.client.request(
+        "DELETE", "/account", headers=_headers(accounts.alice), json={"password": PASSWORD}
+    )
+    assert removed.status_code == 204
+    with accounts.sessions() as session:
+        mutations = session.scalars(
+            select(SyncMutation).where(SyncMutation.owner_id == owner_id)
+        ).all()
+        for row in mutations:
+            fields = {c.name for c in row.__table__.columns}
+            assert fields == {
+                "id",
+                "mutation_id",
+                "farm_id",
+                "owner_id",
+                "operation",
+                "record_type",
+                "record_id",
+                "request_fingerprint",
+                "created_at",
+            }
+            assert "@" not in str(row.request_fingerprint)
+
+
 @pytest.mark.parametrize(
     "path", ["/account/profile", "/account/farm", "/account/export?format=json"]
 )
