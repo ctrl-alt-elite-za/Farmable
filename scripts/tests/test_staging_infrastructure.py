@@ -955,6 +955,8 @@ def test_entrypoint_keeps_the_api_serving_when_the_worker_keeps_crashing(
     assert observed.count("api") == 1
     assert observed.count("worker") > 1
     assert "restarting it and leaving the API serving" in output.read_text(encoding="utf-8")
+
+
 _REQUIRED_CONFIG_VARS = (
     "GCP_PROJECT_ID",
     "GCP_WORKLOAD_IDENTITY_PROVIDER",
