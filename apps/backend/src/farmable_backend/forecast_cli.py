@@ -8,6 +8,7 @@ from pathlib import Path
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
 from farmable_backend.forecast_contract import Mode
+from farmable_backend.forecast_notifications import GitHubFailureNotifier, NotificationSettings
 from farmable_backend.forecasts import MAX_BUNDLE_BYTES, ImportResult, activate, import_bundle
 
 RUN_PATTERN = r"[a-z0-9][a-z0-9_-]{0,63}"
@@ -16,6 +17,15 @@ RUN_PATTERN = r"[a-z0-9][a-z0-9_-]{0,63}"
 def warning(result: ImportResult) -> None:
     # Only validated IDs and fixed check names, never artifact contents/exception text.
     print(f"forecast-warning run={result.run_id} checks={','.join(result.failed_checks)}")
+
+
+def report_failure(sessions, result: ImportResult) -> None:
+    warning(result)
+    config = NotificationSettings()
+    if not config.enabled:
+        warning(ImportResult(result.run_id, "rejected", ("notification_disabled",)))
+        return
+    GitHubFailureNotifier(sessions, config)(result)
 
 
 def import_latest(
@@ -90,7 +100,13 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         database = Database(config)
         if args.command == "import-latest":
-            results = import_latest(database.sessions, args.root, config.forecast_data_mode)
+            sessions = database.sessions
+            results = import_latest(
+                sessions,
+                args.root,
+                config.forecast_data_mode,
+                lambda result: report_failure(sessions, result),
+            )
             failed = sum(bool(result.failed_checks) for result in results)
             print(f"forecast-import examined={len(results)} failed={failed}")
         else:

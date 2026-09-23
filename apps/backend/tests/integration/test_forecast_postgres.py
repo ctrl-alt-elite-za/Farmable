@@ -3,15 +3,36 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
+import httpx
 import pytest
 from alembic import command
+from farmable_backend.forecast_notifications import GitHubFailureNotifier
 from farmable_backend.forecasts import activate, import_bundle, outlook
 from farmable_backend.models import AuthIdentity, ForecastRun, ForecastState
 from sqlalchemy import inspect, select
+from test_forecast_notifications import FAILURE, FakeGitHub, config
 from test_forecasts import bundle, raw
 from test_photo_sync_postgres import pg  # noqa: F401 -- isolated schema fixture
 
 pytestmark = pytest.mark.integration
+
+
+def test_concurrent_failure_notifications_create_one_issue(request):
+    database = request.getfixturevalue("pg")
+    command.upgrade(database.config, "0007")
+    github = FakeGitHub()
+    barrier = Barrier(4)
+    notifier = GitHubFailureNotifier(
+        database.sessions, config(), transport=httpx.MockTransport(github)
+    )
+
+    def notify(_):
+        barrier.wait(timeout=10)
+        notifier(FAILURE)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(notify, range(4)))
+    assert len(github.issues) == 1
 
 
 @pytest.mark.parametrize("same_id", [False, True])
