@@ -23,13 +23,13 @@
     "fields": ["tonnes", "rand_per_tonne"],
     "visual_review": "Every listed crop page was rendered and inspected from the original PDF.",
     "crops": {
-      "butternut": {"source_label": "Butternut squashes", "pdf_page": 36, "printed_page": 33},
-      "cabbage": {"source_label": "Cabbage", "pdf_page": 30, "printed_page": 27},
-      "carrots": {"source_label": "Carrots", "pdf_page": 29, "printed_page": 26},
-      "green_beans": {"source_label": "Green beans", "pdf_page": 33, "printed_page": 30},
-      "onions": {"source_label": "Onions", "pdf_page": 27, "printed_page": 24},
-      "potatoes": {"source_label": "Potatoes", "pdf_page": 25, "printed_page": 22},
-      "tomatoes": {"source_label": "Tomatoes", "pdf_page": 28, "printed_page": 25}
+      "butternut": { "source_label": "Butternut squashes", "pdf_page": 36, "printed_page": 33 },
+      "cabbage": { "source_label": "Cabbage", "pdf_page": 30, "printed_page": 27 },
+      "carrots": { "source_label": "Carrots", "pdf_page": 29, "printed_page": 26 },
+      "green_beans": { "source_label": "Green beans", "pdf_page": 33, "printed_page": 30 },
+      "onions": { "source_label": "Onions", "pdf_page": 27, "printed_page": 24 },
+      "potatoes": { "source_label": "Potatoes", "pdf_page": 25, "printed_page": 22 },
+      "tomatoes": { "source_label": "Tomatoes", "pdf_page": 28, "printed_page": 25 }
     },
     "missing_required_crops": ["spinach"]
   },

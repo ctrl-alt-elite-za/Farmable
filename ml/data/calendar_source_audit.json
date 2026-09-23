@@ -20,7 +20,11 @@
       },
       "crop_topics": ["green_beans", "spinach", "tomatoes", "butternut"],
       "source_evidence": ["RSA sowing and planting chart", "crop production guidance"],
-      "unresolved": ["historical release date", "redistribution permission", "complete canonical values per crop"]
+      "unresolved": [
+        "historical release date",
+        "redistribution permission",
+        "complete canonical values per crop"
+      ]
     },
     {
       "kind": "winter",
@@ -46,7 +50,11 @@
       },
       "crop_topics": ["cabbage", "carrots", "onions", "potatoes"],
       "source_evidence": ["RSA sowing and planting chart", "crop production guidance"],
-      "unresolved": ["historical release date", "redistribution permission", "complete canonical values per crop"]
+      "unresolved": [
+        "historical release date",
+        "redistribution permission",
+        "complete canonical values per crop"
+      ]
     }
   ],
   "decision": "Do not import calendar values or run historical recommendations from these files. CALENDAR_REVIEW.md records page-level evidence and material missing or ambiguous fields; the protocol still requires approved region, planting windows, harvest offsets, occupied months and yield midpoints for every crop."

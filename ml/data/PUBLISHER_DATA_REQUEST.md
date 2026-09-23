@@ -17,13 +17,13 @@ Subject: Historical Johannesburg fresh-produce data and publication records
 Dear Ms Makaleng,
 
 We are documenting a reproducible historical evaluation of crop-price forecasts
-using the Department's *Statistics on Fresh Produce Markets* workbooks. We have
-verified the current official files for 2008–2024 and the *Crops and Markets First
-Quarter 2025* report. To avoid assigning data to dates before it was public, could
+using the Department's _Statistics on Fresh Produce Markets_ workbooks. We have
+verified the current official files for 2008–2024 and the _Crops and Markets First
+Quarter 2025_ report. To avoid assigning data to dates before it was public, could
 the Department please provide or confirm the following?
 
-1. The first publication date and any revision dates for each annual *Statistics
-   on Fresh Produce Markets* workbook from 2008 through 2024, especially the
+1. The first publication date and any revision dates for each annual _Statistics
+   on Fresh Produce Markets_ workbook from 2008 through 2024, especially the
    2021–2024 editions.
 2. If revisions exist, the original published files or official hashes for each
    version, with the period during which each version was public.
@@ -31,8 +31,8 @@ the Department please provide or confirm the following?
    butternut squashes, cabbage, carrots, green beans, onions, potatoes, spinach and
    tomatoes after December 2024. The current quarterly report covers October 2024
    through March 2025 for seven of these crops but does not list spinach.
-4. The publication date and revision history of *Crops and Markets First Quarter
-   2025*.
+4. The publication date and revision history of _Crops and Markets First Quarter
+   2025_.
 5. The licence or written permission terms for storing normalized numeric extracts,
    publishing source hashes and redistributing derived monthly tables with source
    attribution.
