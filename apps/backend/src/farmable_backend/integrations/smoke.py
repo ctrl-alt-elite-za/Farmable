@@ -80,53 +80,75 @@ async def stream_summary(events: AsyncIterator[ServiceResult]) -> tuple[bool, st
 
 
 async def check_services(
-    registry: ServiceRegistry, *, allow_sms: bool, crop_paths: dict[str, Path | None]
+    registry: ServiceRegistry,
+    *,
+    allow_sms: bool,
+    crop_paths: dict[str, Path | None],
+    services: tuple[str, ...] = SERVICES,
+    stt_wav: Path | None = None,
 ) -> bool:
+    if not services or set(services) - set(SERVICES) or len(set(services)) != len(services):
+        raise ValueError("invalid smoke selection")
     passed: list[bool] = []
 
     def check(result: ServiceResult, valid: bool = True) -> None:
         passed.append(report(result.service, result.ok and valid, result.error or "contract"))
 
-    if allow_sms and os.getenv("SMOKE_PHONE"):
-        twilio = await registry.twilio.verify(os.environ["SMOKE_PHONE"])
-        check(twilio, (twilio.data or {}).get("status") == "pending")
-    else:
-        passed.append(report("twilio", False, "sms_not_authorized"))
+    if "twilio" in services:
+        if allow_sms and os.getenv("SMOKE_PHONE"):
+            twilio = await registry.twilio.verify(os.environ["SMOKE_PHONE"])
+            check(twilio, (twilio.data or {}).get("status") == "pending")
+        else:
+            passed.append(report("twilio", False, "sms_not_authorized"))
 
-    settings = registry.turnstile.settings
-    turnstile_key = registry.turnstile.secret(settings.turnstile_secret) or ""
-    if turnstile_key.startswith(("1x0000", "2x0000", "3x0000")):
-        passed.append(report("turnstile", False, "test_key_not_account_proof"))
-    else:
-        check(await registry.turnstile.validate(os.getenv("SMOKE_TURNSTILE_TOKEN", "")))
+    if "turnstile" in services:
+        settings = registry.turnstile.settings
+        turnstile_key = registry.turnstile.secret(settings.turnstile_secret) or ""
+        if turnstile_key.startswith(("1x0000", "2x0000", "3x0000")):
+            passed.append(report("turnstile", False, "test_key_not_account_proof"))
+        else:
+            check(await registry.turnstile.validate(os.getenv("SMOKE_TURNSTILE_TOKEN", "")))
 
-    tts = await registry.azure_tts.synthesize("Farmable smoke test.")
-    audio = tts.audio or b""
-    check(tts, valid_wav(audio))
-    if tts.ok and valid_wav(audio):
-        stt = await registry.azure_stt.recognize(audio)
-        check(
-            stt,
-            (stt.data or {}).get("RecognitionStatus") == "Success"
-            and bool((stt.data or {}).get("DisplayText")),
+    audio = b""
+    if "azure_tts" in services:
+        tts = await registry.azure_tts.synthesize("Farmable smoke test.")
+        check(tts, valid_wav(tts.audio or b""))
+        if tts.ok:
+            audio = tts.audio or b""
+    elif "azure_stt" in services and stt_wav is not None:
+        # STT-only must not silently make a second, billable TTS request.
+        try:
+            with stt_wav.open("rb") as source:
+                audio = source.read(2 * 1024 * 1024 + 1)
+        except OSError:
+            pass
+    if "azure_stt" in services:
+        if len(audio) <= 2 * 1024 * 1024 and valid_wav(audio):
+            stt = await registry.azure_stt.recognize(audio)
+            check(
+                stt,
+                (stt.data or {}).get("RecognitionStatus") == "Success"
+                and bool((stt.data or {}).get("DisplayText")),
+            )
+        else:
+            passed.append(report("azure_stt", False, "audio_unavailable"))
+
+    if "gemini" in services:
+        gemini_ok, gemini_reason = await stream_summary(
+            registry.gemini.generate_stream(
+                {
+                    "contents": [
+                        {"role": "user", "parts": [{"text": "Reply with: Farmable smoke test."}]}
+                    ],
+                    "generationConfig": {"maxOutputTokens": 128},
+                }
+            )
         )
-    else:
-        passed.append(report("azure_stt", False, "audio_unavailable"))
-
-    gemini_ok, gemini_reason = await stream_summary(
-        registry.gemini.generate_stream(
-            {
-                "contents": [
-                    {"role": "user", "parts": [{"text": "Reply with: Farmable smoke test."}]}
-                ],
-                "generationConfig": {"maxOutputTokens": 128},
-            }
-        )
-    )
-    passed.append(report("gemini", gemini_ok, gemini_reason))
+        passed.append(report("gemini", gemini_ok, gemini_reason))
 
     crop_checks = []
-    for crop, path in crop_paths.items():
+    for crop in CROPS if "crop_health" in services else ():
+        path = crop_paths.get(crop)
         try:
             if path is None:
                 raise OSError("Missing smoke image")
@@ -145,30 +167,34 @@ async def check_services(
                 crop_result.error or "coverage_not_proven",
             )
         )
-    passed.append(
-        report("crop_health", len(crop_checks) == 3 and all(crop_checks), "coverage_not_proven")
-    )
+    if "crop_health" in services:
+        passed.append(
+            report("crop_health", len(crop_checks) == 3 and all(crop_checks), "coverage_not_proven")
+        )
 
-    soil = await registry.soilgrids.properties(-26.2, 28.0)
-    layers = object_value((soil.data or {}).get("properties")).get("layers")
-    check(soil, isinstance(layers, list) and bool(layers))
-    weather = await registry.open_meteo.forecast(-26.2, 28.0)
-    daily = object_value((weather.data or {}).get("daily"))
-    check(
-        weather,
-        all(
-            isinstance(daily.get(field), list) and bool(daily[field])
-            for field in ("time", "temperature_2m_max", "precipitation_sum")
-        ),
-    )
-    maps = await registry.maps.geocode("Johannesburg, South Africa")
-    results = (maps.data or {}).get("results")
-    check(
-        maps,
-        isinstance(results, list)
-        and bool(results)
-        and bool(object_value(results[0]).get("location")),
-    )
+    if "soilgrids" in services:
+        soil = await registry.soilgrids.properties(-26.2, 28.0)
+        layers = object_value((soil.data or {}).get("properties")).get("layers")
+        check(soil, isinstance(layers, list) and bool(layers))
+    if "open_meteo" in services:
+        weather = await registry.open_meteo.forecast(-26.2, 28.0)
+        daily = object_value((weather.data or {}).get("daily"))
+        check(
+            weather,
+            all(
+                isinstance(daily.get(field), list) and bool(daily[field])
+                for field in ("time", "temperature_2m_max", "precipitation_sum")
+            ),
+        )
+    if "maps" in services:
+        maps = await registry.maps.geocode("Johannesburg, South Africa")
+        results = (maps.data or {}).get("results")
+        check(
+            maps,
+            isinstance(results, list)
+            and bool(results)
+            and bool(object_value(results[0]).get("location")),
+        )
     return all(passed)
 
 
@@ -179,14 +205,20 @@ def main(argv: list[str] | None = None) -> int:
         "--allow-paid", action="store_true", help="Acknowledge potentially billable calls"
     )
     parser.add_argument("--allow-sms", action="store_true", help="Send SMS to verified SMOKE_PHONE")
+    parser.add_argument(
+        "--service", choices=SERVICES, action="append", help="Check only this service; repeatable"
+    )
+    parser.add_argument("--stt-wav", type=Path, help="Nonprivate test speech for STT-only checks")
     for crop in CROPS:
         parser.add_argument("--" + crop, type=Path, help="Local smoke photo (never committed)")
     args = parser.parse_args(argv)
+    # Stable canonical order, with each selected service called at most once.
+    selected = tuple(service for service in SERVICES if not args.service or service in args.service)
     configure_logging("error")
     try:
         settings = ServiceSettings()
     except ValidationError:
-        for service in SERVICES:
+        for service in selected:
             report(service, False, "invalid_configuration")
         return 1
     if (
@@ -195,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
         or settings.environment != "staging"
         or settings.integrations_mode != "live"
     ):
-        for service in SERVICES:
+        for service in selected:
             report(service, False, "live_staging_authorization_required")
         return 1
 
@@ -207,6 +239,8 @@ def main(argv: list[str] | None = None) -> int:
                 registry,
                 allow_sms=args.allow_sms,
                 crop_paths={crop: getattr(args, crop) for crop in CROPS},
+                services=selected,
+                stt_wav=args.stt_wav,
             )
         finally:
             await registry.close()

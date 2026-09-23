@@ -15,7 +15,12 @@ COPY conftest.py ./
 RUN uv sync --locked --no-dev && useradd --create-home farmable
 
 FROM base AS testing
+COPY ml/forecast/fixtures ml/forecast/fixtures
 RUN uv sync --locked
+USER farmable
+
+FROM base AS forecast-import
+COPY ml/forecast/results ml/forecast/results
 USER farmable
 
 FROM base AS runtime

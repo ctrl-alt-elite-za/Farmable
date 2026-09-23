@@ -14,5 +14,7 @@
   "e2e-api",
   "e2e-mobile",
   "e2e-degradation",
-  "assistant-evals"
+  "assistant-evals",
+  "mobile-test",
+  "demo-regression"
 ]

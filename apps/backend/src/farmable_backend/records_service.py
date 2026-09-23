@@ -1,22 +1,29 @@
 """Short, scoped ORM transactions. No storage I/O belongs in this module."""
 
 import math
+from collections.abc import Callable
 from datetime import timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.farm_records import FarmRecordRepository, _fingerprint
 from farmable_backend.models import (
     Farm,
+    FarmTask,
+    FinancialRecord,
     Media,
     Observation,
     PhotoAttempt,
     PhotoRate,
     PhotoUpload,
+    Planting,
+    SavedPlan,
     Section,
+    SyncChange,
     SyncMutation,
     User,
 )
@@ -30,15 +37,26 @@ from farmable_backend.record_access import (
     utc,
 )
 from farmable_backend.records_schemas import (
+    ChangePage,
+    ChangeView,
     FarmView,
+    FinancialSummary,
+    FinancialView,
+    MediaView,
     ObservationAck,
     ObservationCreate,
     ObservationView,
     Page,
+    PlantingView,
+    PlanView,
+    RecordAck,
+    SectionDetail,
     SectionView,
+    TaskView,
     UploadCreate,
     UploadView,
 )
+from farmable_backend.sync_records import KINDS, SECTION_REQUIRED, SyncRecordRepository
 
 
 def current_attempt(session: Session, upload: PhotoUpload, *, lock: bool = False) -> PhotoAttempt:
@@ -94,6 +112,18 @@ def observation_view(record: Observation) -> ObservationView:
     )
 
 
+RECORD_VIEWS: dict[str, Callable[[Any], Any]] = {
+    "farms": FarmView.model_validate,
+    "sections": SectionView.model_validate,
+    "plantings": PlantingView.model_validate,
+    "observations": observation_view,
+    "tasks": TaskView.model_validate,
+    "financials": FinancialView.model_validate,
+    "plans": PlanView.model_validate,
+    "media": MediaView.model_validate,
+}
+
+
 class RecordsService:
     def __init__(self, sessions: sessionmaker[Session]):
         self.sessions = sessions
@@ -114,23 +144,19 @@ class RecordsService:
                 farm_scope(session, owner, farm_id)
             if section_id is not None and farm_id is not None:
                 section_scope(session, owner, farm_id, section_id)
-            model = {"farms": Farm, "sections": Section, "observations": Observation}[kind]
-            transform = {
-                "farms": FarmView.model_validate,
-                "sections": SectionView.model_validate,
-                "observations": observation_view,
-            }[kind]
+            model = KINDS[kind].model
+            transform = RECORD_VIEWS[kind]
             query = select(model).where(model.owner_id == owner, model.deleted_at.is_(None))
             if model is not Farm:
                 query = query.where(model.farm_id == farm_id)
-            if model is Observation:
-                query = query.join(Section, Observation.section_id == Section.id).where(
+            if kind in SECTION_REQUIRED:
+                query = query.join(Section, model.section_id == Section.id).where(
                     Section.owner_id == owner,
                     Section.farm_id == farm_id,
                     Section.deleted_at.is_(None),
                 )
-                if section_id is not None:
-                    query = query.where(Observation.section_id == section_id)
+            if section_id is not None and kind not in ("farms", "sections"):
+                query = query.where(model.section_id == section_id)
             if record_id is not None:
                 record = session.scalar(query.where(model.id == record_id))
                 if record is None:
@@ -392,3 +418,152 @@ class RecordsService:
                     attempt.next_attempt_at = now
                     view.state = "queued"
             return view
+
+    def mutate(
+        self,
+        authorization: str | None,
+        farm_id: UUID,
+        resource: str,
+        operation: str,
+        record_id: UUID | None,
+        payload: Any,
+    ) -> RecordAck[Any]:
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            farm_scope(session, owner, farm_id, lock=True)
+            record = SyncRecordRepository(session, owner, farm_id).apply(
+                resource=resource, operation=operation, record_id=record_id, payload=payload
+            )
+            session.flush()
+            return RecordAck(
+                mutation_id=payload.mutation_id,
+                entity_id=record.id,
+                owner_id=owner,
+                farm_id=farm_id,
+                version=record.version,
+                record=RECORD_VIEWS[resource](record),
+            )
+
+    def changes(
+        self, authorization: str | None, farm_id: UUID, since: int, limit: int
+    ) -> ChangePage:
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            farm_scope(session, owner, farm_id)
+            rows = list(
+                session.scalars(
+                    select(SyncChange)
+                    .where(
+                        SyncChange.owner_id == owner,
+                        SyncChange.farm_id == farm_id,
+                        SyncChange.id > since,
+                    )
+                    .order_by(SyncChange.id)
+                    .limit(limit + 1)
+                )
+            )
+            items = [
+                ChangeView(
+                    cursor=row.id,
+                    record_type=row.record_type,
+                    record_id=row.record_id,
+                    operation=row.operation,
+                    version=row.version,
+                    created_at=row.created_at,
+                )
+                for row in rows[:limit]
+            ]
+            return ChangePage(
+                items=items, next_cursor=items[-1].cursor if len(rows) > limit else None
+            )
+
+    def section_detail(
+        self, authorization: str | None, farm_id: UUID, section_id: UUID
+    ) -> SectionDetail:
+        with self.sessions.begin() as session:
+            owner = authenticate(session, authorization)
+            farm_scope(session, owner, farm_id)
+            section = section_scope(session, owner, farm_id, section_id)
+            planting = session.scalar(
+                select(Planting)
+                .where(
+                    Planting.owner_id == owner,
+                    Planting.farm_id == farm_id,
+                    Planting.section_id == section_id,
+                    Planting.is_current.is_(True),
+                    Planting.deleted_at.is_(None),
+                )
+                .order_by(Planting.id)
+                .limit(1)
+            )
+            plan = session.scalar(
+                select(SavedPlan)
+                .where(
+                    SavedPlan.owner_id == owner,
+                    SavedPlan.farm_id == farm_id,
+                    SavedPlan.section_id == section_id,
+                    SavedPlan.deleted_at.is_(None),
+                )
+                .order_by(SavedPlan.updated_at.desc(), SavedPlan.id.desc())
+                .limit(1)
+            )
+            observations = list(
+                session.scalars(
+                    select(Observation)
+                    .where(
+                        Observation.owner_id == owner,
+                        Observation.farm_id == farm_id,
+                        Observation.section_id == section_id,
+                        Observation.deleted_at.is_(None),
+                    )
+                    .order_by(Observation.created_at.desc(), Observation.id.desc())
+                    .limit(50)
+                )
+            )
+            tasks = list(
+                session.scalars(
+                    select(FarmTask)
+                    .where(
+                        FarmTask.owner_id == owner,
+                        FarmTask.farm_id == farm_id,
+                        FarmTask.section_id == section_id,
+                        FarmTask.deleted_at.is_(None),
+                    )
+                    .order_by(FarmTask.due_date, FarmTask.id)
+                    .limit(50)
+                )
+            )
+            totals: dict[Any, int] = {
+                row[0]: row[1]
+                for row in session.execute(
+                    select(
+                        FinancialRecord.type,
+                        func.coalesce(func.sum(FinancialRecord.amount_cents), 0),
+                    )
+                    .where(
+                        FinancialRecord.owner_id == owner,
+                        FinancialRecord.farm_id == farm_id,
+                        FinancialRecord.section_id == section_id,
+                        FinancialRecord.deleted_at.is_(None),
+                    )
+                    .group_by(FinancialRecord.type)
+                ).all()
+            }
+            income = int(totals.get("income", 0))
+            expense = int(totals.get("expense", 0))
+            health = next(
+                (record.health_status for record in observations if record.health_status), None
+            )
+            return SectionDetail(
+                section=SectionView.model_validate(section),
+                current_planting=(
+                    None if planting is None else PlantingView.model_validate(planting)
+                ),
+                current_plan=None if plan is None else PlanView.model_validate(plan),
+                latest_health_status=health,
+                observations=[observation_view(record) for record in observations],
+                tasks=[TaskView.model_validate(task) for task in tasks],
+                financials=FinancialSummary(
+                    income_cents=income, expense_cents=expense, net_cents=income - expense
+                ),
+            )

@@ -133,6 +133,17 @@ class FarmTasks extends Table with OwnedRecord {
   TextColumn get status => text().withDefault(const Constant('pending'))();
   IntColumn get expectedCostCents => integer().nullable()();
 
+  /// LOCAL-ONLY. The `saved_plans` row whose acceptance generated this step,
+  /// or null for a task a person created.
+  ///
+  /// The server's `farm_tasks` has no such column, and the distinction it
+  /// carries is not cosmetic: accepting a new plan retires the schedule the
+  /// last one generated, and it has to be able to tell those steps apart from
+  /// the reminder the farmer typed themselves. Without it the choice is
+  /// between leaving two schedules on the timeline and deleting the farmer's
+  /// own reminder, and both are wrong.
+  TextColumn get planId => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }

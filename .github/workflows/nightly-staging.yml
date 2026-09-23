@@ -8,6 +8,11 @@ permissions:
   contents: read
   id-token: write
 
+# Do not reconfigure the smoke job while a deployment changes the active run.
+concurrency:
+  group: farmable-gcp-staging-deploy
+  cancel-in-progress: false
+
 env:
   GCP_REGION: africa-south1
   CLOUD_RUN_SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE || 'farmable-backend' }}
@@ -38,3 +43,14 @@ jobs:
           API_URL: ${{ steps.live.outputs.api_url }}
           COMMIT_SHA: ${{ steps.live.outputs.commit_sha }}
         run: bash infra/gcp-demo-smoke.sh
+      - name: Verify outlook for every demo crop and planting month
+        env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          ARTIFACT_REPOSITORY: ${{ vars.GCP_ARTIFACT_REPOSITORY }}
+          CLOUD_SQL_CONNECTION: ${{ vars.GCP_CLOUD_SQL_CONNECTION }}
+          DATABASE_SECRET: ${{ vars.GCP_DATABASE_SECRET }}
+          RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+          FORECAST_DATA_MODE: ${{ vars.FORECAST_DATA_MODE || 'disabled' }}
+          API_URL: ${{ steps.live.outputs.api_url }}
+          COMMIT_SHA: ${{ steps.live.outputs.commit_sha }}
+        run: bash infra/gcp-outlook-smoke.sh

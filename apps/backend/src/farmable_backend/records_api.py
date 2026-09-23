@@ -6,7 +6,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from functools import partial
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -19,13 +19,35 @@ from farmable_backend.farm_records import RecordConflictError, RecordNotFoundErr
 from farmable_backend.middleware import error_response
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_schemas import (
+    ChangePage,
     FarmView,
+    FinancialCreate,
+    FinancialUpdate,
+    FinancialView,
+    MediaCreate,
+    MediaUpdate,
+    MediaView,
     ObservationAck,
     ObservationCreate,
+    ObservationUpdate,
     ObservationView,
     Page,
+    PlanCreate,
+    PlantingCreate,
+    PlantingUpdate,
+    PlantingView,
+    PlanUpdate,
+    PlanView,
+    RecordAck,
+    RecordDelete,
+    SectionCreate,
+    SectionDetail,
+    SectionUpdate,
     SectionView,
     SignedForm,
+    TaskCreate,
+    TaskUpdate,
+    TaskView,
     UploadCreate,
     UploadRetry,
     UploadView,
@@ -130,7 +152,7 @@ class RecordBodyLimit:
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         if (
             scope["type"] != "http"
-            or scope.get("method") != "POST"
+            or scope.get("method") not in ("POST", "PUT")
             or not scope.get("path", "").startswith("/farms/")
         ):
             return await self.app(scope, receive, send)
@@ -227,14 +249,14 @@ async def observations(
 
 
 @router.get(
-    "/farms/{farm_id}/observations/{observation_id}",
+    "/farms/{farm_id}/observations/{record_id}",
     response_model=ObservationView,
     operation_id="getObservation",
 )
-async def observation(request: Request, farm_id: UUID, observation_id: UUID):
+async def observation(request: Request, farm_id: UUID, record_id: UUID):
     worker = runtime(request)
     return await worker.call(
-        worker.service.read, token(request), "observations", farm_id, None, observation_id, None, 1
+        worker.service.read, token(request), "observations", farm_id, None, record_id, None, 1
     )
 
 
@@ -303,3 +325,220 @@ async def complete_photo(request: Request, response: Response, farm_id: UUID, up
     response.headers["Cache-Control"] = "no-store"
     response.status_code = 200 if result.state == "ready" else 202
     return result
+
+
+Since = Annotated[int, Query(ge=0)]
+
+
+@router.get("/farms/{farm_id}/changes", response_model=ChangePage, operation_id="listChanges")
+async def changes(request: Request, farm_id: UUID, since: Since = 0, limit: Limit = 50):
+    worker = runtime(request)
+    return await worker.call(worker.service.changes, token(request), farm_id, since, limit)
+
+
+@router.get(
+    "/farms/{farm_id}/sections/{record_id}",
+    response_model=SectionDetail,
+    operation_id="getSection",
+)
+async def section_detail(request: Request, farm_id: UUID, record_id: UUID):
+    worker = runtime(request)
+    return await worker.call(worker.service.section_detail, token(request), farm_id, record_id)
+
+
+def register_resource(
+    resource: str,
+    singular: str,
+    plural: str,
+    create_model: Any,
+    update_model: Any,
+    view_model: Any,
+    operations: tuple[str, ...],
+) -> None:
+    """Register the uniform owner-scoped routes for one record resource."""
+    collection = "/farms/{farm_id}/" + resource
+    item = collection + "/{record_id}"
+
+    if "list" in operations:
+
+        async def list_records(
+            request: Request,
+            farm_id: UUID,
+            section_id: UUID | None = None,
+            cursor: UUID | None = None,
+            limit: Limit = 50,
+        ):
+            worker = runtime(request)
+            return await worker.call(
+                worker.service.read,
+                token(request),
+                resource,
+                farm_id,
+                section_id,
+                None,
+                cursor,
+                limit,
+            )
+
+        router.add_api_route(
+            collection,
+            list_records,
+            methods=["GET"],
+            response_model=Page[view_model],
+            operation_id=f"list{plural}",
+        )
+
+    if "get" in operations:
+
+        async def get_record(request: Request, farm_id: UUID, record_id: UUID):
+            worker = runtime(request)
+            return await worker.call(
+                worker.service.read, token(request), resource, farm_id, None, record_id, None, 1
+            )
+
+        router.add_api_route(
+            item,
+            get_record,
+            methods=["GET"],
+            response_model=view_model,
+            operation_id=f"get{singular}",
+        )
+
+    if "create" in operations:
+
+        async def create_record(
+            request: Request,
+            farm_id: UUID,
+            payload: create_model,
+        ):
+            worker = runtime(request)
+            return await worker.call(
+                worker.service.mutate, token(request), farm_id, resource, "create", None, payload
+            )
+
+        router.add_api_route(
+            collection,
+            create_record,
+            methods=["POST"],
+            response_model=RecordAck[view_model],
+            operation_id=f"create{singular}",
+        )
+
+    if "update" in operations:
+
+        async def update_record(
+            request: Request,
+            farm_id: UUID,
+            record_id: UUID,
+            payload: update_model,
+        ):
+            worker = runtime(request)
+            return await worker.call(
+                worker.service.mutate,
+                token(request),
+                farm_id,
+                resource,
+                "update",
+                record_id,
+                payload,
+            )
+
+        router.add_api_route(
+            item,
+            update_record,
+            methods=["PUT"],
+            response_model=RecordAck[view_model],
+            operation_id=f"update{singular}",
+        )
+
+    if "delete" in operations:
+
+        async def delete_record(
+            request: Request,
+            farm_id: UUID,
+            record_id: UUID,
+            payload: RecordDelete,
+        ):
+            worker = runtime(request)
+            return await worker.call(
+                worker.service.mutate,
+                token(request),
+                farm_id,
+                resource,
+                "delete",
+                record_id,
+                payload,
+            )
+
+        router.add_api_route(
+            item + "/delete",
+            delete_record,
+            methods=["POST"],
+            response_model=RecordAck[view_model],
+            operation_id=f"delete{singular}",
+        )
+
+
+register_resource(
+    "sections",
+    "Section",
+    "Sections",
+    SectionCreate,
+    SectionUpdate,
+    SectionView,
+    ("create", "update", "delete"),
+)
+register_resource(
+    "plantings",
+    "Planting",
+    "Plantings",
+    PlantingCreate,
+    PlantingUpdate,
+    PlantingView,
+    ("list", "get", "create", "update", "delete"),
+)
+register_resource(
+    "observations",
+    "Observation",
+    "Observations",
+    None,
+    ObservationUpdate,
+    ObservationView,
+    ("update", "delete"),
+)
+register_resource(
+    "tasks",
+    "Task",
+    "Tasks",
+    TaskCreate,
+    TaskUpdate,
+    TaskView,
+    ("list", "get", "create", "update", "delete"),
+)
+register_resource(
+    "financials",
+    "Financial",
+    "Financials",
+    FinancialCreate,
+    FinancialUpdate,
+    FinancialView,
+    ("list", "get", "create", "update", "delete"),
+)
+register_resource(
+    "plans",
+    "Plan",
+    "Plans",
+    PlanCreate,
+    PlanUpdate,
+    PlanView,
+    ("list", "get", "create", "update", "delete"),
+)
+register_resource(
+    "media",
+    "MediaItem",
+    "MediaItems",
+    MediaCreate,
+    MediaUpdate,
+    MediaView,
+    ("list", "get", "create", "update", "delete"),
+)

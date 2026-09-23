@@ -5,6 +5,18 @@ implemented; real-account acceptance is **not complete**. No accounts, keys,
 quotas, Android restrictions, or Fraud Guard settings have been provisioned or
 verified by this change. Do not close #7 on unit-test results alone.
 
+## Authenticated Gemini Live credentials (#7 follow-up)
+
+`POST /voice/live-session` now provisions a single-use, short-lived credential for
+a verified Farmable user. It is separately disabled by default. See
+[the endpoint contract and acceptance handoff](voice-live.md) for configuration,
+quotas, failure behavior, and the remaining real-provider/Flutter checks.
+This is backend credential provisioning, not a working microphone or voice UI.
+
+The current #7 demo scope prioritizes SMS/email OTP and Gemini/Gemini Live;
+the older PR #36 provider checklist below is historical, not a requirement to
+activate Azure, soil scanning, or every optional provider before the demo.
+
 ## PR #36 scope and acceptance handoff
 
 PR #36 is a **partial adapter foundation**, not completion of issue #7. Its
@@ -125,6 +137,12 @@ silently multiplying charges. Turnstile retries reuse one idempotency UUID and
 validate literal success, expected hostname, and expected action.
 
 ## Staging smoke (explicitly billable)
+
+Checks can now be selected with repeatable `--service` flags; omission keeps the
+full suite. `make smoke-voice` separately checks the authenticated Gemini Live
+client path with a temporary token. See [provider verification](provider-verification.md)
+for exact opt-ins, bounds, prerequisites and what each PASS proves. Neither tool
+is evidence of a live run until an authorized operator executes it successfully.
 
 Set `ENVIRONMENT=staging`, `INTEGRATIONS_MODE=live`, all required configuration,
 and `TWILIO_FRAUD_GUARD_CONFIRMED=true` only after checking the console. Supply

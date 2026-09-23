@@ -13,6 +13,9 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
+from farmable_backend.account import AccountService
+from farmable_backend.account_api import AccountRuntime
+from farmable_backend.account_api import router as account_router
 from farmable_backend.auth import (
     AuthError,
     AuthService,
@@ -23,6 +26,7 @@ from farmable_backend.auth import (
 )
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
+from farmable_backend.forecast_api import router as forecast_router
 from farmable_backend.gcs_photos import create_gcs_photos
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
@@ -45,6 +49,7 @@ from farmable_backend.schemas import (
     UserResponse,
     VerifyOtpRequest,
 )
+from farmable_backend.voice_api import router as voice_router
 
 
 def _user_response(user: AuthUser) -> UserResponse:
@@ -91,6 +96,7 @@ def create_app(
         integration_config = service_settings or ServiceSettings()
         services = ServiceRegistry(integration_config)
         app.state.services = services
+        app.state.forecast_data_mode = config.forecast_data_mode
         app.state.sha = config.commit_sha
         database = None
         try:
@@ -108,6 +114,7 @@ def create_app(
                 app.state.records = RecordRuntime(
                     RecordsService(database.sessions), lambda: create_gcs_photos(config)
                 )
+                app.state.account = AccountRuntime(AccountService(database.sessions))
             yield
         finally:
             try:
@@ -116,6 +123,9 @@ def create_app(
                 records = getattr(app.state, "records", None)
                 if records is not None:
                     await run_in_threadpool(records.close)
+                account = getattr(app.state, "account", None)
+                if account is not None:
+                    await run_in_threadpool(account.close)
             finally:
                 try:
                     if database is not None:
@@ -141,6 +151,9 @@ def create_app(
     app.add_middleware(RecordBodyLimit)
     app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
     app.include_router(records_router)
+    app.include_router(account_router)
+    app.include_router(voice_router)
+    app.include_router(forecast_router)
 
     @app.exception_handler(ApiError)
     async def record_error(request: Request, exc: ApiError) -> JSONResponse:

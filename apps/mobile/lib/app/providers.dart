@@ -8,10 +8,13 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/auth/demo_auth_service.dart';
+import '../data/auth/session_storage.dart';
 import '../data/health_service.dart';
 import '../data/local/database.dart' show AlmanacDatabase;
 import '../data/local/local_farm_repository.dart';
 import '../data/local/seed.dart';
+import '../domain/auth/auth_service.dart';
 import '../domain/farm_records.dart';
 import '../domain/farm_records_repository.dart';
 
@@ -65,6 +68,31 @@ final timelineProvider = StreamProvider.family<List<FarmTask>, String>(
 
 final pendingChangesProvider = StreamProvider<int>(
   (ref) => ref.watch(farmRecordsProvider).watchPendingChanges(),
+);
+
+// ----------------------------------------------------------------- auth
+//
+// Two providers, and the second one is the seam. Everything the auth screens
+// can do goes through `AuthService`; the only thing that names an
+// implementation is the line below. See `domain/auth/auth_service.dart` for
+// what changes when PR #51's real client replaces the demo — it is this
+// provider and nothing else.
+
+/// Where the demo's session lives between launches.
+///
+/// NOT secure storage, and not a stand-in for it. Issue #9 puts tokens in the
+/// platform keystore, which is #51's `SessionStore`; this is a JSON file
+/// holding a session that grants access to nothing on any server.
+final sessionStorageProvider = Provider<SessionStorage>(
+  (ref) => FileSessionStorage(),
+);
+
+/// THE SEAM. Swap this line, and only this line, for the real client.
+final authServiceProvider = Provider<AuthService>(
+  (ref) => DemoAuthService(
+    ref.watch(sessionStorageProvider),
+    now: ref.watch(clockProvider),
+  ),
 );
 
 /// Whether the API is reachable.

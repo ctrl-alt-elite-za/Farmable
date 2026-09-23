@@ -16,6 +16,7 @@ dev = [
     "cvss==3.6",
     "PyYAML>=6.0.2,<7",
     "types-PyYAML>=6,<7",
+    "websockets>=15.0.1,<16",
 ]
 
 [tool.ruff]
