@@ -36,6 +36,7 @@ async def get_outlook(
         crop,
         plant_month,
         request.app.state.forecast_data_mode,
+        request.app.state.services.open_meteo.settings.integrations_mode,
     )
     response.headers["Cache-Control"] = "no-store"
     return value

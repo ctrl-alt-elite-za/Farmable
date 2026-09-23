@@ -22,6 +22,7 @@ from farmable_backend.models import (
     SyncMutation,
 )
 from farmable_backend.record_access import ApiError, db_now, section_scope
+from farmable_backend.weather_jobs import enqueue_weather
 
 
 @dataclass(frozen=True)
@@ -195,6 +196,8 @@ class SyncRecordRepository:
                 self.session.add(mutation)
                 self.session.flush((mutation,))
                 record = self._write(kind, operation, target, values, expected_version)
+                if resource == "sections" and operation != "delete":
+                    enqueue_weather(self.session, record.boundary)
                 self.session.add(
                     SyncChange(
                         farm_id=self.farm_id,

@@ -13,14 +13,18 @@ from farmable_backend.main import create_app
 from farmable_backend.models import Farm, Section
 from farmable_backend.records_api import RecordRuntime
 from farmable_backend.records_service import RecordsService
+from farmable_backend.weather_jobs import WeatherJobs, enqueue_weather
+from farmable_backend.weather_policy import calculate
 from fastapi.testclient import TestClient
 from test_forecasts import bundle, raw
+from test_weather import POINT, history
 
 pytestmark = pytest.mark.integration
 
 
-def test_outlook_seeded_postgres_p95(pg, record_property):
-    command.upgrade(pg.config, "0007")
+@pytest.mark.parametrize("with_weather", [False, True])
+def test_outlook_seeded_postgres_p95(pg, record_property, with_weather):
+    command.upgrade(pg.config, "0008")
     import_bundle(pg.sessions, "sample-v1", raw(bundle()), "sample")
     # A nontrivial, explicitly reported population, not a one-row microbenchmark.
     with pg.sessions.begin() as session:
@@ -34,6 +38,14 @@ def test_outlook_seeded_postgres_p95(pg, record_property):
                 for j in range(10)
             ]
         )
+        if with_weather:
+            session.get(Section, pg.ids.section).boundary = POINT
+            enqueue_weather(session, POINT)
+    if with_weather:
+        jobs = WeatherJobs(pg.sessions, "synthetic")
+        job = jobs.claim()
+        rows = calculate(history(job.first_year, job.last_year), job.first_year, job.last_year)
+        assert jobs.finish(job, rows, "a" * 64)
     app = create_app(
         Settings(forecast_data_mode="sample"),
         readiness=lambda: {"database": "ok", "worker": "ok"},
@@ -61,6 +73,9 @@ def test_outlook_seeded_postgres_p95(pg, record_property):
             payload = response.json()
             assert payload["crop"] == crop and payload["plant_month"] == month
             assert payload["run_id"] == "sample-v1" and payload["warning"]
+            assert payload["weather_risk"]["status"] == (
+                "available" if with_weather else "unavailable"
+            )
             if index >= len(CROPS):
                 samples.append(elapsed)
         assert not app.state.services.transport.calls
@@ -69,6 +84,6 @@ def test_outlook_seeded_postgres_p95(pg, record_property):
     record_property("measured_requests", len(samples))
     print(
         f"outlook: warmups=8 requests={len(samples)} added_farms=100 "
-        f"added_sections=1000 concurrency=1 p95_ms={p95:.3f}"
+        f"added_sections=1000 concurrency=1 cached_weather={with_weather} p95_ms={p95:.3f}"
     )
     assert p95 < 200, f"Seeded PostgreSQL outlook p95 {p95:.3f}ms exceeds 200ms"

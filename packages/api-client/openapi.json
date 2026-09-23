@@ -19,6 +19,111 @@
         "title": "AuthProgressResponse",
         "type": "object"
       },
+      "AvailableWeather": {
+        "additionalProperties": false,
+        "properties": {
+          "basis": {
+            "const": "historical_weather_exposure",
+            "default": "historical_weather_exposure",
+            "title": "Basis",
+            "type": "string"
+          },
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "data_kind": {
+            "enum": ["historical", "synthetic"],
+            "title": "Data Kind",
+            "type": "string"
+          },
+          "event_years": {
+            "$ref": "#/components/schemas/WeatherEventYears"
+          },
+          "first_planting_year": {
+            "title": "First Planting Year",
+            "type": "integer"
+          },
+          "growing_days": {
+            "title": "Growing Days",
+            "type": "integer"
+          },
+          "last_planting_year": {
+            "title": "Last Planting Year",
+            "type": "integer"
+          },
+          "policy_sha256": {
+            "title": "Policy Sha256",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "enum": ["frost", "heat_stress", "dry_spell"],
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "shares": {
+            "$ref": "#/components/schemas/WeatherShares"
+          },
+          "source": {
+            "enum": ["Open-Meteo ERA5", "synthetic fixture"],
+            "title": "Source",
+            "type": "string"
+          },
+          "source_sha256": {
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "status": {
+            "const": "available",
+            "default": "available",
+            "title": "Status",
+            "type": "string"
+          },
+          "thresholds": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Thresholds",
+            "type": "object"
+          },
+          "warning": {
+            "title": "Warning",
+            "type": "string"
+          },
+          "years_observed": {
+            "const": 15,
+            "default": 15,
+            "title": "Years Observed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "data_kind",
+          "policy_version",
+          "policy_sha256",
+          "source",
+          "source_sha256",
+          "computed_at",
+          "first_planting_year",
+          "last_planting_year",
+          "growing_days",
+          "event_years",
+          "shares",
+          "reasons",
+          "thresholds",
+          "warning"
+        ],
+        "title": "AvailableWeather",
+        "type": "object"
+      },
       "ChangePage": {
         "additionalProperties": false,
         "properties": {
@@ -1010,7 +1115,22 @@
             "title": "Warning"
           },
           "weather_risk": {
-            "$ref": "#/components/schemas/UnavailableWeather"
+            "discriminator": {
+              "mapping": {
+                "available": "#/components/schemas/AvailableWeather",
+                "unavailable": "#/components/schemas/UnavailableWeather"
+              },
+              "propertyName": "status"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AvailableWeather"
+              },
+              {
+                "$ref": "#/components/schemas/UnavailableWeather"
+              }
+            ],
+            "title": "Weather Risk"
           },
           "yield_kg_per_ha": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -2742,6 +2862,58 @@
         },
         "required": ["user_id", "code"],
         "title": "VerifyOtpRequest",
+        "type": "object"
+      },
+      "WeatherEventYears": {
+        "additionalProperties": false,
+        "properties": {
+          "dry_spell": {
+            "maximum": 15.0,
+            "minimum": 0.0,
+            "title": "Dry Spell",
+            "type": "integer"
+          },
+          "frost": {
+            "maximum": 15.0,
+            "minimum": 0.0,
+            "title": "Frost",
+            "type": "integer"
+          },
+          "heat_stress": {
+            "maximum": 15.0,
+            "minimum": 0.0,
+            "title": "Heat Stress",
+            "type": "integer"
+          }
+        },
+        "required": ["frost", "heat_stress", "dry_spell"],
+        "title": "WeatherEventYears",
+        "type": "object"
+      },
+      "WeatherShares": {
+        "additionalProperties": false,
+        "properties": {
+          "dry_spell": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Dry Spell",
+            "type": "number"
+          },
+          "frost": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Frost",
+            "type": "number"
+          },
+          "heat_stress": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Heat Stress",
+            "type": "number"
+          }
+        },
+        "required": ["frost", "heat_stress", "dry_spell"],
+        "title": "WeatherShares",
         "type": "object"
       }
     },
