@@ -41,6 +41,7 @@ from farmable_backend.models import (
     SavedPlan,
     Section,
     SyncMutation,
+    User,
     VerificationChallenge,
 )
 from farmable_backend.record_access import ApiError, authenticate
@@ -248,6 +249,12 @@ class AccountService:
 
     @staticmethod
     def _set_language(session: Session, owner: UUID, language: Language) -> None:
+        # Lock the existing owner row so concurrent first-use inserts are
+        # serialized, as voice_api.admit and RecordsService.photo_rate do for
+        # their own user-keyed get-or-insert tables. Without it two concurrent
+        # first language writes both see no profile row and the second insert
+        # fails the account_profiles primary key with an unhandled 500.
+        session.scalar(select(User).where(User.id == owner).with_for_update())
         profile = session.get(AccountProfile, owner)
         if profile is None:
             session.add(AccountProfile(user_id=owner, preferred_language=language))

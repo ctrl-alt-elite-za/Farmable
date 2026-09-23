@@ -30,7 +30,7 @@ from farmable_backend.models import (
 from farmable_backend.records_api import RecordRuntime
 from farmable_backend.records_service import RecordsService
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -135,6 +135,39 @@ def test_profile_updates_persist(accounts):
     other = accounts.client.get("/account/profile", headers=_headers(accounts.bob)).json()
     assert other["first_name"] == "Nandi"
     assert other["preferred_language"] == "en"
+
+
+def test_language_writes_serialize_on_the_owner_row(accounts):
+    # account_profiles is a get-or-insert keyed on the owner, so two concurrent
+    # first-time language writes would both miss and the second would fail the
+    # primary key. The write path must take the owner-row lock first, as
+    # voice_api.admit and RecordsService.photo_rate do for their own rate tables.
+    # SQLite renders no FOR UPDATE clause, so assert the locking SELECT is issued.
+    statements: list[str] = []
+
+    @event.listens_for(accounts.sessions.kw["bind"], "before_cursor_execute")
+    def record(conn, cursor, statement, parameters, context, executemany):  # noqa: PLR0913
+        statements.append(" ".join(statement.split()))
+
+    try:
+        for path, payload in (
+            ("/account/profile", {"preferred_language": "st"}),
+            ("/account/farm", {"preferred_language": "xh"}),
+        ):
+            statements.clear()
+            response = accounts.client.patch(path, headers=_headers(accounts.alice), json=payload)
+            assert response.status_code == 200
+            locking = [item for item in statements if item.startswith("SELECT users.id")]
+            profile_writes = [
+                index
+                for index, item in enumerate(statements)
+                if "account_profiles" in item and item.startswith(("SELECT", "INSERT", "UPDATE"))
+            ]
+            assert locking, f"{path} took no owner-row lock: {statements}"
+            assert profile_writes, f"{path} never touched account_profiles: {statements}"
+            assert statements.index(locking[0]) < profile_writes[0]
+    finally:
+        event.remove(accounts.sessions.kw["bind"], "before_cursor_execute", record)
 
 
 def test_profile_rejects_unknown_fields(accounts):
