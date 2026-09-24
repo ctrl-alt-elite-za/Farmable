@@ -17,12 +17,16 @@ repositories, or generated client files again.
 Useful checks when reviewing the stack:
 
 ```sh
-git merge-base --is-ancestor origin/resolve-issue/9-complete-backend-identity HEAD
+git merge-base origin/resolve-issue/9-complete-backend-identity HEAD
 git diff --stat origin/resolve-issue/9-complete-backend-identity...HEAD
 ```
 
-The first command must succeed. The second should show only the contract
-artifact (and any deliberately related documentation change).
+The first command prints the common ancestor: the parent branch can advance
+after this documentation branch is created, so its latest tip need not be an
+ancestor of HEAD. The second should show only the contract artifact (and any
+deliberately related documentation change). Check the parent's current review
+and CI separately; this documentation diff does not prove the latest parent
+fixes are already included in this branch.
 
 ## Authentication and tenant isolation
 
