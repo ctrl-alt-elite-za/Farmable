@@ -220,6 +220,7 @@ class ApiAuthService implements AuthService {
 
   @override
   Future<AuthStanding> refreshSession() async {
+    final origin = _epoch;
     final standing = await restore();
     if (standing is! SignedIn) return standing;
     if (standing.session.expiresAt.difference(now()) > refreshWhenWithin) {
@@ -227,7 +228,7 @@ class ApiAuthService implements AuthService {
     }
 
     try {
-      return SignedIn(await _refresh(standing.session));
+      return SignedIn(await _refresh(standing.session, origin));
     } on AuthException catch (e) {
       if (e.failure == AuthFailure.invalidSession) return restore();
       // No signal, a busy server, a full phone: none of them is a reason to
@@ -293,9 +294,11 @@ class ApiAuthService implements AuthService {
   /// account deletion — is an answer about the password, not the session, so
   /// it is handed back rather than treated as a lapsed token.
   ///
-  /// With [generation], the request is refused — before it is sent, and again
-  /// before any retry — unless the session is still the one that value was
-  /// read from. See [generation].
+  /// Bound to the session it started under — the one [generation] names, or
+  /// the current one when none is given. Once that has changed the request is
+  /// refused before it is sent, and a late `401` is dropped *before* it can
+  /// refresh or clear anything: a stale answer for farmer A must never spend
+  /// or discard farmer B's session.
   Future<Response<Object?>> authorized(
     String method,
     String path, {
@@ -304,8 +307,9 @@ class ApiAuthService implements AuthService {
     ResponseType? responseType,
     int? generation,
   }) async {
+    final origin = generation ?? _epoch;
     void stillSame() {
-      if (generation != null && generation != _epoch) {
+      if (origin != _epoch) {
         throw const AuthException(AuthFailure.invalidSession);
       }
     }
@@ -328,7 +332,10 @@ class ApiAuthService implements AuthService {
     );
     if (!_sessionRejected(response)) return response;
 
-    session = await _refresh(session);
+    // Checked before refreshing, not after: the refresh itself writes and
+    // drops sessions, so by "after" the damage would be done.
+    stillSame();
+    session = await _refresh(session, origin);
     stillSame();
     response = await _send(
       method,
@@ -339,7 +346,7 @@ class ApiAuthService implements AuthService {
       responseType,
     );
     if (_sessionRejected(response)) {
-      await _dropSession();
+      if (origin == _epoch) await _dropSession(onlyToken: session.token);
       throw const AuthException(AuthFailure.invalidSession);
     }
     return response;
@@ -352,8 +359,17 @@ class ApiAuthService implements AuthService {
 
   // ------------------------------------------------------------------ guts
 
-  /// Single-flight refresh. A rejection drops the session before it throws.
-  Future<AuthSession> _refresh(AuthSession current) {
+  /// Single-flight refresh of [current], for the session generation [origin].
+  ///
+  /// Refused without a request if [origin] is no longer the current
+  /// generation: [current] then belongs to a session that has already gone,
+  /// and its refresh token must not be spent, nor its rejection allowed to
+  /// clear whoever is signed in now. A rejection drops [current] — that exact
+  /// session, and no other — before it throws.
+  Future<AuthSession> _refresh(AuthSession current, int origin) {
+    if (origin != _epoch) {
+      return Future.error(const AuthException(AuthFailure.invalidSession));
+    }
     final inFlight = _refreshing;
     if (inFlight != null) return inFlight;
 
@@ -361,7 +377,7 @@ class ApiAuthService implements AuthService {
     final attempt = () async {
       final token = current.refreshToken;
       if (token == null) {
-        await _dropSession();
+        await _dropSession(onlyToken: current.token);
         throw const AuthException(AuthFailure.invalidSession);
       }
 
@@ -370,7 +386,7 @@ class ApiAuthService implements AuthService {
         body = await _post('/auth/refresh', {'refresh_token': token});
       } on AuthException catch (e) {
         if (e.failure == AuthFailure.invalidSession && epoch == _epoch) {
-          await _dropSession();
+          await _dropSession(onlyToken: current.token);
         }
         rethrow;
       }
@@ -389,12 +405,16 @@ class ApiAuthService implements AuthService {
     return attempt.whenComplete(() => _refreshing = null);
   }
 
-  Future<void> _dropSession() async {
+  /// Drops the stored session — only if it is still the one holding
+  /// [onlyToken], the session the server just refused. Whoever has signed in
+  /// since keeps theirs.
+  Future<void> _dropSession({required String onlyToken}) async {
     try {
       final record = await _read();
       // Nothing to drop — already signed out, or the phone wiped. Writing
       // here would put an empty record back where a wipe removed one.
-      if (record['session'] == null) return;
+      final stored = _sessionIn(record);
+      if (stored == null || stored.token != onlyToken) return;
       await _write(record, session: null);
       _epoch++; // After the write — see [signOut].
     } on AuthException {

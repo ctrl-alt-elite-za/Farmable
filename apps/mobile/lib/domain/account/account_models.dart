@@ -150,4 +150,9 @@ enum DeletionOutcome {
   /// The account is gone, and local access has ended, but some part of the
   /// phone's copy could not be cleared.
   phoneNotCleared,
+
+  /// The account is gone, but by the time the server's answer arrived a
+  /// different login was on the phone. Nothing on the phone was touched:
+  /// clearing it then would have signed out, and wiped, someone else.
+  accountChangedBeforeCleanup,
 }

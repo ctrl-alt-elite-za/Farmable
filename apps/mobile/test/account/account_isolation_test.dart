@@ -189,6 +189,30 @@ void main() {
       expect(await service.cached(), isNull);
     });
 
+    test('[P1] a delayed deletion answer never signs out or wipes B', () async {
+      await DemoSeed(db, now: () => now).ensureSeeded();
+      await logIn(_a);
+      api.hold['/account'] = Completer<void>();
+
+      final deleting = service.deleteAccount(password: _password);
+      await pumpEventQueue();
+      expect(api.hasAccount(_a), isFalse, reason: 'the server has done it');
+      await logOut();
+      await logIn(_b);
+      await service.setConsent(externalProcessing: true);
+      final bRecord = await account.read();
+      final seeded = await db.select(db.seedState).getSingleOrNull();
+      api.hold['/account']!.complete();
+
+      expect(await deleting, DeletionOutcome.accountChangedBeforeCleanup);
+      final standing = await auth.restore();
+      expect(standing, isA<SignedIn>());
+      expect((standing as SignedIn).session.user.email, _b);
+      expect(await account.read(), bRecord);
+      expect((await service.cached())!.consent!.externalProcessing, isTrue);
+      expect(await db.select(db.seedState).getSingleOrNull(), seeded);
+    });
+
     test('a clean wipe reports complete', () async {
       await logIn(_a);
       expect(
@@ -204,6 +228,46 @@ void main() {
         throwsA(isA<AuthException>()),
       );
       expect(api.hasAccount(_a), isTrue);
+    });
+  });
+
+  group('[P2] a stale 401 never touches the next session', () {
+    test("A's late 401 does not refresh or drop B's session", () async {
+      await logIn(_a);
+      api.revokeEverything();
+      api.hold['/account/profile'] = Completer<void>();
+
+      final refreshing = service.refresh();
+      await pumpEventQueue();
+      await logOut();
+      await logIn(_b);
+      api.hold['/account/profile']!.complete();
+
+      await expectLater(refreshing, throwsA(isA<AuthException>()));
+      final standing = await auth.restore();
+      expect(standing, isA<SignedIn>());
+      expect((standing as SignedIn).session.user.email, _b);
+      expect(
+        api.to('/auth/refresh'),
+        isEmpty,
+        reason: "A's stale answer must not spend a refresh under B",
+      );
+    });
+
+    test('the same holds for a request made without a generation', () async {
+      await logIn(_a);
+      api.revokeEverything();
+      api.hold['/account/profile'] = Completer<void>();
+
+      final request = auth.authorized('GET', '/account/profile');
+      await pumpEventQueue();
+      await logOut();
+      await logIn(_b);
+      api.hold['/account/profile']!.complete();
+
+      await expectLater(request, throwsA(isA<AuthException>()));
+      expect(await auth.restore(), isA<SignedIn>());
+      expect(api.to('/auth/refresh'), isEmpty);
     });
   });
 }

@@ -80,6 +80,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               'Your account has been deleted and you are logged out. This '
                   "phone could not clear everything - clear Almanac's "
                   "storage in your phone's settings to finish.",
+            DeletionOutcome.accountChangedBeforeCleanup =>
+              'That account has been deleted.',
           }),
         ),
       );
@@ -115,54 +117,63 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       ),
     );
 
-    return AuthScaffold(
-      title: 'Delete your account',
-      subtitle: 'This is permanent and cannot be undone.',
-      onBack: backOr(context, '/profile'),
-      children: [
-        if (_failure != null) AuthNotice(message: _advice(_failure!)),
-        if (!signedIn)
-          const EmptyState(
-            icon: Icons.person_outline,
-            headline: 'Not logged in',
-            body: 'Log in from Profile to delete your account.',
-          )
-        else ...[
-          Text('What happens', style: text.titleMedium),
-          const SizedBox(height: AlmanacDimens.sp3),
-          point('Your account and the farm records on it are deleted.'),
-          point('You are logged out on every phone, straight away.'),
-          point(
-            'Everything Almanac kept on this phone is cleared, and it opens '
-            'like a new install.',
-          ),
-          point(
-            'If you want a copy first, go back and use Download your data.',
-          ),
-          const SizedBox(height: AlmanacDimens.sp4),
-          AppPasswordField(
-            label: 'Your password',
-            controller: _password,
-            enabled: !_busy,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [],
-            onChanged: (_) => setState(() {}),
-          ),
-          ChoiceRow(
-            label: 'I understand this cannot be undone',
-            selected: _understood,
-            onTap: _busy
-                ? null
-                : () => setState(() => _understood = !_understood),
-          ),
-          const SizedBox(height: AlmanacDimens.sp5),
-          AppDangerButton(
-            label: _busy ? 'Deleting…' : 'Delete my account',
-            icon: LucideIcons.trash2,
-            onPressed: _ready ? _delete : null,
-          ),
+    // No way back while the request is out. Leaving would let the farmer log
+    // out, or someone else log in, before the server's answer arrives — the
+    // service refuses to clean up for the wrong login, but the screen should
+    // not invite the switch in the first place.
+    return PopScope(
+      canPop: !_busy,
+      child: AuthScaffold(
+        title: 'Delete your account',
+        subtitle: 'This is permanent and cannot be undone.',
+        onBack: _busy ? null : backOr(context, '/profile'),
+        children: [
+          if (_failure != null) AuthNotice(message: _advice(_failure!)),
+          // Not while this screen's own deletion is out: the server revoking
+          // the session is part of it, and must not read as "not logged in".
+          if (!signedIn && !_busy)
+            const EmptyState(
+              icon: Icons.person_outline,
+              headline: 'Not logged in',
+              body: 'Log in from Profile to delete your account.',
+            )
+          else ...[
+            Text('What happens', style: text.titleMedium),
+            const SizedBox(height: AlmanacDimens.sp3),
+            point('Your account and the farm records on it are deleted.'),
+            point('You are logged out on every phone, straight away.'),
+            point(
+              'Everything Almanac kept on this phone is cleared, and it opens '
+              'like a new install.',
+            ),
+            point(
+              'If you want a copy first, go back and use Download your data.',
+            ),
+            const SizedBox(height: AlmanacDimens.sp4),
+            AppPasswordField(
+              label: 'Your password',
+              controller: _password,
+              enabled: !_busy,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [],
+              onChanged: (_) => setState(() {}),
+            ),
+            ChoiceRow(
+              label: 'I understand this cannot be undone',
+              selected: _understood,
+              onTap: _busy
+                  ? null
+                  : () => setState(() => _understood = !_understood),
+            ),
+            const SizedBox(height: AlmanacDimens.sp5),
+            AppDangerButton(
+              label: _busy ? 'Deleting…' : 'Delete my account',
+              icon: LucideIcons.trash2,
+              onPressed: _ready ? _delete : null,
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 

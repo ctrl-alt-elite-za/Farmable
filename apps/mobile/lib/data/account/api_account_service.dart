@@ -235,6 +235,20 @@ class ApiAccountService implements AccountService {
     );
     throwUnlessSuccess(response);
 
+    // The deletion is committed on the server. The cleanup is for the account
+    // that asked — so if another login has taken the phone while the answer
+    // was on its way, nothing here is touched: ending the session and wiping
+    // now would sign out, and erase, the wrong farmer.
+    //
+    // Nobody signed in is not "another login": the deleted account's own
+    // session is dropped the moment any request meets its revoked token, and
+    // its leftovers on this phone still have to go.
+    final now = await _signedInUser();
+    final someoneElse =
+        now != null &&
+        (now.id != op.user.id || _auth.generation != op.generation);
+    if (someoneElse) return DeletionOutcome.accountChangedBeforeCleanup;
+
     var cleared = true;
     try {
       await _auth.endSessionLocally();

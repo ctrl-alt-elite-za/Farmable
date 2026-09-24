@@ -4,6 +4,8 @@
 /// These are issue #10's frontend acceptance criteria, one group each.
 library;
 
+import 'dart:async';
+
 import 'package:almanac/app/providers.dart';
 import 'package:almanac/data/auth/api_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
@@ -11,6 +13,7 @@ import 'package:almanac/domain/auth/auth_models.dart';
 import 'package:almanac/features/account/account_screen.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/home/home_screen.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/auth_harness.dart';
@@ -433,6 +436,42 @@ void main() {
         await harness.container.read(externalProcessingConsentProvider.future),
         isFalse,
       );
+    });
+
+    testWidgets('there is no way back while the request is out', (
+      tester,
+    ) async {
+      final harness = await pumpAuthApp(
+        tester,
+        location: '/profile/delete',
+        api: api,
+        session: await loggedIn(tester),
+      );
+      expect(find.bySemanticsLabel('Back'), findsOneWidget);
+      api.hold['/account'] = Completer<void>();
+
+      await enterField(tester, 'Your password', goodPassphrase);
+      await tapLabel(tester, 'I understand this cannot be undone');
+      await tapLabel(tester, 'Delete my account', settle: false);
+
+      expect(find.text('Deleting…'), findsOneWidget);
+      expect(find.bySemanticsLabel('Back'), findsNothing);
+      final pop = tester.widget<PopScope>(
+        find.byWidgetPredicate((w) => w is PopScope),
+      );
+      expect(pop.canPop, isFalse);
+
+      api.hold['/account']!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(HomeScreen), findsOneWidget);
+      // The deleted account's own leftovers are still cleared, even though
+      // its session was dropped by a request that met the revoked token
+      // while the answer was held.
+      expect(
+        find.textContaining('this phone has been cleared'),
+        findsOneWidget,
+      );
+      expect(await harness.accountStorage.read(), isNull);
     });
 
     testWidgets('with no signal deletes nothing, and says so', (tester) async {
