@@ -27,6 +27,7 @@ from farmable_backend.models import (
     User,
     VerificationChallenge,
 )
+from farmable_backend.record_access import ApiError, authenticate
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
@@ -155,6 +156,39 @@ def test_signup_verify_login(settings):
         assert login.status_code == 200
         assert login.json()["refresh_token"]
     assert provider.deliveries == 2  # phone + email OTPs only, never during login
+
+
+def test_access_token_expires_before_refresh_token(settings):
+    app, _, _, sessions = _app(settings)
+    with TestClient(app) as client:
+        signup = _signup_request(client)
+        user_id = signup.json()["user_id"]
+        client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
+        granted = client.post(
+            "/auth/verify/email", json={"user_id": user_id, "code": "222222"}
+        ).json()
+
+        access_expiry = datetime.fromisoformat(granted["expires_at"])
+        refresh_expiry = datetime.fromisoformat(granted["refresh_expires_at"])
+        assert timedelta(minutes=14) < access_expiry - datetime.now(UTC) <= timedelta(minutes=15)
+        assert timedelta(days=29) < refresh_expiry - datetime.now(UTC) <= timedelta(days=30)
+
+        with sessions.begin() as session:
+            stored = session.scalar(
+                select(AuthSession).where(
+                    AuthSession.access_token_hash.is_not(None),
+                    AuthSession.refresh_token_hash.is_not(None),
+                )
+            )
+            assert stored is not None
+            stored.created_at = datetime.now(UTC) - timedelta(minutes=16)
+
+        with sessions.begin() as session:
+            with pytest.raises(ApiError, match="invalid_session"):
+                authenticate(session, f"Bearer {granted['access_token']}")
+
+        refreshed = client.post("/auth/refresh", json={"refresh_token": granted["refresh_token"]})
+        assert refreshed.status_code == 200
 
 
 def test_sms_rate_limit_per_phone(settings):

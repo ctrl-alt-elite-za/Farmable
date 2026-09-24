@@ -44,6 +44,7 @@ PASSWORD_HASHER = PasswordHasher()  # argon2-cffi defaults are Argon2id.
 # accounts; otherwise login latency becomes an account-enumeration oracle.
 DUMMY_PASSWORD_HASH = PASSWORD_HASHER.hash(secrets.token_urlsafe(32))
 OTP_TTL = timedelta(minutes=10)
+ACCESS_TTL = timedelta(minutes=15)
 SESSION_TTL = timedelta(days=30)
 MAX_OTP_ATTEMPTS = 5
 OTP_SEND_WINDOW = timedelta(minutes=10)
@@ -144,6 +145,7 @@ class SessionTokens:
     access_token: str
     refresh_token: str
     expires_at: datetime
+    refresh_expires_at: datetime
     user: AuthUser
 
 
@@ -703,16 +705,18 @@ class AuthService:
 
     def _new_session(self, session: Session, user: AuthIdentity) -> SessionTokens:
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
-        expires_at = _now() + SESSION_TTL
+        issued_at = _now()
+        access_expires_at = issued_at + ACCESS_TTL
+        refresh_expires_at = issued_at + SESSION_TTL
         session.add(
             AuthSession(
                 user_id=user.id,
                 access_token_hash=_hash_token(access),
                 refresh_token_hash=_hash_token(refresh),
-                expires_at=expires_at,
+                expires_at=refresh_expires_at,
             )
         )
-        return SessionTokens(access, refresh, expires_at, _user(user))
+        return SessionTokens(access, refresh, access_expires_at, refresh_expires_at, _user(user))
 
     @staticmethod
     def _verify_password(password_hash: str, password: str) -> bool:
@@ -811,9 +815,13 @@ class InMemoryAuthService:
 
     def _new_session(self, user_id: UUID) -> SessionTokens:
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
-        expires_at = _now() + SESSION_TTL
+        issued_at = _now()
+        access_expires_at = issued_at + ACCESS_TTL
+        refresh_expires_at = issued_at + SESSION_TTL
         self.sessions[_hash_token(refresh)] = user_id
-        return SessionTokens(access, refresh, expires_at, self._as_user(user_id))
+        return SessionTokens(
+            access, refresh, access_expires_at, refresh_expires_at, self._as_user(user_id)
+        )
 
     def resend(
         self,

@@ -446,7 +446,8 @@ class FakeAuthApi implements HttpClientAdapter {
     return {
       'access_token': access,
       'refresh_token': refresh,
-      'expires_at': session.expiresAt.toIso8601String(),
+      'expires_at': now().add(const Duration(minutes: 15)).toIso8601String(),
+      'refresh_expires_at': session.expiresAt.toIso8601String(),
       'user': account.toJson(),
     };
   }

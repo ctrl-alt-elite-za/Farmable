@@ -80,4 +80,5 @@ class SessionResponse(StrictModel):
     access_token: str
     refresh_token: str
     expires_at: datetime
+    refresh_expires_at: datetime
     user: UserResponse

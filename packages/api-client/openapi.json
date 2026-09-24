@@ -4041,6 +4041,11 @@
             "title": "Expires At",
             "type": "string"
           },
+          "refresh_expires_at": {
+            "format": "date-time",
+            "title": "Refresh Expires At",
+            "type": "string"
+          },
           "refresh_token": {
             "title": "Refresh Token",
             "type": "string"
@@ -4049,7 +4054,7 @@
             "$ref": "#/components/schemas/UserResponse"
           }
         },
-        "required": ["access_token", "refresh_token", "expires_at", "user"],
+        "required": ["access_token", "refresh_token", "expires_at", "refresh_expires_at", "user"],
         "title": "SessionResponse",
         "type": "object"
       },

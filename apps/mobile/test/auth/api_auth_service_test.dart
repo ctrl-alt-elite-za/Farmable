@@ -114,6 +114,10 @@ void main() {
 
     test('phone then email grants a session that survives a restart', () async {
       final session = await signUpAndVerify(service());
+      expect(
+        session.expiresAt.difference(session.accessExpiresAt),
+        const Duration(days: 29, hours: 23, minutes: 45),
+      );
 
       expect(session.refreshToken, isNotNull);
       expect(session.user.fullName, 'Thandi Mokoena');

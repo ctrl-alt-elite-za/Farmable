@@ -3204,6 +3204,11 @@ export interface components {
        * Format: date-time
        */
       expires_at: string;
+      /**
+       * Refresh Expires At
+       * Format: date-time
+       */
+      refresh_expires_at: string;
       /** Refresh Token */
       refresh_token: string;
       user: components['schemas']['UserResponse'];

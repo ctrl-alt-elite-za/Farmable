@@ -92,6 +92,7 @@ def _session_response(tokens: SessionTokens) -> SessionResponse:
         access_token=tokens.access_token,
         refresh_token=tokens.refresh_token,
         expires_at=tokens.expires_at,
+        refresh_expires_at=tokens.refresh_expires_at,
         user=_user_response(tokens.user),
     )
 

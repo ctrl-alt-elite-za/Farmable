@@ -15,9 +15,9 @@
 ///
 /// ## Sessions and refresh
 ///
-/// The backend issues an access token and a refresh token that share one
-/// `expires_at`, thirty days out. Refreshing rotates both and starts a fresh
-/// thirty days; once `expires_at` has passed, the refresh token is dead too.
+/// The backend issues a fifteen-minute access token and a thirty-day refresh
+/// token. Refreshing rotates both and starts both lifetimes again. Once the
+/// refresh expiry has passed, the session cannot be revived.
 /// So refreshing is something to do *early* — [refreshSession] extends the
 /// session at the first opportunity with signal once it is past
 /// [refreshWhenWithin] — because a farmer out of signal for a month cannot be
@@ -35,13 +35,9 @@ import '../../domain/auth/auth_models.dart';
 import '../../domain/auth/auth_service.dart';
 import 'session_storage.dart';
 
-/// Refresh once fewer than this remain of the session.
+/// Refresh once fewer than this remain on the access token.
 ///
-/// Twenty-eight of thirty days: in practice, the first launch with a signal
-/// once the session is two days old. Signal is patchy where this app is used,
-/// so every chance to push the deadline back is taken rather than waiting for
-/// the last week and hoping there is coverage in it.
-const Duration refreshWhenWithin = Duration(days: 28);
+const Duration refreshWhenWithin = Duration(minutes: 1);
 
 class ApiAuthService implements AuthService {
   final Dio _dio;
@@ -213,7 +209,7 @@ class ApiAuthService implements AuthService {
     required String newPassword,
   }) async => throw const AuthException(AuthFailure.notYetSupported);
 
-  /// Reads the phone and nothing else. A session past its `expires_at` is
+  /// Reads the phone and nothing else. A session past its refresh expiry is
   /// treated as absent — its refresh token has lapsed with it, so there is
   /// nothing left that could revive it.
   @override
@@ -238,7 +234,8 @@ class ApiAuthService implements AuthService {
     final origin = _epoch;
     final standing = await restore();
     if (standing is! SignedIn) return standing;
-    if (standing.session.expiresAt.difference(now()) > refreshWhenWithin) {
+    if (standing.session.accessExpiresAt.difference(now()) >
+        refreshWhenWithin) {
       return standing;
     }
 
@@ -508,7 +505,8 @@ class ApiAuthService implements AuthService {
         refreshToken: _string(body, 'refresh_token'),
         // Held in UTC, compared in UTC. `isAfter` compares instants, so the
         // phone's own time zone never shifts when a session lapses.
-        expiresAt: DateTime.parse(_string(body, 'expires_at')).toUtc(),
+        accessExpiresAt: DateTime.parse(_string(body, 'expires_at')).toUtc(),
+        expiresAt: DateTime.parse(_string(body, 'refresh_expires_at')).toUtc(),
         user: AuthUser.fromJson((body['user']! as Map).cast<String, Object?>()),
       );
     } on AuthException {
