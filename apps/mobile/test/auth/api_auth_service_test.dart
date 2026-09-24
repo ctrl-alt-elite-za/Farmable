@@ -481,6 +481,26 @@ void main() {
     });
   });
 
+  test(
+    'a refused refresh that lands after a wipe writes nothing back',
+    () async {
+      await signUpAndVerify(service());
+      phoneNow = phoneNow.add(const Duration(days: 3));
+      api.revokeEverything();
+      final auth = service();
+      api.holdRefresh = Completer<void>();
+
+      final refreshing = auth.refreshSession();
+      await pumpEventQueue();
+      // Account deletion's wipe, clearing storage while the refresh is out.
+      await storage.clear();
+      api.holdRefresh!.complete();
+
+      expect(await refreshing, isA<SignedOut>());
+      expect(await storage.read(), isNull);
+    },
+  );
+
   group('authorized requests', () {
     test('carry the access token and never the refresh token', () async {
       final session = await signUpAndVerify(service());

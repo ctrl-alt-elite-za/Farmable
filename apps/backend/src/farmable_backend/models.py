@@ -38,6 +38,16 @@ FINANCIAL_TYPES = ("expense", "income")
 PLAN_STATUSES = ("saved", "approved", "rejected")
 ACCOUNT_LANGUAGES = ("en", "af", "nso", "st", "xh", "zu")
 DEFAULT_ACCOUNT_LANGUAGE = "en"
+REFERENCE_CROPS = (
+    "butternut",
+    "cabbage",
+    "carrots",
+    "green_beans",
+    "onions",
+    "potatoes",
+    "spinach",
+    "tomatoes",
+)
 
 JSON_DOCUMENT = JSON().with_variant(JSONB(), "postgresql")
 CHANGE_CURSOR = BigInteger().with_variant(Integer(), "sqlite")
@@ -119,6 +129,113 @@ class WeightFormula(Base):
     version: Mapped[str] = mapped_column(Text)
     formula: Mapped[dict[str, Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ReferenceImport(Base):
+    """Immutable identity for one validated canonical reference dataset."""
+
+    __tablename__ = "reference_imports"
+    __table_args__ = (
+        UniqueConstraint("dataset_kind", "dataset_key", name="uq_reference_imports_dataset"),
+        CheckConstraint(
+            column("source_sha256").regexp_match("^[0-9a-f]{64}$"),
+            name="ck_reference_imports_source_sha256_hex",
+        ),
+        CheckConstraint(
+            column("payload_sha256").regexp_match("^[0-9a-f]{64}$"),
+            name="ck_reference_imports_payload_sha256_hex",
+        ),
+        CheckConstraint(column("parser_version") > 0, name="ck_reference_imports_parser_positive"),
+        CheckConstraint(column("row_count") > 0, name="ck_reference_imports_rows_positive"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    dataset_kind: Mapped[str] = mapped_column(Text)
+    dataset_key: Mapped[str] = mapped_column(Text)
+    source_file: Mapped[str] = mapped_column(Text)
+    source_sha256: Mapped[str] = mapped_column(Text)
+    payload_sha256: Mapped[str] = mapped_column(Text)
+    parser_version: Mapped[int] = mapped_column(BigInteger)
+    row_count: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ReferenceMarketPrice(Base):
+    __tablename__ = "reference_market_prices"
+    __table_args__ = (
+        UniqueConstraint(
+            "crop", "market", "observation_month", name="uq_reference_market_prices_natural"
+        ),
+        CheckConstraint(column("crop").in_(REFERENCE_CROPS), name="ck_reference_prices_crop"),
+        CheckConstraint(column("price_rand_per_kg") > 0, name="ck_reference_prices_positive"),
+        CheckConstraint(
+            column("availability_kind").in_(("publication", "analytical_next_month")),
+            name="ck_reference_prices_availability_kind",
+        ),
+    )
+
+    import_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("reference_imports.id", ondelete="CASCADE"), primary_key=True
+    )
+    crop: Mapped[str] = mapped_column(Text, primary_key=True)
+    market: Mapped[str] = mapped_column(Text, primary_key=True)
+    observation_month: Mapped[date] = mapped_column(Date, primary_key=True)
+    available_on: Mapped[date] = mapped_column(Date)
+    price_rand_per_kg: Mapped[Decimal] = mapped_column(Numeric(14, 4))
+    availability_kind: Mapped[str] = mapped_column(Text)
+
+
+class ReferenceCropCalendar(Base):
+    __tablename__ = "reference_crop_calendars"
+    __table_args__ = (
+        UniqueConstraint(
+            "crop", "region", "effective_on", "revision", name="uq_reference_calendars_natural"
+        ),
+        CheckConstraint(column("crop").in_(REFERENCE_CROPS), name="ck_reference_calendars_crop"),
+        CheckConstraint(column("harvest_offset_months") > 0, name="ck_reference_calendar_offset"),
+        CheckConstraint(column("yield_kg_per_ha") > 0, name="ck_reference_calendar_yield"),
+    )
+
+    import_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("reference_imports.id", ondelete="CASCADE"), primary_key=True
+    )
+    crop: Mapped[str] = mapped_column(Text, primary_key=True)
+    region: Mapped[str] = mapped_column(Text, primary_key=True)
+    effective_on: Mapped[date] = mapped_column(Date, primary_key=True)
+    available_on: Mapped[date] = mapped_column(Date)
+    revision: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    planting_months: Mapped[list[int]] = mapped_column(JSON_DOCUMENT)
+    harvest_offset_months: Mapped[int] = mapped_column(BigInteger)
+    yield_kg_per_ha: Mapped[Decimal] = mapped_column(Numeric(14, 4))
+    assumption_kind: Mapped[str] = mapped_column(Text)
+
+
+class ReferenceCropCost(Base):
+    __tablename__ = "reference_crop_costs"
+    __table_args__ = (
+        UniqueConstraint(
+            "crop", "region", "effective_on", "revision", name="uq_reference_costs_natural"
+        ),
+        CheckConstraint(column("crop").in_(REFERENCE_CROPS), name="ck_reference_costs_crop"),
+        CheckConstraint(column("cost_rand_per_ha") >= 0, name="ck_reference_cost_nonnegative"),
+        CheckConstraint(
+            column("marketing_rate").between(0, Decimal("0.999999")),
+            name="ck_reference_cost_marketing_rate",
+        ),
+    )
+
+    import_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("reference_imports.id", ondelete="CASCADE"), primary_key=True
+    )
+    crop: Mapped[str] = mapped_column(Text, primary_key=True)
+    region: Mapped[str] = mapped_column(Text, primary_key=True)
+    effective_on: Mapped[date] = mapped_column(Date, primary_key=True)
+    available_on: Mapped[date] = mapped_column(Date)
+    revision: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    basis_year: Mapped[int] = mapped_column(BigInteger)
+    cost_rand_per_ha: Mapped[Decimal] = mapped_column(Numeric(14, 4))
+    marketing_rate: Mapped[Decimal] = mapped_column(Numeric(8, 6))
+    vat_basis: Mapped[str] = mapped_column(Text)
 
 
 class User(Base):

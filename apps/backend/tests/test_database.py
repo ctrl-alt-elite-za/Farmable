@@ -54,6 +54,10 @@ def test_only_owned_application_tables_are_registered():
         "forecast_state",
         "weather_jobs",
         "weather_risk_climatology",
+        "reference_imports",
+        "reference_market_prices",
+        "reference_crop_calendars",
+        "reference_crop_costs",
     }
 
 

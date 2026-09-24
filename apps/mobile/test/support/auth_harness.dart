@@ -16,13 +16,16 @@ library;
 import 'package:almanac/app/providers.dart';
 import 'package:almanac/app/router.dart';
 import 'package:almanac/app/theme/app_theme.dart';
+import 'package:almanac/data/account/export_store.dart';
 import 'package:almanac/data/auth/api_auth_service.dart';
 import 'package:almanac/data/auth/demo_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
 import 'package:almanac/data/health_service.dart';
 import 'package:almanac/data/local/database.dart';
 import 'package:almanac/data/local/seed.dart';
+import 'package:almanac/domain/account/account_models.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
+import 'package:almanac/features/account/export_screen.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/auth/widgets/auth_scaffold.dart';
 import 'package:flutter/material.dart';
@@ -64,7 +67,23 @@ class AuthHarness {
 
   final ProviderContainer container;
 
-  AuthHarness._(this.db, this.storage, this.container);
+  /// The account record — profile, pending edits, privacy choices. Survives
+  /// [restart] the same way [storage] does.
+  final SessionStorage accountStorage;
+
+  final InMemoryExportStore exports;
+
+  /// Every file handed to the share sheet.
+  final List<ExportFile> shared;
+
+  AuthHarness._(
+    this.db,
+    this.storage,
+    this.container,
+    this.accountStorage,
+    this.exports,
+    this.shared,
+  );
 
   /// What the app would restore on its next cold launch.
   Future<AuthStanding> standing() =>
@@ -99,11 +118,17 @@ Future<AuthHarness> pumpAuthApp(
   SessionStorage? session,
   AlmanacDatabase? storage,
 
+  /// Reuse the account record and export from an earlier pump — part of a
+  /// restart, like [session].
+  SessionStorage? account,
+  InMemoryExportStore? exportStore,
+
   /// Runs the screens against the real [ApiAuthService] over this fake
   /// backend instead of the demo, the way every non-demo build does. The
   /// build flag that picks between them is overridden too, so the screens
   /// see the same answer the provider does.
   FakeAuthApi? api,
+  DateTime Function()? now,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = surface;
@@ -112,23 +137,31 @@ Future<AuthHarness> pumpAuthApp(
   final db = storage ?? AlmanacDatabase.memory();
   if (seed) await DemoSeed(db, now: () => pinnedToday).ensureSeeded();
   final record = session ?? InMemorySessionStorage();
+  final accountRecord = account ?? InMemorySessionStorage();
+  final exports = exportStore ?? InMemoryExportStore();
+  final shared = <ExportFile>[];
 
   final container = ProviderContainer(
     overrides: [
       databaseProvider.overrideWithValue(db),
-      clockProvider.overrideWithValue(() => pinnedToday),
+      clockProvider.overrideWithValue(now ?? () => pinnedToday),
       if (!seed) seedProvider.overrideWith((ref) async {}),
       healthServiceProvider.overrideWithValue(
         _FixedHealth(online ? Reachability.online : Reachability.offline),
       ),
       sessionStorageProvider.overrideWithValue(record),
+      accountStorageProvider.overrideWithValue(accountRecord),
+      exportStoreProvider.overrideWithValue(exports),
+      // No real folders: the harness never touches the filesystem.
+      deviceDirectoriesProvider.overrideWithValue(const []),
+      shareFileProvider.overrideWithValue((file) async => shared.add(file)),
       demoAuthProvider.overrideWithValue(api == null),
       if (api != null)
         authServiceProvider.overrideWith(
           (ref) => ApiAuthService(
             api.dio(),
             ref.watch(sessionStorageProvider),
-            now: () => pinnedToday,
+            now: now ?? () => pinnedToday,
           ),
         )
       else
@@ -187,7 +220,7 @@ Future<AuthHarness> pumpAuthApp(
     if (storage == null) await db.close();
   });
 
-  return AuthHarness._(db, record, container);
+  return AuthHarness._(db, record, container, accountRecord, exports, shared);
 }
 
 /// Types into the field under [label], scrolling it into view first.

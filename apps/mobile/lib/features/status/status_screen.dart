@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/config.dart';
 import '../../app/theme/app_theme.dart';
@@ -61,6 +62,12 @@ class _StatusScreenState extends State<StatusScreen> {
               FilledButton(
                 onPressed: _status == Reachability.checking ? null : _refresh,
                 child: const Text('Check again'),
+              ),
+              const SizedBox(height: AlmanacDimens.sp3),
+              // The device self-test (#4). Asks for nothing until it is run.
+              OutlinedButton(
+                onPressed: () => GoRouter.maybeOf(context)?.push('/self-test'),
+                child: const Text('Device self-test'),
               ),
               const Spacer(),
               Text(

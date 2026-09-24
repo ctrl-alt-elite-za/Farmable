@@ -46,6 +46,25 @@ dependencies:
   path_provider: ^2.1.6
   lucide_icons_flutter: ^3.1.20
   flutter_secure_storage: ^11.2.0
+  share_plus: ^13.3.0
+
+  # Native device capabilities (#4). Pinned exactly, not with a caret: a
+  # native plugin's minor release can raise the Android minSdk or the iOS
+  # deployment target, and that should be a reviewed change here rather than
+  # something `pub upgrade` does quietly. The self-test screen exercises each.
+  camera: 0.12.1 # preview + per-frame image stream (flutter.dev first party)
+  record: 7.1.1 # microphone capture
+  just_audio: 0.10.6 # playback
+  geolocator: 14.0.3 # location fixes
+  flutter_map: 8.3.2 # maps with no API key or secret (OpenStreetMap tiles)
+  latlong2: 0.10.1 # flutter_map's coordinate type
+  url_launcher: 6.3.2 # opens the OpenStreetMap attribution link
+  # On-device inference. Bundles its detector model, so it works offline with
+  # no download, and takes custom TFLite models through LocalModel later.
+  # Needs iOS 15.5 — see the deployment target in ios/.
+  google_mlkit_object_detection: 0.17.1
+  device_info_plus: 13.2.0 # device model for the self-test report
+  package_info_plus: 10.2.1 # app version for the self-test report
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +78,12 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.35.0
   build_runner: ^2.16.1
+  path_provider_platform_interface: ^2.1.3
+  plugin_platform_interface: ^2.1.8
+  # Stands in for the camera plugin's platform side, so the real
+  # LiveCameraSource can be tested against a camera that answers late.
+  # Already in the tree through `camera`; the version matches the lock.
+  camera_platform_interface: 2.14.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -70,6 +95,12 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    # The detector-timing picture the self-test runs ML Kit on.
+    - assets/self_test/
+    # Recorded camera frames and their detections, played back in test mode.
+    - assets/test_mode/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

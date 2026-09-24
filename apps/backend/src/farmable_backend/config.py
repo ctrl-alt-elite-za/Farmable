@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     photo_bucket: str | None = None
     photo_signer_email: str | None = None
     diagnosis_enabled: bool = False
-    forecast_data_mode: Literal["disabled", "sample", "historical"] = "disabled"
+    forecast_data_mode: Literal["disabled", "sample", "historical", "retrospective"] = "disabled"
 
     @field_validator("database_url")
     @classmethod

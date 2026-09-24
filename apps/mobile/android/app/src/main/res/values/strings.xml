@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Why the app asks for each permission. Android's permission prompt shows
+      no app text, so the app shows these itself before it asks; iOS shows the
+      same sentences from Info.plist. Keep all three copies identical —
+      test/device/permission_copy_test.dart fails if they drift.
+    -->
+    <string name="permission_camera_reason">To scan your crops and animals</string>
+    <string name="permission_microphone_reason">To talk to the assistant</string>
+    <string name="permission_location_reason">To map your farm sections</string>
+</resources>

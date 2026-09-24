@@ -2,7 +2,9 @@
 <!--
   Android 12 and later (android:dataExtractionRules). Same rule as
   backup_rules.xml, for cloud backup and for device-to-device transfer: the
-  session is tied to this phone's Keystore and must not travel.
+  session is tied to this phone's Keystore and must not travel. Data exports
+  live in the cache directory, which neither cloud backup nor device transfer
+  includes.
 -->
 <data-extraction-rules>
     <cloud-backup>
