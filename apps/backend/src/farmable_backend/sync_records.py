@@ -21,6 +21,7 @@ from farmable_backend.models import (
     SyncChange,
     SyncMutation,
 )
+from farmable_backend.planning.history import preserve
 from farmable_backend.record_access import ApiError, db_now, section_scope
 from farmable_backend.weather_jobs import enqueue_weather
 
@@ -140,6 +141,8 @@ class SyncRecordRepository:
             if expected_version != record.version:
                 raise ApiError(409, "revision_conflict")
             if record.deleted_at is None:
+                if kind.resource == "plans":
+                    preserve(self.session, record)
                 record.deleted_at = db_now(self.session)
                 record.version += 1
                 record.sync_state = "synced"
@@ -152,6 +155,8 @@ class SyncRecordRepository:
         section_id = values.get("section_id")
         if section_id is not None:
             section_scope(self.session, self.owner_id, self.farm_id, section_id)
+        if kind.resource == "plans":
+            preserve(self.session, record)
         for name, value in values.items():
             setattr(record, name, value)
         record.version += 1
@@ -196,6 +201,8 @@ class SyncRecordRepository:
                 self.session.add(mutation)
                 self.session.flush((mutation,))
                 record = self._write(kind, operation, target, values, expected_version)
+                if resource == "plans":
+                    preserve(self.session, record, "manual")
                 if resource == "sections" and operation != "delete":
                     enqueue_weather(self.session, record.boundary)
                 self.session.add(

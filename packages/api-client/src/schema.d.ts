@@ -74,6 +74,181 @@ export interface paths {
     patch: operations['updateAccountProfile'];
     trace?: never;
   };
+  '/assistant/conversations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create */
+    post: operations['createAssistantConversation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assistant/conversations/{conversation_id}/consent': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Consent */
+    get: operations['getAssistantConsent'];
+    /** Grant Consent */
+    put: operations['grantAssistantConsent'];
+    post?: never;
+    /** Withdraw Consent */
+    delete: operations['withdrawAssistantConsent'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assistant/conversations/{conversation_id}/live-consent': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Consent */
+    get: operations['getAssistantLiveConsent'];
+    /** Grant */
+    put: operations['grantAssistantLiveConsent'];
+    post?: never;
+    /** Withdraw */
+    delete: operations['withdrawAssistantLiveConsent'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assistant/conversations/{conversation_id}/live-sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Issue */
+    post: operations['createAssistantLiveSession'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assistant/conversations/{conversation_id}/live-sessions/{session_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** State */
+    get: operations['getAssistantLiveSession'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assistant/conversations/{conversation_id}/live-sessions/{session_id}/interrupt': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Interrupt */
+    post: operations['interruptAssistantLiveSession'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assistant/conversations/{conversation_id}/live-sessions/{session_id}/tools': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Tool */
+    post: operations['executeAssistantLiveTool'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assistant/conversations/{conversation_id}/turns': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** History */
+    get: operations['getAssistantHistory'];
+    put?: never;
+    /** Stream */
+    post: operations['streamAssistantTurn'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assistant/conversations/{conversation_id}/turns/{turn_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get */
+    get: operations['getAssistantTurn'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assistant/conversations/{conversation_id}/turns/{turn_id}/interrupt': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Interrupt */
+    post: operations['interruptAssistantTurn'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/auth/login': {
     parameters: {
       query?: never;
@@ -210,6 +385,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/diagnoses/notice': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Notice */
+    get: operations['diagnosisNotice'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/farms': {
     parameters: {
       query?: never;
@@ -238,6 +430,57 @@ export interface paths {
     get: operations['listChanges'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/diagnoses': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Listing */
+    get: operations['listDiagnoses'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/diagnoses/{diagnosis_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get */
+    get: operations['getDiagnosis'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/diagnoses/{diagnosis_id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cancel */
+    post: operations['cancelDiagnosis'];
     delete?: never;
     options?: never;
     head?: never;
@@ -471,6 +714,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/farms/{farm_id}/planning/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Confirm */
+    post: operations['confirmPlantingPlan'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/planning/plans/{plan_id}/history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** History */
+    get: operations['getPlantingPlanHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/planning/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Preview */
+    post: operations['previewPlantingPlan'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/farms/{farm_id}/plans': {
     parameters: {
       query?: never;
@@ -624,6 +918,23 @@ export interface paths {
     put?: never;
     /** Delete Record */
     post: operations['deleteSection'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/sections/{section_id}/diagnoses': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Submit */
+    post: operations['submitDiagnosis'];
     delete?: never;
     options?: never;
     head?: never;
@@ -845,6 +1156,35 @@ export interface components {
        */
       years_observed: 15;
     };
+    /** Candidate */
+    Candidate: {
+      /** Allocations */
+      allocations: components['schemas']['Estimate'][];
+      /** Cash Timeline */
+      cash_timeline: components['schemas']['CashEvent'][];
+      /** Id */
+      id: string;
+      /** Margin Cents */
+      margin_cents: number;
+      /** Required Cash Cents */
+      required_cash_cents: number;
+      /** Unplanted Blocks */
+      unplanted_blocks: number;
+    };
+    /** CashEvent */
+    CashEvent: {
+      /** Balance Cents */
+      balance_cents: number;
+      /** Cost Cents */
+      cost_cents: number;
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /** Receipts Cents */
+      receipts_cents: number;
+    };
     /** ChangePage */
     ChangePage: {
       /** Items */
@@ -873,10 +1213,270 @@ export interface components {
       /** Version */
       version: number;
     };
+    /** ConfirmedPlan */
+    ConfirmedPlan: {
+      /**
+       * Approved At
+       * Format: date-time
+       */
+      approved_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Replayed */
+      replayed: boolean;
+      /** Version */
+      version: number;
+    };
+    /** ConsentGrant */
+    ConsentGrant: {
+      /** Model */
+      model: string;
+      /**
+       * Notice Version
+       * @constant
+       */
+      notice_version: 'gemini-conversation-v3';
+    };
+    /** ConsentView */
+    ConsentView: {
+      /** Granted */
+      granted: boolean;
+      /** Granted At */
+      granted_at: string | null;
+      /** Model */
+      model: string;
+      /**
+       * Notice
+       * @default Allow this conversation's messages, recent replies and requested farm-section and crop-outlook data, planning inputs (including budget) and preview results to be sent to Google Gemini to generate answers. Each message and its reply expire from Farmable history after 30 days from sending the message. Reopening a conversation does not extend this period. Background cleanup erases expired chat content; content-free usage and retry records remain. Saved planting plans are separate and are not erased by this policy. Provider retention depends on the operator's Google account terms. Withdrawing permission stops further generation but cannot recall data already sent or erase provider copies. Do not include sensitive personal information in messages.
+       */
+      notice: string;
+      /**
+       * Notice Version
+       * @default gemini-conversation-v3
+       */
+      notice_version: string;
+      /**
+       * Provider
+       * @default google_gemini
+       * @constant
+       */
+      provider: 'google_gemini';
+      /** Withdrawn At */
+      withdrawn_at: string | null;
+    };
+    /** ConversationCreate */
+    ConversationCreate: {
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+    };
+    /** ConversationView */
+    ConversationView: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+    };
+    /** CropConstraint */
+    'CropConstraint-Input': {
+      /**
+       * Crop
+       * @enum {string}
+       */
+      crop:
+        | 'butternut'
+        | 'cabbage'
+        | 'carrots'
+        | 'green_beans'
+        | 'onions'
+        | 'potatoes'
+        | 'spinach'
+        | 'tomatoes';
+      /**
+       * Minimum Percent
+       * @default 0
+       */
+      minimum_percent: number;
+      /**
+       * Promised Kg
+       * @default 0
+       */
+      promised_kg: number | string;
+    };
+    /** CropConstraint */
+    'CropConstraint-Output': {
+      /**
+       * Crop
+       * @enum {string}
+       */
+      crop:
+        | 'butternut'
+        | 'cabbage'
+        | 'carrots'
+        | 'green_beans'
+        | 'onions'
+        | 'potatoes'
+        | 'spinach'
+        | 'tomatoes';
+      /**
+       * Minimum Percent
+       * @default 0
+       */
+      minimum_percent: number;
+      /**
+       * Promised Kg
+       * @default 0
+       */
+      promised_kg: string;
+    };
     /** DeleteAccountRequest */
     DeleteAccountRequest: {
       /** Password */
       password: string;
+    };
+    /** DiagnosisCreate */
+    DiagnosisCreate: {
+      /**
+       * Consent Notice Version
+       * @constant
+       */
+      consent_notice_version: 'crop-health-v1';
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Media Id
+       * Format: uuid
+       */
+      media_id: string;
+      /**
+       * Planting Id
+       * Format: uuid
+       */
+      planting_id: string;
+    };
+    /** DiagnosisNotice */
+    DiagnosisNotice: {
+      /**
+       * Text
+       * @default Submit this focus photo to Kindwise crop.health for suggested crop-health results. Only the cleaned photo is sent, not your name, location, or farm records. Results are suggestions, not a confirmed diagnosis or treatment prescription. Cancelling stops queued work and hides results but cannot erase a photo already sent to the provider. Results remain with your farm until cancelled or your account is deleted.
+       */
+      text: string;
+      /**
+       * Version
+       * @default crop-health-v1
+       */
+      version: string;
+    };
+    /** DiagnosisResult */
+    DiagnosisResult: {
+      crop: components['schemas']['DiagnosisSuggestion'];
+      /**
+       * Data Kind
+       * @enum {string}
+       */
+      data_kind: 'synthetic' | 'provider';
+      /**
+       * Provider
+       * @default crop.health
+       * @constant
+       */
+      provider: 'crop.health';
+      /**
+       * Schema Version
+       * @default 1
+       * @constant
+       */
+      schema_version: 1;
+      /** Suggestions */
+      suggestions: components['schemas']['DiagnosisSuggestion'][];
+      /**
+       * Warning
+       * @default Provider suggestions only; not a confirmed diagnosis or treatment prescription.
+       */
+      warning: string;
+    };
+    /** DiagnosisSuggestion */
+    DiagnosisSuggestion: {
+      /** Name */
+      name: string;
+      /** Probability */
+      probability: number;
+    };
+    /** DiagnosisView */
+    DiagnosisView: {
+      /** Consent Notice Version */
+      consent_notice_version: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Crop */
+      crop: string;
+      /** Error */
+      error: string | null;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Media Id
+       * Format: uuid
+       */
+      media_id: string;
+      /**
+       * Planting Id
+       * Format: uuid
+       */
+      planting_id: string;
+      result: components['schemas']['DiagnosisResult'] | null;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+      /**
+       * State
+       * @enum {string}
+       */
+      state: 'queued' | 'processing' | 'ready' | 'unavailable' | 'cancelled';
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Withdrawn At */
+      withdrawn_at: string | null;
     };
     /** Error */
     Error: {
@@ -888,6 +1488,52 @@ export interface components {
     /** ErrorResponse */
     ErrorResponse: {
       error: components['schemas']['Error'];
+    };
+    /** Estimate */
+    Estimate: {
+      /** Area M2 */
+      area_m2: string;
+      /** Blocks */
+      blocks: number;
+      /** Break Even Price Per Kg */
+      break_even_price_per_kg: string;
+      /** Commission Cents */
+      commission_cents: number;
+      /** Cost Schedule */
+      cost_schedule: [string, number][];
+      /**
+       * Crop
+       * @enum {string}
+       */
+      crop:
+        | 'butternut'
+        | 'cabbage'
+        | 'carrots'
+        | 'green_beans'
+        | 'onions'
+        | 'potatoes'
+        | 'spinach'
+        | 'tomatoes';
+      /**
+       * Harvest Date
+       * Format: date
+       */
+      harvest_date: string;
+      /** Margin Cents */
+      margin_cents: number;
+      /**
+       * Payment Date
+       * Format: date
+       */
+      payment_date: string;
+      /** Price Only Break Even Chance Bounds */
+      price_only_break_even_chance_bounds: [string, string];
+      /** Production Cost Cents */
+      production_cost_cents: number;
+      /** Quantity Kg */
+      quantity_kg: string;
+      /** Sales Cents */
+      sales_cents: number;
     };
     /** FarmUpdate */
     FarmUpdate: {
@@ -1055,6 +1701,88 @@ export interface components {
       /** Version */
       version: number;
     };
+    /** History */
+    History: {
+      /** Next Before */
+      next_before: string | null;
+      /** Turns */
+      turns: components['schemas']['TurnView'][];
+    };
+    /** LiveConsentGrant */
+    LiveConsentGrant: {
+      /** Model */
+      model: string;
+      /**
+       * Notice Version
+       * @constant
+       */
+      notice_version: 'gemini-live-conversation-v1';
+    };
+    /** LiveConsentView */
+    LiveConsentView: {
+      /** Granted */
+      granted: boolean;
+      /** Granted At */
+      granted_at: string | null;
+      /** Model */
+      model: string;
+      /**
+       * Notice
+       * @default Allow microphone audio, typed input and requested farm/planning data (including budget) to be sent to Google Gemini Live for spoken answers. Farmable's backend does not receive or store the direct audio or provider transcripts. Voice-session metadata and this consent receipt remain until account deletion. Text-chat history has its separate 30-day policy. Google retention depends on the operator's account terms. Withdrawing stops new credentials and farm-tool access, but cannot revoke an already-issued direct connection: the app must stop recording/playback and disconnect. The credential expires after at most ten minutes from issuance. Withdrawal cannot recall data already sent. Saved plans require a separate explicit confirmation; saying yes to the voice model cannot save a plan.
+       */
+      notice: string;
+      /**
+       * Notice Version
+       * @default gemini-live-conversation-v1
+       */
+      notice_version: string;
+      /** Withdrawn At */
+      withdrawn_at: string | null;
+    };
+    /** LiveIssued */
+    LiveIssued: {
+      /**
+       * Api Version
+       * @constant
+       */
+      api_version: 'v1beta';
+      /**
+       * Credential
+       * @description Ephemeral secret; keep in memory only.
+       */
+      credential: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Lease Expires At
+       * Format: date-time
+       */
+      lease_expires_at: string;
+      /**
+       * Mode
+       * @enum {string}
+       */
+      mode: 'live' | 'fake';
+      /** Model */
+      model: string;
+      /**
+       * New Session Expires At
+       * Format: date-time
+       */
+      new_session_expires_at: string;
+      /** Setup */
+      setup: {
+        [key: string]: unknown;
+      };
+    };
     /** LiveResponse */
     LiveResponse: {
       /** Sha */
@@ -1095,6 +1823,61 @@ export interface components {
        * Format: date-time
        */
       new_session_expires_at: string;
+    };
+    /** LiveStart */
+    LiveStart: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+    };
+    /** LiveState */
+    LiveState: {
+      /** Disconnect Required */
+      disconnect_required: boolean;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * State
+       * @enum {string}
+       */
+      state: 'issuing' | 'active' | 'interrupted' | 'failed' | 'expired';
+      /** Tool Count */
+      tool_count: number;
+    };
+    /** LiveToolCall */
+    LiveToolCall: {
+      /** Args */
+      args: {
+        [key: string]: unknown;
+      };
+      /** Id */
+      id: string;
+      /**
+       * Name
+       * @enum {string}
+       */
+      name: 'list_sections' | 'get_crop_outlook' | 'preview_planting_plan';
+    };
+    /** LiveToolResult */
+    LiveToolResult: {
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Response */
+      response: {
+        [key: string]: unknown;
+      };
     };
     /** LoginRequest */
     LoginRequest: {
@@ -1389,6 +2172,13 @@ export interface components {
       /** Yield Kg Per Ha */
       yield_kg_per_ha: string;
     };
+    /** Page[DiagnosisView] */
+    Page_DiagnosisView_: {
+      /** Items */
+      items: components['schemas']['DiagnosisView'][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
     /** Page[FarmView] */
     Page_FarmView_: {
       /** Items */
@@ -1445,6 +2235,31 @@ export interface components {
       /** Next Cursor */
       next_cursor: string | null;
     };
+    /** PlanConfirmation */
+    PlanConfirmation: {
+      /** Candidate Id */
+      candidate_id: string;
+      /** Confirmed */
+      confirmed: boolean;
+      /**
+       * Expected Version
+       * @default 0
+       */
+      expected_version: number;
+      /**
+       * Mutation Id
+       * Format: uuid
+       */
+      mutation_id: string;
+      /**
+       * Plan Id
+       * Format: uuid
+       */
+      plan_id: string;
+      request: components['schemas']['PlanRequest-Input'];
+      /** Snapshot Hash */
+      snapshot_hash: string;
+    };
     /**
      * PlanCreate
      * @example {
@@ -1483,6 +2298,149 @@ export interface components {
        * @enum {string}
        */
       status: 'saved' | 'approved' | 'rejected';
+    };
+    /** PlanHistory */
+    PlanHistory: {
+      /** Next Before Version */
+      next_before_version: number | null;
+      /** Revisions */
+      revisions: components['schemas']['PlanHistoryEntry'][];
+    };
+    /** PlanHistoryEntry */
+    PlanHistoryEntry: {
+      /**
+       * Origin
+       * @enum {string}
+       */
+      origin: 'baseline' | 'manual' | 'planner_confirmation';
+      /**
+       * Recorded At
+       * Format: date-time
+       */
+      recorded_at: string;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+      /** Snapshot */
+      snapshot: {
+        [key: string]: unknown;
+      };
+      /** Version */
+      version: number;
+    };
+    /** PlanPreview */
+    PlanPreview: {
+      /** Area M2 */
+      area_m2: string;
+      /** Assumptions */
+      assumptions: string[];
+      /** Candidates */
+      candidates: components['schemas']['Candidate'][];
+      /** Change Needed */
+      change_needed: {
+        [key: string]: unknown;
+      } | null;
+      /** Comparisons */
+      comparisons: components['schemas']['Estimate'][];
+      /** Engine Version */
+      engine_version: string;
+      /** Feasible */
+      feasible: boolean;
+      request: components['schemas']['PlanRequest-Output'];
+      /** Section Version */
+      section_version: number;
+      /** Snapshot Hash */
+      snapshot_hash: string;
+      /** Source */
+      source: {
+        [key: string]: unknown;
+      };
+    };
+    /** PlanRequest */
+    'PlanRequest-Input': {
+      /** Agent Commission Bps */
+      agent_commission_bps: number;
+      /**
+       * Block Count
+       * @default 4
+       */
+      block_count: number;
+      /** Budget Cents */
+      budget_cents: number;
+      /** Cash Deadline */
+      cash_deadline?: string | null;
+      /** Crops */
+      crops: components['schemas']['CropConstraint-Input'][];
+      /** Goal Margin Cents */
+      goal_margin_cents?: number | null;
+      /** Market Commission Bps */
+      market_commission_bps: number;
+      /**
+       * Max Results
+       * @default 3
+       */
+      max_results: number;
+      /**
+       * Money Basis Year
+       * @constant
+       */
+      money_basis_year: 2025;
+      /** Planting Cost Percent */
+      planting_cost_percent: number;
+      /**
+       * Planting Date
+       * Format: date
+       */
+      planting_date: string;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+    };
+    /** PlanRequest */
+    'PlanRequest-Output': {
+      /** Agent Commission Bps */
+      agent_commission_bps: number;
+      /**
+       * Block Count
+       * @default 4
+       */
+      block_count: number;
+      /** Budget Cents */
+      budget_cents: number;
+      /** Cash Deadline */
+      cash_deadline?: string | null;
+      /** Crops */
+      crops: components['schemas']['CropConstraint-Output'][];
+      /** Goal Margin Cents */
+      goal_margin_cents?: number | null;
+      /** Market Commission Bps */
+      market_commission_bps: number;
+      /**
+       * Max Results
+       * @default 3
+       */
+      max_results: number;
+      /**
+       * Money Basis Year
+       * @constant
+       */
+      money_basis_year: 2025;
+      /** Planting Cost Percent */
+      planting_cost_percent: number;
+      /**
+       * Planting Date
+       * Format: date
+       */
+      planting_date: string;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
     };
     /**
      * PlanUpdate
@@ -2220,6 +3178,62 @@ export interface components {
       /** Version */
       version: number;
     };
+    /** TurnCreate */
+    TurnCreate: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Message */
+      message: string;
+    };
+    /** TurnView */
+    TurnView: {
+      /** Content Deleted At */
+      content_deleted_at: string | null;
+      /**
+       * Conversation Id
+       * Format: uuid
+       */
+      conversation_id: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Deadline
+       * Format: date-time
+       */
+      deadline: string;
+      /** Error */
+      error: string | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Message */
+      message: string;
+      /** Reply */
+      reply: string;
+      /** Reserved Micro Usd */
+      reserved_micro_usd: number;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'running' | 'completed' | 'interrupted' | 'failed';
+      /** Tools */
+      tools: {
+        [key: string]: unknown;
+      }[];
+      /** Usage */
+      usage: {
+        [key: string]: number;
+      }[];
+    };
     /** UnavailableWeather */
     UnavailableWeather: {
       /**
@@ -2838,6 +3852,1453 @@ export interface operations {
       };
     };
   };
+  createAssistantConversation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConversationCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConversationView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getAssistantConsent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConsentView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  grantAssistantConsent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConsentGrant'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConsentView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  withdrawAssistantConsent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConsentView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getAssistantLiveConsent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LiveConsentView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  grantAssistantLiveConsent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LiveConsentGrant'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LiveConsentView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  withdrawAssistantLiveConsent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LiveConsentView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  createAssistantLiveSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LiveStart'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LiveIssued'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getAssistantLiveSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LiveState'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  interruptAssistantLiveSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LiveState'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  executeAssistantLiveTool: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LiveToolCall'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LiveToolResult'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getAssistantHistory: {
+    parameters: {
+      query?: {
+        before?: string | null;
+      };
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['History'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  streamAssistantTurn: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TurnCreate'];
+      };
+    };
+    responses: {
+      /** @description accepted, text/tool events, then done/error/interrupted */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/event-stream': string;
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getAssistantTurn: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+        turn_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TurnView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  interruptAssistantTurn: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+        turn_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TurnView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
   authLogin: {
     parameters: {
       query?: never;
@@ -3294,6 +5755,89 @@ export interface operations {
       };
     };
   };
+  diagnosisNotice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DiagnosisNotice'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
   listFarms: {
     parameters: {
       query?: {
@@ -3462,6 +6006,266 @@ export interface operations {
       429: {
         headers: {
           'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  listDiagnoses: {
+    parameters: {
+      query?: {
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Page_DiagnosisView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getDiagnosis: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        diagnosis_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DiagnosisView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  cancelDiagnosis: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        diagnosis_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DiagnosisView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
           [name: string]: unknown;
         };
         content: {
@@ -5370,6 +8174,303 @@ export interface operations {
       };
     };
   };
+  confirmPlantingPlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanConfirmation'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConfirmedPlan'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getPlantingPlanHistory: {
+    parameters: {
+      query?: {
+        before_version?: number | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+        plan_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlanHistory'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  previewPlantingPlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanRequest-Input'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PlanPreview'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
   listPlans: {
     parameters: {
       query?: {
@@ -6825,6 +9926,96 @@ export interface operations {
       429: {
         headers: {
           'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  submitDiagnosis: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        section_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DiagnosisCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DiagnosisView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
           [name: string]: unknown;
         };
         content: {

@@ -26,12 +26,21 @@ from farmable_backend.account_schemas import (
     ProfileResponse,
     ProfileUpdate,
 )
+from farmable_backend.assistant.retention import visible
 from farmable_backend.auth import PASSWORD_HASHER
 from farmable_backend.models import (
     DEFAULT_ACCOUNT_LANGUAGE,
     AccountProfile,
+    AssistantConsent,
+    AssistantConversation,
+    AssistantLiveConsent,
+    AssistantLiveSession,
+    AssistantModelCall,
+    AssistantTurn,
+    AssistantTurnCost,
     AuthIdentity,
     AuthSession,
+    CropDiagnosis,
     Farm,
     FarmTask,
     FinancialRecord,
@@ -39,6 +48,7 @@ from farmable_backend.models import (
     Observation,
     PhotoAttempt,
     PhotoUpload,
+    PlanRevision,
     Planting,
     SavedPlan,
     Section,
@@ -46,7 +56,7 @@ from farmable_backend.models import (
     User,
     VerificationChallenge,
 )
-from farmable_backend.record_access import ApiError, authenticate
+from farmable_backend.record_access import ApiError, authenticate, db_now
 
 EXPORT_SCHEMA_VERSION = 1
 EXPORT_BASENAME = "farmable-export"
@@ -173,6 +183,40 @@ class AccountService:
                     select(model).where(model.owner_id == owner).order_by(model.id)
                 ).all()
                 document[name] = [_row(row) for row in rows]
+            # Plan history and assistant content are personal data too. Account
+            # erasure explicitly deletes plan history and cascades assistant rows.
+            for name, model in (
+                ("plan_revisions", PlanRevision),
+                ("crop_diagnoses", CropDiagnosis),
+                ("assistant_conversations", AssistantConversation),
+                ("assistant_consents", AssistantConsent),
+                ("assistant_live_consents", AssistantLiveConsent),
+                ("assistant_live_sessions", AssistantLiveSession),
+                ("assistant_turns", AssistantTurn),
+            ):
+                query = select(model).where(model.owner_id == owner).order_by(model.id)
+                if model is AssistantTurn:
+                    query = query.where(*visible(db_now(session)))
+                rows = session.scalars(query).all()
+                document[name] = [_row(row) for row in rows]
+            calls = session.scalars(
+                select(AssistantModelCall)
+                .join(AssistantTurn)
+                .where(
+                    AssistantTurn.owner_id == owner,
+                )
+                .order_by(AssistantModelCall.id)
+            ).all()
+            document["assistant_model_calls"] = [_row(row) for row in calls]
+            costs = session.scalars(
+                select(AssistantTurnCost)
+                .join(AssistantTurn)
+                .where(
+                    AssistantTurn.owner_id == owner,
+                )
+                .order_by(AssistantTurnCost.id)
+            ).all()
+            document["assistant_turn_costs"] = [_row(row) for row in costs]
             return document
 
     def logout(self, authorization: str | None) -> None:
@@ -205,6 +249,13 @@ class AccountService:
             if not _verify_password(identity.password_hash, password):
                 raise ApiError(401, "invalid_credentials")
             now = datetime.now(UTC)
+            # Serialize erasure with plan confirmation/sync writes so a request
+            # admitted just before deletion cannot restore an archived version.
+            session.scalars(
+                select(Farm).where(Farm.owner_id == owner).order_by(Farm.id).with_for_update()
+            ).all()
+            session.execute(delete(PlanRevision).where(PlanRevision.owner_id == owner))
+            session.execute(delete(CropDiagnosis).where(CropDiagnosis.owner_id == owner))
             # Deliberate deviation from the tombstone contract that
             # farm_records.tombstone_* follows (deleted_at + version bump +
             # sync_state="pending" + a SyncChange row). That contract exists to

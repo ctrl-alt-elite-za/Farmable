@@ -609,6 +609,7 @@ version = "0.1.0"
 source = { editable = "apps/backend" }
 dependencies = [
     { name = "alembic" },
+    { name = "anyio" },
     { name = "argon2-cffi" },
     { name = "boto3" },
     { name = "email-validator" },
@@ -627,6 +628,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.14,<2" },
+    { name = "anyio", specifier = ">=4.8,<5" },
     { name = "argon2-cffi", specifier = ">=23.1,<24" },
     { name = "boto3", specifier = ">=1.35,<2" },
     { name = "email-validator", specifier = ">=2.2,<3" },
