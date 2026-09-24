@@ -200,9 +200,7 @@ def test_infobip_rejects_unaccepted_or_malformed_sms_results(payload):
             return httpx.Response(200, json=payload)
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            registry = ServiceRegistry(
-                ServiceSettings(environment="ci", integrations_mode="fake")
-            )
+            registry = ServiceRegistry(ServiceSettings(environment="ci", integrations_mode="fake"))
             await registry.client.aclose()
             registry.client = client
             registry.infobip.client = client
