@@ -72,6 +72,33 @@ reported as a conflict instead of being silently erased. The
 server keeps the tombstone in the change feed, rejects resurrection, and makes
 retries safe.
 
+Section deletion also commits a `section_deletions` job (migration `0027`)
+in that same transaction. The worker's janitor runs even without a configured
+photo bucket, so sections without files can finish erasure. It discovers old
+section tombstones without jobs in bounded batches after an upgrade.
+
+The job waits for the existing one-hour photo safety window, signed-form
+expiry and outstanding leases; waiting does not consume a retry. After exact
+object cleanup, it removes plantings, observations, tasks, financial records,
+plans and revisions, every diagnosis state, and upload/attempt manifests.
+Media tombstones are detached from the section and stripped of storage keys
+so another observation's foreign key remains valid. Section tombstones and
+content-free sync receipts remain for offline reconciliation. Purged record
+IDs cannot be reused by a new mutation.
+
+Storage/database failures and expired worker claims allow an initial attempt
+plus three retries, with 10/60/300-second backoff. A terminal `failed` job keeps
+its remaining cleanup manifests and never claims completion. Operators must
+inspect `section_deletions.status`, `failures` and `error_code`; missing legacy
+object manifests or unavailable storage need repair before an explicitly
+authorized retry. Do not erase manifests, bypass the safety window or reset
+the retry budget automatically. Partial generation-list pages are resumed as
+successful bounded progress rather than counted as failures.
+
+Section-bound writes use parent-first farm/section locks and revalidate an
+active parent before creating or moving a child. PostgreSQL race tests cover
+both creates and moves concurrent with deletion, plus competing cleanup workers.
+
 `GET /farms/{farm_id}/sections/{id}` returns the mobile summary: section,
 current planting, current plan, latest health status, observations, tasks, and
 financial totals. Boundaries remain optional so mapping can add them later.

@@ -36,3 +36,13 @@ def test_crop_catalogue_migration_seeds_the_expected_crops():
     for code in ("cabbage", "spinach", "tomato", "potato", "onion", "carrot"):
         assert f"'{code}'" in sql
     assert "INSERT INTO crop_calendars" not in sql
+
+
+def test_section_deletion_migration_is_additive_and_matches_models():
+    output = io.StringIO()
+    command.upgrade(Config("alembic.ini", output_buffer=output), "0026:0027", sql=True)
+    sql = output.getvalue()
+    assert "ALTER TABLE" not in sql and "DROP TABLE" not in sql
+    table = "section_deletions"
+    assert _table_elements(sql, table) == _table_elements(_orm_sql(table), table)
+    assert _index_statements(sql, table) == _index_statements(_orm_sql(table), table)

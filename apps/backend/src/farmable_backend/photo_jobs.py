@@ -7,7 +7,15 @@ from uuid import UUID, uuid4
 from sqlalchemy import or_, select
 
 from farmable_backend.gcs_photos import clean_key
-from farmable_backend.models import Farm, Media, PhotoAttempt, PhotoUpload, Section, SyncChange
+from farmable_backend.models import (
+    Farm,
+    Media,
+    PhotoAttempt,
+    PhotoUpload,
+    Section,
+    SectionDeletion,
+    SyncChange,
+)
 from farmable_backend.photo_policy import MAX_CLAIMS, RETRY_DELAYS
 from farmable_backend.record_access import ApiError, db_now, utc
 from farmable_backend.records_service import current_attempt
@@ -209,6 +217,11 @@ class PhotoJobs:
                     .join(PhotoAttempt, PhotoAttempt.upload_id == PhotoUpload.id)
                     .where(
                         PhotoAttempt.cleaned_at.is_(None),
+                        ~select(SectionDeletion.section_id)
+                        .where(
+                            SectionDeletion.section_id == PhotoUpload.section_id,
+                        )
+                        .exists(),
                         or_(
                             PhotoAttempt.terminal_at <= now - timedelta(hours=1),
                             (PhotoUpload.state == "awaiting_upload")
@@ -222,6 +235,8 @@ class PhotoJobs:
 
     def cleanup_claim(self, upload_id, attempt_id):
         with self.locked(upload_id) as (session, upload, _farm, _section):
+            if session.get(SectionDeletion, upload.section_id) is not None:
+                return None  # Section job owns the bounded retry budget and final erasure.
             attempt = session.scalar(
                 select(PhotoAttempt)
                 .where(PhotoAttempt.id == attempt_id, PhotoAttempt.upload_id == upload_id)

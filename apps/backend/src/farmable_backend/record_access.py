@@ -49,7 +49,9 @@ def authenticate(session: Session, authorization: str | None) -> UUID:
 
 def farm_scope(session: Session, owner: UUID, farm: UUID, *, lock: bool = False) -> Farm:
     query = select(Farm).where(Farm.id == farm, Farm.owner_id == owner, Farm.deleted_at.is_(None))
-    record = session.scalar(query.with_for_update() if lock else query)
+    record = session.scalar(
+        query.with_for_update().execution_options(populate_existing=True) if lock else query
+    )
     if record is None:
         raise ApiError(404, "not_found")
     return record
@@ -64,7 +66,9 @@ def section_scope(
         Section.farm_id == farm,
         Section.deleted_at.is_(None),
     )
-    record = session.scalar(query.with_for_update() if lock else query)
+    record = session.scalar(
+        query.with_for_update().execution_options(populate_existing=True) if lock else query
+    )
     if record is None:
         raise ApiError(404, "not_found")
     return record

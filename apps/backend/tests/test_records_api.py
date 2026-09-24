@@ -24,6 +24,7 @@ from farmable_backend.models import (
     PhotoAttempt,
     PhotoUpload,
     Section,
+    SectionDeletion,
     SyncChange,
     SyncMutation,
     User,
@@ -442,6 +443,10 @@ def test_section_delete_requeues_all_photo_objects_for_cleanup(records, monkeypa
             "farmable_backend.photo_jobs.db_now",
             lambda _: datetime.now(UTC) + timedelta(hours=2),
         )
+        monkeypatch.setattr(
+            "farmable_backend.record_access.db_now",
+            lambda _: datetime.now(UTC) + timedelta(hours=2),
+        )
         worker.clean_batch()
     finally:
         worker.executor.shutdown()
@@ -454,6 +459,7 @@ def test_deleted_section_cleans_upload_arriving_before_real_form_expiry(records,
     now = utc(attempt.form_expires_at) - timedelta(minutes=1)
     monkeypatch.setattr("farmable_backend.sync_records.db_now", lambda _: now)
     monkeypatch.setattr("farmable_backend.photo_jobs.db_now", lambda _: now)
+    monkeypatch.setattr("farmable_backend.record_access.db_now", lambda _: now)
     response = records.client.post(
         f"/farms/{records.ids.farm}/sections/{records.ids.section}/delete",
         json={"mutation_id": str(uuid4()), "expected_version": 1},
@@ -464,6 +470,10 @@ def test_deleted_section_cleans_upload_arriving_before_real_form_expiry(records,
         # A janitor pass before the client uses its already-issued form must
         # not retire the only durable cleanup intent.
         worker.clean_batch()
+        with records.sessions() as session:
+            saved = session.get(PhotoAttempt, attempt.id)
+            assert utc(saved.form_expires_at) == utc(attempt.form_expires_at)
+            assert saved.cleaned_at is None
         records.storage.incoming[attempt.id] = records.storage.data
         now += timedelta(hours=2)
         worker.clean_batch()
@@ -471,9 +481,9 @@ def test_deleted_section_cleans_upload_arriving_before_real_form_expiry(records,
         worker.executor.shutdown()
     assert not records.storage.incoming
     with records.sessions() as session:
-        saved = session.get(PhotoAttempt, attempt.id)
-        assert utc(saved.form_expires_at) == utc(attempt.form_expires_at)
-        assert saved.cleaned_at is not None
+        assert session.get(PhotoAttempt, attempt.id) is None
+        assert session.get(PhotoUpload, upload.id) is None
+        assert session.get(SectionDeletion, records.ids.section).status == "complete"
 
 
 @pytest.mark.parametrize("lost_response", [False, True])
@@ -485,6 +495,7 @@ def test_delete_during_publication_keeps_cleanup_pending(records, monkeypatch, l
     now = datetime.now(UTC)
     monkeypatch.setattr("farmable_backend.sync_records.db_now", lambda _: now)
     monkeypatch.setattr("farmable_backend.photo_jobs.db_now", lambda _: now)
+    monkeypatch.setattr("farmable_backend.record_access.db_now", lambda _: now)
     publish = records.storage.publish
 
     def publish_after_delete(upload, current_attempt, clean):
@@ -503,6 +514,11 @@ def test_delete_during_publication_keeps_cleanup_pending(records, monkeypatch, l
     try:
         worker.process(*claimed)
         worker.clean_batch()
+        with records.sessions() as session:
+            saved = session.get(PhotoAttempt, attempt.id)
+            assert utc(saved.form_expires_at) == utc(attempt.form_expires_at)
+            assert utc(saved.lease_expires_at) == utc(claimed[1].lease_expires_at)
+            assert saved.cleaned_at is None
         # The original form is still valid even if best-effort cleanup removed
         # the clean object. A later client POST must also be collected.
         records.storage.incoming[attempt.id] = records.storage.data
@@ -513,10 +529,9 @@ def test_delete_during_publication_keeps_cleanup_pending(records, monkeypatch, l
     assert not records.storage.incoming
     assert not records.storage.published
     with records.sessions() as session:
-        saved = session.get(PhotoAttempt, attempt.id)
-        assert utc(saved.form_expires_at) == utc(attempt.form_expires_at)
-        assert utc(saved.lease_expires_at) == utc(claimed[1].lease_expires_at)
-        assert saved.cleaned_at is not None
+        assert session.get(PhotoAttempt, attempt.id) is None
+        assert session.get(PhotoUpload, upload.id) is None
+        assert session.get(SectionDeletion, records.ids.section).status == "complete"
         assert session.scalar(select(func.count()).select_from(Media)) == 0
 
 

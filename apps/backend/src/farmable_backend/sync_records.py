@@ -25,12 +25,13 @@ from farmable_backend.models import (
     PlantingCrop,
     SavedPlan,
     Section,
+    SectionDeletion,
     SectionKind,
     SyncChange,
     SyncMutation,
 )
 from farmable_backend.planning.history import preserve
-from farmable_backend.record_access import ApiError, db_now, section_scope
+from farmable_backend.record_access import ApiError, db_now, farm_scope, section_scope
 from farmable_backend.weather_jobs import enqueue_weather
 
 # Security criterion (#11): reject planting dates further than two years from
@@ -126,7 +127,9 @@ class SyncRecordRepository:
             model.owner_id == self.owner_id,
             model.farm_id == self.farm_id,
         )
-        return self.session.scalar(query.with_for_update() if lock else query)
+        return self.session.scalar(
+            query.with_for_update().execution_options(populate_existing=True) if lock else query
+        )
 
     def _replay(
         self,
@@ -161,11 +164,23 @@ class SyncRecordRepository:
         return record
 
     def _create(self, kind: RecordKind, record_id: UUID, values: dict[str, Any]) -> Any:
-        if self._load(kind, record_id) is not None:
+        if (
+            self._load(kind, record_id) is not None
+            or self.session.scalar(
+                select(SyncChange.id)
+                .where(
+                    SyncChange.record_id == record_id,
+                    SyncChange.record_type == kind.record_type,
+                    SyncChange.operation == "delete",
+                )
+                .limit(1)
+            )
+            is not None
+        ):
             raise ApiError(409, "record_exists")
         section_id = values.get("section_id")
         if kind.section == "required" or (kind.section == "optional" and section_id is not None):
-            section_scope(self.session, self.owner_id, self.farm_id, section_id)
+            section_scope(self.session, self.owner_id, self.farm_id, section_id, lock=True)
         section_kind = values.pop("kind", None) if kind.resource == "sections" else None
         crop_type_code = (
             values.pop("crop_type_code", None) if kind.resource == "plantings" else None
@@ -225,6 +240,11 @@ class SyncRecordRepository:
     ) -> Any:
         if operation == "create":
             return self._create(kind, record_id, values)
+        before = self._load(kind, record_id)
+        if before is not None and kind.section != "none":
+            sections = {getattr(before, "section_id", None), values.get("section_id")}
+            for section_id in sorted(value for value in sections if value is not None):
+                section_scope(self.session, self.owner_id, self.farm_id, section_id, lock=True)
         record = self._load(kind, record_id, lock=True)
         if record is None:
             raise ApiError(404, "not_found")
@@ -248,7 +268,7 @@ class SyncRecordRepository:
             raise ApiError(409, "revision_conflict")
         section_id = values.get("section_id")
         if section_id is not None:
-            section_scope(self.session, self.owner_id, self.farm_id, section_id)
+            section_scope(self.session, self.owner_id, self.farm_id, section_id, lock=True)
         section_kind = values.pop("kind", None) if kind.resource == "sections" else None
         crop_type_code = (
             values.pop("crop_type_code", None) if kind.resource == "plantings" else None
@@ -386,11 +406,23 @@ class SyncRecordRepository:
                 attempt.cleanup_token = None
                 attempt.cleanup_expires_at = None
                 attempt.cleaned_at = None
+        if self.session.get(SectionDeletion, section_id) is None:
+            self.session.add(
+                SectionDeletion(
+                    section_id=section_id,
+                    owner_id=self.owner_id,
+                    farm_id=self.farm_id,
+                    next_attempt_at=now,
+                )
+            )
         self.session.flush()
 
     def apply(self, *, resource: str, operation: str, record_id: UUID | None, payload: Any) -> Any:
         """Return the replayed record, or write one record and one change row."""
         kind = KINDS[resource]
+        # Repository users must preserve the same parent-first lock order and
+        # cursor serialization as HTTP callers, including creates and moves.
+        farm_scope(self.session, self.owner_id, self.farm_id, lock=True)
         target = record_id if record_id is not None else payload.id
         expected_version = getattr(payload, "expected_version", None)
         values = payload.model_dump(exclude={"mutation_id", "expected_version", "id"})

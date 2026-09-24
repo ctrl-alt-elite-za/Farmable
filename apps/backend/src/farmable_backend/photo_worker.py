@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from farmable_backend.photo_jobs import PhotoJobs
 from farmable_backend.photo_policy import TRANSIENT_ERRORS
 from farmable_backend.record_access import ApiError
+from farmable_backend.section_deletion import SectionDeletionJobs
 from farmable_backend.uploads import UploadError, sanitize_photo
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,7 @@ class PhotoWorker:
     def clean_batch(self):
         if self.stop.is_set():
             return
+        SectionDeletionJobs(self.jobs.sessions).clean_batch(self.get_storage, self.stop.is_set)
         for upload_id, attempt_id in self.jobs.cleanup_candidates():
             if self.stop.is_set():
                 break
@@ -139,9 +141,12 @@ class PhotoWorker:
                 logger.error("Photo cleanup scan unavailable")
             await self.pause(60)
 
-    async def run(self):
+    async def run(self, *, cleanup_only=False):
         try:
-            await asyncio.gather(self.slot(), self.slot(), self.janitor())
+            if cleanup_only:
+                await self.janitor()
+            else:
+                await asyncio.gather(self.slot(), self.slot(), self.janitor())
         finally:
             await asyncio.to_thread(self.executor.shutdown, wait=True, cancel_futures=True)
             if self.storage is not None:

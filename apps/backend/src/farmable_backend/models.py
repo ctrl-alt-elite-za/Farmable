@@ -709,6 +709,33 @@ class SectionKind(Base):
     kind: Mapped[str] = mapped_column(Text, default="crop", server_default="crop")
 
 
+class SectionDeletion(Base):
+    """Durable erasure intent; failures include expired worker claims."""
+
+    __tablename__ = "section_deletions"
+    __table_args__ = (
+        _farm_owner_fk("section_deletions"),
+        _section_owner_fk("section_deletions"),
+        CheckConstraint(
+            column("status").in_(("pending", "processing", "complete", "failed")),
+            name="ck_section_deletions_status",
+        ),
+        CheckConstraint(column("failures").between(0, 4), name="ck_section_deletions_failures"),
+        Index("ix_section_deletions_due", "status", "next_attempt_at"),
+    )
+
+    section_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    status: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
+    failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(Text)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Planting(Base):
     __tablename__ = "plantings"
     __table_args__ = (
