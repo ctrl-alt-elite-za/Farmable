@@ -318,22 +318,17 @@ def test_idempotency_key_replays_the_original_signup_response(settings):
 
 def test_signup_ambiguous_delivery_persists_challenge_and_replays_without_resend(settings):
     provider = AmbiguousOtpProvider()
-    app, _, provider, sessions = _app(settings, provider)
+    app, _, provider, _ = _app(settings, provider)
     with TestClient(app) as client:
         key = _idempotency_key("signup-ambiguous")
         first = _signup_request(client, key=key)
         replay = _signup_request(client, key=key)
         assert first.status_code == replay.status_code == 503
         assert first.json()["error"]["code"] == "delivery_unknown"
+        user_id = first.json()["error"]["user_id"]
         assert replay.json() == first.json()
-        with sessions() as session:
-            user_id = session.scalar(select(AuthIdentity.id))
-            assert user_id is not None
-            assert session.scalar(
-                select(VerificationChallenge).where(VerificationChallenge.user_id == user_id)
-            )
         verified = client.post(
-            "/auth/verify/phone", json={"user_id": str(user_id), "code": "111111"}
+            "/auth/verify/phone", json={"user_id": user_id, "code": "111111"}
         )
         assert verified.status_code == 200
     assert provider.deliveries == 2

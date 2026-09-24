@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from contextvars import copy_context
 from functools import partial
 from http import HTTPStatus
+from uuid import UUID
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -228,7 +229,11 @@ def create_app(
         }
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
         return error_response(
-            exc.status_code, exc.code, messages.get(exc.code, "Request failed"), headers=headers
+            exc.status_code,
+            exc.code,
+            messages.get(exc.code, "Request failed"),
+            user_id=str(exc.user_id) if exc.user_id is not None else None,
+            headers=headers,
         )
 
     def auth(request: Request):
@@ -342,7 +347,10 @@ def create_app(
             if status >= 400:
                 error = response_body.get("error", {})
                 raise AuthError(
-                    error.get("code", "request_failed"), status, error.get("retry_after")
+                    error.get("code", "request_failed"),
+                    status,
+                    error.get("retry_after"),
+                    user_id=UUID(error["user_id"]) if error.get("user_id") else None,
                 )
             return AuthProgressResponse(**response_body)
         try:
@@ -372,7 +380,13 @@ def create_app(
                     "auth_signup",
                     body,
                     exc.status_code,
-                    {"error": {"code": exc.code, "retry_after": exc.retry_after}},
+                    {
+                        "error": {
+                            "code": exc.code,
+                            "retry_after": exc.retry_after,
+                            "user_id": str(exc.user_id) if exc.user_id is not None else None,
+                        }
+                    },
                     scope=client_ip(request),
                 )
             else:

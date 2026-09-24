@@ -14,6 +14,7 @@ class StrictModel(BaseModel):
 class Error(StrictModel):
     code: str
     message: str
+    user_id: UUID | None = None
 
 
 class ErrorResponse(StrictModel):

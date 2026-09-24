@@ -101,10 +101,17 @@ def check_sms_limits(sessions: sessionmaker[Session], *, ip: str, phone: str) ->
 
 
 class AuthError(Exception):
-    def __init__(self, code: str, status_code: int = 400, retry_after: int | None = None):
+    def __init__(
+        self,
+        code: str,
+        status_code: int = 400,
+        retry_after: int | None = None,
+        user_id: UUID | None = None,
+    ):
         self.code = code
         self.status_code = status_code
         self.retry_after = retry_after
+        self.user_id = user_id
         super().__init__(code)
 
 
@@ -403,7 +410,12 @@ class AuthService:
             failure = self._send(session, user, Channel.PHONE)
             result = _user(user)
         if failure is not None:
-            raise failure
+            raise AuthError(
+                failure.code,
+                failure.status_code,
+                failure.retry_after,
+                user_id=user.id,
+            )
         return result
 
     def _notify_collision(self, existing: AuthIdentity, email: str, phone: str) -> None:
