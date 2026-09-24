@@ -385,6 +385,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/diagnoses/notice': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Notice */
+    get: operations['diagnosisNotice'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/farms': {
     parameters: {
       query?: never;
@@ -413,6 +430,57 @@ export interface paths {
     get: operations['listChanges'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/diagnoses': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Listing */
+    get: operations['listDiagnoses'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/diagnoses/{diagnosis_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get */
+    get: operations['getDiagnosis'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/farms/{farm_id}/diagnoses/{diagnosis_id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cancel */
+    post: operations['cancelDiagnosis'];
     delete?: never;
     options?: never;
     head?: never;
@@ -856,6 +924,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/farms/{farm_id}/sections/{section_id}/diagnoses': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Submit */
+    post: operations['submitDiagnosis'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/farms/{farm_id}/tasks': {
     parameters: {
       query?: never;
@@ -1269,6 +1354,129 @@ export interface components {
     DeleteAccountRequest: {
       /** Password */
       password: string;
+    };
+    /** DiagnosisCreate */
+    DiagnosisCreate: {
+      /**
+       * Consent Notice Version
+       * @constant
+       */
+      consent_notice_version: 'crop-health-v1';
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Media Id
+       * Format: uuid
+       */
+      media_id: string;
+      /**
+       * Planting Id
+       * Format: uuid
+       */
+      planting_id: string;
+    };
+    /** DiagnosisNotice */
+    DiagnosisNotice: {
+      /**
+       * Text
+       * @default Submit this focus photo to Kindwise crop.health for suggested crop-health results. Only the cleaned photo is sent, not your name, location, or farm records. Results are suggestions, not a confirmed diagnosis or treatment prescription. Cancelling stops queued work and hides results but cannot erase a photo already sent to the provider. Results remain with your farm until cancelled or your account is deleted.
+       */
+      text: string;
+      /**
+       * Version
+       * @default crop-health-v1
+       */
+      version: string;
+    };
+    /** DiagnosisResult */
+    DiagnosisResult: {
+      crop: components['schemas']['DiagnosisSuggestion'];
+      /**
+       * Data Kind
+       * @enum {string}
+       */
+      data_kind: 'synthetic' | 'provider';
+      /**
+       * Provider
+       * @default crop.health
+       * @constant
+       */
+      provider: 'crop.health';
+      /**
+       * Schema Version
+       * @default 1
+       * @constant
+       */
+      schema_version: 1;
+      /** Suggestions */
+      suggestions: components['schemas']['DiagnosisSuggestion'][];
+      /**
+       * Warning
+       * @default Provider suggestions only; not a confirmed diagnosis or treatment prescription.
+       */
+      warning: string;
+    };
+    /** DiagnosisSuggestion */
+    DiagnosisSuggestion: {
+      /** Name */
+      name: string;
+      /** Probability */
+      probability: number;
+    };
+    /** DiagnosisView */
+    DiagnosisView: {
+      /** Consent Notice Version */
+      consent_notice_version: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Crop */
+      crop: string;
+      /** Error */
+      error: string | null;
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Media Id
+       * Format: uuid
+       */
+      media_id: string;
+      /**
+       * Planting Id
+       * Format: uuid
+       */
+      planting_id: string;
+      result: components['schemas']['DiagnosisResult'] | null;
+      /**
+       * Section Id
+       * Format: uuid
+       */
+      section_id: string;
+      /**
+       * State
+       * @enum {string}
+       */
+      state: 'queued' | 'processing' | 'ready' | 'unavailable' | 'cancelled';
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Withdrawn At */
+      withdrawn_at: string | null;
     };
     /** Error */
     Error: {
@@ -1963,6 +2171,13 @@ export interface components {
         components['schemas']['AvailableWeather'] | components['schemas']['UnavailableWeather'];
       /** Yield Kg Per Ha */
       yield_kg_per_ha: string;
+    };
+    /** Page[DiagnosisView] */
+    Page_DiagnosisView_: {
+      /** Items */
+      items: components['schemas']['DiagnosisView'][];
+      /** Next Cursor */
+      next_cursor: string | null;
     };
     /** Page[FarmView] */
     Page_FarmView_: {
@@ -5540,6 +5755,89 @@ export interface operations {
       };
     };
   };
+  diagnosisNotice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DiagnosisNotice'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
   listFarms: {
     parameters: {
       query?: {
@@ -5708,6 +6006,266 @@ export interface operations {
       429: {
         headers: {
           'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  listDiagnoses: {
+    parameters: {
+      query?: {
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        farm_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Page_DiagnosisView_'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getDiagnosis: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        diagnosis_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DiagnosisView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  cancelDiagnosis: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        diagnosis_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DiagnosisView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
           [name: string]: unknown;
         };
         content: {
@@ -9368,6 +9926,96 @@ export interface operations {
       429: {
         headers: {
           'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  submitDiagnosis: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        farm_id: string;
+        section_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DiagnosisCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DiagnosisView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
           [name: string]: unknown;
         };
         content: {

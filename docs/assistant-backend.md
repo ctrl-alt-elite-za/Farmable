@@ -31,16 +31,16 @@ fallback or usage limits satisfy backend acceptance. The existing direct Live
 connection cannot be forcibly revoked by the backend; see the voice contract's
 limits. No Azure-equivalence or completed voice-journey claim is made.
 
-| Requirement                                                           | Evidence in this repository                                                                                                                     | Remaining acceptance                                                                                                                                                 |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Per-service adapters, retries and circuit breakers                    | `integrations/registry.py`, individual service modules and `base.py`; `test_integrations.py` checks retry and circuit behavior                  | Real-provider verification; Azure REST request bounds are not the required SDK silence behavior                                                                      |
-| Success/error/slow fakes and staging-only fault flags                 | `integrations/fakes.py`, `settings.py`; parametrized fake, timeout and fault tests in `test_integrations.py`                                    | Recorded real-response comparison and consumer-level degradation checks; current fixtures are synthetic                                                              |
-| Smoke command, crop coverage, credentials/cost/fallback documentation | `integrations/smoke.py`, `make smoke`, `docs/services.md`, `docs/provider-verification.md`                                                      | Authorized real staging runs, account/security settings and crop-coverage evidence; a command existing is not a PASS                                                 |
-| Twilio confined to integrations                                       | `integrations/twilio.py`; static source regression in `test_integrations.py` checks SDK imports and literal provider hosts outside the boundary | Continue enforcing this boundary; the check is not a sandbox against dynamically constructed imports/URLs                                                            |
-| Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only planning previews, explicit confirmation API and stale-plan checks                                                    | Frontend confirmation journey, production input acceptance and real-model grounded action verification                                                               |
-| Voice and crop diagnosis                                              | Gemini Live handoff plus conversation-scoped voice consent, read tools and durable session interruption                                         | Selected Gemini device-audio/language acceptance and playback interruption, queued farm-scoped diagnosis; Azure-specific criteria are not claimed as implemented     |
-| Accounting, evaluation and privacy                                    | Bounded admission reservations, synthetic regressions, owner export/deletion, conversation consent/revocation and 30-day chat-content expiry    | Actual priced settlement, system-spend acceptance, calibrated/adversarial evaluations, provider/backup retention review, consent UI and appropriate provider caching |
-| Deployment and full journey                                           | Existing CI checks; no live activation in this PR                                                                                               | Approved configuration, real-provider contracts, physical-device and deployed end-to-end evidence                                                                    |
+| Requirement                                                           | Evidence in this repository                                                                                                                           | Remaining acceptance                                                                                                                                                 |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Per-service adapters, retries and circuit breakers                    | `integrations/registry.py`, individual service modules and `base.py`; `test_integrations.py` checks retry and circuit behavior                        | Real-provider verification; Azure REST request bounds are not the required SDK silence behavior                                                                      |
+| Success/error/slow fakes and staging-only fault flags                 | `integrations/fakes.py`, `settings.py`; parametrized fake, timeout and fault tests in `test_integrations.py`                                          | Recorded real-response comparison and consumer-level degradation checks; current fixtures are synthetic                                                              |
+| Smoke command, crop coverage, credentials/cost/fallback documentation | `integrations/smoke.py`, `make smoke`, `docs/services.md`, `docs/provider-verification.md`                                                            | Authorized real staging runs, account/security settings and crop-coverage evidence; a command existing is not a PASS                                                 |
+| Twilio confined to integrations                                       | `integrations/twilio.py`; static source regression in `test_integrations.py` checks SDK imports and literal provider hosts outside the boundary       | Continue enforcing this boundary; the check is not a sandbox against dynamically constructed imports/URLs                                                            |
+| Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only planning previews, explicit confirmation API and stale-plan checks                                                          | Frontend confirmation journey, production input acceptance and real-model grounded action verification                                                               |
+| Voice and crop diagnosis                                              | Gemini Live handoff plus conversation-scoped voice consent, read tools and durable session interruption; consented, queued farm-scoped crop diagnosis | Selected Gemini device-audio/language acceptance and playback interruption; live crop coverage/accuracy; Azure-specific criteria are not claimed as implemented      |
+| Accounting, evaluation and privacy                                    | Bounded admission reservations, synthetic regressions, owner export/deletion, conversation consent/revocation and 30-day chat-content expiry          | Actual priced settlement, system-spend acceptance, calibrated/adversarial evaluations, provider/backup retention review, consent UI and appropriate provider caching |
+| Deployment and full journey                                           | Existing CI checks; no live activation in this PR                                                                                                     | Approved configuration, real-provider contracts, physical-device and deployed end-to-end evidence                                                                    |
 
 Keep #7 open and this PR explicitly partial. Do not substitute the synthetic
 evaluation command, the demo planner or a green CI run for these missing criteria.
@@ -128,6 +128,12 @@ rechecks the snapshot and saved-plan version, then atomically saves through the
 existing sync ledger. It is never exposed as a model tool. See
 [production-planning.md](production-planning.md) for the full contract, monetary
 basis, calendar bounds, uncertainty and remaining production acceptance.
+
+Explicit focus-photo submissions now have a separate authenticated, durable
+diagnosis queue using the existing crop.health adapter. This is not a model tool:
+only the user's explicit submission grants provider permission. See
+[crop-diagnosis.md](crop-diagnosis.md) for polling, cancellation, storage integrity,
+failure handling, supported crops and deployment requirements. UI work is unchanged.
 
 ## Bounded execution and cancellation
 
@@ -255,8 +261,8 @@ cleanup before allowing direct access to restored content. Review the chosen
 Google account's retention terms before making any upstream deletion promise.
 
 Still required for backend #7: the selected voice path's speech/language,
-fallback and interruption/replacement-turn acceptance; queued, farm-scoped crop
-diagnosis with consumer-level failure handling; provider context caching where
+fallback and interruption/replacement-turn acceptance; live crop-diagnosis
+coverage/accuracy acceptance; provider context caching where
 appropriate; actual model-priced usage settlement and reconciled system spending;
 calibrated/adversarial model-quality evaluations; real-response contracts and
 authorized provider/manual checks in [services.md](services.md). Green synthetic

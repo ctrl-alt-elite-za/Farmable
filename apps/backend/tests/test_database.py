@@ -21,6 +21,7 @@ def test_only_owned_application_tables_are_registered():
         "assistant_turns",
         "assistant_budget",
         "plan_revisions",
+        "crop_diagnoses",
         "detector_models",
         "weight_formulas",
         "users",

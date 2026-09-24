@@ -4,7 +4,9 @@ import sys
 from farmable_backend.assistant.retention import RetentionWorker
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
+from farmable_backend.diagnosis_worker import DiagnosisWorker
 from farmable_backend.gcs_photos import create_gcs_photos
+from farmable_backend.integrations.crop_health import CropHealth
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
@@ -26,6 +28,8 @@ async def run() -> None:
     weather_task = None
     retention = None
     retention_task = None
+    diagnosis = None
+    diagnosis_task = None
     try:
         async with app.open_async():
             # Retention must continue even when generation/providers are disabled.
@@ -39,8 +43,19 @@ async def run() -> None:
             if database is not None and settings.photo_bucket:
                 photos = PhotoWorker(database.sessions, lambda: create_gcs_photos(settings))
                 photo_task = asyncio.create_task(photos.run())
+                if services is not None and settings.diagnosis_enabled:
+                    diagnosis = DiagnosisWorker(
+                        database.sessions,
+                        CropHealth(
+                            "crop_health", services.client, services_settings, max_attempts=1
+                        ),
+                        lambda: create_gcs_photos(settings),
+                    )
+                    diagnosis_task = asyncio.create_task(diagnosis.run())
             await app.run_worker_async(queues=["default"], update_heartbeat_interval=5.0)
     finally:
+        if diagnosis is not None:
+            diagnosis.stop.set()
         if photos is not None:
             photos.stop.set()
         if weather is not None:
@@ -62,8 +77,12 @@ async def run() -> None:
                         await retention_task
                 finally:
                     try:
-                        if services is not None:
-                            await services.close()
+                        try:
+                            if diagnosis_task is not None:
+                                await diagnosis_task
+                        finally:
+                            if services is not None:
+                                await services.close()
                     finally:
                         if database is not None:
                             database.close()

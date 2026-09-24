@@ -38,6 +38,7 @@ from farmable_backend.models import (
     AssistantTurn,
     AuthIdentity,
     AuthSession,
+    CropDiagnosis,
     Farm,
     FarmTask,
     FinancialRecord,
@@ -184,6 +185,7 @@ class AccountService:
             # erasure explicitly deletes plan history and cascades assistant rows.
             for name, model in (
                 ("plan_revisions", PlanRevision),
+                ("crop_diagnoses", CropDiagnosis),
                 ("assistant_conversations", AssistantConversation),
                 ("assistant_consents", AssistantConsent),
                 ("assistant_live_consents", AssistantLiveConsent),
@@ -233,6 +235,7 @@ class AccountService:
                 select(Farm).where(Farm.owner_id == owner).order_by(Farm.id).with_for_update()
             ).all()
             session.execute(delete(PlanRevision).where(PlanRevision.owner_id == owner))
+            session.execute(delete(CropDiagnosis).where(CropDiagnosis.owner_id == owner))
             # Deliberate deviation from the tombstone contract that
             # farm_records.tombstone_* follows (deleted_at + version bump +
             # sync_state="pending" + a SyncChange row). That contract exists to

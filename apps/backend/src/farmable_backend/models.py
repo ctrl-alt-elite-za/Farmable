@@ -732,6 +732,51 @@ class SyncChange(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class CropDiagnosis(Base):
+    """Explicitly submitted, consented focus-photo work; never an automatic scan."""
+
+    __tablename__ = "crop_diagnoses"
+    __table_args__ = (
+        _farm_owner_fk("crop_diagnoses"),
+        _section_owner_fk("crop_diagnoses"),
+        ForeignKeyConstraint(
+            ("media_id", "farm_id", "owner_id"),
+            ("media.id", "media.farm_id", "media.owner_id"),
+            name="fk_crop_diagnoses_media_scope",
+        ),
+        CheckConstraint(
+            column("state").in_(("queued", "processing", "ready", "unavailable", "cancelled")),
+            name="ck_crop_diagnoses_state",
+        ),
+        CheckConstraint(column("attempts").between(0, 3), name="ck_crop_diagnoses_attempts"),
+        Index("ix_crop_diagnoses_due", "state", "next_attempt_at"),
+        Index("ix_crop_diagnoses_owner_created", "owner_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE")
+    )
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
+    media_id: Mapped[UUID] = mapped_column(Uuid)
+    planting_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("plantings.id"))
+    planting_version: Mapped[int] = mapped_column(BigInteger)
+    crop: Mapped[str] = mapped_column(Text)
+    fingerprint: Mapped[str] = mapped_column(Text)
+    consent_notice_version: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text, default="queued")
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON_DOCUMENT)
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class PhotoUpload(Base):
     """Immutable logical media mutation; state is not the generic sync_state."""
 
