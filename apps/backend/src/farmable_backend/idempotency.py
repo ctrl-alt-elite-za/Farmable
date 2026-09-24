@@ -13,7 +13,6 @@ state.
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -44,15 +43,13 @@ def fingerprint(payload: dict[str, Any], *, key: str) -> str:
     Request bodies can contain credentials (signup includes a password), so a
     plain fast hash would expose a cheap offline password verifier if the
     idempotency table leaked. Derive password material with scrypt first; the
-    request's high-entropy idempotency key supplies a per-claim salt and also
-    keys the final digest.
+    request's high-entropy idempotency key supplies a per-claim salt. Using
+    the same construction for every request also keeps credential handling
+    explicit to static analysis.
     """
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
-    password = payload.get("password")
-    if isinstance(password, str):
-        salt = hashlib.sha256(f"farmable-idempotency:{key}".encode()).digest()
-        return hashlib.scrypt(canonical.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32).hex()
-    return hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
+    salt = f"farmable-idempotency:{key}".encode()
+    return hashlib.scrypt(canonical.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32).hex()
 
 
 def replay(
