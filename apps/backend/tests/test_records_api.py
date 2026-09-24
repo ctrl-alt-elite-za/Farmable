@@ -6,7 +6,7 @@ import threading
 from datetime import UTC, datetime, timedelta, timezone
 from io import BytesIO
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from farmable_backend.gcs_photos import ObjectInfo
@@ -16,11 +16,15 @@ from farmable_backend.models import (
     AuthIdentity,
     AuthSession,
     Base,
+    CropCalendar,
+    CropType,
     Farm,
     Media,
     Observation,
     PhotoAttempt,
+    PhotoUpload,
     Section,
+    SectionDeletion,
     SyncChange,
     SyncMutation,
     User,
@@ -76,6 +80,28 @@ def seed(sessions):
         second_section = Section(owner_id=owner.id, farm_id=second.id, name="Second")
         session.add_all([section, foreign_section, second_section])
         session.flush()
+        # Illustrative test calendars only; migration 0026 seeds identities,
+        # not harvest durations.
+        # Idempotent: this seed() is shared by real-Postgres integration fixtures
+        # whose search_path can fall back to a schema the migration already seeded.
+        if session.get(CropType, "cabbage") is None:
+            session.add_all(
+                [
+                    CropType(code="cabbage", name="Cabbage"),
+                    CropType(code="spinach", name="Spinach"),
+                ]
+            )
+            session.add_all(
+                [
+                    CropCalendar(
+                        crop_type_code="cabbage", harvest_days_min=90, harvest_days_max=110
+                    ),
+                    CropCalendar(
+                        crop_type_code="spinach", harvest_days_min=35, harvest_days_max=50
+                    ),
+                ]
+            )
+            session.flush()
         return SimpleNamespace(
             owner=owner.id,
             other=other.id,
@@ -97,6 +123,7 @@ class FakeStorage:
         self.generation = "1"
         self.read_generations = []
         self.failure = None
+        self.incoming = {}
         self.published = {}
         self.cleaned = []
 
@@ -124,6 +151,9 @@ class FakeStorage:
         if should_stop():
             return False
         self.cleaned.append((upload.id, attempt.id, keep_clean))
+        self.incoming.pop(attempt.id, None)
+        if not keep_clean:
+            self.published.pop(attempt.id, None)
         return True
 
     def close(self):
@@ -362,6 +392,317 @@ def test_photo_flow_waits_for_validation_and_has_one_publication(records):
     with records.sessions() as session:
         assert session.scalar(select(func.count()).select_from(Media)) == 1
         assert session.scalar(select(func.count()).select_from(SyncChange)) == 2
+
+
+def test_section_delete_requeues_all_photo_objects_for_cleanup(records, monkeypatch):
+    section_id = uuid4()
+    created = records.client.post(
+        f"/farms/{records.ids.farm}/sections",
+        json={
+            "mutation_id": str(uuid4()),
+            "id": str(section_id),
+            "name": "Photo section",
+        },
+    )
+    assert created.status_code == 200, created.text
+    payload = upload_payload(records)
+    payload["section_id"] = str(section_id)
+    upload_response = records.client.post(f"/farms/{records.ids.farm}/photo-uploads", json=payload)
+    assert upload_response.status_code == 200, upload_response.text
+    upload_id = UUID(upload_response.json()["upload_id"])
+    records.client.post(f"/farms/{records.ids.farm}/photo-uploads/{upload_id}/complete")
+    process(records, records.jobs.claim(upload_id))
+
+    deleted = records.client.post(
+        f"/farms/{records.ids.farm}/sections/{section_id}/delete",
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_version": 1,
+            "expected_child_versions": {
+                str(
+                    records.service.upload(
+                        records.ids.authorization, records.ids.farm, upload_id
+                    ).cloud_media_id
+                ): 1
+            },
+        },
+    )
+    assert deleted.status_code == 200, deleted.text
+    with records.sessions() as session:
+        upload = session.get(PhotoUpload, upload_id)
+        attempt = session.scalar(select(PhotoAttempt).where(PhotoAttempt.upload_id == upload_id))
+        assert upload.state == "failed"
+        assert attempt.cleaned_at is None
+        assert attempt.cleanup_token is None
+
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    try:
+        worker.clean_batch()
+        assert attempt.id in records.storage.published
+        monkeypatch.setattr(
+            "farmable_backend.photo_jobs.db_now",
+            lambda _: datetime.now(UTC) + timedelta(hours=2),
+        )
+        monkeypatch.setattr(
+            "farmable_backend.record_access.db_now",
+            lambda _: datetime.now(UTC) + timedelta(hours=2),
+        )
+        worker.clean_batch()
+    finally:
+        worker.executor.shutdown()
+    assert (upload_id, attempt.id, False) in records.storage.cleaned
+    assert not records.storage.published
+
+
+def test_deleted_section_cleans_upload_arriving_before_real_form_expiry(records, monkeypatch):
+    _payload, _view, upload, attempt = reserve(records)
+    now = utc(attempt.form_expires_at) - timedelta(minutes=1)
+    monkeypatch.setattr("farmable_backend.sync_records.db_now", lambda _: now)
+    monkeypatch.setattr("farmable_backend.photo_jobs.db_now", lambda _: now)
+    monkeypatch.setattr("farmable_backend.record_access.db_now", lambda _: now)
+    response = records.client.post(
+        f"/farms/{records.ids.farm}/sections/{records.ids.section}/delete",
+        json={"mutation_id": str(uuid4()), "expected_version": 1},
+    )
+    assert response.status_code == 200, response.text
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    try:
+        # A janitor pass before the client uses its already-issued form must
+        # not retire the only durable cleanup intent.
+        worker.clean_batch()
+        with records.sessions() as session:
+            saved = session.get(PhotoAttempt, attempt.id)
+            assert utc(saved.form_expires_at) == utc(attempt.form_expires_at)
+            assert saved.cleaned_at is None
+        records.storage.incoming[attempt.id] = records.storage.data
+        now += timedelta(hours=2)
+        worker.clean_batch()
+    finally:
+        worker.executor.shutdown()
+    assert not records.storage.incoming
+    with records.sessions() as session:
+        assert session.get(PhotoAttempt, attempt.id) is None
+        assert session.get(PhotoUpload, upload.id) is None
+        assert session.get(SectionDeletion, records.ids.section).status == "complete"
+
+
+@pytest.mark.parametrize("lost_response", [False, True])
+def test_delete_during_publication_keeps_cleanup_pending(records, monkeypatch, lost_response):
+    _payload, _view, upload, attempt = queue(records)
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    claimed = worker.jobs.claim(upload.id)
+    assert claimed is not None
+    now = datetime.now(UTC)
+    monkeypatch.setattr("farmable_backend.sync_records.db_now", lambda _: now)
+    monkeypatch.setattr("farmable_backend.photo_jobs.db_now", lambda _: now)
+    monkeypatch.setattr("farmable_backend.record_access.db_now", lambda _: now)
+    publish = records.storage.publish
+
+    def publish_after_delete(upload, current_attempt, clean):
+        response = records.client.post(
+            f"/farms/{records.ids.farm}/sections/{records.ids.section}/delete",
+            json={"mutation_id": str(uuid4()), "expected_version": 1},
+        )
+        assert response.status_code == 200, response.text
+        worker.clean_batch()
+        generation = publish(upload, current_attempt, clean)
+        if lost_response:
+            raise UploadError("storage_unavailable")
+        return generation
+
+    monkeypatch.setattr(records.storage, "publish", publish_after_delete)
+    try:
+        worker.process(*claimed)
+        worker.clean_batch()
+        with records.sessions() as session:
+            saved = session.get(PhotoAttempt, attempt.id)
+            assert utc(saved.form_expires_at) == utc(attempt.form_expires_at)
+            assert utc(saved.lease_expires_at) == utc(claimed[1].lease_expires_at)
+            assert saved.cleaned_at is None
+        # The original form is still valid even if best-effort cleanup removed
+        # the clean object. A later client POST must also be collected.
+        records.storage.incoming[attempt.id] = records.storage.data
+        now += timedelta(hours=2)
+        worker.clean_batch()
+    finally:
+        worker.executor.shutdown()
+    assert not records.storage.incoming
+    assert not records.storage.published
+    with records.sessions() as session:
+        assert session.get(PhotoAttempt, attempt.id) is None
+        assert session.get(PhotoUpload, upload.id) is None
+        assert session.get(SectionDeletion, records.ids.section).status == "complete"
+        assert session.scalar(select(func.count()).select_from(Media)) == 0
+
+
+def test_inflight_publication_after_section_delete_is_cleaned(records):
+    section_id = uuid4()
+    created = records.client.post(
+        f"/farms/{records.ids.farm}/sections",
+        json={
+            "mutation_id": str(uuid4()),
+            "id": str(section_id),
+            "name": "In-flight photo section",
+        },
+    )
+    assert created.status_code == 200, created.text
+    payload = upload_payload(records)
+    payload["section_id"] = str(section_id)
+    upload_response = records.client.post(f"/farms/{records.ids.farm}/photo-uploads", json=payload)
+    assert upload_response.status_code == 200, upload_response.text
+    upload_id = UUID(upload_response.json()["upload_id"])
+    completed = records.client.post(f"/farms/{records.ids.farm}/photo-uploads/{upload_id}/complete")
+    assert completed.status_code == 202
+    claimed = records.jobs.claim(upload_id)
+    assert claimed is not None
+    _upload, attempt = claimed
+
+    original_publish = records.storage.publish
+
+    def publish_then_delete(upload, current_attempt, clean):
+        deleted = records.client.post(
+            f"/farms/{records.ids.farm}/sections/{section_id}/delete",
+            json={"mutation_id": str(uuid4()), "expected_version": 1},
+        )
+        assert deleted.status_code == 200, deleted.text
+        return original_publish(upload, current_attempt, clean)
+
+    records.storage.publish = publish_then_delete
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    try:
+        worker.process(*claimed)
+    finally:
+        worker.executor.shutdown()
+
+    assert (upload_id, attempt.id, False) in records.storage.cleaned
+
+
+def test_publication_after_independent_scope_inactivation_is_cleaned(records):
+    _payload, _view, upload, attempt = queue(records)
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    claimed = worker.jobs.claim(upload.id)
+    with records.sessions.begin() as session:
+        session.get(Section, records.ids.section).deleted_at = datetime.now(UTC)
+    try:
+        worker.process(*claimed)
+    finally:
+        worker.executor.shutdown()
+    assert (upload.id, attempt.id, False) in records.storage.cleaned
+
+
+def test_non_lease_finish_error_still_cleans_when_scope_is_inactive(records, monkeypatch):
+    _payload, _view, upload, attempt = queue(records)
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    claimed = worker.jobs.claim(upload.id)
+    original_finish = worker.jobs.finish
+    monkeypatch.setattr(
+        worker.jobs,
+        "finish",
+        lambda *args: (_ for _ in ()).throw(ApiError(409, "generation_changed")),
+    )
+    monkeypatch.setattr(worker.jobs, "requeue_cleanup_if_inactive", lambda *_: True)
+    worker.process(*claimed)
+    monkeypatch.setattr(worker.jobs, "finish", original_finish)
+    worker.executor.shutdown()
+    assert (upload.id, attempt.id, False) in records.storage.cleaned
+
+
+def test_planting_legacy_crop_and_catalogue_code_share_one_identity(records):
+    base = f"/farms/{records.ids.farm}/plantings"
+    body = {
+        "mutation_id": str(uuid4()),
+        "id": str(uuid4()),
+        "section_id": str(records.ids.section),
+        "crop": "spinach",
+        "planted_on": "2026-09-01",
+    }
+    response = records.client.post(base, json=body)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["crop"] == "spinach"
+    assert response.json()["record"]["crop_type_code"] == "spinach"
+
+    additive_code = {
+        **body,
+        "id": str(uuid4()),
+        "mutation_id": str(uuid4()),
+        "crop_type_code": "cabbage",
+        "is_current": False,
+    }
+    response = records.client.post(base, json=additive_code)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "crop_type_conflict"
+
+    additive_code["crop"] = "My cabbage cultivar"
+    response = records.client.post(base, json=additive_code)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["crop"] == "My cabbage cultivar"
+    assert response.json()["record"]["crop_type_code"] == "cabbage"
+
+    unsupported = {
+        **body,
+        "id": str(uuid4()),
+        "mutation_id": str(uuid4()),
+        "crop_type_code": "banana",
+    }
+    response = records.client.post(base, json=unsupported)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "unknown_crop_type"
+
+    with records.sessions.begin() as session:
+        session.add(CropType(code="tomato", name="Tomato"))
+    no_calendar = {
+        **body,
+        "id": str(uuid4()),
+        "mutation_id": str(uuid4()),
+        "crop": "tomato",
+        "is_current": False,
+    }
+    response = records.client.post(base, json=no_calendar)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["harvest_from"] is None
+    assert response.json()["record"]["harvest_to"] is None
+
+
+def test_changing_legacy_crop_does_not_reuse_previous_crop_calendar(records):
+    base = f"/farms/{records.ids.farm}/plantings"
+    body = {
+        "mutation_id": str(uuid4()),
+        "id": str(uuid4()),
+        "section_id": str(records.ids.section),
+        "crop": "My cabbage cultivar",
+        "crop_type_code": "cabbage",
+        "planted_on": "2026-09-01",
+    }
+    created = records.client.post(base, json=body)
+    assert created.status_code == 200, created.text
+    update = {
+        "mutation_id": str(uuid4()),
+        "expected_version": 1,
+        "crop": body["crop"],
+        "planted_on": "2026-09-02",
+    }
+    # Older clients cannot send catalogue fields. An unchanged custom label
+    # must retain its explicitly chosen identity when only the date changes.
+    unchanged = records.client.put(f"{base}/{body['id']}", json=update)
+    assert unchanged.status_code == 200, unchanged.text
+    assert unchanged.json()["record"]["crop_type_code"] == "cabbage"
+    assert unchanged.json()["record"]["harvest_from"] is not None
+
+    update.update(mutation_id=str(uuid4()), expected_version=2, crop="Butternut")
+    changed = records.client.put(f"{base}/{body['id']}", json=update)
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["record"]["crop"] == "Butternut"
+    assert changed.json()["record"]["crop_type_code"] is None
+    assert changed.json()["record"]["harvest_from"] is None
+    assert changed.json()["record"]["harvest_to"] is None
+
+    update.update(
+        mutation_id=str(uuid4()), expected_version=3, crop="spinach", crop_type_code="cabbage"
+    )
+    conflict = records.client.put(f"{base}/{body['id']}", json=update)
+    assert conflict.status_code == 422
+    assert conflict.json()["error"]["code"] == "crop_type_conflict"
+    assert records.client.get(f"{base}/{body['id']}").json()["crop"] == "Butternut"
 
 
 def test_reservation_conflicts_and_mutation_namespace(records):

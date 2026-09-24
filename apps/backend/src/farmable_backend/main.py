@@ -31,6 +31,7 @@ from farmable_backend.auth import (
     LiveOtpProvider,
     SessionTokens,
 )
+from farmable_backend.auth_challenge import router as auth_challenge_router
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
 from farmable_backend.diagnosis_api import router as diagnosis_router
@@ -202,6 +203,7 @@ def create_app(
     app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
     app.include_router(records_router)
     app.include_router(account_router)
+    app.include_router(auth_challenge_router)
     app.include_router(assistant_router)
     app.include_router(assistant_live_router)
     app.include_router(voice_router)

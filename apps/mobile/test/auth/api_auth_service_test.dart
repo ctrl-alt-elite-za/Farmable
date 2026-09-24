@@ -23,14 +23,18 @@ void main() {
   late InMemorySessionStorage storage;
   late DateTime phoneNow;
 
-  ApiAuthService service() =>
-      ApiAuthService(api.dio(), storage, now: () => phoneNow);
+  ApiAuthService service() => ApiAuthService(
+    api.dio(),
+    storage,
+    now: () => phoneNow,
+    requestVerification: (action) async => 'test-turnstile-$action',
+  );
 
   ApiAuthService serviceWithTurnstile() => ApiAuthService(
     api.dio(),
     storage,
     now: () => phoneNow,
-    turnstileToken: 'fixture-token',
+    requestVerification: (_) async => 'fixture-token',
   );
 
   setUp(() {
@@ -101,6 +105,7 @@ void main() {
         'phone': '+27825550123',
         'email': 'thandi@example.com',
         'password': _password,
+        'turnstile_token': 'test-turnstile-sign_up',
       });
       expect(pending.nextStep, VerificationChannel.phone);
 
@@ -203,6 +208,7 @@ void main() {
         'user_id': 'u-1',
         'channel': 'email',
       });
+      expect(api.to('/auth/otp/resend').single.idempotencyKey, isNotEmpty);
       final firstKey = api.to('/auth/otp/resend').single.idempotencyKey;
       expect(firstKey, isNotNull);
       expect(firstKey!.length, inInclusiveRange(16, 200));
@@ -230,7 +236,74 @@ void main() {
     });
 
     test(
-      'sends identifier and password only, and stores the session',
+      'failed verification never submits credentials or changes stored state',
+      () async {
+        for (final verify in <Future<String> Function(String)>[
+          (_) async => '',
+          (_) async => 'x' * 2049,
+          (_) async => throw StateError('sensitive-provider-detail'),
+        ]) {
+          final auth = ApiAuthService(
+            api.dio(),
+            storage,
+            requestVerification: verify,
+          );
+          expect(
+            await failureOf(
+              () => auth.logIn(
+                mode: LoginMode.email,
+                identifier: 'thandi@example.com',
+                password: _password,
+              ),
+            ),
+            AuthFailure.unavailable,
+          );
+          expect(
+            await failureOf(
+              () => auth.signUp(
+                firstName: 'Thandi',
+                surname: 'Mokoena',
+                phone: '+27825550123',
+                email: 'thandi@example.com',
+                password: _password,
+              ),
+            ),
+            AuthFailure.unavailable,
+          );
+          expect(api.requests, isEmpty);
+          expect(await auth.restore(), isA<SignedOut>());
+        }
+      },
+    );
+
+    test(
+      'each login attempt obtains a new token rather than replaying it',
+      () async {
+        api.seedVerified();
+        var issued = 0;
+        final auth = ApiAuthService(
+          api.dio(),
+          storage,
+          requestVerification: (action) async {
+            expect(action, 'login');
+            return 'one-use-${++issued}';
+          },
+        );
+        for (var attempt = 0; attempt < 2; attempt++) {
+          await auth.logIn(
+            mode: LoginMode.email,
+            identifier: 'thandi@example.com',
+            password: _password,
+          );
+        }
+        expect(api.to('/auth/login').map((r) => r.body['turnstile_token']), [
+          'one-use-1',
+          'one-use-2',
+        ]);
+      },
+    );
+    test(
+      'sends credentials and verification token, and stores the session',
       () async {
         api.seedVerified();
         final session = await service().logIn(
@@ -242,6 +315,7 @@ void main() {
         expect(api.to('/auth/login').single.body, {
           'identifier': 'thandi@example.com',
           'password': _password,
+          'turnstile_token': 'test-turnstile-login',
         });
         expect(session.user.email, 'thandi@example.com');
 
@@ -596,7 +670,12 @@ void main() {
       () async {
         await signUpAndVerify(service());
         final failing = _FailingWrites(storage);
-        final auth = ApiAuthService(api.dio(), failing, now: () => phoneNow);
+        final auth = ApiAuthService(
+          api.dio(),
+          failing,
+          now: () => phoneNow,
+          requestVerification: (action) async => 'test-turnstile-$action',
+        );
 
         expect(await failureOf(auth.signOut), AuthFailure.storageUnavailable);
         await pumpEventQueue();

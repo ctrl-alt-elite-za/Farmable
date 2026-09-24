@@ -181,6 +181,19 @@ class FakeAuthApi implements HttpClientAdapter {
     final forced = forcedStatus;
     if (forced != null) return ResponseBody.fromString('', forced);
 
+    if (options.method == 'POST' &&
+        const {'/auth/signup', '/auth/login'}.contains(options.path)) {
+      final token = body['turnstile_token'];
+      if (token is! String || token.isEmpty || token.length > 2048) {
+        return _error(422, 'validation_error');
+      }
+    }
+    if (options.method == 'POST' &&
+        const {'/auth/signup', '/auth/otp/resend'}.contains(options.path) &&
+        (idempotencyKey == null || idempotencyKey.isEmpty)) {
+      return _error(400, 'idempotency_key_required');
+    }
+
     // Answered now, delivered when released: the server has done the work
     // by the time the phone hears about it.
     final response = await _answer(options, body, auth);

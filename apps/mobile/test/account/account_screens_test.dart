@@ -33,11 +33,17 @@ void main() {
   Future<SessionStorage> loggedIn(WidgetTester tester) async {
     final storage = InMemorySessionStorage();
     await tester.runAsync(
-      () => ApiAuthService(api.dio(), storage, now: () => pinnedToday).logIn(
-        mode: LoginMode.email,
-        identifier: 'thandi@example.com',
-        password: goodPassphrase,
-      ),
+      () =>
+          ApiAuthService(
+            api.dio(),
+            storage,
+            now: () => pinnedToday,
+            requestVerification: (action) async => 'test-turnstile-$action',
+          ).logIn(
+            mode: LoginMode.email,
+            identifier: 'thandi@example.com',
+            password: goodPassphrase,
+          ),
     );
     api.requests.clear();
     return storage;
@@ -262,8 +268,13 @@ void main() {
       // (on the real clock — dio arms timers the fake one never fires), then
       // the app re-reads where it stands, as it does on its next launch.
       await tester.runAsync(
-        () => ApiAuthService(api.dio(), harness.storage, now: () => pinnedToday)
-            .logIn(
+        () =>
+            ApiAuthService(
+              api.dio(),
+              harness.storage,
+              now: () => pinnedToday,
+              requestVerification: (action) async => 'test-turnstile-$action',
+            ).logIn(
               mode: LoginMode.email,
               identifier: 'lerato@example.com',
               password: goodPassphrase,

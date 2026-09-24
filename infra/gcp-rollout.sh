@@ -118,6 +118,7 @@ optional_secrets=(
   "TWILIO_AUTH_TOKEN:twilio-auth-token"
   "TURNSTILE_SECRET:turnstile-secret"
   "TURNSTILE_HOSTNAME:turnstile-hostname"
+  "TURNSTILE_SITE_KEY:turnstile-site-key"
   "AZURE_SPEECH_KEY:azure-speech-key"
   "AZURE_SPEECH_RESOURCE:azure-speech-resource"
   "AZURE_SPEECH_REGION:azure-speech-region"

@@ -29,7 +29,6 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
-import '../../app/config.dart';
 import '../../core/utils/ids.dart';
 import '../../domain/auth/auth_models.dart';
 import '../../domain/auth/auth_service.dart';
@@ -42,7 +41,7 @@ const Duration refreshWhenWithin = Duration(minutes: 1);
 class ApiAuthService implements AuthService {
   final Dio _dio;
   final SessionStorage _storage;
-  final String? _turnstileToken;
+  final Future<String> Function(String action) requestVerification;
 
   /// Injectable so a test can pin it and walk a session up to its expiry.
   final DateTime Function() now;
@@ -65,9 +64,23 @@ class ApiAuthService implements AuthService {
   ApiAuthService(
     this._dio,
     this._storage, {
+    required this.requestVerification,
     this.now = DateTime.now,
-    String? turnstileToken,
-  }) : _turnstileToken = turnstileToken ?? (testMode ? 'fixture-token' : null);
+  });
+
+  Future<String> _verification(String action) async {
+    try {
+      final token = await requestVerification(action);
+      if (token.isEmpty || token.length > 2048) {
+        throw const AuthException(AuthFailure.unavailable);
+      }
+      return token;
+    } on AuthException {
+      rethrow;
+    } catch (_) {
+      throw const AuthException(AuthFailure.unavailable);
+    }
+  }
 
   /// Which session this is: changes whenever a session is granted, ended or
   /// dropped, and not when one is merely refreshed.
@@ -105,6 +118,7 @@ class ApiAuthService implements AuthService {
     required String password,
   }) async {
     final normalisedEmail = email.trim().toLowerCase();
+    final token = await _verification('sign_up');
     final body = await _post(
       '/auth/signup',
       {
@@ -113,7 +127,7 @@ class ApiAuthService implements AuthService {
         'phone': phone,
         'email': normalisedEmail,
         'password': password,
-        'turnstile_token': ?_turnstileToken,
+        'turnstile_token': token,
       },
       headers: {'Idempotency-Key': newUuid()},
     );
@@ -180,12 +194,13 @@ class ApiAuthService implements AuthService {
     required String identifier,
     required String password,
   }) async {
+    final token = await _verification('login');
     final body = await _post('/auth/login', {
       'identifier': mode == LoginMode.email
           ? identifier.trim().toLowerCase()
           : identifier,
       'password': password,
-      'turnstile_token': ?_turnstileToken,
+      'turnstile_token': token,
     });
     final session = _session(body);
     _epoch++;

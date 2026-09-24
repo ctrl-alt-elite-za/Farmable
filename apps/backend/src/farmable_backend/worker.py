@@ -66,10 +66,13 @@ async def run() -> None:
                 services = ServiceRegistry(services_settings)
                 weather = WeatherWorker(database.sessions, services.open_meteo)
                 weather_task = asyncio.create_task(weather.run())
-            if database is not None and settings.photo_bucket:
+            # No-file section erasure must run even with storage/providers disabled.
+            if database is not None:
                 photos = PhotoWorker(database.sessions, lambda: create_gcs_photos(settings))
-                photo_task = asyncio.create_task(photos.run())
-                if services is not None and settings.diagnosis_enabled:
+                photo_task = asyncio.create_task(
+                    photos.run(cleanup_only=not bool(settings.photo_bucket))
+                )
+                if services is not None and settings.photo_bucket and settings.diagnosis_enabled:
                     diagnosis = DiagnosisWorker(
                         database.sessions,
                         CropHealth(

@@ -242,7 +242,11 @@ def test_photo_worker_resources_are_optional_and_always_closed(
         yield
 
     photo = SimpleNamespace(stop=asyncio.Event(), executor=Mock())
-    photo.run = AsyncMock(side_effect=photo.stop.wait)
+
+    async def run_photo(**kwargs):
+        await photo.stop.wait()
+
+    photo.run = AsyncMock(side_effect=run_photo)
     database = Mock()
     database_factory = Mock(return_value=database)
     photo_factory = Mock(
@@ -279,9 +283,6 @@ def test_photo_worker_resources_are_optional_and_always_closed(
     database.close.assert_called_once()
     assert retention.stop.is_set()
     retention.run.assert_awaited_once()
-    if configured:
-        if not constructor_fails:
-            assert photo.stop.is_set()
-            photo.run.assert_awaited_once()
-    else:
-        photo_factory.assert_not_called()
+    if not constructor_fails:
+        assert photo.stop.is_set()
+        photo.run.assert_awaited_once_with(cleanup_only=not configured)

@@ -162,6 +162,7 @@ Future<AuthHarness> pumpAuthApp(
             api.dio(),
             ref.watch(sessionStorageProvider),
             now: now ?? () => pinnedToday,
+            requestVerification: (action) async => 'test-turnstile-$action',
           ),
         )
       else
