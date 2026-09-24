@@ -127,7 +127,9 @@ def test_confirm_sync_read_export_retry_and_version_conflict(planner):
     assert confirm(planner, payload).json()["error"]["code"] == "plan_state_changed"
     from farmable_backend.account import AccountService
 
-    exported = AccountService(planner.sessions).export_document(planner.alice.auth)
+    account = AccountService(planner.sessions)
+    account.set_consent(planner.alice.auth, "data_export", "1", True)
+    exported = account.export_document(planner.alice.auth)
     assert exported["saved_plans"][0]["plan"]["snapshot_hash"] == view["snapshot_hash"]
     read = planner.client.get(
         f"/farms/{planner.alice.farm}/plans/{payload['plan_id']}",

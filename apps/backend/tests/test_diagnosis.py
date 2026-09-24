@@ -257,7 +257,9 @@ def test_untrusted_provider_payloads_are_rejected(change):
 def test_account_export_includes_diagnosis(records):
     body, path, _ = setup(records)
     records.client.post(path, json=body)
-    document = AccountService(records.sessions).export_document(records.ids.authorization)
+    account = AccountService(records.sessions)
+    account.set_consent(records.ids.authorization, "data_export", "1", True)
+    document = account.export_document(records.ids.authorization)
     assert document["crop_diagnoses"][0]["id"] == body["id"]
 
 
