@@ -339,7 +339,9 @@ def test_interrupted_signup_claim_recovers_account_without_resending(settings):
     body = _signup_body()
     key = _idempotency_key("signup-interrupted")
     scope = "testclient"
-    request_fingerprint = fingerprint(body, key=key)
+    request_fingerprint = fingerprint(
+        {name: value for name, value in body.items() if name != "turnstile_token"}, key=key
+    )
     assert (
         claim(
             sessions,
@@ -398,6 +400,46 @@ def test_resend_ambiguous_delivery_persists_challenge_and_replays_without_resend
         verified = client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
         assert verified.status_code == 200
     assert provider.deliveries == 3
+
+
+def test_signup_replays_with_a_fresh_turnstile_token(settings):
+    app, _, provider, _ = _app(settings)
+    with TestClient(app) as client:
+        key = _idempotency_key("signup-fresh-challenge")
+        first = _signup_request(client, key=key)
+        replay = _signup_request(client, _signup_body(turnstile_token=uuid4().hex), key=key)
+        assert replay.status_code == first.status_code == 200
+        assert replay.json() == first.json()
+    assert provider.deliveries == 1
+
+
+@pytest.mark.parametrize("ambiguous", [False, True])
+def test_resend_replays_after_response_store_failure(settings, monkeypatch, ambiguous):
+    import farmable_backend.main as main_module
+
+    provider = AmbiguousOtpProvider(fail_after=1) if ambiguous else CountingOtpProvider()
+    app, _, provider, _ = _app(settings, provider)
+    store = main_module.idempotency_store
+
+    def fail_resend_store(*args, **kwargs):
+        if kwargs["route"] == "auth_otp_resend":
+            raise RuntimeError("simulated response-store failure")
+        return store(*args, **kwargs)
+
+    with TestClient(app) as client:
+        user_id = _signup_request(client).json()["user_id"]
+        key = _idempotency_key("resend-store-failure")
+        monkeypatch.setattr(main_module, "idempotency_store", fail_resend_store)
+        assert _resend_request(client, user_id, key=key).status_code == 500
+        assert provider.deliveries == 2
+        monkeypatch.setattr(main_module, "idempotency_store", store)
+        replay = _resend_request(client, user_id, key=key)
+        assert replay.status_code == (503 if ambiguous else 204)
+        if ambiguous:
+            assert replay.json()["error"]["code"] == "delivery_unknown"
+        assert provider.deliveries == 2
+        verified = client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
+        assert verified.status_code == 200
 
 
 def test_idempotency_key_reuse_with_different_payload_is_rejected(settings):

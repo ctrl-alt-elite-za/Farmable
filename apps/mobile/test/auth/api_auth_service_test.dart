@@ -205,6 +205,14 @@ void main() {
         'channel': 'email',
       });
       expect(api.to('/auth/otp/resend').single.idempotencyKey, isNotEmpty);
+      final firstKey = api.to('/auth/otp/resend').single.idempotencyKey;
+      expect(firstKey, isNotNull);
+      expect(firstKey!.length, inInclusiveRange(16, 200));
+      await service().resendCode(
+        userId: 'u-1',
+        channel: VerificationChannel.email,
+      );
+      expect(api.to('/auth/otp/resend').last.idempotencyKey, isNot(firstKey));
     });
   });
 
