@@ -10,6 +10,7 @@ import 'package:almanac/data/device/camera_source.dart';
 import 'package:almanac/data/device/location_service.dart';
 import 'package:almanac/data/device/object_detector.dart';
 import 'package:almanac/data/device/self_test_store.dart';
+import 'package:almanac/domain/device/device_permissions.dart';
 import 'package:almanac/domain/device/self_test.dart';
 import 'package:almanac/features/self_test/self_test_controller.dart';
 import 'package:flutter/services.dart';
@@ -274,3 +275,51 @@ SelfTestDevices bareEmulator(HardwareCalls log, {MemoryStore? store}) =>
         ),
       ),
     );
+
+/// The phone's permission answers, set per permission and changeable mid-test
+/// — the way a farmer changes them in the phone's settings. Every call is
+/// logged, so a test can prove that opening a screen asked for nothing.
+class FakePermissionService implements PermissionService {
+  final Map<DevicePermission, PermissionState> states;
+
+  /// What the phone's prompt answers, per permission. A permission missing
+  /// here answers with its current state, as a prompt dismissed would.
+  final Map<DevicePermission, PermissionState> answers;
+
+  final calls = <String>[];
+
+  FakePermissionService({
+    Map<DevicePermission, PermissionState>? states,
+    Map<DevicePermission, PermissionState>? answers,
+  }) : states =
+           states ??
+           {
+             for (final p in DevicePermission.values)
+               p: PermissionState.notAsked,
+           },
+       answers = answers ?? {};
+
+  /// Only the calls that could have shown a prompt or left the app.
+  List<String> get prompts => [
+    for (final call in calls)
+      if (!call.startsWith('check')) call,
+  ];
+
+  @override
+  Future<PermissionState> check(DevicePermission permission) async {
+    calls.add('check.${permission.name}');
+    return states[permission]!;
+  }
+
+  @override
+  Future<PermissionState> request(DevicePermission permission) async {
+    calls.add('request.${permission.name}');
+    return states[permission] = answers[permission] ?? states[permission]!;
+  }
+
+  @override
+  Future<bool> openSettings() async {
+    calls.add('openSettings');
+    return true;
+  }
+}

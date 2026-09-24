@@ -65,6 +65,11 @@ dependencies:
   google_mlkit_object_detection: 0.17.1
   device_info_plus: 13.2.0 # device model for the self-test report
   package_info_plus: 10.2.1 # app version for the self-test report
+  # Reads where camera, microphone and location stand without prompting, for
+  # Profile's permission controls (#84). None of the plugins above can:
+  # `camera` has no check, `record` only answers yes/no. Imported only in
+  # lib/data/device.
+  permission_handler: 12.0.3
 
 dev_dependencies:
   flutter_test:
@@ -84,6 +89,9 @@ dev_dependencies:
   # LiveCameraSource can be tested against a camera that answers late.
   # Already in the tree through `camera`; the version matches the lock.
   camera_platform_interface: 2.14.0
+  # Stands in for permission_handler's platform side, so the real service's
+  # Android bookkeeping can be tested. Matches the lock, like the one above.
+  permission_handler_platform_interface: 4.4.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
