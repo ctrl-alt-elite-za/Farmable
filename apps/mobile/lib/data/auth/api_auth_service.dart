@@ -25,6 +25,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
@@ -227,9 +228,20 @@ class ApiAuthService implements AuthService {
   Future<void> signOut() async {
     final record = await _read();
     final session = _sessionIn(record);
-    _epoch++;
     await _write(record, session: null, pending: null);
+    // After the write, not before: a refresh that starts while the write is
+    // in flight still reads the old session, and has to be caught out by an
+    // epoch that moves once that session is really gone.
+    _epoch++;
     if (session != null) unawaited(_revoke(session.token));
+  }
+
+  /// Ends the session on this phone without telling the server — for after
+  /// account deletion, when there is no longer a server-side session to
+  /// revoke. Also stops any refresh in flight from writing one back.
+  Future<void> endSessionLocally() async {
+    await _write(await _read(), session: null, pending: null);
+    _epoch++; // After the write — see [signOut].
   }
 
   /// Forgets the half-finished signup on this phone.
@@ -251,11 +263,16 @@ class ApiAuthService implements AuthService {
   /// rejected refresh drops the session and throws
   /// [AuthFailure.invalidSession]; the caller re-reads the farmer's standing
   /// through the view model, which lands them signed out cleanly.
+  ///
+  /// A `401 invalid_credentials` — a wrong password re-entered to confirm
+  /// account deletion — is an answer about the password, not the session, so
+  /// it is handed back rather than treated as a lapsed token.
   Future<Response<Object?>> authorized(
     String method,
     String path, {
     Object? data,
     Map<String, Object?>? query,
+    ResponseType? responseType,
   }) async {
     final standing = await refreshSession();
     if (standing is! SignedIn) {
@@ -263,17 +280,36 @@ class ApiAuthService implements AuthService {
     }
 
     var session = standing.session;
-    var response = await _send(method, path, session.token, data, query);
-    if (response.statusCode != 401) return response;
+    var response = await _send(
+      method,
+      path,
+      session.token,
+      data,
+      query,
+      responseType,
+    );
+    if (!_sessionRejected(response)) return response;
 
     session = await _refresh(session);
-    response = await _send(method, path, session.token, data, query);
-    if (response.statusCode == 401) {
+    response = await _send(
+      method,
+      path,
+      session.token,
+      data,
+      query,
+      responseType,
+    );
+    if (_sessionRejected(response)) {
       await _dropSession();
       throw const AuthException(AuthFailure.invalidSession);
     }
     return response;
   }
+
+  bool _sessionRejected(Response<Object?> response) =>
+      response.statusCode == 401 &&
+      failureForResponse(401, _decoded(response.data)) !=
+          AuthFailure.invalidCredentials;
 
   // ------------------------------------------------------------------ guts
 
@@ -315,9 +351,13 @@ class ApiAuthService implements AuthService {
   }
 
   Future<void> _dropSession() async {
-    _epoch++;
     try {
-      await _write(await _read(), session: null);
+      final record = await _read();
+      // Nothing to drop — already signed out, or the phone wiped. Writing
+      // here would put an empty record back where a wipe removed one.
+      if (record['session'] == null) return;
+      await _write(record, session: null);
+      _epoch++; // After the write — see [signOut].
     } on AuthException {
       // The server has already refused this session, so nothing it holds
       // works anywhere. A phone that also cannot forget it loses nothing.
@@ -341,6 +381,7 @@ class ApiAuthService implements AuthService {
     String accessToken,
     Object? data,
     Map<String, Object?>? query,
+    ResponseType? responseType,
   ) async {
     try {
       return await _dio.request<Object?>(
@@ -350,6 +391,7 @@ class ApiAuthService implements AuthService {
         options: Options(
           method: method,
           headers: {'Authorization': 'Bearer $accessToken'},
+          responseType: responseType,
         ),
       );
     } on DioException catch (e) {
@@ -462,15 +504,39 @@ AuthFailure failureForResponse(int status, Object? data) {
       return AuthFailure.invalidSession;
     case 'validation_error':
       return AuthFailure.rejected;
+    case 'not_found':
+      return AuthFailure.gone;
   }
 
   return switch (status) {
     401 => AuthFailure.invalidSession,
+    403 || 404 => AuthFailure.gone,
     422 => AuthFailure.rejected,
     429 => AuthFailure.tooManyAttempts,
     >= 500 => AuthFailure.unavailable,
     _ => AuthFailure.unknown,
   };
+}
+
+/// A response body as JSON, whatever form it arrived in. A request made for
+/// bytes (the export) still gets a JSON error body on failure, and the failure
+/// mapping needs to read it.
+Object? _decoded(Object? data) {
+  try {
+    if (data is List<int>) return jsonDecode(utf8.decode(data));
+    if (data is String && data.isNotEmpty) return jsonDecode(data);
+  } on Object {
+    return null;
+  }
+  return data;
+}
+
+/// Throws the [AuthException] a non-2xx response means. For callers of
+/// [ApiAuthService.authorized], which hands responses back unjudged.
+void throwUnlessSuccess(Response<Object?> response) {
+  final status = response.statusCode ?? 0;
+  if (status >= 200 && status < 300) return;
+  throw AuthException(failureForResponse(status, _decoded(response.data)));
 }
 
 /// A request that never got an answer. Timeouts and refused connections are

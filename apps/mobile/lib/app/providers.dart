@@ -6,16 +6,24 @@
 /// repository the screens actually use.
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../data/account/api_account_service.dart';
+import '../data/account/demo_account_service.dart';
+import '../data/account/export_store.dart';
 import '../data/auth/api_auth_service.dart';
 import '../data/auth/demo_auth_service.dart';
 import '../data/auth/secure_session_storage.dart';
 import '../data/auth/session_storage.dart';
+import '../data/device_wipe.dart';
 import '../data/health_service.dart';
 import '../data/local/database.dart' show AlmanacDatabase;
 import '../data/local/local_farm_repository.dart';
 import '../data/local/seed.dart';
+import '../domain/account/account_service.dart';
 import '../domain/auth/auth_service.dart';
 import '../domain/farm_records.dart';
 import '../domain/farm_records_repository.dart';
@@ -105,6 +113,65 @@ final authServiceProvider = Provider<AuthService>((ref) {
   return ref.watch(demoAuthProvider)
       ? DemoAuthService(storage, now: now)
       : ApiAuthService(ApiAuthService.client(apiUrl), storage, now: now);
+});
+
+// -------------------------------------------------------------- account
+//
+// Profile, privacy choices, export and deletion. The implementation follows
+// the auth service it runs on: the real account API needs the real session.
+
+/// The account record: cached profile, pending edits, privacy choices. Its
+/// own key, so the session record is never rewritten by a profile edit.
+final accountStorageProvider = Provider<SessionStorage>(
+  (ref) => ref.watch(demoAuthProvider)
+      ? FileSessionStorage(fileName: 'almanac_demo_account.json')
+      : SecureSessionStorage(key: 'almanac.account'),
+);
+
+final exportStoreProvider = Provider<ExportStore>((ref) => FileExportStore());
+
+/// Every folder the app writes the farmer's files into. Deletion empties each.
+final deviceDirectoriesProvider = Provider<List<Future<Directory> Function()>>(
+  (ref) => [
+    () async =>
+        Directory('${(await getApplicationDocumentsDirectory()).path}/photos'),
+    () async =>
+        Directory('${(await getApplicationDocumentsDirectory()).path}/exports'),
+  ],
+);
+
+final deviceWipeProvider = Provider<DeviceWipe>((ref) {
+  final db = ref.watch(databaseProvider);
+  final now = ref.watch(clockProvider);
+  return DeviceWipe(
+    db: db,
+    stores: [
+      ref.watch(sessionStorageProvider),
+      ref.watch(accountStorageProvider),
+    ],
+    directories: ref.watch(deviceDirectoriesProvider),
+    reseed: () => DemoSeed(db, now: now).ensureSeeded(),
+  );
+});
+
+final accountServiceProvider = Provider<AccountService>((ref) {
+  final auth = ref.watch(authServiceProvider);
+  final storage = ref.watch(accountStorageProvider);
+  final exports = ref.watch(exportStoreProvider);
+  final wipe = ref.watch(deviceWipeProvider);
+  final now = ref.watch(clockProvider);
+  return auth is ApiAuthService
+      ? ApiAccountService(auth, storage, exports, wipe, now: now)
+      : DemoAccountService(auth, storage, exports, wipe, now: now);
+});
+
+/// Whether the farmer has agreed to outside services processing what they
+/// send. False until they say yes — including while nobody is signed in.
+/// Features that call an outside service read this first.
+final externalProcessingConsentProvider = FutureProvider<bool>((ref) async {
+  ref.watch(authServiceProvider);
+  final snapshot = await ref.watch(accountServiceProvider).cached();
+  return snapshot?.consent?.externalProcessing ?? false;
 });
 
 /// Whether the API is reachable.

@@ -43,6 +43,9 @@ class _Account {
   final String password;
   bool phoneVerified = false;
   bool emailVerified = false;
+  String language = 'en';
+  String? farmName = 'My farm';
+  bool deleted = false;
 
   _Account(
     this.id,
@@ -61,6 +64,11 @@ class _Account {
     'email': email,
     'phone_verified': phoneVerified,
     'email_verified': emailVerified,
+  };
+
+  Map<String, Object?> profileJson() => {
+    ...toJson(),
+    'preferred_language': language,
   };
 }
 
@@ -87,6 +95,11 @@ class FakeAuthApi implements HttpClientAdapter {
   /// Holds `/auth/refresh` open until completed, so a test can act while a
   /// refresh is in flight.
   Completer<void>? holdRefresh;
+
+  /// Answers every `/account/*` request with this status and error code
+  /// instead — how a test makes the server refuse a record as someone
+  /// else's (`403`) or gone (`404 not_found`).
+  (int, String)? accountOverride;
 
   final List<SeenRequest> requests = [];
 
@@ -158,7 +171,13 @@ class FakeAuthApi implements HttpClientAdapter {
       ('POST', '/auth/login') => _login(body),
       ('POST', '/auth/refresh') => await _refresh(body),
       ('POST', '/auth/logout') => _logout(auth),
-      ('GET', '/account/profile') => _profile(auth),
+      (_, final String p) when p.startsWith('/account') => _account(
+        options.method,
+        p,
+        body,
+        options.queryParameters,
+        auth,
+      ),
       _ => _error(404, 'not_found'),
     };
   }
@@ -236,11 +255,118 @@ class FakeAuthApi implements HttpClientAdapter {
     return _empty(204);
   }
 
-  ResponseBody _profile(String? authorization) {
+  /// The account routes, as `account.py` answers them: ownership comes from
+  /// the session, never from the request, and unknown fields are refused.
+  ResponseBody _account(
+    String method,
+    String path,
+    Map<String, Object?> body,
+    Map<String, dynamic> query,
+    String? authorization,
+  ) {
     final session = _live(authorization);
     if (session == null) return _error(401, 'invalid_session');
-    return _json(200, _accounts[session.userId]!.toJson());
+    final override = accountOverride;
+    if (override != null) return _error(override.$1, override.$2);
+    final account = _accounts[session.userId]!;
+
+    bool valid(Object? value, int max) =>
+        value == null ||
+        (value is String && value.trim().isNotEmpty && value.length <= max);
+    const languages = {'en', 'af', 'nso', 'st', 'xh', 'zu'};
+
+    switch ((method, path)) {
+      case ('GET', '/account/profile'):
+        return _json(200, account.profileJson());
+      case ('PATCH', '/account/profile'):
+        const allowed = {'first_name', 'surname', 'preferred_language'};
+        if (!body.keys.every(allowed.contains) ||
+            !valid(body['first_name'], 100) ||
+            !valid(body['surname'], 100) ||
+            (body['preferred_language'] != null &&
+                !languages.contains(body['preferred_language']))) {
+          return _error(422, 'validation_error');
+        }
+        final account2 =
+            _Account(
+                account.id,
+                (body['first_name'] ?? account.firstName) as String,
+                (body['surname'] ?? account.surname) as String,
+                account.phone,
+                account.email,
+                account.password,
+              )
+              ..phoneVerified = account.phoneVerified
+              ..emailVerified = account.emailVerified
+              ..language =
+                  (body['preferred_language'] ?? account.language) as String
+              ..farmName = account.farmName;
+        _accounts[account.id] = account2;
+        return _json(200, account2.profileJson());
+      case ('GET', '/account/farm'):
+        if (account.farmName == null) return _error(404, 'not_found');
+        return _json(200, _farm(account));
+      case ('PATCH', '/account/farm'):
+        if (account.farmName == null) return _error(404, 'not_found');
+        if (!body.keys.every({'name', 'preferred_language'}.contains) ||
+            !valid(body['name'], 200)) {
+          return _error(422, 'validation_error');
+        }
+        account.farmName = (body['name'] ?? account.farmName) as String;
+        return _json(200, _farm(account));
+      case ('GET', '/account/export'):
+        final format = query['format'] ?? 'json';
+        if (format != 'json' && format != 'zip') {
+          return _error(422, 'validation_error');
+        }
+        final document = utf8.encode(
+          jsonEncode({'schema_version': 1, 'account': account.profileJson()}),
+        );
+        return ResponseBody.fromBytes(
+          // A zip is not built here; its bytes only need to be the server's.
+          format == 'zip' ? [0x50, 0x4b, 0x03, 0x04, ...document] : document,
+          200,
+          headers: {
+            Headers.contentTypeHeader: [
+              format == 'zip' ? 'application/zip' : 'application/json',
+            ],
+          },
+        );
+      case ('DELETE', '/account'):
+        final password = body['password'];
+        if (password is! String || password.isEmpty) {
+          return _error(422, 'validation_error');
+        }
+        if (password != account.password) {
+          return _error(401, 'invalid_credentials');
+        }
+        account.deleted = true;
+        _accounts.remove(account.id);
+        for (final s in _byAccess.values) {
+          if (s.userId == account.id) s.revoked = true;
+        }
+        return _empty(204);
+    }
+    return _error(404, 'not_found');
   }
+
+  Map<String, Object?> _farm(_Account account) => {
+    'id': '10000000-0000-4000-8000-000000000001',
+    'owner_id': account.id,
+    'name': account.farmName,
+    'preferred_language': account.language,
+  };
+
+  /// Takes every account's farm away, so `/account/farm` answers 404.
+  void removeFarm() {
+    for (final a in _accounts.values) {
+      a.farmName = null;
+    }
+  }
+
+  /// Whether an account with this email still exists here.
+  bool hasAccount(String email) =>
+      _accounts.values.any((a) => a.email == email);
 
   _Session? _live(String? authorization) {
     if (authorization == null || !authorization.startsWith('Bearer ')) {
