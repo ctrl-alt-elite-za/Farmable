@@ -125,6 +125,9 @@ prints the same local command:
 - `assistant-evals` — `make eval-assistant SET=dev`
 - `mobile-test` — `make mobile-checks`
 - `demo-regression` — `make demo-regression`
+- `cloud-review-policy` — `PR_NUMBER=<pr> GITHUB_TOKEN=$(gh auth token) GITHUB_REPOSITORY=ctrl-alt-elite-za/Farmable python3 .github/cloud_review_policy.py`
+  — a cloud change needs a specific approver, which CODEOWNERS cannot express:
+  Bandile for anyone else's, Tshego for Bandile's
 
 ### Flutter
 
@@ -159,7 +162,9 @@ required check is reported as success, so failing open on a broken scopes job
 would let mobile changes bypass the gate.
 
 The emulator-level proof stays in `e2e-mobile`: `scripts/ci-stack.sh` runs
-`e2e/mobile/online_launch.yaml`, stops the API container, then runs
+`e2e/mobile/online_launch.yaml`, then `signup.yaml` and `login.yaml` against
+the stack's real API (its fake OTP provider accepts `111111` for the phone and
+`222222` for email), stops the API container, then runs
 `e2e/mobile/offline_launch.yaml` against the stopped backend.
 
 ### Demo regression

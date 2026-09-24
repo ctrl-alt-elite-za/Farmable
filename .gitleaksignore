@@ -1,4 +1,6 @@
-# Synthetic idempotency keys in the historical auth acceptance tests.
+# Reviewed synthetic signup/claim Idempotency-Key fixtures, not provider secrets.
+# PR #71 review: https://github.com/ctrl-alt-elite-za/Farmable/pull/71#issuecomment-5801424737
+# Exact historical fingerprints only: do not exempt a whole commit, rule or file.
 f10da6a57c33fc832f49c229df57ad063abfae7a:apps/backend/tests/test_auth_acceptance.py:generic-api-key:291
 f10da6a57c33fc832f49c229df57ad063abfae7a:apps/backend/tests/test_auth_acceptance.py:generic-api-key:304
 f10da6a57c33fc832f49c229df57ad063abfae7a:apps/backend/tests/test_auth_acceptance.py:generic-api-key:335

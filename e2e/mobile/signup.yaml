@@ -1,0 +1,109 @@
+# Sign up against the real API: create the account, prove the phone, prove the
+# email, land on Home signed in.
+#
+# Needs the isolated CI stack (scripts/ci-stack.sh mobile), which runs the API
+# with INTEGRATIONS_MODE=fake. Its OTP provider is deterministic - 111111 for
+# the phone, 222222 for email - and delivers nothing anywhere. The app itself
+# has no idea the provider is fake: this is the real client, the real routes
+# and a real session in the Android Keystore.
+#
+#   maestro test e2e/mobile/signup.yaml
+#
+# Every field is found by the semantics identifier AppTextField derives from
+# its label (field-name, field-confirm-password, ...), because the label is a
+# sibling Text and nothing on the input itself carries it. Headings are matched
+# with '.*...*' for the reason online_launch.yaml gives: Android merges sibling
+# Texts into one accessibility string and Maestro matches the WHOLE string.
+# Buttons are matched exactly - each is its own merged button node.
+appId: za.co.almanac.app
+name: A farmer creates an account and verifies phone, then email
+---
+- launchApp:
+    clearState: true
+# Unique per run, so the flow can be rerun against a stack that already holds
+# an earlier run's account. Kept if a parent flow (login.yaml) already set it,
+# so the parent can log back in with the same details.
+- evalScript: ${output.suffix = output.suffix || String(Date.now()).slice(-7)}
+# Home first, with no session: sign-up is somewhere a farmer goes, never a gate
+# in front of the farm.
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+- tapOn:
+    id: 'nav-profile'
+- tapOn: 'Create account'
+- extendedWaitUntil:
+    visible: '.*Create your account.*'
+    timeout: 10000
+# Each field: keyboard down, scrolled into view, then typed into. The keyboard
+# left up by the previous field covers the next one on the CI emulator's
+# screen, and a covered field is not in the tree Maestro searches.
+- scrollUntilVisible:
+    element:
+      id: 'field-name'
+- tapOn:
+    id: 'field-name'
+- inputText: 'Thandi'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-surname'
+- tapOn:
+    id: 'field-surname'
+- inputText: 'Mokoena'
+- hideKeyboard
+# 82 plus seven digits: a nine-digit South African mobile, +2782xxxxxxx.
+- scrollUntilVisible:
+    element:
+      id: 'field-phone-number'
+- tapOn:
+    id: 'field-phone-number'
+- inputText: '82${output.suffix}'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-email'
+- tapOn:
+    id: 'field-email'
+- inputText: 'farmer${output.suffix}@example.com'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-password'
+- tapOn:
+    id: 'field-password'
+- inputText: 'three blind field mice'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-confirm-password'
+- tapOn:
+    id: 'field-confirm-password'
+- inputText: 'three blind field mice'
+- hideKeyboard
+- scrollUntilVisible:
+    element: 'Create account'
+- tapOn: 'Create account'
+# Phone step.
+- extendedWaitUntil:
+    visible: '.*Verify your account.*'
+    timeout: 20000
+- tapOn:
+    id: 'verification-code'
+- inputText: '111111'
+# Email step, on the same screen: it names the masked address the code went to.
+- extendedWaitUntil:
+    visible: '.*@example\.com.*'
+    timeout: 20000
+- tapOn:
+    id: 'verification-code'
+- inputText: '222222'
+# Both proved: a session, and Home.
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 30000
+- tapOn:
+    id: 'nav-profile'
+- assertVisible: '.*Thandi Mokoena.*'
+- scrollUntilVisible:
+    element: 'Log out'

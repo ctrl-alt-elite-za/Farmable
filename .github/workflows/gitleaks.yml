@@ -23,4 +23,5 @@ jobs:
           # CI must also detect secrets committed and then removed from HEAD.
           docker run --rm --volume "$PWD:/repo:ro" \
             ghcr.io/gitleaks/gitleaks@sha256:0e99e8821643ea5b235718642b93bb32486af9c8162c8b8731f7cbdc951a7f46 \
-            git /repo --config /repo/.gitleaks.toml --redact --log-opts="--all"
+            git /repo --config /repo/.gitleaks.toml \
+            --gitleaks-ignore-path /repo/.gitleaksignore --redact --log-opts="--all"
