@@ -2,7 +2,15 @@
 ///
 /// One copy at a time, under a fixed name (`farmable-export.json` or `.zip`,
 /// the names the server itself uses), in a folder of its own inside the app's
-/// private documents directory. Nothing about the account goes into the path.
+/// private **cache** directory. Nothing about the account goes into the path.
+///
+/// The cache, not the documents directory, because the cache is never backed
+/// up: Android Auto Backup and device transfer skip it, and so does iCloud.
+/// An export is every record on the account; a copy in a backup would outlive
+/// both its 24-hour expiry and the account itself, and could be restored onto
+/// a phone the account was deleted from. The OS may also clear the cache when
+/// storage runs low, which for a copy meant to be shared and then forgotten
+/// is no loss. `test/account/export_store_test.dart` holds this in place.
 library;
 
 import 'dart:io';
@@ -10,6 +18,11 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/account/account_models.dart';
+
+/// Where exports are written: `exports/` under the app's cache directory,
+/// which no platform backup includes. Also what account deletion empties.
+Future<Directory> exportsDirectory() async =>
+    Directory('${(await getTemporaryDirectory()).path}/exports');
 
 abstract class ExportStore {
   /// Replaces whatever copy was there.
@@ -26,8 +39,7 @@ class FileExportStore implements ExportStore {
   FileExportStore({Future<Directory> Function()? directory})
     : _directory = directory ?? _defaultDirectory;
 
-  static Future<Directory> _defaultDirectory() async =>
-      Directory('${(await getApplicationDocumentsDirectory()).path}/exports');
+  static Future<Directory> _defaultDirectory() => exportsDirectory();
 
   @override
   Future<ExportFile> save(

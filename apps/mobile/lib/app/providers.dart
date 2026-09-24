@@ -135,8 +135,7 @@ final deviceDirectoriesProvider = Provider<List<Future<Directory> Function()>>(
   (ref) => [
     () async =>
         Directory('${(await getApplicationDocumentsDirectory()).path}/photos'),
-    () async =>
-        Directory('${(await getApplicationDocumentsDirectory()).path}/exports'),
+    exportsDirectory,
   ],
 );
 
