@@ -23,6 +23,7 @@ from farmable_ml.forecast import (
 from farmable_ml.reports import RETROSPECTIVE_SCENARIO, Bootstrap, build_report, canonical_json
 from farmable_ml.retrospective import (
     ASSUMPTIONS,
+    ORIGINAL_PROTOCOL_SHA256,
     PROTOCOL_SHA256,
     ForecastAudit,
     RetrospectiveSimulation,
@@ -148,6 +149,7 @@ def test_lightgbm_retrospective_policy_is_repeatable_and_future_mutation_safe():
 def test_frozen_assumptions_match_both_registered_protocol_tables():
     protocol = Path("ml/backtest/PROTOCOL.md").read_bytes()
     assert hashlib.sha256(protocol).hexdigest() == PROTOCOL_SHA256
+    assert ORIGINAL_PROTOCOL_SHA256.encode() in protocol
     months = {
         name: index
         for index, name in enumerate(
