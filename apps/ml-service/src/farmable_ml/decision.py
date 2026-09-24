@@ -18,17 +18,26 @@ class Candidate:
     occupied_months: Decimal
     available_on: date
     price_basis: str
+    assumption_kind: str = "historical_vintage"
+    marketing_rate: Decimal = Decimal(0)
 
     def __post_init__(self) -> None:
-        if self.available_on >= self.forecast.origin:
+        if self.assumption_kind not in {"historical_vintage", "fixed_scenario"}:
+            raise ValueError("unknown candidate assumption kind")
+        if (
+            self.assumption_kind == "historical_vintage"
+            and self.available_on >= self.forecast.origin
+        ):
             raise ValueError("candidate cost/yield must be available before planting")
         if not self.price_basis.strip():
             raise ValueError("candidate requires an explicit common price/cost basis")
+        if not self.marketing_rate.is_finite() or not 0 <= self.marketing_rate < 1:
+            raise ValueError("marketing_rate must be a Decimal in [0, 1)")
         self.predicted_margin()
 
     def predicted_margin(self) -> Decimal:
         return gross_margin(
-            price_rand_per_kg=self.forecast.p50,
+            price_rand_per_kg=self.forecast.p50 * (1 - self.marketing_rate),
             yield_kg_per_ha=self.yield_kg_per_ha,
             cost_rand_per_ha=self.cost_rand_per_ha,
             occupied_months=self.occupied_months,
@@ -129,7 +138,7 @@ def score_recommendation(
             raise ValueError("reporting multipliers must be finite and positive")
         margins[crop] = (
             gross_margin(
-                price_rand_per_kg=actual_prices[key],
+                price_rand_per_kg=actual_prices[key] * (1 - candidate.marketing_rate),
                 yield_kg_per_ha=candidate.yield_kg_per_ha,
                 cost_rand_per_ha=candidate.cost_rand_per_ha,
                 occupied_months=candidate.occupied_months,

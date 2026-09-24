@@ -58,7 +58,7 @@ def validate_bundle(bundle: dict[str, Any]) -> None:
         r"[a-z0-9][a-z0-9_-]{0,63}", bundle["run_id"]
     ):
         raise ValueError("invalid run_id")
-    if bundle["data_kind"] not in {"synthetic", "historical"}:
+    if bundle["data_kind"] not in {"synthetic", "historical", "retrospective"}:
         raise ValueError("invalid data_kind")
     as_of = datetime.fromisoformat(bundle["as_of"])
     if as_of.tzinfo is None:

@@ -71,16 +71,16 @@ publication claim.
 Version 1 freezes the staged calendar leads as scenario assumptions. Their source
 cleanup remains future work; changing them requires a protocol amendment.
 
-| Crop | In-season planting months | Harvest offset months | Yield kg/ha |
-| --- | --- | ---: | ---: |
-| butternut | Sep, Oct, Nov | 5 | 22,500 |
-| cabbage | Jan, Feb, Mar, Apr, May, Nov, Dec | 3 | 75,000 |
-| carrots | Jan, Feb, Mar, Aug, Sep, Oct | 4 | 50,000 |
-| green beans | Jan, Sep, Oct, Nov, Dec | 3 | 10,000 |
-| onions | Feb, Mar | 7 | 42,500 |
-| potatoes | Jan, Feb, Jul, Aug, Sep, Oct | 5 | 45,000 |
-| spinach | Jan, Feb, Mar, Apr, Aug, Sep, Oct, Nov, Dec | 3 | 20,000 |
-| tomatoes | Aug, Sep, Oct, Nov | 3 | 62,500 |
+| Crop        | In-season planting months                   | Harvest offset months | Yield kg/ha |
+| ----------- | ------------------------------------------- | --------------------: | ----------: |
+| butternut   | Sep, Oct, Nov                               |                     5 |      22,500 |
+| cabbage     | Jan, Feb, Mar, Apr, May, Nov, Dec           |                     3 |      75,000 |
+| carrots     | Jan, Feb, Mar, Aug, Sep, Oct                |                     4 |      50,000 |
+| green beans | Jan, Sep, Oct, Nov, Dec                     |                     3 |      10,000 |
+| onions      | Feb, Mar                                    |                     7 |      42,500 |
+| potatoes    | Jan, Feb, Jul, Aug, Sep, Oct                |                     5 |      45,000 |
+| spinach     | Jan, Feb, Mar, Apr, Aug, Sep, Oct, Nov, Dec |                     3 |      20,000 |
+| tomatoes    | Aug, Sep, Oct, Nov                          |                     3 |      62,500 |
 
 Harvest offset is the ceiling of the staged midpoint plant-to-harvest duration
 divided by 30 days. Yield is the arithmetic midpoint of the staged range; green
@@ -89,16 +89,16 @@ beans use its 10 t/ha point value. Nursery time is excluded from land occupancy.
 Use the reviewed 2025 Elsenburg total allocatable variable costs and marketing
 rates exactly as displayed:
 
-| Crop | Cost ZAR/ha | Marketing rate |
-| --- | ---: | ---: |
-| butternut | 60,756.87 | 12.5% |
-| cabbage | 115,183.85 | 12.5% |
-| carrots | 68,312.94 | 12.5% |
-| green beans | 136,357.03 | 12.5% |
-| onions | 108,783.41 | 12.5% |
-| potatoes | 181,097.86 | 12.5% |
-| spinach | 167,412.66 | 12.5% |
-| tomatoes | 168,968.20 | 0% |
+| Crop        | Cost ZAR/ha | Marketing rate |
+| ----------- | ----------: | -------------: |
+| butternut   |   60,756.87 |          12.5% |
+| cabbage     |  115,183.85 |          12.5% |
+| carrots     |   68,312.94 |          12.5% |
+| green beans |  136,357.03 |          12.5% |
+| onions      |  108,783.41 |          12.5% |
+| potatoes    |  181,097.86 |          12.5% |
+| spinach     |  167,412.66 |          12.5% |
+| tomatoes    |  168,968.20 |             0% |
 
 Gross revenue is reduced by the marketing rate before subtracting cost. Working
 capital interest and fixed costs are excluded. Source-displayed VAT treatment is

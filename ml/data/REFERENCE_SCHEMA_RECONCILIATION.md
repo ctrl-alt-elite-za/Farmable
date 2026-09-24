@@ -2,6 +2,18 @@
 
 **Reviewed:** 23 September 2026 against `origin/main` at `f375c0a`.
 
+**Implementation update:** the runner branch now integrates `origin/main` at
+`1796ecc`, including `0009_account_profiles`. Reference migration `0010` revises
+`0009` and adds the four reference tables without changing farmer-owned data.
+Canonical crop identifiers are constrained to the eight supported values rather
+than seeded in a separate lookup table. The import identity retains source filename,
+source hash, payload hash, parser version, row count and creation time. Market rows
+explicitly distinguish publication availability from analytical next-month
+eligibility. Offline migration/ORM parity and SQLite transaction/race tests pass;
+PostgreSQL migration and race tests are wired into the disposable integration
+harness but still require execution. The original review and plan below are kept
+as context, not as the current migration numbering.
+
 Issue #8 was delivered by merge `bd1bb36` (PR #42). Its ORM models and migration
 cover farmer-owned operational and synchronization data: users, farms, sections,
 plantings, media, observations, tasks, financial records, saved plans, sync

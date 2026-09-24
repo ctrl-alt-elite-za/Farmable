@@ -1,6 +1,6 @@
 # Issue #20 acceptance evidence
 
-Updated 2026-09-23. This is implementation evidence for the senior-review
+Updated 2026-09-24. This is implementation evidence for the senior-review
 follow-up and retrospective-scenario registration, **not a completed issue**. No
 real decision backtest was executed.
 
@@ -9,7 +9,98 @@ artifacts can be completed before historical data cleanup. `backtest/PROTOCOL.md
 freezes the current-vintage price, CPI, cost, calendar and reporting rules and
 prohibits the historical publication-availability claim.
 
+### Registered protocol and simulation integration (24 September 2026)
+
+Protocol-only PR #77 merged on `main` at `73e2c6296a5a`. The working protocol
+byte-matches the registered SHA-256 `a090d4e9d517b2b8c0d9d5009b5b9c5c9a827386e178f6e265052270923ea99d`,
+and `check_protocol_first.py --check-ready` passes. Kea's issue-20 follow-up
+simulation core is integrated into the local runner for frozen recommendations and
+decision scoring. The runner retains its audited workbook loader, ORM import work,
+forecast evaluation, snapshot export and deterministic artifact packaging.
+
+The combined forecast/backtest suite passes **153 tests**, including real LightGBM
+fits on synthetic data and a runner repeat with byte-identical artifacts. Ruff lint,
+Ruff formatting, ML package mypy and runner mypy pass. No real workbooks were run,
+no real results were produced, and this working tree has not been submitted as a PR.
+PostgreSQL integration, Colab execution, original workbook acquisition, independent
+real-run repetition and artifact review remain open.
+
 ## Verified locally
+
+### Mainline integration and reference persistence (24 September 2026)
+
+Integrated main at `1796ecc` into the runner branch while retaining the existing
+uncommitted runner work. Added migration `0010_reference_data`, revising main's
+`0009_account_profiles`; its four tables match ORM-generated DDL. No application
+database was migrated. Source filenames and hashes are retained, and market rows
+explicitly distinguish analytical eligibility from actual publication dates.
+SQLite coverage verifies concurrent identical imports, complete rollback on a
+natural-key conflict, source provenance and analytical date validation.
+PostgreSQL race and migration-round-trip tests are wired into
+`scripts/test-integration.sh` but remain unexecuted because Docker is stopped.
+
+The runner now also writes `forecast.json`. The backend accepts that export in
+explicit `retrospective` mode, preserves its label and returns a retrospective
+warning in outlooks. Historical mode rejects it. The generated API client was
+regenerated from FastAPI. Synthetic runner-to-consumer contract and authenticated
+outlook checks pass; no real forecast was imported or deployed.
+
+Validation in this continuation:
+
+- Backend/ML suite before the consumer addition: **941 passed, 51 deselected**.
+- Follow-up forecast, runner and available script suite: **294 passed**.
+- Repository Ruff passes; broad mypy passes for **172 source files**.
+- Follow-up mypy passes for the five changed consumer/import/runner modules.
+- Node lint and workspace type checks pass; geo tests: **120 passed**. These
+  used the installed pnpm, which warns that `pnpm.overrides` is ignored; a pinned
+  pnpm 9.15.9 CI run remains necessary.
+- Raw-SQL guard passes across **134 files**. ML and backend working-tree
+  Gitleaks scans pass.
+- Native Make/Bash remains unavailable. The script run excluded the six modules
+  that invoke Bash: await-device, CI, forecast-deployment, integration-runner,
+  repo-hooks and staging-infrastructure. No complete `make` run is claimed.
+- The protocol history gate now passes against freshly fetched `origin/main`.
+  No real backtest was executed.
+
+Before closure: produce and repeat the real artifacts; validate/import the real
+snapshot; execute the Colab notebook;
+run PostgreSQL integration and complete repository checks; merge results in a
+later PR and pass the final history gate. The publisher request is follow-up
+source cleanup, not a version-1 blocker. Earlier evidence below describes prior
+milestones and may reference the previous migration numbering.
+
+### Resumed retrospective runner implementation
+
+The local runner now integrates audited workbook loading, fixed-2025 normalization,
+temporal method selection, marketing deductions, frozen recommendations, explicit
+skips, forecast/decision ledgers, snapshot export, reports and provenance manifests.
+The history gate executes before any source loading. Analytical next-month
+eligibility is explicit; ordinary publication-vintage checks remain strict.
+
+Synthetic integration tests cover future-price mutation, missing candidates,
+seasonality and late-harvest skips, full 1,248-key ledger coverage, the 96-row
+snapshot, and identical bytes across two runs with reversed input order. These
+integration tests substitute simple deterministic predictors and a 100-replicate
+bootstrap; existing separate LightGBM tests exercise the actual fitted models.
+They do not establish real-input, full-10,000-replicate or cross-platform
+reproducibility. Workbook hash rejection and mixed success/failure Parquet columns
+are tested separately.
+
+- Current focused verification: backend **550 passed, 33 deselected**; ML and
+  source-audit **122 passed**. Repository Ruff, broad mypy (102 files), focused
+  import mypy, the 94-file raw-SQL guard, and working-tree secret scans pass.
+  Node checks could not start because Corepack could not verify/fetch the pinned
+  pnpm release in this environment. Bash-dependent tests remain unavailable because
+  the Windows WSL relay has no `/bin/bash`.
+
+The earlier checkpoint below predates PR #77: its protocol-gate blocker is resolved.
+No real results were generated. ORM
+reference models and transactional imports now have synthetic idempotency coverage,
+but their `0009` migration must be generated only after rebasing onto main's `0008`.
+The credential-free Colab notebook is committed and structurally tested, but Colab
+execution, real-run comparison, consumer integration and
+the separate protocol/results PR sequence remain outstanding. The evidence below
+records earlier milestones rather than claiming those remaining criteria are met.
 
 ### Senior-review follow-up
 
@@ -84,7 +175,7 @@ only to the explicitly parametrized concurrency test; production code is unchang
 | Every-default table                              | `test_table_lists_every_default` passes                                                          | Real artifact                                                                              |
 | Generated slide sentence                         | `test_slide_sentence_from_results` passes, synthetic warning retained                            | Real artifact with evidence supporting the exact wording                                   |
 | Parquet validator exits 0                        | CLI actually exits 0 against temporary 96-row Parquet fixture; rejects invalid grid/prices/basis | Real `results/<run_id>/forecasts.parquet` and consumer integration                         |
-| `test_import_idempotent`                         | Not implemented for #20 reference imports                                                        | Current-main reconciliation, reference schema/migrations and ORM import commands/tests     |
+| `test_import_idempotent`                         | Three bundle kinds pass identical-import no-op, conflict and atomic-failure tests                | Rebase on current main; add/review `0009`; PostgreSQL migration/concurrency verification   |
 | Gitleaks                                         | Local directory and available full-history scans passed                                          | Repeat in eventual PR CI with complete fetched history                                     |
 
 The CPI snapshot is a current-vintage **reporting** series. Models currently work
@@ -96,8 +187,8 @@ The follow-up confirms monthly Johannesburg workbook contents. Conservative
 archive bounds are recorded for 2008–2020, while 2021–2024 publication timing and
 post-2024 spinach remain data-cleanup gaps. Version 1 proceeds as an explicitly
 retrospective current-vintage scenario with frozen assumptions. Its real decision
-backtest remains blocked only by separate protocol registration and runner/import
-implementation, not by the deferred source cleanup.
+backtest remains blocked by separate protocol registration, mainline migration
+integration and real execution, not by the deferred source cleanup.
 
 ## Dependencies and next work
 
@@ -117,10 +208,10 @@ Full consumer validation on the merged branch remains to run.
 Obtain 2021–2024 release evidence and the missing post-2024 spinach coverage,
 resolve calendar fields and VAT basis, and then finalize and merge the protocol
 separately.
-After that gate, complete imports and integrate the real runner, Colab notebook
-and result artifacts.
+After that gate, rebase the reference schema onto migration `0008`, add `0009`,
+verify the notebook in Colab, and produce independently repeated result artifacts.
 
-Native Make is unavailable and Node dependencies remain absent after the earlier
-installation request was declined. No successful complete `make lint/typecheck/test`
-run is claimed. Pinned ML runtime tested here: Python 3.12.11, LightGBM 4.7.0,
+Native Make and a working WSL Bash are unavailable. No successful complete
+`make lint/typecheck/test` run is claimed. Pinned ML runtime tested here: Python
+3.12.11, LightGBM 4.7.0,
 NumPy 2.5.3, PyArrow 25.0.1 on Windows. Other platforms/Colab remain unverified.

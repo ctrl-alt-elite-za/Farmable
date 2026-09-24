@@ -13,11 +13,13 @@ import pytest
 from farmable_ml.data import Crop
 from farmable_ml.decision import Decision
 from farmable_ml.reports import (
+    RETROSPECTIVE_SCENARIO,
     Bootstrap,
     build_report,
     metrics,
     render_sentence,
     render_table,
+    write_retrospective_report,
 )
 
 
@@ -204,6 +206,25 @@ def test_complete_historical_coverage_and_sentence():
     }
     assert "1248 planting decisions (2012-01–2024-12)" in render_sentence(document)
     assert "2012-01–2024-12" in render_table(document)
+
+
+def test_retrospective_report_uses_registered_nonhistorical_claim(tmp_path):
+    document = build_report(
+        complete_ledger(),
+        data_kind="historical",
+        scenario=RETROSPECTIVE_SCENARIO,
+        observation_cutoff_verified=True,
+        input_hashes={"fixture": "a" * 64},
+        config=Bootstrap(replicates=100),
+    )
+    sentence = render_sentence(document)
+    assert document["information_policy"]["status"] == "verified_observation_cutoff_only"
+    assert "retrospective fixed-2025-input simulation" in sentence
+    assert "does not show what information was published" in sentence
+    assert "using only data available at planting time" not in sentence
+    run_id = write_retrospective_report(document, tmp_path / "report")
+    assert len(run_id) == 64
+    assert (tmp_path / "report/decision_backtest.json").is_file()
 
 
 def test_historical_report_with_tampered_information_policy_cannot_render():

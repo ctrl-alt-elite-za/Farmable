@@ -2,6 +2,12 @@
 
 **Status:** prepared for review; not sent.
 
+This request supports the deferred historical-source cleanup. Under Issue #20's
+approved 23 September 2026 amendment, a publisher response is **not a prerequisite
+for version 1**. The retrospective simulation still requires the independently
+merged protocol, validated result artifacts and the remaining implementation
+checks recorded in `ml/ACCEPTANCE.md`.
+
 **Primary contact:** Ms Mahlatse Makaleng, Senior Statistician,
 `MahlatseMa@dalrrd.gov.za`, +27 12 319 8050
 

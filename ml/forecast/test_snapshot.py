@@ -95,3 +95,11 @@ def test_snapshot_rejects_missing_duplicate_and_wrong_basis():
     data["price_basis_year"] = 2012
     with pytest.raises(ValueError, match="2025"):
         validate_bundle(data)
+
+
+def test_snapshot_accepts_registered_retrospective_kind():
+    data = bundle()
+    data["data_kind"] = "retrospective"
+    for row in data["rows"]:
+        row["method"] = "historical_range"
+    validate_bundle(data)

@@ -7,7 +7,7 @@ from decimal import Decimal
 import lightgbm as lgb
 import numpy as np
 
-from farmable_ml.data import Crop, PriceObservation
+from farmable_ml.data import Crop, ObservationPolicy, PriceObservation
 from farmable_ml.forecast import QUANTILES, Forecast, InsufficientHistory, _history, shift_month
 
 
@@ -18,10 +18,11 @@ def features(
     market: str,
     origin: date,
     target: date,
+    policy: ObservationPolicy = ObservationPolicy.PUBLICATION,
 ) -> list[float]:
     lookup = {
         row.observation_month: row.price_rand_per_kg
-        for row in _history(records, crop, market, origin)
+        for row in _history(records, crop, market, origin, policy=policy)
     }
     months = [shift_month(origin, -offset) for offset in (2, 3, 4, 6, 12)]
     if any(month not in lookup for month in months):
@@ -46,15 +47,19 @@ def lightgbm_quantiles(
     origin: date,
     target: date,
     minimum_training_rows: int = 36,
+    policy: ObservationPolicy = ObservationPolicy.PUBLICATION,
 ) -> Forecast:
     if minimum_training_rows < 2:
         raise ValueError("minimum_training_rows must be at least two")
     horizon = (target.year - origin.year) * 12 + target.month - origin.month
-    prediction_features = features(records, crop=crop, market=market, origin=origin, target=target)
+    prediction_features = features(
+        records, crop=crop, market=market, origin=origin, target=target, policy=policy
+    )
     x, y = [], []
-    # Labels themselves must be published before the current fit. Features for
-    # each label are rebuilt at that label's own historical planting cutoff.
-    for row in sorted(_history(records, crop, market, origin), key=lambda r: r.observation_month):
+    # Labels and features use the same declared availability rule at each fold.
+    for row in sorted(
+        _history(records, crop, market, origin, policy=policy), key=lambda r: r.observation_month
+    ):
         historical_origin = shift_month(row.observation_month, -horizon)
         try:
             values = features(
@@ -63,6 +68,7 @@ def lightgbm_quantiles(
                 market=market,
                 origin=historical_origin,
                 target=row.observation_month,
+                policy=policy,
             )
         except InsufficientHistory:
             continue

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 
-from farmable_ml.data import Crop, PriceObservation, observations_before
+from farmable_ml.data import Crop, ObservationPolicy, PriceObservation, observations_before
 
 D = Decimal
 QUANTILES = (D("0.1"), D("0.5"), D("0.9"))
@@ -65,11 +65,16 @@ class Forecast:
 
 
 def _history(
-    records: tuple[PriceObservation, ...], crop: Crop, market: str, origin: date
+    records: tuple[PriceObservation, ...],
+    crop: Crop,
+    market: str,
+    origin: date,
+    *,
+    policy: ObservationPolicy = ObservationPolicy.PUBLICATION,
 ) -> tuple[PriceObservation, ...]:
     history = tuple(
         row
-        for row in observations_before(records, origin)
+        for row in observations_before(records, origin, policy=policy)
         if row.crop == crop and row.market == market
     )
     if len({row.observation_month for row in history}) != len(history):
@@ -85,12 +90,13 @@ def historical_range(
     origin: date,
     target: date,
     minimum_years: int = 3,
+    policy: ObservationPolicy = ObservationPolicy.PUBLICATION,
 ) -> Forecast:
     if minimum_years < 1:
         raise ValueError("minimum_years must be positive")
     values = [
         row.price_rand_per_kg
-        for row in _history(records, crop, market, origin)
+        for row in _history(records, crop, market, origin, policy=policy)
         if row.observation_month.month == target.month
     ]
     if len(values) < minimum_years:
@@ -107,9 +113,10 @@ def same_month_last_year(
     market: str,
     origin: date,
     target: date,
+    policy: ObservationPolicy = ObservationPolicy.PUBLICATION,
 ) -> Forecast:
     previous = shift_month(target, -12)
-    for row in _history(records, crop, market, origin):
+    for row in _history(records, crop, market, origin, policy=policy):
         if row.observation_month == previous:
             value = row.price_rand_per_kg
             return Forecast(crop, origin, target, "same_month_last_year", value, value, value)
@@ -147,6 +154,34 @@ class Selection:
     folds: tuple[ValidationFold, ...]
 
 
+class SelectionUnavailable(InsufficientHistory):
+    """Retain evaluated folds when selection cannot choose a method."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        folds: tuple[ValidationFold, ...] = (),
+        scores: tuple[tuple[str, Decimal | None], ...] = (),
+    ):
+        super().__init__(message)
+        self.folds = folds
+        self.scores = scores
+
+
+class SelectionFailure(SelectionUnavailable):
+    """Compatibility name for a completed validation with no supported method."""
+
+    def __init__(
+        self,
+        scores: tuple[tuple[str, Decimal | None], ...],
+        folds: tuple[ValidationFold, ...],
+    ):
+        super().__init__(
+            "no method supports all common validation targets", folds=folds, scores=scores
+        )
+
+
 def select_method(
     records: tuple[PriceObservation, ...],
     *,
@@ -158,6 +193,7 @@ def select_method(
     tie_order: Sequence[str],
     validation_months: int = 36,
     minimum_folds: int = 12,
+    policy: ObservationPolicy = ObservationPolicy.PUBLICATION,
 ) -> Selection:
     """Score all methods on identical known targets, rebuilding each old origin.
 
@@ -173,18 +209,18 @@ def select_method(
     targets = sorted(
         (
             row
-            for row in _history(records, crop, market, cutoff)
+            for row in _history(records, crop, market, cutoff, policy=policy)
             if earliest <= row.observation_month < cutoff
         ),
         key=lambda row: row.observation_month,
     )
     if len(targets) < minimum_folds:
-        raise InsufficientHistory("insufficient available validation targets")
+        raise SelectionUnavailable("insufficient available validation targets")
     folds = []
     totals: dict[str, Decimal | None] = dict.fromkeys(tie_order, D(0))
     for row in targets:
         origin = shift_month(row.observation_month, -horizon_months)
-        history = observations_before(records, origin)
+        history = observations_before(records, origin, policy=policy)
         losses: list[tuple[str, Decimal | None]] = []
         for name in tie_order:
             try:
@@ -213,5 +249,5 @@ def select_method(
         (score, index, name) for index, (name, score) in enumerate(scores) if score is not None
     ]
     if not supported:
-        raise InsufficientHistory("no method supports all common validation targets")
+        raise SelectionFailure(scores, tuple(folds))
     return Selection(min(supported)[2], scores, tuple(folds))

@@ -30,6 +30,7 @@ trap cleanup EXIT
 # Forecast/voice races do not match the older auth/farm keyword filter above.
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_voice_sessions_postgres.py apps/backend/tests/integration/test_forecast_postgres.py -m integration -q
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_weather_postgres.py -m integration -q
+"${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_reference_postgres.py -m integration -q
 # Real PostgreSQL, full authenticated ASGI path; print the measured p95 in CI logs.
 "${compose[@]}" run --rm tests pytest e2e/perf/test_outlook.py -m integration -q -s
 "${compose[@]}" stop worker

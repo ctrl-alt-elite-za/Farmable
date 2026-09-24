@@ -6,10 +6,10 @@ and LightGBM forecasts, temporal method selection, decision scoring, report gene
 Parquet validation, a staged-data inventory and a protocol-history checker. The package
 lives in `apps/ml-service/src/farmable_ml`; public checks and artifacts use `ml/`.
 
-These components are exercised on synthetic fixtures. No real decision simulation
-or production forecast snapshot is included yet. The registered retrospective
-fixed-input rules are in `ml/backtest/PROTOCOL.md`; they must merge independently
-before any result run. NumPy, PyArrow
+These components and the integrated retrospective runner are exercised on synthetic
+fixtures. No real decision simulation or production forecast snapshot is included
+yet. The registered retrospective fixed-input rules in `ml/backtest/PROTOCOL.md`
+merged independently in PR #77 before any result run. NumPy, PyArrow
 and LightGBM are pinned in the package manifest and workspace lockfile. Reporting
 CPI data and extraction provenance are in `ml/data/SOURCES.md`. Proposed statistical
 settings and source caveats are in `ml/backtest/PROTOCOL.md`.
@@ -28,8 +28,8 @@ The inventory reads committed CSV blobs without checking out the data branch or
 writing raw input files. It reports staged coverage, hashes and limitations; it does
 not certify that the inputs satisfy the experiment.
 
-The protocol checker fails until `ml/backtest/PROTOCOL.md` has been merged on main.
-This is intentional. Preparation mode requires the local protocol to
+The protocol checker now passes preparation mode against the merged mainline
+protocol. Preparation mode requires the local protocol to
 exactly match the merged mainline tip. Default mode also requires mainline results
 whose first introduction is strictly later than the protocol. Use `--repo` and
 `--main-ref` for a different repository or mainline reference. All tracked files in
@@ -66,8 +66,9 @@ Resolve source corrections and alternative vintages explicitly before producing 
 single-vintage file. Source hashes preserve provenance; without the referenced blob
 they do not independently establish authenticity or availability.
 
-`observations_before(records, cutoff)` uses strict `available_on < cutoff`, where the
-cutoff is the first day of planting month. It filters only; it neither imputes missing
+`observations_before(records, cutoff)` defaults to strict `available_on < cutoff`.
+The explicit retrospective policy instead includes observations from months before
+the planting month without claiming publisher availability. It filters only; it neither imputes missing
 data nor proves a model's full absence of look-ahead. Full model and recommendation
 invariance tests remain required when those components exist.
 
@@ -93,13 +94,67 @@ fixed 2025 budgets with future CPI cannot silently become the recommendation rul
 
 ## Next dependencies
 
+### Retrospective runner
+
+`ml/backtest/run_retrospective.py` implements the registered scenario. It verifies
+the protocol history gate before reading workbooks, checks each workbook's bytes,
+hash, sheet and cell audit, and never connects to a database. Supply the original
+workbooks in one directory using the filenames in the committed source audit:
+
+```bash
+uv run --with xlrd==2.0.2 --with openpyxl==3.1.5 python ml/backtest/run_retrospective.py --workbooks /path/to/workbooks
+```
+
+The separate protocol PR is merged on `main`; the runner still refuses an unmerged
+or byte-mismatched protocol. Use only reviewed original workbooks for a real run. It
+exports decision and forecast ledgers, forecast evaluation and selection folds,
+the 96-row snapshot, every-default report, generated sentence and hash manifests.
+The run identity includes implementation, protocol, input/configuration hashes and
+runtime versions. For an independent repeat, pass `--output /path/to/second/ml`
+and compare every artifact byte; existing run directories are never overwritten.
+
+Analytical availability includes an observation from the first day of the next
+month. Ordinary publication-vintage records retain the strict earlier-than-origin
+cutoff. Future CPI revisions remain a disclosed retrospective assumption.
+
+The snapshot uses 2025 planting months and history ending in December 2024. It
+exports gross market prices and separate costs/yields; decision scoring additionally
+deducts the registered marketing rates. Consumer integration, the reference-data
+migration verification on PostgreSQL, Colab execution and real-run reproducibility remain outstanding. ORM
+models and a bounded explicit importer now cover market prices, crop calendars and
+costs. Identical canonical bundles are no-ops; changed identities and invalid
+bundles fail without partial rows. After migration, import one with
+`python -m farmable_backend.reference_cli BUNDLE.json`. Migration `0010` now follows
+main's `0009_account_profiles`; apply it explicitly through the normal migration
+command. Bundles require `source_file` and `source_sha256`; market rows require
+`availability_kind` (`publication` or `analytical_next_month`). Analytical dates
+must equal the following month's first day and must never be described as source
+publication dates. Concurrent identical imports return one import and subsequent
+no-ops; natural-key conflicts roll back the entire transaction.
+
+The #21 consumer now accepts the approved `retrospective` snapshot only when
+`FORECAST_DATA_MODE=retrospective` is explicitly selected. Outlook responses retain
+the label and a retrospective warning; historical mode rejects these inputs.
+The runner writes `forecast.json` alongside Parquet for the existing importer.
+Synthetic integration tests validate the complete export against the consumer
+contract. Real-artifact integration remains gated by protocol registration.
+
+`ml/notebooks/forecast_and_backtest.ipynb` is the thin Colab entry point. It
+requires an exact 40-character commit SHA, installs the locked project plus the
+two pinned workbook readers, runs the shared ML tests and protocol gate, and calls
+the same runner. It contains no source data, credentials, copied model logic or
+saved outputs. A real Colab execution and cross-environment artifact comparison
+still require the independently merged protocol and audited workbook files.
+
+### Remaining issue work
+
 1. Verify sufficient monthly Joburg history; staged FAOSTAT data is a different
    price source and the combined pumpkin/butternut series remains unresolved.
 2. Verify source calendars, budget subtotals and the CPI transcription against the original PDF.
 3. Preserve the registered retrospective fixed-input caveats during source cleanup.
 4. Separately merge the protocol before real decision evaluation.
-5. Integrate the tested components into a gated real-data runner, implement ORM
-   reference imports on the current mainline schema, and verify the Colab workflow.
+5. Verify the gated runner on real inputs after protocol merge, add the reference
+   schema migration on current main, and verify the Colab workflow.
 
 ## Acceptance evidence boundaries
 
@@ -112,8 +167,8 @@ fits three quantile models and checks repeatability and future-price mutation.
 `test_reproducible_output` compares report/manifest bytes from separate Python
 processes with different input orders and hash seeds. Parquet byte stability is
 also tested, but a complete real forecast/backtest run is still required before
-claiming end-to-end artifact reproducibility. The writer for development reports
-accepts only synthetic inputs.
+claiming end-to-end artifact reproducibility. Retrospective artifact writing is
+reachable only through the protocol-gated runner.
 
 `python ml/forecast/validate_output.py <file>` validates the actual Parquet schema,
 96 crop/planting-month keys, decimal precision, ordered positive prices and metadata.

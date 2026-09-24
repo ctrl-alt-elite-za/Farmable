@@ -112,3 +112,16 @@ def test_reporting_cpi_changes_scores_without_changing_frozen_recommendation(mul
 def test_future_cost_vintage_is_rejected_regardless_of_its_value(available_on, cost):
     with pytest.raises(ValueError, match="before planting"):
         replace(candidates("1")[0], available_on=available_on, cost_rand_per_ha=cost)
+
+
+def test_fixed_scenario_costs_are_explicit_and_marketing_reduces_revenue():
+    base = candidates("1")[0]
+    fixed = replace(
+        base,
+        available_on=date(2025, 1, 1),
+        assumption_kind="fixed_scenario",
+        marketing_rate=D("0.125"),
+    )
+    assert fixed.predicted_margin() == (base.forecast.p50 * D("0.875") * 100 - 200) / 2
+    with pytest.raises(ValueError, match="assumption kind"):
+        replace(fixed, assumption_kind="unknown")

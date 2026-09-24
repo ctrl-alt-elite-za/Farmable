@@ -1357,7 +1357,7 @@ export interface components {
        * Data Kind
        * @enum {string}
        */
-      data_kind: 'synthetic' | 'historical';
+      data_kind: 'synthetic' | 'historical' | 'retrospective';
       /**
        * Forecast As Of
        * Format: date-time

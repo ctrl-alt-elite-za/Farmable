@@ -26,6 +26,11 @@ class Crop(StrEnum):
     TOMATOES = "tomatoes"
 
 
+class ObservationPolicy(StrEnum):
+    PUBLICATION = "published_before_planting"
+    RETROSPECTIVE = "observation_before_planting"
+
+
 EXCLUDED = {
     "beetroot": "No cost budget in the issue's included crop set.",
     "pumpkins": "No cost budget in the issue's included crop set.",
@@ -86,8 +91,17 @@ class PriceObservation:
     available_on: date
     price_rand_per_kg: Decimal
     source_sha256: str
+    availability_kind: str = "publication"
 
     def __post_init__(self) -> None:
+        if self.availability_kind not in {"publication", "analytical_next_month"}:
+            raise ValueError("unknown availability kind")
+        if self.availability_kind == "analytical_next_month":
+            year, month = divmod(
+                self.observation_month.year * 12 + self.observation_month.month, 12
+            )
+            if self.available_on != date(year, month + 1, 1):
+                raise ValueError("analytical availability must be the first day of the next month")
         if not isinstance(self.crop, Crop):
             raise ValueError("crop must be a canonical Crop")
         if not self.market.strip() or self.market != self.market.strip():
@@ -160,9 +174,16 @@ def read_prices(content: bytes) -> PriceInput:
 
 
 def observations_before(
-    records: tuple[PriceObservation, ...], cutoff: date
+    records: tuple[PriceObservation, ...],
+    cutoff: date,
+    *,
+    policy: ObservationPolicy = ObservationPolicy.PUBLICATION,
 ) -> tuple[PriceObservation, ...]:
-    """Return only vintages available strictly before the beginning of planting."""
+    """Apply the requested publication or analytical observation cutoff."""
     if cutoff.day != 1:
         raise ValueError("planting cutoff must be the first day of a month")
+    if not isinstance(policy, ObservationPolicy):
+        raise ValueError("an explicit supported observation policy is required")
+    if policy is ObservationPolicy.RETROSPECTIVE:
+        return tuple(record for record in records if record.observation_month < cutoff)
     return tuple(record for record in records if record.available_on < cutoff)
