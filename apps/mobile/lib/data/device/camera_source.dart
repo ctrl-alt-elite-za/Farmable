@@ -75,6 +75,12 @@ class LiveCameraSource implements CameraFrameSource {
   final _frames = StreamController<CameraFrame>.broadcast();
   var _count = 0;
 
+  /// Set by [close], and checked after every await in [open]. Closing while
+  /// the camera is still being found or started must mean it never starts,
+  /// and a camera that came up anyway is released on the spot rather than
+  /// left streaming with nobody holding it.
+  var _closed = false;
+
   @override
   bool get isRecorded => false;
 
@@ -84,6 +90,8 @@ class LiveCameraSource implements CameraFrameSource {
   @override
   Future<void> open() async {
     final cameras = await availableCameras();
+    // Closed while the cameras were being listed: acquire nothing.
+    if (_closed) return;
     if (cameras.isEmpty) {
       throw const CameraUnavailable(
         'This phone reports no camera.',
@@ -105,6 +113,8 @@ class LiveCameraSource implements CameraFrameSource {
     _controller = controller;
     try {
       await controller.initialize();
+      // Closed while starting: close() took this controller and disposes it.
+      if (_closed) return;
       await controller.startImageStream((image) {
         if (_frames.isClosed) return;
         _frames.add(
@@ -116,6 +126,7 @@ class LiveCameraSource implements CameraFrameSource {
         );
       });
     } on CameraException catch (e) {
+      if (_closed) return;
       throw CameraUnavailable(_explain(e));
     }
   }
@@ -141,6 +152,7 @@ class LiveCameraSource implements CameraFrameSource {
 
   @override
   Future<void> close() async {
+    _closed = true;
     final controller = _controller;
     _controller = null;
     if (controller != null) {

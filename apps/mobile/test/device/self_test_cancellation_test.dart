@@ -209,4 +209,45 @@ void main() {
       controller.dispose();
     });
   });
+
+  testWidgets('a cancelled run finishing late does not touch a newer '
+      "run's microphone", (tester) async {
+    final log = HardwareCalls();
+    final first = Completer<void>();
+    final second = Completer<void>();
+    var runs = 0;
+    final controller = SelfTestController(
+      healthyPhone(
+        log,
+        audio: () => ++runs == 1
+            ? FakeAudio(log, tag: 'mic1', releaseRecording: first)
+            : FakeAudio(log, tag: 'mic2', releaseRecording: second),
+      ),
+    );
+
+    unawaited(controller.run());
+    await _advance(tester, const Duration(seconds: 2));
+    expect(log.calls.last, 'mic1.record');
+    controller.cancel('left');
+    await tester.pump();
+
+    unawaited(controller.run());
+    await _advance(tester, const Duration(seconds: 2));
+    expect(log.calls.last, 'mic2.record');
+
+    // The first run's recording comes back now. Its cleanup is its own.
+    first.complete();
+    await _advance(tester, const Duration(seconds: 2));
+
+    expect(log.calls, isNot(contains('mic2.dispose')));
+    expect(log.calls, isNot(contains('mic1.play')));
+    expect(controller.phase, SelfTestPhase.recording);
+
+    // The second run carries on to its own end.
+    second.complete();
+    await _advance(tester, const Duration(seconds: 10));
+    expect(log.calls, containsAllInOrder(['mic2.play', 'mic2.dispose']));
+    expect(controller.phase, SelfTestPhase.done);
+    controller.dispose();
+  });
 }

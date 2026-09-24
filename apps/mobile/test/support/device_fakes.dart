@@ -98,6 +98,10 @@ class FakeAudio implements AudioLoopback {
   /// including after the check has timed out.
   final Completer<void>? releaseRecording;
 
+  /// Prefixes this microphone's log entries, so a test with two runs can
+  /// tell whose microphone was disposed. `mic` unless set.
+  final String tag;
+
   FakeAudio(
     this.log, {
     this.permission = true,
@@ -105,18 +109,19 @@ class FakeAudio implements AudioLoopback {
     this.hangOnRecord = false,
     this.error,
     this.releaseRecording,
+    this.tag = 'mic',
   });
 
   @override
   Future<bool> ensurePermission() async {
-    log.add('mic.permission');
+    log.add('$tag.permission');
     if (error != null) throw error!;
     return permission;
   }
 
   @override
   Future<RecordingTake> record(Duration length) async {
-    log.add('mic.record');
+    log.add('$tag.record');
     if (hangOnRecord) return Completer<RecordingTake>().future;
     if (releaseRecording != null) {
       await releaseRecording!.future;
@@ -133,12 +138,12 @@ class FakeAudio implements AudioLoopback {
 
   @override
   Future<Duration> play(String path) async {
-    log.add('mic.play');
+    log.add('$tag.play');
     return const Duration(seconds: 3);
   }
 
   @override
-  Future<void> dispose() async => log.add('mic.dispose');
+  Future<void> dispose() async => log.add('$tag.dispose');
 }
 
 class FakeDetector implements ObjectDetectorService {

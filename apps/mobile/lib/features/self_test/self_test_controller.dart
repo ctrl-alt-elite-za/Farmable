@@ -85,10 +85,24 @@ enum SelfTestPhase {
   done,
 }
 
-/// Tells a check whether its result still matters. False once the check has
-/// timed out, the run has been cancelled, or the controller disposed — after
-/// which the check must not touch hardware or state again.
-typedef StillLive = bool Function();
+/// The stage a check runs in. [live] is false once the check has timed out,
+/// the run has been cancelled or the controller disposed, after which the
+/// check must not touch hardware or state again. [id] tags the hardware the
+/// check opens, so only this stage's cleanup can release it.
+class _Stage {
+  final int id;
+  final bool Function() live;
+
+  const _Stage(this.id, this.live);
+}
+
+/// A piece of hardware, and the stage that opened it.
+class _Held<T> {
+  final int stage;
+  final T value;
+
+  const _Held(this.stage, this.value);
+}
 
 /// What a check returns when it notices it has been abandoned. Never shown:
 /// the run that wanted it has already moved on.
@@ -129,12 +143,14 @@ class SelfTestController extends ChangeNotifier {
   var _run = 0;
   var _stage = 0;
 
-  // The hardware a check has open right now, so a timeout, a cancel or
-  // dispose can release it even while the check itself is stuck.
-  CameraFrameSource? _openCamera;
-  AudioLoopback? _openAudio;
-  ObjectDetectorService? _openDetector;
-  var _arRunning = false;
+  // The hardware checks have open right now, each tagged with the stage that
+  // opened it. A timeout, a cancel or dispose can release it even while the
+  // check itself is stuck, and a stale stage's cleanup can never release
+  // hardware that a newer run opened.
+  _Held<CameraFrameSource>? _openCamera;
+  _Held<AudioLoopback>? _openAudio;
+  _Held<ObjectDetectorService>? _openDetector;
+  int? _arStage;
 
   bool get isRunning =>
       phase != SelfTestPhase.idle && phase != SelfTestPhase.done;
@@ -157,17 +173,18 @@ class SelfTestController extends ChangeNotifier {
   Future<T> _runStage<T>(
     SelfTestPhase next,
     List<SelfTestItem> items,
-    Future<T> Function(StillLive live) body,
+    Future<T> Function(_Stage stage) body,
   ) async {
     _enter(next, items);
     final run = _run;
     final stage = ++_stage;
     bool live() => !_disposed && _run == run && _stage == stage;
     try {
-      return await body(live);
+      return await body(_Stage(stage, live));
     } finally {
       if (_stage == stage) _stage++;
-      await _releaseHardware();
+      // Only what this stage opened: by now a newer run may hold hardware.
+      await _releaseHardware(stage: stage);
     }
   }
 
@@ -186,8 +203,8 @@ class SelfTestController extends ChangeNotifier {
     final cameraResult = await _runStage(
       SelfTestPhase.camera,
       [SelfTestItem.camera],
-      (live) => runGuarded(
-        () => _checkCamera(live),
+      (stage) => runGuarded(
+        () => _checkCamera(stage),
         timeout: devices.permissionTimeout,
       ),
     );
@@ -205,8 +222,8 @@ class SelfTestController extends ChangeNotifier {
     final micResult = await _runStage(
       SelfTestPhase.recording,
       [SelfTestItem.microphone],
-      (live) => runGuarded(
-        () => _checkMicrophone(live),
+      (stage) => runGuarded(
+        () => _checkMicrophone(stage),
         timeout: devices.permissionTimeout,
       ),
     );
@@ -217,9 +234,9 @@ class SelfTestController extends ChangeNotifier {
     final detectorResult = await _runStage(
       SelfTestPhase.detector,
       [SelfTestItem.detector],
-      (live) => runGuarded(() async {
-        final (result, ms) = await _checkDetector(live);
-        if (live()) detectorMs = ms;
+      (stage) => runGuarded(() async {
+        final (result, ms) = await _checkDetector(stage);
+        if (stage.live()) detectorMs = ms;
         return result;
       }),
     );
@@ -229,8 +246,8 @@ class SelfTestController extends ChangeNotifier {
     final locationResult = await _runStage(
       SelfTestPhase.location,
       [SelfTestItem.location],
-      (live) => runGuarded(
-        () => _checkLocation(live),
+      (stage) => runGuarded(
+        () => _checkLocation(stage),
         timeout: devices.permissionTimeout,
       ),
     );
@@ -284,18 +301,30 @@ class SelfTestController extends ChangeNotifier {
     _enter(SelfTestPhase.idle);
   }
 
-  /// Releases whatever a check left open. Each handle is taken before it is
-  /// released, so a check's own cleanup and a timeout never both close it.
-  Future<void> _releaseHardware() async {
-    final cam = _openCamera;
-    final audio = _openAudio;
-    final detector = _openDetector;
-    final ar = _arRunning;
-    _openCamera = null;
-    _openAudio = null;
-    _openDetector = null;
-    _arRunning = false;
-    if (camera != null) {
+  /// Releases what checks left open: everything, or only what [stage]
+  /// opened. Each handle is taken before it is released, so a check's own
+  /// cleanup and a timeout never both close it.
+  Future<void> _releaseHardware({int? stage}) async {
+    bool mine(int owner) => stage == null || owner == stage;
+    final heldCamera = _openCamera;
+    final heldAudio = _openAudio;
+    final heldDetector = _openDetector;
+    final cam = heldCamera != null && mine(heldCamera.stage)
+        ? heldCamera.value
+        : null;
+    final audio = heldAudio != null && mine(heldAudio.stage)
+        ? heldAudio.value
+        : null;
+    final detector = heldDetector != null && mine(heldDetector.stage)
+        ? heldDetector.value
+        : null;
+    final arStage = _arStage;
+    final ar = arStage != null && mine(arStage);
+    if (cam != null) _openCamera = null;
+    if (audio != null) _openAudio = null;
+    if (detector != null) _openDetector = null;
+    if (ar) _arStage = null;
+    if (cam != null && identical(camera, cam)) {
       camera = null;
       _notify();
     }
@@ -315,9 +344,10 @@ class SelfTestController extends ChangeNotifier {
     if (detector != null) await quietly(detector.close);
   }
 
-  Future<CheckResult> _checkCamera(StillLive live) async {
+  Future<CheckResult> _checkCamera(_Stage stage) async {
+    final live = stage.live;
     final source = devices.openCamera();
-    _openCamera = source;
+    _openCamera = _Held(stage.id, source);
     final firstFrame = Completer<CameraFrame>();
     var count = 0;
     // Listen before opening: a recorded source emits its first frame inside
@@ -364,23 +394,27 @@ class SelfTestController extends ChangeNotifier {
       // subscription's cancel can outlive the check it belonged to.
       unawaited(sub.cancel());
       // Released here, before AR starts: only one client can hold the camera.
-      if (identical(_openCamera, source)) await _releaseHardware();
+      await _releaseHardware(stage: stage.id);
     }
   }
 
   Future<({CheckResult arPlane, CheckResult depth})> _checkAr(
-    StillLive live,
+    _Stage stage,
   ) async {
     final timeout = devices.arTimeout;
-    _arRunning = true;
+    _arStage = stage.id;
+    void settled() {
+      if (_arStage == stage.id) _arStage = null;
+    }
+
     try {
       final facts = await devices.ar
           .run(timeout)
           .timeout(timeout + const Duration(seconds: 30));
-      _arRunning = false;
+      settled();
       return interpretArProbe(facts, isIos: devices.isIos, timeout: timeout);
     } on MissingPluginException {
-      _arRunning = false;
+      settled();
       const none = CheckResult.unsupported(
         'This build has no AR support on this platform.',
       );
@@ -391,15 +425,16 @@ class SelfTestController extends ChangeNotifier {
       const stuck = CheckResult.fail('The AR session did not finish.');
       return (arPlane: stuck, depth: stuck);
     } catch (error) {
-      _arRunning = false;
+      settled();
       final failed = CheckResult.fail('The AR check stopped: $error');
       return (arPlane: failed, depth: failed);
     }
   }
 
-  Future<CheckResult> _checkMicrophone(StillLive live) async {
+  Future<CheckResult> _checkMicrophone(_Stage stage) async {
+    final live = stage.live;
     final audio = devices.openAudio();
-    _openAudio = audio;
+    _openAudio = _Held(stage.id, audio);
     try {
       if (!await audio.ensurePermission()) {
         return const CheckResult.fail(
@@ -435,15 +470,16 @@ class SelfTestController extends ChangeNotifier {
         'played it back.',
       );
     } finally {
-      if (identical(_openAudio, audio)) await _releaseHardware();
+      await _releaseHardware(stage: stage.id);
     }
   }
 
-  Future<(CheckResult, int?)> _checkDetector(StillLive live) async {
+  Future<(CheckResult, int?)> _checkDetector(_Stage stage) async {
+    final live = stage.live;
     final path = await devices.sampleImagePath();
     if (!live()) return (_abandoned, null);
     final detector = devices.openDetector();
-    _openDetector = detector;
+    _openDetector = _Held(stage.id, detector);
     try {
       // The first run loads the model; the ones after it are what a camera
       // screen pays per frame. Report the median of three warm runs.
@@ -465,14 +501,14 @@ class SelfTestController extends ChangeNotifier {
         ms,
       );
     } finally {
-      if (identical(_openDetector, detector)) await _releaseHardware();
+      await _releaseHardware(stage: stage.id);
     }
   }
 
-  Future<CheckResult> _checkLocation(StillLive live) async {
+  Future<CheckResult> _checkLocation(_Stage stage) async {
     try {
       final found = await devices.location.currentFix();
-      if (!live()) return _abandoned;
+      if (!stage.live()) return _abandoned;
       fix = found;
       return CheckResult.pass(
         'Found this phone to within ${found.accuracyMetres.round()} m.',
