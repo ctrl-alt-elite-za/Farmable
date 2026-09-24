@@ -18,8 +18,9 @@ The 1,248-key decision ledger has 444 scorable rows, 326 switches and 316 positi
 switch gains. Tomatoes have 42 scorable rows, all no-switch; their switch win rate
 and gain statistics are correctly null. `slide_sentence.txt` therefore reports
 `INSUFFICIENT EVIDENCE`. This result must not be converted into an eight-default
-pitch claim. Colab execution, real database import, reviewer inspection and the
-final results-history gate remain open.
+pitch claim. The real snapshot imports and serves an outlook in a disposable ORM
+test database. Colab execution, reviewer inspection, deployment and the final
+results-history gate remain open.
 
 The sections below retain earlier implementation checkpoints as historical records.
 

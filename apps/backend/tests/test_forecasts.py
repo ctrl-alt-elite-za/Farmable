@@ -22,6 +22,8 @@ from test_farm_schema import _index_statements, _orm_sql, _table_elements
 pytest_plugins = ("test_records_api",)
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = ROOT / "ml/forecast/fixtures"
+REAL_RUN_ID = "5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d"
+REAL_FORECAST = ROOT / "ml/forecast/results" / REAL_RUN_ID / "forecast.json"
 
 
 def bundle(run_id="sample-v1"):
@@ -78,6 +80,22 @@ def test_retrospective_import_requires_explicit_mode_and_displays_caveat(forecas
     value["run_id"] = "retrospective-accepted"
     accepted = import_bundle(forecasts.sessions, value["run_id"], raw(value), "retrospective")
     assert accepted.status == "active"
+    forecasts.app.state.forecast_data_mode = "retrospective"
+    response = get_outlook(forecasts)
+    assert response.status_code == 200
+    assert response.json()["data_kind"] == "retrospective"
+    assert response.json()["warning"] == RETROSPECTIVE_WARNING
+
+
+def test_real_retrospective_artifact_imports_and_serves_outlook(forecasts):
+    from farmable_backend.forecast_contract import RETROSPECTIVE_WARNING
+
+    content = REAL_FORECAST.read_bytes()
+    first = import_bundle(forecasts.sessions, REAL_RUN_ID, content, "retrospective")
+    assert first.status == "active"
+    assert first.failed_checks == ()
+    second = import_bundle(forecasts.sessions, REAL_RUN_ID, content, "retrospective")
+    assert second.status == "active"
     forecasts.app.state.forecast_data_mode = "retrospective"
     response = get_outlook(forecasts)
     assert response.status_code == 200

@@ -124,7 +124,7 @@ protocol Amendment 1, its 96 rows use frozen pre-2025 historical ranges for the
 harvest target calendar month. The decision simulation retains per-origin model
 selection. The snapshot exports gross market prices and separate costs/yields;
 decision scoring additionally deducts the registered marketing rates. Real-artifact
-consumer import and Colab execution remain outstanding. ORM
+production deployment and Colab execution remain outstanding. ORM
 models and a bounded explicit importer now cover market prices, crop calendars and
 costs. Identical canonical bundles are no-ops; changed identities and invalid
 bundles fail without partial rows. After migration, import one with
@@ -155,7 +155,8 @@ still require the independently merged protocol and audited workbook files.
 1. Review the real artifacts, especially the zero-switch tomato default. The
    registered eight-default slide sentence remains unavailable.
 2. Execute the notebook in Colab and compare its artifacts with the local run.
-3. Validate and import the real retrospective snapshot into a disposable database.
+3. Review the disposable-database import test, then plan any production rollout
+   separately.
 4. Complete deferred historical-source and licence cleanup without weakening the
    registered retrospective caveats.
 5. After the results PR merges, verify the default protocol history gate.

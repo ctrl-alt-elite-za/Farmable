@@ -21,6 +21,10 @@ The registered eight-default headline sentence is unavailable.
   `forecasts.parquet`. The backend consumer accepts `forecast.json` in explicit
   `retrospective` mode and rejects it in `historical` mode. Gitleaks found no secrets
   in either result folder.
+- A backend test imports the committed real `forecast.json` through the ORM into a
+  disposable database, confirms an identical second import is idempotent, and
+  serves an authenticated outlook with the retrospective warning. No production
+  database was changed.
 
 ## What the decision ledger shows
 
@@ -47,8 +51,8 @@ decision ledger and follows protocol Amendment 1's frozen seasonal ranges.
 
 An independent reviewer should inspect the numeric artifacts and the no-switch
 tomato case. The notebook still needs a credential-free Colab execution and
-cross-environment artifact comparison. The real snapshot has passed contract
-validation but has not been imported into a database. After the results PR merges,
+cross-environment artifact comparison. The real snapshot has been imported only
+into a disposable test database. After the results PR merges,
 rerun the default protocol history gate to confirm the first committed result
 follows the independently merged protocol. Issue #20 cannot use its requested
 eight-default slide sentence unless a future, separately registered evaluation
