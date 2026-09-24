@@ -412,6 +412,33 @@ def test_ambiguous_combined_contact_delivery_is_replayed_without_duplicates(acco
         assert identity is not None and identity.email == "sipho@example.com"
 
 
+def test_ambiguous_contact_delivery_persists_challenge_for_confirmation(accounts):
+    provider = accounts.provider
+
+    def deliver(channel, destination, code):
+        if channel is Channel.PHONE:
+            raise AuthError("delivery_unknown", 503)
+
+    provider.deliver.side_effect = deliver
+    headers = _headers(accounts.alice, "ambiguous-phone")
+    payload = {"phone": "+27821234569"}
+
+    first = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert first.status_code == replay.status_code == 503
+    assert first.json()["error"]["code"] == "delivery_unknown"
+    assert replay.json() == first.json()
+    assert provider.deliver.call_count == 1
+
+    confirmed = accounts.client.post(
+        "/account/contact/confirm",
+        headers=_headers(accounts.alice),
+        json={"channel": "phone", "code": "111111"},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["phone"] == "+27821234569"
+
+
 def test_failed_combined_contact_delivery_does_not_repeat_first_success(accounts):
     deliveries = []
     provider = accounts.provider

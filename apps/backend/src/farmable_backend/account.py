@@ -369,6 +369,7 @@ class AccountService:
         idempotency_key: str | None = None,
     ) -> None:
         normalized = new_value.strip().lower() if channel is Channel.EMAIL else new_value.strip()
+        failure: ApiError | None = None
         with self.sessions.begin() as session:
             owner = authenticate(session, authorization)
             # Lock the parent identity row first so two concurrent first-use
@@ -432,7 +433,9 @@ class AccountService:
                 else:
                     self.provider.deliver(channel, normalized, code)
             except _AuthError as exc:
-                raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
+                if exc.code != "delivery_unknown":
+                    raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
+                failure = ApiError(exc.status_code, exc.code, exc.retry_after)
             session.add(
                 VerificationChallenge(
                     user_id=owner,
@@ -441,6 +444,8 @@ class AccountService:
                     expires_at=datetime.now(UTC) + OTP_TTL,
                 )
             )
+        if failure is not None:
+            raise failure
 
     def farm(self, authorization: str | None) -> AccountFarmResponse:
         with self.sessions.begin() as session:

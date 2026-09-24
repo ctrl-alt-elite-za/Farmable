@@ -209,9 +209,11 @@ class LiveOtpProvider:
         try:
             result = future.result(timeout=budget)
         except FuturesTimeoutError as error:
-            raise AuthError("provider_unavailable", 503) from error
+            raise AuthError("delivery_unknown", 503) from error
         if not result.ok:
-            raise AuthError("provider_unavailable", 503)
+            raise AuthError(
+                "delivery_unknown" if result.ambiguous else "provider_unavailable", 503
+            )
 
     def _send_email(self, destination: str, subject: str, html: str, text: str) -> None:
         # Reuses the existing durable rate-limit counter table (no schema
@@ -398,8 +400,11 @@ class AuthService:
                         self._notify_collision(winner, email, phone)
                     return placeholder
                 raise
-            self._send(session, user, Channel.PHONE)
-            return _user(user)
+            failure = self._send(session, user, Channel.PHONE)
+            result = _user(user)
+        if failure is not None:
+            raise failure
+        return result
 
     def _notify_collision(self, existing: AuthIdentity, email: str, phone: str) -> None:
         # Best-effort: the real owner is warned that someone tried to sign up
@@ -462,7 +467,14 @@ class AuthService:
             raise AuthError("invalid_verification", 400)
         return result
 
-    def resend(self, user_id: UUID, channel: Channel, *, ip: str = "unknown") -> None:
+    def resend(
+        self,
+        user_id: UUID,
+        channel: Channel,
+        *,
+        ip: str = "unknown",
+    ) -> None:
+        failure: AuthError | None = None
         with self.sessions.begin() as session:
             user = session.scalar(
                 select(AuthIdentity).where(AuthIdentity.id == user_id).with_for_update()
@@ -475,7 +487,9 @@ class AuthService:
                 raise AuthError("invalid_verification", 400)
             if channel is Channel.PHONE:
                 self._check_sms_limits(ip, user.phone)
-            self._send(session, user, channel)
+            failure = self._send(session, user, channel)
+        if failure is not None:
+            raise failure
 
     def login(self, identifier: str, password: str, *, ip: str = "unknown") -> SessionTokens:
         identifier = identifier.strip()
@@ -584,7 +598,12 @@ class AuthService:
         # already-committed transaction (see rate_limits.py).
         check_sms_limits(self.sessions, ip=ip, phone=phone)
 
-    def _send(self, session: Session, user: AuthIdentity, channel: Channel) -> None:
+    def _send(
+        self,
+        session: Session,
+        user: AuthIdentity,
+        channel: Channel,
+    ) -> AuthError | None:
         recent = session.scalars(
             select(VerificationChallenge).where(
                 VerificationChallenge.user_id == user.id,
@@ -606,7 +625,22 @@ class AuthService:
             .values(consumed_at=_now())
         )
         code = self.provider.create_code(channel)
-        self.provider.deliver(channel, user.phone if channel is Channel.PHONE else user.email, code)
+        try:
+            self.provider.deliver(
+                channel, user.phone if channel is Channel.PHONE else user.email, code
+            )
+        except AuthError as error:
+            if error.code != "delivery_unknown":
+                raise
+            session.add(
+                VerificationChallenge(
+                    user_id=user.id,
+                    channel=channel.value,
+                    code_hash=PASSWORD_HASHER.hash(code),
+                    expires_at=_now() + OTP_TTL,
+                )
+            )
+            return error
         session.add(
             VerificationChallenge(
                 user_id=user.id,
@@ -615,6 +649,7 @@ class AuthService:
                 expires_at=_now() + OTP_TTL,
             )
         )
+        return None
 
     def _new_session(self, session: Session, user: AuthIdentity) -> SessionTokens:
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(48)

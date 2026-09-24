@@ -338,7 +338,12 @@ def create_app(
             request, "auth_signup", body, scope=client_ip(request)
         )
         if replayed is not None:
-            _status, response_body = replayed
+            status, response_body = replayed
+            if status >= 400:
+                error = response_body.get("error", {})
+                raise AuthError(
+                    error.get("code", "request_failed"), status, error.get("retry_after")
+                )
             return AuthProgressResponse(**response_body)
         try:
             user = await call_auth(
@@ -360,6 +365,19 @@ def create_app(
                 scope=client_ip(request),
             )
             return response
+        except AuthError as exc:
+            if exc.code == "delivery_unknown":
+                await idempotent_store(
+                    request,
+                    "auth_signup",
+                    body,
+                    exc.status_code,
+                    {"error": {"code": exc.code, "retry_after": exc.retry_after}},
+                    scope=client_ip(request),
+                )
+            else:
+                await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
+            raise
         except Exception:
             await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
             raise
@@ -385,6 +403,12 @@ def create_app(
             request, "auth_otp_resend", body, scope=str(payload.user_id)
         )
         if replayed is not None:
+            status, response_body = replayed
+            if status >= 400:
+                error = response_body.get("error", {})
+                raise AuthError(
+                    error.get("code", "request_failed"), status, error.get("retry_after")
+                )
             return
         try:
             await call_auth(
@@ -396,6 +420,21 @@ def create_app(
             await idempotent_store(
                 request, "auth_otp_resend", body, 204, {}, scope=str(payload.user_id)
             )
+        except AuthError as exc:
+            if exc.code == "delivery_unknown":
+                await idempotent_store(
+                    request,
+                    "auth_otp_resend",
+                    body,
+                    exc.status_code,
+                    {"error": {"code": exc.code, "retry_after": exc.retry_after}},
+                    scope=str(payload.user_id),
+                )
+            else:
+                await idempotent_abandon(
+                    request, "auth_otp_resend", scope=str(payload.user_id), key=key
+                )
+            raise
         except Exception:
             await idempotent_abandon(
                 request, "auth_otp_resend", scope=str(payload.user_id), key=key

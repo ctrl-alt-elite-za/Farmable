@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from farmable_backend.auth import AuthService, DeterministicFakeOtpProvider
+from farmable_backend.auth import AuthError, AuthService, DeterministicFakeOtpProvider
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
@@ -53,6 +53,18 @@ class CountingOtpProvider:
 
     def notify_existing_account(self, channel, destination):
         self.inner.notify_existing_account(channel, destination)
+
+
+class AmbiguousOtpProvider(CountingOtpProvider):
+    def __init__(self, *, fail_after: int = 0):
+        super().__init__()
+        self.fail_after = fail_after
+
+    def deliver(self, channel, destination, code):
+        self.deliveries += 1
+        if self.deliveries > self.fail_after:
+            raise AuthError("delivery_unknown", 503)
+        self.inner.deliver(channel, destination, code)
 
 
 def _engine():
@@ -302,6 +314,47 @@ def test_idempotency_key_replays_the_original_signup_response(settings):
     assert provider.deliveries == 1  # only the first request actually sent an OTP
     with sessions() as session:
         assert len(session.scalars(select(AuthIdentity)).all()) == 1  # no second account
+
+
+def test_signup_ambiguous_delivery_persists_challenge_and_replays_without_resend(settings):
+    provider = AmbiguousOtpProvider()
+    app, _, provider, sessions = _app(settings, provider)
+    with TestClient(app) as client:
+        key = _idempotency_key("signup-ambiguous")
+        first = _signup_request(client, key=key)
+        replay = _signup_request(client, key=key)
+        assert first.status_code == replay.status_code == 503
+        assert first.json()["error"]["code"] == "delivery_unknown"
+        assert replay.json() == first.json()
+        with sessions() as session:
+            user_id = session.scalar(select(AuthIdentity.id))
+            assert user_id is not None
+            assert session.scalar(
+                select(VerificationChallenge).where(VerificationChallenge.user_id == user_id)
+            )
+        verified = client.post(
+            "/auth/verify/phone", json={"user_id": str(user_id), "code": "111111"}
+        )
+        assert verified.status_code == 200
+    assert provider.deliveries == 2
+
+
+def test_resend_ambiguous_delivery_persists_challenge_and_replays_without_resend(settings):
+    provider = AmbiguousOtpProvider(fail_after=1)
+    app, _, provider, _ = _app(settings, provider)
+    with TestClient(app) as client:
+        signup = _signup_request(client)
+        user_id = signup.json()["user_id"]
+        key = _idempotency_key("resend-ambiguous")
+        first = _resend_request(client, user_id, key=key)
+        replay = _resend_request(client, user_id, key=key)
+        assert first.status_code == replay.status_code == 503
+        assert replay.json() == first.json()
+        verified = client.post(
+            "/auth/verify/phone", json={"user_id": user_id, "code": "111111"}
+        )
+        assert verified.status_code == 200
+    assert provider.deliveries == 3
 
 
 def test_idempotency_key_reuse_with_different_payload_is_rejected(settings):
