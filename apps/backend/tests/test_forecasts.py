@@ -66,6 +66,27 @@ def test_committed_fixture_is_complete_and_source_hash_matches():
     }
 
 
+def test_retrospective_import_requires_explicit_mode_and_displays_caveat(forecasts):
+    from farmable_backend.forecast_contract import RETROSPECTIVE_WARNING
+
+    value = bundle("retrospective-fixture")
+    value["data_kind"] = "retrospective"
+    for row in value["rows"]:
+        row["method"] = "historical_range"
+    rejected = import_bundle(forecasts.sessions, value["run_id"], raw(value), "historical")
+    assert "data_mode_mismatch" in rejected.failed_checks
+    value["run_id"] = "retrospective-accepted"
+    accepted = import_bundle(forecasts.sessions, value["run_id"], raw(value), "retrospective")
+    assert accepted.status == "active"
+    forecasts.app.state.forecast_data_mode = "retrospective"
+    response = get_outlook(forecasts)
+    assert response.status_code == 200
+    assert response.json()["data_kind"] == "retrospective"
+    assert response.json()["warning"] == RETROSPECTIVE_WARNING
+    forecasts.app.state.forecast_data_mode = "historical"
+    assert get_outlook(forecasts).status_code == 503
+
+
 def test_import_latest_activates_valid_run_and_serves_all_crop_months(forecasts):
     result = forecast_cli.import_latest(forecasts.sessions, FIXTURES, "sample")
     assert [(item.run_id, item.status) for item in result] == [("sample-v1", "active")]

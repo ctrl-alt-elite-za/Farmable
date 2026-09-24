@@ -2006,7 +2006,7 @@
             "type": "string"
           },
           "data_kind": {
-            "enum": ["synthetic", "historical"],
+            "enum": ["synthetic", "historical", "retrospective"],
             "title": "Data Kind",
             "type": "string"
           },

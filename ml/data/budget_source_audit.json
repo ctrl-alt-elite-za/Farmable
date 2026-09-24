@@ -1,0 +1,90 @@
+{
+  "status": "not_approved_for_historical_costs",
+  "availability_policy": {
+    "status": "unknown_blocks_historical_use",
+    "evidence": "PDF update dates, URL paths, retrieval times and file metadata are not publication or revision dates."
+  },
+  "sources": [
+    {
+      "url": "https://www.elsenburg.com/wp-content/uploads/2025/06/CABBAGE.pdf",
+      "filename": "2025-06-CABBAGE.pdf",
+      "retrieved_on": "2026-09-23",
+      "sha256": "1f5b7780753387074eccadffd104e64b9a338ac0302d26603170d02bac7ddeea",
+      "bytes": 191570,
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "url": "https://www.elsenburg.com/wp-content/uploads/2025/06/CARROTS.pdf",
+      "filename": "2025-06-CARROTS.pdf",
+      "retrieved_on": "2026-09-23",
+      "sha256": "1552a7b63ba2ca0467602c96dc704612e8e8aeec3d9f5e658835187378234a9a",
+      "bytes": 113811,
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "url": "https://www.elsenburg.com/wp-content/uploads/2025/06/GREEN-BEANS.pdf",
+      "filename": "2025-06-GREEN-BEANS.pdf",
+      "retrieved_on": "2026-09-23",
+      "sha256": "3b15320821d01e9f0327d4196cf38495cb79c1dedad7bd952738d2a7eaffaa27",
+      "bytes": 192013,
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "url": "https://www.elsenburg.com/wp-content/uploads/2025/12/ONIONS.pdf",
+      "filename": "2025-12-ONIONS.pdf",
+      "retrieved_on": "2026-09-23",
+      "sha256": "765f7842d55fa8373183a6026978a31b6254b9c01fc0b76ab26eb103cbf0f74e",
+      "bytes": 161594,
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "url": "https://www.elsenburg.com/wp-content/uploads/2025/12/POTATOES.pdf",
+      "filename": "2025-12-POTATOES.pdf",
+      "retrieved_on": "2026-09-23",
+      "sha256": "b2ab252e229174f0171c3883a85ed4cccf7c0c684c9610360104c742f6744c3d",
+      "bytes": 157936,
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "url": "https://www.elsenburg.com/wp-content/uploads/2025/12/SPINACH.pdf",
+      "filename": "2025-12-SPINACH.pdf",
+      "retrieved_on": "2026-09-23",
+      "sha256": "b154f2b158b7f98bfd4d2bef3b2de794135e79b791236c3d702d6a0e39816cb7",
+      "bytes": 112141,
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "url": "https://www.elsenburg.com/wp-content/uploads/2025/12/BUTTERNUT.pdf",
+      "filename": "2025-12-BUTTERNUT.pdf",
+      "retrieved_on": "2026-09-23",
+      "sha256": "961d56bf14f36af6b2caeac184fc41cdce3d6df337c801d37d658f678c679b1f",
+      "bytes": 155717,
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "url": "https://www.elsenburg.com/wp-content/uploads/2025/12/TOMATOES-PROCESSING.pdf",
+      "filename": "2025-12-TOMATOES-PROCESSING.pdf",
+      "retrieved_on": "2026-09-23",
+      "sha256": "93db0db5ae60a0fd763c5892ff03ab15bd6d9e462d669214ad537c09d946cdc7",
+      "bytes": 188545,
+      "available_on": null,
+      "redistribution_status": "unverified"
+    },
+    {
+      "url": "https://www.elsenburg.com/wp-content/uploads/2022/04/CABBAGE.pdf",
+      "filename": "2022-04-CABBAGE.pdf",
+      "retrieved_on": "2026-09-23",
+      "sha256": "f49d6a76c3e8ba7ff5cd6587f28641e2589194158ab20c59430568e2df63e6b2",
+      "bytes": 314997,
+      "available_on": null,
+      "redistribution_status": "unverified"
+    }
+  ]
+}

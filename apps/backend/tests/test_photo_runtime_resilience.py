@@ -17,6 +17,7 @@ from test_records_api import observation_payload, upload_payload
 pytest_plugins = ("test_records_api",)
 
 
+@pytest.mark.parametrize("records", ["separate_connections"], indirect=True)
 def test_slow_signed_forms_leave_record_http_routes_available(records, monkeypatch):
     first, second = threading.Event(), threading.Event()
     release_first, release_second = threading.Event(), threading.Event()

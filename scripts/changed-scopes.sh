@@ -49,7 +49,35 @@ for dir in $changed_dirs; do
     apps/ml-service)
       if [ -n "$(scripts/has-py-files.sh apps/ml-service)" ]; then
         uv run ruff check --fix apps/ml-service || status=1
-        uv run mypy apps/ml-service || status=1
+        ml_impl_dirs=()
+        [ -n "$(scripts/has-py-files.sh apps/ml-service/vision)" ] && ml_impl_dirs+=(vision)
+        [ -n "$(scripts/has-py-files.sh apps/ml-service/src/farmable_ml)" ] && ml_impl_dirs+=(src/farmable_ml)
+        if [ "${#ml_impl_dirs[@]}" -gt 0 ]; then
+          (cd apps/ml-service && MYPYPATH=src uv run mypy --explicit-package-bases --ignore-missing-imports "${ml_impl_dirs[@]}") || status=1
+        fi
+        ml_test_dirs=()
+        for test_dir in apps/ml-service ml/forecast ml/backtest; do
+          if [ -n "$(find "$test_dir" -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ]; then
+            ml_test_dirs+=("$test_dir")
+          fi
+        done
+        if [ "${#ml_test_dirs[@]}" -gt 0 ]; then
+          uv run pytest "${ml_test_dirs[@]}" -q || status=1
+        fi
+      fi
+      ;;
+    ml)
+      if [ -n "$(scripts/has-py-files.sh ml)" ]; then
+        uv run ruff check --fix ml || status=1
+        ml_adapter_dirs=()
+        [ -n "$(scripts/has-py-files.sh ml/forecast)" ] && ml_adapter_dirs+=(ml/forecast)
+        [ -n "$(scripts/has-py-files.sh ml/backtest)" ] && ml_adapter_dirs+=(ml/backtest)
+        if [ "${#ml_adapter_dirs[@]}" -gt 0 ]; then
+          uv run mypy --explicit-package-bases --ignore-missing-imports "${ml_adapter_dirs[@]}" || status=1
+        fi
+        if [ -n "$(find ml/forecast ml/backtest -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)" ]; then
+          uv run pytest ml/forecast ml/backtest -q || status=1
+        fi
       fi
       ;;
     migrations)

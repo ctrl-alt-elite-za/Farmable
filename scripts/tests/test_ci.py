@@ -62,6 +62,27 @@ def test_api_and_ml_changes_are_checked():
 @pytest.mark.parametrize(
     "path",
     [
+        "apps/ml-service/src/farmable_ml/forecast.py",
+        "apps/ml-service/vision/train.py",
+        "ml/forecast/validate_output.py",
+        "ml/backtest/results/run.json",
+    ],
+)
+def test_ml_implementation_and_adapter_changes_use_backend_scope(path):
+    result = scopes([path])
+    assert result["backend"]
+    assert result["mobile"]
+    assert result["any"]
+
+
+def test_ml_adapter_only_uses_existing_backend_scope():
+    result = scopes(["ml/forecast/test_forecast.py"])
+    assert result["backend"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
         "backend/app/assistant/prompts.txt",
         "apps/backend/src/farmable_backend/assistant/gemini.py",
         "e2e/evals/assistant/cases/one.yaml",

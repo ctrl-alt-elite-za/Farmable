@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from farmable_backend.forecast_contract import (
     CROPS,
+    RETROSPECTIVE_WARNING,
     SAMPLE_WARNING,
     Crop,
     ForecastBundle,
@@ -34,7 +35,11 @@ class ImportResult:
 
 
 def expected_kind(mode: Mode) -> str | None:
-    return {"sample": "synthetic", "historical": "historical"}.get(mode)
+    return {
+        "sample": "synthetic",
+        "historical": "historical",
+        "retrospective": "retrospective",
+    }.get(mode)
 
 
 def quality_checks(
@@ -189,7 +194,9 @@ def outlook(
         return Outlook(
             run_id=run.id,
             data_kind=bundle.data_kind,
-            warning=SAMPLE_WARNING if bundle.data_kind == "synthetic" else None,
+            warning={"synthetic": SAMPLE_WARNING, "retrospective": RETROSPECTIVE_WARNING}.get(
+                bundle.data_kind
+            ),
             forecast_as_of=bundle.as_of,
             crop=crop,
             plant_month=plant_month,

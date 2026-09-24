@@ -13,6 +13,9 @@ credentials.json
 apps/ml-service/data/raw/
 *.csv.gz
 *.parquet
+!/ml/forecast/results/**/forecasts.parquet
+!/ml/forecast/results/**/forecast_ledger.parquet
+!/ml/backtest/results/**/decision_ledger.parquet
 
 # Python
 .venv/
@@ -73,5 +76,9 @@ mlruns/
 
 # Private local prototype state (never the production database).
 .farmable-demo/
+
+# Local planning documents. Existing tracked docs remain tracked by Git.
+/docs/
+
 # Private billing exports, response captures, human labels and judge artifacts.
 .farmable-evidence/
