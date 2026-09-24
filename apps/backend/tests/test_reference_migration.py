@@ -9,7 +9,7 @@ from test_farm_schema import _orm_sql, _table_elements
 
 def test_reference_migration_matches_orm():
     output = io.StringIO()
-    command.upgrade(Config("alembic.ini", output_buffer=output), "0009:0010", sql=True)
+    command.upgrade(Config("alembic.ini", output_buffer=output), "0016:0017", sql=True)
     sql = output.getvalue()
     assert "ALTER TABLE" not in sql
     assert "DROP TABLE" not in sql

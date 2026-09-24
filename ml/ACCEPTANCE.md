@@ -21,7 +21,7 @@ forecast evaluation, snapshot export and deterministic artifact packaging.
 The combined forecast/backtest suite passes **153 tests**, including real LightGBM
 fits on synthetic data and a runner repeat with byte-identical artifacts. Ruff lint,
 Ruff formatting, ML package mypy and runner mypy pass. No real workbooks were run,
-no real results were produced, and this working tree has not been submitted as a PR.
+no real results were produced.
 PostgreSQL integration, Colab execution, original workbook acquisition, independent
 real-run repetition and artifact review remain open.
 
@@ -29,9 +29,9 @@ real-run repetition and artifact review remain open.
 
 ### Mainline integration and reference persistence (24 September 2026)
 
-Integrated main at `1796ecc` into the runner branch while retaining the existing
-uncommitted runner work. Added migration `0010_reference_data`, revising main's
-`0009_account_profiles`; its four tables match ORM-generated DDL. No application
+Integrated main at `73e2c62` into the runner branch. Added migration
+`0017_reference_data`, revising main's `0016_assistant_usage`; its four tables
+match ORM-generated DDL. No application
 database was migrated. Source filenames and hashes are retained, and market rows
 explicitly distinguish analytical eligibility from actual publication dates.
 SQLite coverage verifies concurrent identical imports, complete rollback on a

@@ -124,8 +124,8 @@ migration verification on PostgreSQL, Colab execution and real-run reproducibili
 models and a bounded explicit importer now cover market prices, crop calendars and
 costs. Identical canonical bundles are no-ops; changed identities and invalid
 bundles fail without partial rows. After migration, import one with
-`python -m farmable_backend.reference_cli BUNDLE.json`. Migration `0010` now follows
-main's `0009_account_profiles`; apply it explicitly through the normal migration
+`python -m farmable_backend.reference_cli BUNDLE.json`. Migration `0017` now follows
+main's `0016_assistant_usage`; apply it explicitly through the normal migration
 command. Bundles require `source_file` and `source_sha256`; market rows require
 `availability_kind` (`publication` or `analytical_next_month`). Analytical dates
 must equal the following month's first day and must never be described as source

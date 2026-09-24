@@ -16,6 +16,11 @@ from starlette.exceptions import HTTPException
 from farmable_backend.account import AccountService
 from farmable_backend.account_api import AccountRuntime
 from farmable_backend.account_api import router as account_router
+from farmable_backend.assistant.api import router as assistant_router
+from farmable_backend.assistant.live_api import router as assistant_live_router
+from farmable_backend.assistant.runtime import Runtime as AssistantRuntime
+from farmable_backend.assistant.settings import AssistantSettings
+from farmable_backend.assistant.store import Store as AssistantStore
 from farmable_backend.auth import (
     AuthError,
     AuthService,
@@ -26,12 +31,14 @@ from farmable_backend.auth import (
 )
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
+from farmable_backend.diagnosis_api import router as diagnosis_router
 from farmable_backend.forecast_api import router as forecast_router
 from farmable_backend.gcs_photos import create_gcs_photos
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
 from farmable_backend.middleware import RateLimiter, SafeDefaultsMiddleware, error_response
+from farmable_backend.planning.api import router as planning_router
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import RecordBodyLimit, RecordRuntime
 from farmable_backend.records_api import router as records_router
@@ -97,6 +104,7 @@ def create_app(
         services = ServiceRegistry(integration_config)
         app.state.services = services
         app.state.forecast_data_mode = config.forecast_data_mode
+        app.state.diagnosis_enabled = config.diagnosis_enabled
         app.state.sha = config.commit_sha
         database = None
         try:
@@ -115,10 +123,19 @@ def create_app(
                     RecordsService(database.sessions), lambda: create_gcs_photos(config)
                 )
                 app.state.account = AccountRuntime(AccountService(database.sessions))
+                app.state.assistant = AssistantRuntime(
+                    AssistantStore(database.sessions, AssistantSettings(), integration_config),
+                    app.state.records,
+                    services,
+                    config.forecast_data_mode,
+                )
             yield
         finally:
             try:
                 # Drain uncancelled database work before disposing its pool.
+                assistant = getattr(app.state, "assistant", None)
+                if assistant is not None:
+                    await assistant.close()
                 await run_in_threadpool(auth_executor.shutdown, wait=True, cancel_futures=True)
                 records = getattr(app.state, "records", None)
                 if records is not None:
@@ -152,8 +169,12 @@ def create_app(
     app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
     app.include_router(records_router)
     app.include_router(account_router)
+    app.include_router(assistant_router)
+    app.include_router(assistant_live_router)
     app.include_router(voice_router)
     app.include_router(forecast_router)
+    app.include_router(planning_router)
+    app.include_router(diagnosis_router)
 
     @app.exception_handler(ApiError)
     async def record_error(request: Request, exc: ApiError) -> JSONResponse:

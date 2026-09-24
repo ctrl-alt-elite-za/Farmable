@@ -1,7 +1,7 @@
 """Traceable reference prices, calendars and costs.
 
-Revision ID: 0010
-Revises: 0009
+Revision ID: 0017
+Revises: 0016
 """
 
 from collections.abc import Sequence
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0010"
-down_revision: str | None = "0009"
+revision: str = "0017"
+down_revision: str | None = "0016"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

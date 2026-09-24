@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/tokens.g.dart';
 import '../../core/ui/buttons.dart';
 import '../../core/ui/fields.dart';
@@ -45,9 +46,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  bool get _canSubmit => _mode == LoginMode.email
-      ? isPlausibleEmail(_identifier.text)
-      : isPlausiblePhone(_identifier.text);
+  /// Never in a real build: there is nothing on the server to send a code.
+  bool get _canSubmit =>
+      ref.read(demoAuthProvider) &&
+      (_mode == LoginMode.email
+          ? isPlausibleEmail(_identifier.text)
+          : isPlausiblePhone(_identifier.text));
 
   Future<void> _submit() async {
     if (!_canSubmit || _busy) return;
@@ -88,7 +92,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       subtitle: 'We will send you a code.',
       onBack: backOr(context, '/auth/login'),
       children: [
-        if (_failure != null) AuthNotice(message: authAdvice(_failure!)),
+        // No backend endpoint for password reset exists yet, so a real build
+        // says so before the farmer types anything rather than after. The
+        // demo keeps its local reset, which is how this flow is exercised.
+        if (!ref.watch(demoAuthProvider))
+          AuthNotice(message: authAdvice(AuthFailure.notYetSupported))
+        else if (_failure != null)
+          AuthNotice(message: authAdvice(_failure!)),
         AppSegmentedControl<LoginMode>(
           value: _mode,
           onChanged: (mode) => setState(() {

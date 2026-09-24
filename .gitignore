@@ -79,3 +79,6 @@ mlruns/
 
 # Local planning documents. Existing tracked docs remain tracked by Git.
 /docs/
+
+# Private billing exports, response captures, human labels and judge artifacts.
+.farmable-evidence/

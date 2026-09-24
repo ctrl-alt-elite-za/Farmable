@@ -17,7 +17,7 @@ pytestmark = pytest.mark.integration
 @pytest.mark.parametrize("kind", ["market_prices", "crop_calendars", "crop_costs"])
 def test_concurrent_reference_imports(request, kind):
     database = request.getfixturevalue("pg")
-    command.upgrade(database.config, "0010")
+    command.upgrade(database.config, "0017")
     barrier = Barrier(4)
 
     def run(_):
@@ -36,13 +36,13 @@ def test_reference_migration_round_trip_preserves_users(request):
     database = request.getfixturevalue("pg")
     with database.sessions() as session:
         before = set(session.scalars(select(User.id)))
-    command.upgrade(database.config, "0010")
+    command.upgrade(database.config, "0017")
     for kind in ("market_prices", "crop_calendars", "crop_costs"):
         assert import_bundle(database.sessions, payload(kind)) == ("imported", 1)
-    command.downgrade(database.config, "0009")
+    command.downgrade(database.config, "0016")
     tables = inspect(database.engine).get_table_names(schema=database.schema)
     assert not any(table.startswith("reference_") for table in tables)
     with database.sessions() as session:
         assert set(session.scalars(select(User.id))) == before
-    command.upgrade(database.config, "0010")
+    command.upgrade(database.config, "0017")
     assert import_bundle(database.sessions, payload()) == ("imported", 1)

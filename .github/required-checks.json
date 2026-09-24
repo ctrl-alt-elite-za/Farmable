@@ -16,5 +16,6 @@
   "e2e-degradation",
   "assistant-evals",
   "mobile-test",
-  "demo-regression"
+  "demo-regression",
+  "cloud-review-policy"
 ]

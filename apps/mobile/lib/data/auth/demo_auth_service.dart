@@ -2,9 +2,9 @@
 ///
 /// It completes every call without a network, because the demo has to run in
 /// a room with no backend and issue #9's Journey A asks only that the farmer
-/// can authenticate. PR #51 is building the real client; this is what the
-/// screens are developed and tested against until that lands, and the seam
-/// between them is documented in `domain/auth/auth_service.dart`.
+/// can authenticate. The real client is [ApiAuthService]; this one is what the
+/// widget tests and demo builds run against, and the seam between them is
+/// documented in `domain/auth/auth_service.dart`.
 ///
 /// What it deliberately does NOT do:
 ///
@@ -287,6 +287,11 @@ class DemoAuthService implements AuthService {
 
     return const SignedOut();
   }
+
+  /// A demo session has nothing to refresh against. It lasts
+  /// [demoSessionLifetime] and then the farmer logs in again.
+  @override
+  Future<AuthStanding> refreshSession() => restore();
 
   @override
   Future<void> signOut() async {
