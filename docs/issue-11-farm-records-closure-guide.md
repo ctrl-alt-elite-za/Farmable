@@ -66,7 +66,10 @@ The production API scopes records under a farm. The issue shorthand
 | Media metadata | `GET/POST /farms/{farm_id}/media`      | `GET/PUT .../{id}`                   | tombstone                             |
 
 Delete is a `POST` to `.../{id}/delete`. It is a tombstone mutation and
-requires both `mutation_id` and the client-observed `expected_version`. The
+requires both `mutation_id` and the client-observed `expected_version`. A
+section delete also carries `expected_child_versions`, mapping every attached
+record ID to the version the client observed, so a concurrent child edit is
+reported as a conflict instead of being silently erased. The
 server keeps the tombstone in the change feed, rejects resurrection, and makes
 retries safe.
 

@@ -642,10 +642,76 @@ def test_unknown_crop_rejected(records):
 def test_planted_on_out_of_range_rejected(records):
     base = f"/farms/{records.ids.farm}/plantings"
     body = create_body(records, "plantings")
+    body["crop_type_code"] = "cabbage"
     body["planted_on"] = "2000-01-01"
     response = records.client.post(base, json=body)
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "planted_on_out_of_range"
+
+
+def test_legacy_crop_text_is_preserved_and_old_planting_edits_sync(records):
+    base = f"/farms/{records.ids.farm}/plantings"
+    planting_id = str(uuid4())
+    created = records.client.post(
+        base,
+        json={
+            "mutation_id": str(uuid4()),
+            "id": planting_id,
+            "section_id": str(records.ids.section),
+            "crop": "Butternut",
+            "planted_on": "2000-01-01",
+            "is_current": False,
+        },
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["record"]["crop"] == "Butternut"
+    assert created.json()["record"]["crop_type_code"] is None
+
+    updated = records.client.put(
+        f"{base}/{planting_id}",
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_version": 1,
+            "crop": "Butternut",
+            "planted_on": "2000-01-01",
+            "is_current": False,
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["record"]["crop"] == "Butternut"
+
+
+def test_section_delete_requires_versions_for_attached_children(records):
+    section_id = str(uuid4())
+    assert (
+        records.client.post(
+            f"/farms/{records.ids.farm}/sections",
+            json=create_body(records, "sections", section_id),
+        ).status_code
+        == 200
+    )
+    planting = create_body(records, "plantings")
+    planting["section_id"] = section_id
+    assert (
+        records.client.post(f"/farms/{records.ids.farm}/plantings", json=planting).status_code
+        == 200
+    )
+    delete = records.client.post(
+        f"/farms/{records.ids.farm}/sections/{section_id}/delete",
+        json={"mutation_id": str(uuid4()), "expected_version": 1},
+    )
+    assert delete.status_code == 409
+    assert delete.json()["error"]["code"] == "revision_conflict"
+
+    delete = records.client.post(
+        f"/farms/{records.ids.farm}/sections/{section_id}/delete",
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_version": 1,
+            "expected_child_versions": {planting["id"]: 1},
+        },
+    )
+    assert delete.status_code == 200, delete.text
 
 
 def test_delete_section_cascades(records):
@@ -670,12 +736,18 @@ def test_delete_section_cascades(records):
     assert created_observation.status_code == 200, created_observation.text
     attached["observations"] = observation["observation_id"]
 
+    expected_child_versions = {record_id: 1 for record_id in attached.values()}
+
     before = records.client.get(f"/farms/{farm}/changes?since=0&limit=100").json()
     change_count_before = len(before["items"])
 
     delete = records.client.post(
         f"/farms/{farm}/sections/{section_id}/delete",
-        json={"mutation_id": str(uuid4()), "expected_version": 1},
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_version": 1,
+            "expected_child_versions": expected_child_versions,
+        },
     )
     assert delete.status_code == 200, delete.text
 
@@ -689,6 +761,7 @@ def test_delete_section_cascades(records):
             Media,
             Observation,
             Planting,
+            PlantingCrop,
             SavedPlan,
         )
 
@@ -707,6 +780,7 @@ def test_delete_section_cascades(records):
             row = session.get(model, UUID(record_id))
             assert row is not None
             assert row.deleted_at is not None
+        assert session.get(PlantingCrop, UUID(attached["plantings"])) is None
 
     after = records.client.get(f"/farms/{farm}/changes?since=0&limit=100").json()
     # The section tombstone plus one SyncChange per attached record.

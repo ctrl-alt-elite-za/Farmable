@@ -401,7 +401,17 @@ def test_section_delete_requeues_all_photo_objects_for_cleanup(records):
 
     deleted = records.client.post(
         f"/farms/{records.ids.farm}/sections/{section_id}/delete",
-        json={"mutation_id": str(uuid4()), "expected_version": 1},
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_version": 1,
+            "expected_child_versions": {
+                str(
+                    records.service.upload(
+                        records.ids.authorization, records.ids.farm, upload_id
+                    ).cloud_media_id
+                ): 1
+            },
+        },
     )
     assert deleted.status_code == 200, deleted.text
     with records.sessions() as session:
@@ -435,9 +445,7 @@ def test_inflight_publication_after_section_delete_is_cleaned(records):
     upload_response = records.client.post(f"/farms/{records.ids.farm}/photo-uploads", json=payload)
     assert upload_response.status_code == 200, upload_response.text
     upload_id = UUID(upload_response.json()["upload_id"])
-    completed = records.client.post(
-        f"/farms/{records.ids.farm}/photo-uploads/{upload_id}/complete"
-    )
+    completed = records.client.post(f"/farms/{records.ids.farm}/photo-uploads/{upload_id}/complete")
     assert completed.status_code == 202
     claimed = records.jobs.claim(upload_id)
     assert claimed is not None
@@ -463,6 +471,23 @@ def test_inflight_publication_after_section_delete_is_cleaned(records):
     assert (upload_id, attempt.id, False) in records.storage.cleaned
 
 
+def test_non_lease_finish_error_still_cleans_when_scope_is_inactive(records, monkeypatch):
+    _payload, _view, upload, attempt = queue(records)
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    claimed = worker.jobs.claim(upload.id)
+    original_finish = worker.jobs.finish
+    monkeypatch.setattr(
+        worker.jobs,
+        "finish",
+        lambda *args: (_ for _ in ()).throw(ApiError(409, "generation_changed")),
+    )
+    monkeypatch.setattr(worker.jobs, "requeue_cleanup_if_inactive", lambda *_: True)
+    worker.process(*claimed)
+    monkeypatch.setattr(worker.jobs, "finish", original_finish)
+    worker.executor.shutdown()
+    assert (upload.id, attempt.id, False) in records.storage.cleaned
+
+
 def test_planting_legacy_crop_and_catalogue_code_share_one_identity(records):
     base = f"/farms/{records.ids.farm}/plantings"
     body = {
@@ -477,17 +502,24 @@ def test_planting_legacy_crop_and_catalogue_code_share_one_identity(records):
     assert response.json()["record"]["crop"] == "spinach"
     assert response.json()["record"]["crop_type_code"] == "spinach"
 
-    mismatch = {
+    additive_code = {
         **body,
         "id": str(uuid4()),
         "mutation_id": str(uuid4()),
         "crop_type_code": "cabbage",
+        "is_current": False,
     }
-    response = records.client.post(base, json=mismatch)
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "crop_type_conflict"
+    response = records.client.post(base, json=additive_code)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["crop"] == "spinach"
+    assert response.json()["record"]["crop_type_code"] == "cabbage"
 
-    unsupported = {**body, "id": str(uuid4()), "mutation_id": str(uuid4()), "crop": "banana"}
+    unsupported = {
+        **body,
+        "id": str(uuid4()),
+        "mutation_id": str(uuid4()),
+        "crop_type_code": "banana",
+    }
     response = records.client.post(base, json=unsupported)
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "unknown_crop_type"

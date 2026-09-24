@@ -51,10 +51,8 @@ class PhotoWorker:
             generation = storage.publish(upload, attempt, clean)
             try:
                 self.jobs.finish(upload.id, token, generation)
-            except ApiError as error:
-                if error.code == "lease_lost" and self.jobs.requeue_cleanup_if_inactive(
-                    upload.id, attempt.id
-                ):
+            except ApiError:
+                if self.jobs.requeue_cleanup_if_inactive(upload.id, attempt.id):
                     storage.cleanup(upload, attempt, keep_clean=False)
                 raise
         except UploadError as error:

@@ -2477,11 +2477,26 @@
         "additionalProperties": false,
         "examples": [
           {
+            "expected_child_versions": {
+              "3f1d4b2a-0000-4000-8000-000000000002": 1
+            },
             "expected_version": 1,
             "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001"
           }
         ],
         "properties": {
+          "expected_child_versions": {
+            "additionalProperties": {
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            "default": {},
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Expected Child Versions",
+            "type": "object"
+          },
           "expected_version": {
             "minimum": 1.0,
             "title": "Expected Version",

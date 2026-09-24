@@ -71,21 +71,20 @@ def _validate_planted_on(session: Session, planted_on: date | None) -> None:
         raise ApiError(422, "planted_on_out_of_range")
 
 
-def _resolve_crop_identity(session: Session, crop: str, crop_type_code: str | None) -> str:
-    """Resolve legacy crop text and the catalogue code to one identity."""
-    legacy_code = crop.strip().casefold()
-    if crop_type_code is None:
-        crop_type_code = legacy_code
-    else:
-        crop_type_code = crop_type_code.strip().casefold()
-        if session.get(CropType, crop_type_code) is None:
+def _resolve_crop_identity(session: Session, crop: str, crop_type_code: str | None) -> str | None:
+    """Validate the optional catalogue identity without rewriting legacy text."""
+    if crop_type_code is not None:
+        code = crop_type_code.strip().casefold()
+        if session.get(CropType, code) is None:
             raise ApiError(422, "unknown_crop_type")
-    if crop_type_code != legacy_code:
-        raise ApiError(422, "crop_type_conflict")
-    catalogue = session.get(CropType, crop_type_code)
-    if catalogue is None:
-        raise ApiError(422, "unknown_crop_type")
-    return catalogue.code
+        return code
+
+    # ``crop`` predates the catalogue and remains free text.  Infer a code only
+    # when it happens to be an exact catalogue code; otherwise keep the legacy
+    # planting valid without inventing a catalogue identity.
+    legacy_code = crop.strip().casefold()
+    catalogue = session.get(CropType, legacy_code)
+    return catalogue.code if catalogue is not None else None
 
 
 def _resolve_crop_window(
@@ -169,9 +168,9 @@ class SyncRecordRepository:
             values.pop("crop_type_code", None) if kind.resource == "plantings" else None
         )
         if kind.resource == "plantings":
-            _validate_planted_on(self.session, values.get("planted_on"))
+            if crop_type_code is not None:
+                _validate_planted_on(self.session, values.get("planted_on"))
             crop_type_code = _resolve_crop_identity(self.session, values["crop"], crop_type_code)
-            values["crop"] = crop_type_code
         record = kind.model(
             id=record_id,
             farm_id=self.farm_id,
@@ -194,7 +193,9 @@ class SyncRecordRepository:
         """Full-replace the companion crop_type_code/harvest window (#11)."""
         existing = self.session.get(PlantingCrop, planting_id)
         if crop_type_code is None:
-            raise ApiError(422, "unknown_crop_type")
+            if existing is None:
+                return
+            crop_type_code = existing.crop_type_code
         harvest_from, harvest_to = _resolve_crop_window(self.session, crop_type_code, planted_on)
         if existing is None:
             self.session.add(
@@ -248,9 +249,9 @@ class SyncRecordRepository:
             values.pop("crop_type_code", None) if kind.resource == "plantings" else None
         )
         if kind.resource == "plantings":
-            _validate_planted_on(self.session, values.get("planted_on"))
+            if crop_type_code is not None and values.get("planted_on") != record.planted_on:
+                _validate_planted_on(self.session, values.get("planted_on"))
             crop_type_code = _resolve_crop_identity(self.session, values["crop"], crop_type_code)
-            values["crop"] = crop_type_code
         for name, value in values.items():
             setattr(record, name, value)
         record.version += 1
@@ -267,7 +268,12 @@ class SyncRecordRepository:
             self._set_planting_crop(record.id, crop_type_code, values.get("planted_on"))
         return record
 
-    def _cascade_delete_section(self, mutation: SyncMutation, section_id: UUID) -> None:
+    def _cascade_delete_section(
+        self,
+        mutation: SyncMutation,
+        section_id: UUID,
+        expected_child_versions: dict[UUID, int],
+    ) -> None:
         now = db_now(self.session)
         for child in SECTION_ATTACHED:
             rows = list(
@@ -283,6 +289,9 @@ class SyncRecordRepository:
                 )
             )
             for row in rows:
+                expected = expected_child_versions.get(row.id)
+                if expected is None or expected != row.version:
+                    raise ApiError(409, "revision_conflict")
                 row.deleted_at = now
                 row.version += 1
                 row.sync_state = "synced"
@@ -297,6 +306,14 @@ class SyncRecordRepository:
                         version=row.version,
                     )
                 )
+            if child.model is Planting:
+                for planting_id in (row.id for row in rows):
+                    crop_row = self.session.get(PlantingCrop, planting_id)
+                    if crop_row is not None:
+                        self.session.delete(crop_row)
+        section_kind = self.session.get(SectionKind, section_id)
+        if section_kind is not None:
+            self.session.delete(section_kind)
         # Photo uploads are durable storage intents rather than generic sync
         # records.  Invalidate every attempt and make cleanup immediately
         # claimable, including attempts previously marked cleaned and claims
@@ -384,7 +401,11 @@ class SyncRecordRepository:
                     # every record attached to it, published to the change
                     # feed under this same mutation so other devices learn
                     # of the cascade too, not only the section tombstone.
-                    self._cascade_delete_section(mutation, target)
+                    self._cascade_delete_section(
+                        mutation,
+                        target,
+                        values.pop("expected_child_versions", {}),
+                    )
                 self.session.add(
                     SyncChange(
                         farm_id=self.farm_id,

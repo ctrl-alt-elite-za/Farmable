@@ -264,22 +264,33 @@ class PhotoJobs:
 
     def requeue_cleanup_if_inactive(self, upload_id, attempt_id) -> bool:
         """Requeue an object published after its section was deleted."""
-        with self.locked(upload_id) as (session, upload, farm, section):
-            attempt = session.scalar(
-                select(PhotoAttempt)
-                .where(PhotoAttempt.id == attempt_id, PhotoAttempt.upload_id == upload.id)
-                .with_for_update()
-            )
-            if attempt is None or self.active(upload, farm, section):
-                return False
-            cleanup_due = db_now(session) - timedelta(hours=1, seconds=1)
-            upload.state = "failed"
-            upload.error_code = "scope_unavailable"
-            attempt.terminal_at = cleanup_due
-            attempt.form_expires_at = cleanup_due
-            attempt.lease_token = None
-            attempt.lease_expires_at = None
-            attempt.cleanup_token = None
-            attempt.cleanup_expires_at = None
-            attempt.cleaned_at = None
-            return True
+        try:
+            with self.locked(upload_id) as (session, upload, farm, section):
+                attempt = session.scalar(
+                    select(PhotoAttempt)
+                    .where(PhotoAttempt.id == attempt_id, PhotoAttempt.upload_id == upload.id)
+                    .with_for_update()
+                )
+                if self.active(upload, farm, section):
+                    return False
+                # The durable attempt may have been removed independently,
+                # but the worker still owns the in-memory published object.
+                if attempt is None:
+                    return True
+                cleanup_due = db_now(session) - timedelta(hours=1, seconds=1)
+                upload.state = "failed"
+                upload.error_code = "scope_unavailable"
+                attempt.terminal_at = cleanup_due
+                attempt.form_expires_at = cleanup_due
+                attempt.lease_token = None
+                attempt.lease_expires_at = None
+                attempt.cleanup_token = None
+                attempt.cleanup_expires_at = None
+                attempt.cleaned_at = None
+                return True
+        except ApiError as error:
+            # A hard-removed upload has no durable row left to requeue, but its
+            # already-published object still needs the worker's best-effort
+            # cleanup.  Treat only the missing-row case as inactive; transient
+            # or unrelated API failures must not delete a live object.
+            return error.status == 404

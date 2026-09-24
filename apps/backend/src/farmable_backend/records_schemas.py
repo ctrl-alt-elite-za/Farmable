@@ -162,10 +162,17 @@ def examples(**fields: Any) -> ConfigDict:
 
 
 class RecordDelete(StrictModel):
-    model_config = examples(mutation_id=EXAMPLE_MUTATION, expected_version=1)
+    model_config = examples(
+        mutation_id=EXAMPLE_MUTATION,
+        expected_version=1,
+        expected_child_versions={EXAMPLE_RECORD: 1},
+    )
 
     mutation_id: UUID
     expected_version: Version
+    # Section deletes are cascades.  Clients must send the versions they saw
+    # for each attached record so a concurrent child edit cannot be erased.
+    expected_child_versions: dict[UUID, Version] = Field(default_factory=dict)
 
 
 class SectionCreate(StrictModel):

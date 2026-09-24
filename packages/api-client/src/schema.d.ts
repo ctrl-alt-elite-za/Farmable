@@ -2110,11 +2110,21 @@ export interface components {
     /**
      * RecordDelete
      * @example {
+     *       "expected_child_versions": {
+     *         "3f1d4b2a-0000-4000-8000-000000000002": 1
+     *       },
      *       "expected_version": 1,
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001"
      *     }
      */
     RecordDelete: {
+      /**
+       * Expected Child Versions
+       * @default {}
+       */
+      expected_child_versions: {
+        [key: string]: number;
+      };
       /** Expected Version */
       expected_version: number;
       /**
