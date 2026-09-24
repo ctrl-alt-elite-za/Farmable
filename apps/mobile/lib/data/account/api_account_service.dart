@@ -227,13 +227,26 @@ class ApiAccountService implements AccountService {
   @override
   Future<DeletionOutcome> deleteAccount({required String password}) async {
     final op = await _require();
-    final response = await _auth.authorized(
-      'DELETE',
-      '/account',
-      data: {'password': password},
-      generation: op.generation,
-    );
-    throwUnlessSuccess(response);
+    try {
+      final response = await _auth.authorized(
+        'DELETE',
+        '/account',
+        data: {'password': password},
+        generation: op.generation,
+      );
+      throwUnlessSuccess(response);
+    } on AuthException catch (e) {
+      // A timeout, dropped connection or proxy/server failure can happen
+      // after the deletion commits. Do not claim a refusal, retry the DELETE,
+      // or destroy unsynced records without a confirmed answer. A later 401
+      // is not a deletion receipt either: sessions can expire or be revoked.
+      if (e.failure == AuthFailure.offline ||
+          e.failure == AuthFailure.unavailable ||
+          e.failure == AuthFailure.unknown) {
+        return DeletionOutcome.unconfirmed;
+      }
+      rethrow;
+    }
 
     // The deletion is committed on the server. The cleanup is for the account
     // that asked — so if another login has taken the phone while the answer

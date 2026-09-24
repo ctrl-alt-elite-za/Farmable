@@ -260,6 +260,40 @@ void main() {
   });
 
   group('deletion', () {
+    test(
+      'a committed deletion with a lost reply remains unconfirmed',
+      () async {
+        await service().setConsent(externalProcessing: true);
+        final record = await account.read();
+        final seeded = await db.select(db.seedState).getSingleOrNull();
+        api.loseDeletionResponse = true;
+
+        expect(
+          await service().deleteAccount(password: _password),
+          DeletionOutcome.unconfirmed,
+        );
+        expect(api.hasAccount('thandi@example.com'), isFalse);
+        expect(await account.read(), record, reason: 'no destructive guess');
+        expect(await db.select(db.seedState).getSingleOrNull(), seeded);
+        expect(api.to('/account'), hasLength(1), reason: 'no automatic retry');
+        expect(api.to('/auth/login'), isEmpty, reason: 'no credential replay');
+      },
+    );
+
+    test('a server failure is not proof that deletion was refused', () async {
+      await service().setConsent(externalProcessing: true);
+      final record = await account.read();
+      api.accountOverride = (503, 'temporarily_unavailable');
+
+      expect(
+        await service().deleteAccount(password: _password),
+        DeletionOutcome.unconfirmed,
+      );
+      expect(await account.read(), record);
+      expect(await auth.restore(), isA<SignedIn>());
+      expect(api.to('/account'), hasLength(1));
+    });
+
     test('a wrong password deletes nothing and keeps the session', () async {
       await service().setConsent(externalProcessing: true);
       expect(
@@ -310,13 +344,19 @@ void main() {
       },
     );
 
-    test('with no signal deletes nothing', () async {
-      api.offline = true;
-      expect(
-        await failureOf(() => service().deleteAccount(password: _password)),
-        AuthFailure.offline,
-      );
-      expect(await auth.restore(), isA<SignedIn>());
-    });
+    test(
+      'with no signal preserves local data without claiming an answer',
+      () async {
+        await service().setConsent(externalProcessing: true);
+        final record = await account.read();
+        api.offline = true;
+        expect(
+          await service().deleteAccount(password: _password),
+          DeletionOutcome.unconfirmed,
+        );
+        expect(await auth.restore(), isA<SignedIn>());
+        expect(await account.read(), record);
+      },
+    );
   });
 }

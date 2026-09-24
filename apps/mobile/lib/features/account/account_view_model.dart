@@ -74,14 +74,17 @@ class AccountViewModel extends AsyncNotifier<AccountSnapshot?> {
 
   /// Permanently deletes the account and wipes the phone.
   ///
-  /// A failure means nothing was deleted. A [DeletionOutcome] means the
-  /// account is gone and the farmer is signed out; it says whether the phone
-  /// was cleared completely. [password] goes to the service and nowhere else.
+  /// An unconfirmed outcome preserves the phone's data and session; a
+  /// confirmed deletion reports whether cleanup finished. [password] goes
+  /// to the service and nowhere else.
   Future<({AuthFailure? failure, DeletionOutcome? outcome})> deleteAccount({
     required String password,
   }) async {
     try {
       final outcome = await _service.deleteAccount(password: password);
+      if (outcome == DeletionOutcome.unconfirmed) {
+        return (failure: null, outcome: outcome);
+      }
       ref.invalidate(externalProcessingConsentProvider);
       await ref.read(authViewModelProvider.notifier).recheck();
       return (failure: null, outcome: outcome);

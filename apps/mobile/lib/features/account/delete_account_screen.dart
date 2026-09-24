@@ -41,6 +41,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
   final _password = TextEditingController();
   bool _understood = false;
   bool _busy = false;
+  bool _unconfirmed = false;
   AuthFailure? _failure;
 
   @override
@@ -64,6 +65,13 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
 
     if (!mounted) return;
     final outcome = result.outcome;
+    if (outcome == DeletionOutcome.unconfirmed) {
+      setState(() {
+        _busy = false;
+        _unconfirmed = true;
+      });
+      return;
+    }
     if (outcome != null) {
       // The account is gone either way. What differs is whether the phone
       // could clear everything, and the farmer is told which — never that
@@ -82,6 +90,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   "storage in your phone's settings to finish.",
             DeletionOutcome.accountChangedBeforeCleanup =>
               'That account has been deleted.',
+            DeletionOutcome.unconfirmed => _unconfirmedAdvice,
           }),
         ),
       );
@@ -128,7 +137,10 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
         subtitle: 'This is permanent and cannot be undone.',
         onBack: _busy ? null : backOr(context, '/profile'),
         children: [
-          if (_failure != null) AuthNotice(message: _advice(_failure!)),
+          if (_unconfirmed)
+            const AuthNotice(message: _unconfirmedAdvice)
+          else if (_failure != null)
+            AuthNotice(message: _advice(_failure!)),
           // Not while this screen's own deletion is out: the server revoking
           // the session is part of it, and must not read as "not logged in".
           if (!signedIn && !_busy)
@@ -177,15 +189,20 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     );
   }
 
-  /// Each says whether anything was deleted, because after a failure on this
-  /// screen that is the first thing the farmer needs to know.
+  static const _unconfirmedAdvice =
+      'We could not confirm whether your account was deleted. Your data on '
+      'this phone has been kept. Reconnect and try again. If you can no longer '
+      'log in, ask the Almanac team to confirm deletion before clearing '
+      "Almanac's storage in your phone's settings.";
+
+  /// Only definite refusals say nothing was deleted. An earlier unconfirmed
+  /// attempt keeps its warning even if a retry meets a revoked session.
   String _advice(AuthFailure failure) => switch (failure) {
     AuthFailure.invalidCredentials =>
       'That password is not right. Nothing has been deleted.',
-    AuthFailure.offline =>
-      'Deleting your account needs a signal. Nothing has been deleted.',
+    AuthFailure.offline => _unconfirmedAdvice,
     AuthFailure.tooManyAttempts =>
       'Too many tries. Wait a minute. Nothing has been deleted.',
-    _ => '${authAdvice(failure)} Nothing has been deleted.',
+    _ => authAdvice(failure),
   };
 }

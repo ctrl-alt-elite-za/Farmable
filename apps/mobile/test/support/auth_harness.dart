@@ -128,6 +128,7 @@ Future<AuthHarness> pumpAuthApp(
   /// build flag that picks between them is overridden too, so the screens
   /// see the same answer the provider does.
   FakeAuthApi? api,
+  DateTime Function()? now,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = surface;
@@ -143,7 +144,7 @@ Future<AuthHarness> pumpAuthApp(
   final container = ProviderContainer(
     overrides: [
       databaseProvider.overrideWithValue(db),
-      clockProvider.overrideWithValue(() => pinnedToday),
+      clockProvider.overrideWithValue(now ?? () => pinnedToday),
       if (!seed) seedProvider.overrideWith((ref) async {}),
       healthServiceProvider.overrideWithValue(
         _FixedHealth(online ? Reachability.online : Reachability.offline),
@@ -160,7 +161,7 @@ Future<AuthHarness> pumpAuthApp(
           (ref) => ApiAuthService(
             api.dio(),
             ref.watch(sessionStorageProvider),
-            now: () => pinnedToday,
+            now: now ?? () => pinnedToday,
           ),
         )
       else

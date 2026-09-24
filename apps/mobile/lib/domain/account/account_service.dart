@@ -56,8 +56,9 @@ abstract class AccountService {
   /// consent to deletion. A wrong one is [AuthFailure.invalidCredentials] and
   /// changes nothing anywhere.
   ///
-  /// Throws only when nothing was deleted. Once the server has deleted the
-  /// account the result is a [DeletionOutcome], never an exception.
+  /// A missing or unreliable reply returns [DeletionOutcome.unconfirmed],
+  /// without clearing the phone or automatically replaying the request.
+  /// Only a confirmed success permits the local wipe.
   Future<DeletionOutcome> deleteAccount({required String password});
 
   /// Forgets the account data on this phone — profile, pending edits,

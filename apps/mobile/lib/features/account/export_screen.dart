@@ -44,7 +44,8 @@ class ExportScreen extends ConsumerStatefulWidget {
   ConsumerState<ExportScreen> createState() => _ExportScreenState();
 }
 
-class _ExportScreenState extends ConsumerState<ExportScreen> {
+class _ExportScreenState extends ConsumerState<ExportScreen>
+    with WidgetsBindingObserver {
   ExportFormat _format = ExportFormat.json;
   ExportFile? _file;
   bool _loaded = false;
@@ -54,7 +55,19 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _load();
   }
 
   Future<void> _load() async {
@@ -100,7 +113,17 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
 
   Future<void> _share(ExportFile file) async {
     try {
-      await ref.read(shareFileProvider)(file);
+      // The screen can outlive the copy's expiry (or its account). Never
+      // hand a cached path to the share sheet without checking it again.
+      final current = await ref.read(accountServiceProvider).currentExport();
+      if (!mounted) return;
+      setState(() => _file = current);
+      if (current == null ||
+          current.path != file.path ||
+          current.createdAt != file.createdAt) {
+        return;
+      }
+      await ref.read(shareFileProvider)(current);
     } on Object {
       if (mounted) setState(() => _failure = AuthFailure.unknown);
     }

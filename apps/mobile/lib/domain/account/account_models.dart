@@ -138,14 +138,18 @@ class ExportFile {
   String toString() => 'ExportFile(${format.name}, $bytes bytes)';
 }
 
-/// How an account deletion ended, once the server has accepted it.
+/// How an account deletion attempt ended.
 ///
-/// There is no "failed" here: a deletion the server refused is an
-/// [AuthException] and nothing was deleted. Once the server has deleted the
-/// account, that is final, and what is left to say is whether this phone
-/// managed to clear everything it kept.
+/// A definite refusal is an [AuthException]. An interrupted request may
+/// already have committed on the server; it is [unconfirmed], not a refusal.
+/// Confirmed deletion is final even if this phone cannot finish cleanup.
 enum DeletionOutcome {
   complete,
+
+  /// No reliable answer arrived. Keep local records: neither a timeout nor
+  /// a later revoked session proves that the account was deleted. The API
+  /// has no deletion receipt/status endpoint to resolve that uncertainty.
+  unconfirmed,
 
   /// The account is gone, and local access has ended, but some part of the
   /// phone's copy could not be cleared.

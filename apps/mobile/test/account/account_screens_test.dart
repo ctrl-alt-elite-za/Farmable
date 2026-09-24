@@ -11,6 +11,7 @@ import 'package:almanac/data/auth/api_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
 import 'package:almanac/features/account/account_screen.dart';
+import 'package:almanac/features/account/account_view_model.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/home/home_screen.dart';
 import 'package:flutter/widgets.dart';
@@ -290,6 +291,49 @@ void main() {
   });
 
   group('export', () {
+    testWidgets('a mounted screen refuses to share an expired export', (
+      tester,
+    ) async {
+      var now = pinnedToday;
+      final harness = await pumpAuthApp(
+        tester,
+        location: '/profile/export',
+        api: api,
+        session: await loggedIn(tester),
+        now: () => now,
+      );
+      await tapLabel(tester, 'Prepare my data');
+      expect(find.text('Ready to share'), findsOneWidget);
+
+      now = now.add(const Duration(hours: 24));
+      await tapLabel(tester, 'Share');
+
+      expect(harness.shared, isEmpty);
+      expect(await harness.exports.current(), isNull);
+      expect(find.text('Nothing prepared yet'), findsOneWidget);
+    });
+
+    testWidgets('resuming removes an export that expired in the background', (
+      tester,
+    ) async {
+      var now = pinnedToday;
+      final harness = await pumpAuthApp(
+        tester,
+        location: '/profile/export',
+        api: api,
+        session: await loggedIn(tester),
+        now: () => now,
+      );
+      await tapLabel(tester, 'Prepare my data');
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      now = now.add(const Duration(hours: 25));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+
+      expect(await harness.exports.current(), isNull);
+      expect(find.text('Nothing prepared yet'), findsOneWidget);
+    });
+
     testWidgets('request, ready, share — no URL or token on screen', (
       tester,
     ) async {
@@ -363,6 +407,41 @@ void main() {
   });
 
   group('deletion', () {
+    testWidgets('a lost success response reports uncertainty, not refusal', (
+      tester,
+    ) async {
+      final harness = await pumpAuthApp(
+        tester,
+        location: '/profile/delete',
+        api: api,
+        session: await loggedIn(tester),
+      );
+      await harness.container
+          .read(accountServiceProvider)
+          .setConsent(externalProcessing: true);
+      api.loseDeletionResponse = true;
+      await enterField(tester, 'Your password', goodPassphrase);
+      await tapLabel(tester, 'I understand this cannot be undone');
+      await tapLabel(tester, 'Delete my account');
+
+      expect(api.hasAccount('thandi@example.com'), isFalse);
+      expect(find.textContaining('Nothing has been deleted'), findsNothing);
+      expect(find.textContaining('could not confirm'), findsOneWidget);
+      expect(await harness.accountStorage.read(), isNotNull);
+      expect(api.to('/account'), hasLength(1), reason: 'no automatic replay');
+
+      // A second attempt meets a revoked session, not proof that the first
+      // delete failed. It must not replace the warning with a false refusal.
+      await tester.runAsync(
+        () => harness.container
+            .read(accountViewModelProvider.notifier)
+            .deleteAccount(password: goodPassphrase),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Nothing has been deleted'), findsNothing);
+      expect(find.textContaining('could not confirm'), findsOneWidget);
+    });
+
     testWidgets('needs the password and an explicit confirmation', (
       tester,
     ) async {
@@ -474,7 +553,9 @@ void main() {
       expect(await harness.accountStorage.read(), isNull);
     });
 
-    testWidgets('with no signal deletes nothing, and says so', (tester) async {
+    testWidgets('with no signal does not claim a confirmed refusal', (
+      tester,
+    ) async {
       await pumpAuthApp(
         tester,
         location: '/profile/delete',
@@ -486,12 +567,9 @@ void main() {
       await tapLabel(tester, 'I understand this cannot be undone');
       await tapLabel(tester, 'Delete my account');
 
-      expect(
-        find.text(
-          'Deleting your account needs a signal. Nothing has been deleted.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.textContaining('could not confirm'), findsOneWidget);
+      expect(find.textContaining('Nothing has been deleted'), findsNothing);
+      expect(api.hasAccount('thandi@example.com'), isTrue);
     });
   });
 

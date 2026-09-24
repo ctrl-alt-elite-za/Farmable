@@ -88,6 +88,9 @@ class FakeAuthApi implements HttpClientAdapter {
   /// Makes every request fail as a phone with no signal would.
   bool offline = false;
 
+  /// Lose the reply only after the server has accepted account deletion.
+  bool loseDeletionResponse = false;
+
   /// Makes the server answer with a bare status and no JSON body, the way a
   /// proxy or a crashed process does.
   int? forcedStatus;
@@ -171,6 +174,15 @@ class FakeAuthApi implements HttpClientAdapter {
     // Answered now, delivered when released: the server has done the work
     // by the time the phone hears about it.
     final response = await _answer(options, body, auth);
+    if (loseDeletionResponse &&
+        options.method == 'DELETE' &&
+        options.path == '/account' &&
+        response.statusCode == 204) {
+      throw DioException.receiveTimeout(
+        timeout: const Duration(seconds: 15),
+        requestOptions: options,
+      );
+    }
     final held = hold[options.path];
     if (held != null) await held.future;
     return response;
