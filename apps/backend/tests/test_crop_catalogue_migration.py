@@ -11,7 +11,7 @@ NEW_TABLES = ("section_kinds", "crop_types", "crop_calendars", "planting_crops")
 
 def test_crop_catalogue_migration_is_additive_and_matches_models():
     output = io.StringIO()
-    command.upgrade(Config("alembic.ini", output_buffer=output), "0017:0018", sql=True)
+    command.upgrade(Config("alembic.ini", output_buffer=output), "0024:0025", sql=True)
     sql = output.getvalue()
     assert "ALTER TABLE" not in sql
     assert "DROP TABLE" not in sql
@@ -22,7 +22,7 @@ def test_crop_catalogue_migration_is_additive_and_matches_models():
 
 def test_crop_catalogue_migration_seeds_the_expected_crops():
     output = io.StringIO()
-    command.upgrade(Config("alembic.ini", output_buffer=output), "0017:0018", sql=True)
+    command.upgrade(Config("alembic.ini", output_buffer=output), "0024:0025", sql=True)
     sql = output.getvalue()
     for code in ("cabbage", "spinach", "tomato", "potato", "onion", "carrot"):
         assert f"'{code}'" in sql

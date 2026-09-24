@@ -1,7 +1,7 @@
 """crop catalogue, harvest windows and animal sections (#11)
 
-Revision ID: 0018
-Revises: 0017
+Revision ID: 0025
+Revises: 0024
 """
 
 from collections.abc import Sequence
@@ -9,8 +9,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0018"
-down_revision: str | None = "0017"
+revision: str = "0025"
+down_revision: str | None = "0024"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
