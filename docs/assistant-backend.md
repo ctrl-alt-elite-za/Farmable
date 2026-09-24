@@ -17,6 +17,20 @@ was already present in its base commit; it is not new work delivered by PR #71.
 The following distinguishes implementation from acceptance evidence, addressing
 the scope review on PR #71.
 
+Backend issue acceptance is distinct from the full product journey. Flutter
+chat, consent controls, microphone/playback and device verification belong to
+#23–#25/#4, and do not by themselves block backend issue #7. Likewise, the
+implemented planner preview/confirmation/history contract is not waiting on UI
+completion; real-data and nominal-cash policy acceptance is tracked separately.
+The frontend/deployment entries below are integration dependencies, not additional
+backend closure criteria.
+
+The owner selected the existing Gemini Live path instead of an Azure switch.
+This is a provider decision, not evidence that language quality, interruption,
+fallback or usage limits satisfy backend acceptance. The existing direct Live
+connection cannot be forcibly revoked by the backend; see the voice contract's
+limits. No Azure-equivalence or completed voice-journey claim is made.
+
 | Requirement                                                           | Evidence in this repository                                                                                                                     | Remaining acceptance                                                                                                                                                 |
 | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Per-service adapters, retries and circuit breakers                    | `integrations/registry.py`, individual service modules and `base.py`; `test_integrations.py` checks retry and circuit behavior                  | Real-provider verification; Azure REST request bounds are not the required SDK silence behavior                                                                      |
@@ -240,14 +254,19 @@ and restore procedures: after restoring a database, migrate it and complete the
 cleanup before allowing direct access to restored content. Review the chosen
 Google account's retention terms before making any upstream deletion promise.
 
-Still required for full #7: frontend confirmation and real-data planning acceptance;
-production speech/language handling and TTS cancellation; queued crop
-diagnosis; provider context caching where appropriate; actual priced usage and
-system spending acceptance; calibrated/model-quality evaluations; real-response
-contracts and all provider/manual checks in [services.md](services.md).
-Flutter integration/device acceptance remains with #23–#25/#4, deployment with
-#6 and integrated rehearsal with #26. These are outstanding requirements, not
-waived scope.
+Still required for backend #7: the selected voice path's speech/language,
+fallback and interruption/replacement-turn acceptance; queued, farm-scoped crop
+diagnosis with consumer-level failure handling; provider context caching where
+appropriate; actual model-priced usage settlement and reconciled system spending;
+calibrated/adversarial model-quality evaluations; real-response contracts and
+authorized provider/manual checks in [services.md](services.md). Green synthetic
+tests do not establish these requirements, and this PR does not close #7.
+
+Separately, Flutter integration/device acceptance remains with #23–#25/#4,
+deployment with #6 and integrated rehearsal with #26. Real-data planning and
+nominal-cash policy acceptance remain separate from frontend implementation.
+None of these requirements is waived; their ownership is distinguished from
+backend issue #7's acceptance.
 
 ## Verification
 
