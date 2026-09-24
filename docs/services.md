@@ -17,6 +17,45 @@ The current #7 demo scope prioritizes SMS/email OTP and Gemini/Gemini Live;
 the older PR #36 provider checklist below is historical, not a requirement to
 activate Azure, soil scanning, or every optional provider before the demo.
 
+## Live SMS/email OTP delivery (#9 follow-up)
+
+`LiveOtpProvider` (`farmable_backend/auth.py`) wires `AuthService`/`AccountService`
+to two separate live channels when `INTEGRATIONS_MODE=live`, replacing the
+fail-closed `DisabledOtpProvider`:
+
+- **SMS** via the Infobip SMS API (`integrations/infobip.py`).
+- **Email** via Gmail SMTP (`integrations/email/gmail_smtp.py`), behind a
+  provider-agnostic `EmailSender` protocol (`integrations/email/base.py`) so
+  a future provider swap (Infobip, Resend, ...) only needs a new class and
+  config, not app changes.
+
+Codes are generated locally, never by a provider, and never logged. Live SMS
+delivery has been proven against the real Infobip trial account (one real
+send, `PASS infobip`). Live email delivery has been proven against Gmail
+SMTP with a real send. Both remain **code-complete, not full live-account
+acceptance**: production SMTP/App Password provisioning through Secret
+Manager, a verified sending domain (a personal Gmail address works for a
+smoke test but is not a production-ready sender identity), and the daily
+Gmail send-volume cap are still open before claiming full live OTP
+acceptance. The Twilio adapter in this module remains unwired and unused by
+any consumer.
+
+## WhatsApp template messages (standalone, demo-only)
+
+`Infobip.send_whatsapp_template()` sends a pre-approved WhatsApp template via
+the Infobip WhatsApp API. **Not wired into any app flow** - it exists as a
+capability, not an automatic notification; nothing currently calls it.
+Verified working end-to-end (one real send, `PENDING_ENROUTE`) against
+Infobip's shared sandbox sender `447860088970` and the
+`test_whatsapp_template_en` template. That sandbox number is Infobip's own
+and cannot carry Almanac branding (no custom name/logo/profile) - real
+branded WhatsApp requires a dedicated WhatsApp Business Account (WABA)
+registered with Infobip and verified by Meta, which is an account-level
+business process (business verification, phone number registration, Meta
+approval), not a config value or code change. Set
+`INFOBIP_WHATSAPP_SENDER` to whichever sender (sandbox or a real WABA) should
+be used once/if this is wired into a real flow.
+
 ## PR #36 scope and acceptance handoff
 
 PR #36 is a **partial adapter foundation**, not completion of issue #7. Its
@@ -86,6 +125,14 @@ configuration separate. Do not dump a rendered environment or secret settings.
 | `GEMINI_MODEL`              | `farmable-staging-gemini-model`              |
 | `CROP_HEALTH_API_KEY`       | `farmable-staging-crop-health-api-key`       |
 | `MAPS_SERVER_API_KEY`       | `farmable-staging-maps-server-api-key`       |
+| `INFOBIP_BASE_URL`          | `farmable-staging-infobip-base-url`          |
+| `INFOBIP_API_KEY`           | `farmable-staging-infobip-api-key`           |
+| `INFOBIP_SMS_SENDER`        | `farmable-staging-infobip-sms-sender`        |
+| `SMTP_HOST`                 | `farmable-staging-smtp-host`                 |
+| `SMTP_USER`                 | `farmable-staging-smtp-user`                 |
+| `SMTP_PASSWORD`             | `farmable-staging-smtp-password`             |
+| `EMAIL_FROM_NAME`           | `farmable-staging-email-from-name`           |
+| `EMAIL_FROM_ADDRESS`        | `farmable-staging-email-from-address`        |
 
 Azure region and resource name must match the created Speech account. No Gemini
 model is guessed: set an available model explicitly, with its account quota.
@@ -105,6 +152,8 @@ package name and signing certificate, manually verified in Google Cloud.
 | SoilGrids      | 10 s                                           | Manual soil inputs / labelled cached data |
 | Open-Meteo     | 10 s                                           | Labelled cached weather / unavailable     |
 | Maps geocoding | 10 s                                           | Manual location selection                 |
+| Infobip (SMS OTP delivery) | 10 s                                      | `503 provider_unavailable`; no half-sent code stored |
+| Gmail SMTP (email OTP delivery) | 10 s per attempt, 3 attempts        | `503 provider_unavailable`; no half-sent code stored |
 
 Only network/timeouts, HTTP 429, and 5xx retry: at most three attempts, waits
 0.5 s and 1 s plus 0–250 ms random jitter. Validation errors and other 4xx do

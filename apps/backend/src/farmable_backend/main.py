@@ -22,6 +22,7 @@ from farmable_backend.auth import (
     AuthUser,
     Channel,
     DeterministicFakeOtpProvider,
+    LiveOtpProvider,
     SessionTokens,
 )
 from farmable_backend.config import Settings
@@ -41,6 +42,7 @@ from farmable_backend.idempotency import (
 from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
 from farmable_backend.idempotency import replay as idempotency_replay
 from farmable_backend.idempotency import store as idempotency_store
+from farmable_backend.integrations.email.gmail_smtp import GmailSmtpEmailSender
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
@@ -118,11 +120,17 @@ def create_app(
                 app.state.readiness = readiness
             elif database is not None:
                 app.state.readiness = database.readiness
-                provider = (
-                    DeterministicFakeOtpProvider()
-                    if integration_config.integrations_mode == "fake"
-                    else None
-                )
+                if integration_config.integrations_mode == "fake":
+                    provider = DeterministicFakeOtpProvider()
+                elif integration_config.integrations_mode == "live":
+                    provider = LiveOtpProvider(
+                        services.infobip,
+                        GmailSmtpEmailSender(integration_config),
+                        asyncio.get_running_loop(),
+                        database.sessions,
+                    )
+                else:
+                    provider = None
                 app.state.auth = AuthService(database.sessions, provider)
                 app.state.records = RecordRuntime(
                     RecordsService(database.sessions), lambda: create_gcs_photos(config)

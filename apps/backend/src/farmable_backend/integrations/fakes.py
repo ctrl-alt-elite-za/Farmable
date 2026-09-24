@@ -55,6 +55,7 @@ class FakeTransport(httpx.AsyncBaseTransport):
             "api.open-meteo.com": "open_meteo",
             "archive-api.open-meteo.com": "open_meteo",
             "geocode.googleapis.com": "maps",
+            "fake.infobip.test": "infobip",
         }
         service = hosts.get(request.url.host)
         if service is None:
