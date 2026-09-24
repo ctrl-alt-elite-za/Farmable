@@ -5,9 +5,13 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).parents[2]
+# The policy lives under .github/, which is not an importable package, so load it by
+# path. Both the spec and its loader are Optional; fail loudly if the file moved rather
+# than let every test below error on a None.
 _spec = importlib.util.spec_from_file_location(
     "cloud_review_policy", ROOT / ".github/cloud_review_policy.py"
 )
+assert _spec is not None and _spec.loader is not None, "cloud_review_policy.py not found"
 policy = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(policy)
 
