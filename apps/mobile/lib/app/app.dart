@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/auth_view_model.dart';
+import '../features/auth/auth_challenge_host.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
@@ -33,6 +34,11 @@ class _AlmanacAppState extends ConsumerState<AlmanacApp> {
       title: 'Almanac',
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
+      builder: (context, child) => AuthChallengeHost(
+        challenge: ref.watch(authChallengeProvider),
+        backButtonDispatcher: _router.backButtonDispatcher,
+        child: child!,
+      ),
       theme: almanacLightTheme(),
       darkTheme: almanacDarkTheme(),
       // The design ships both themes; the farmer's device decides. Dark is not

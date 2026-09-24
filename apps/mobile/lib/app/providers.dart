@@ -9,6 +9,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/auth/api_auth_service.dart';
+import '../data/auth/auth_challenge.dart';
 import '../data/auth/demo_auth_service.dart';
 import '../data/auth/secure_session_storage.dart';
 import '../data/auth/session_storage.dart';
@@ -104,7 +105,18 @@ final authServiceProvider = Provider<AuthService>((ref) {
   final now = ref.watch(clockProvider);
   return ref.watch(demoAuthProvider)
       ? DemoAuthService(storage, now: now)
-      : ApiAuthService(ApiAuthService.client(apiUrl), storage, now: now);
+      : ApiAuthService(
+          ApiAuthService.client(apiUrl),
+          storage,
+          now: now,
+          requestVerification: ref.watch(authChallengeProvider).requestToken,
+        );
+});
+
+final authChallengeProvider = Provider<AuthChallenge>((ref) {
+  final challenge = AuthChallenge(apiUrl, allowLocalHttp: testMode);
+  ref.onDispose(challenge.dispose);
+  return challenge;
 });
 
 /// Whether the API is reachable.

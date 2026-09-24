@@ -48,6 +48,9 @@ class ServiceSettings(BaseSettings):
     twilio_fraud_guard_confirmed: bool = False
     turnstile_secret: SecretStr | None = Field(default=None, repr=False)
     turnstile_hostname: str | None = Field(default=None, max_length=253)
+    turnstile_site_key: str | None = Field(
+        default=None, pattern=r"^[a-zA-Z0-9_-]{1,256}$", max_length=256
+    )
     azure_speech_key: SecretStr | None = Field(default=None, repr=False)
     azure_speech_resource: str | None = Field(
         default=None, pattern=r"^[a-zA-Z0-9-]{1,63}$", max_length=63

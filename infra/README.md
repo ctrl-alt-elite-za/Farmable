@@ -112,7 +112,7 @@ it otherwise. A skipped provider reports unavailable; it does not break the depl
 keys can be added later followed by a redeploy:
 
 `gemini-model`, `twilio-account-sid`, `twilio-verify-service-sid`, `twilio-auth-token`,
-`turnstile-secret`, `turnstile-hostname`, `azure-speech-key`, `azure-speech-resource`,
+`turnstile-secret`, `turnstile-hostname`, `turnstile-site-key`, `azure-speech-key`, `azure-speech-resource`,
 `azure-speech-region`, `crop-health-api-key`, `maps-server-api-key` — each prefixed
 `farmable-staging-`.
 

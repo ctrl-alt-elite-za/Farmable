@@ -72,6 +72,7 @@ typecheck:
 	pnpm -r --if-present run typecheck
 
 test:
+	node --test scripts/tests/turnstile-page.test.mjs
 	@if [ -n "$(SCRIPT_TEST_FILES)" ]; then uv run pytest scripts/tests -q; fi
 	@if [ -n "$(PY_TEST_FILES)" ]; then uv run pytest apps/backend; else echo "no backend tests yet, skipping pytest"; fi
 	pnpm -r --if-present run test

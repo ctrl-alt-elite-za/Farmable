@@ -44,6 +44,7 @@ const Duration refreshWhenWithin = Duration(days: 28);
 class ApiAuthService implements AuthService {
   final Dio _dio;
   final SessionStorage _storage;
+  final Future<String> Function(String action) requestVerification;
 
   /// Injectable so a test can pin it and walk a session up to its expiry.
   final DateTime Function() now;
@@ -58,7 +59,26 @@ class ApiAuthService implements AuthService {
   /// quietly sign the farmer in again.
   int _epoch = 0;
 
-  ApiAuthService(this._dio, this._storage, {this.now = DateTime.now});
+  ApiAuthService(
+    this._dio,
+    this._storage, {
+    required this.requestVerification,
+    this.now = DateTime.now,
+  });
+
+  Future<String> _verification(String action) async {
+    try {
+      final token = await requestVerification(action);
+      if (token.isEmpty || token.length > 2048) {
+        throw const AuthException(AuthFailure.unavailable);
+      }
+      return token;
+    } on AuthException {
+      rethrow;
+    } catch (_) {
+      throw const AuthException(AuthFailure.unavailable);
+    }
+  }
 
   /// A client for [baseUrl] with this service's defaults.
   ///
@@ -86,6 +106,7 @@ class ApiAuthService implements AuthService {
     required String password,
   }) async {
     final normalisedEmail = email.trim().toLowerCase();
+    final token = await _verification('sign_up');
     final body = await _post(
       '/auth/signup',
       {
@@ -94,6 +115,7 @@ class ApiAuthService implements AuthService {
         'phone': phone,
         'email': normalisedEmail,
         'password': password,
+        'turnstile_token': token,
       },
       headers: {'Idempotency-Key': newUuid()},
     );
@@ -145,10 +167,11 @@ class ApiAuthService implements AuthService {
     required String userId,
     required VerificationChannel channel,
   }) async {
-    await _post('/auth/otp/resend', {
-      'user_id': userId,
-      'channel': channel.name,
-    });
+    await _post(
+      '/auth/otp/resend',
+      {'user_id': userId, 'channel': channel.name},
+      headers: {'Idempotency-Key': newUuid()},
+    );
   }
 
   /// [mode] is not sent: the backend takes one `identifier` and matches it
@@ -159,11 +182,13 @@ class ApiAuthService implements AuthService {
     required String identifier,
     required String password,
   }) async {
+    final token = await _verification('login');
     final body = await _post('/auth/login', {
       'identifier': mode == LoginMode.email
           ? identifier.trim().toLowerCase()
           : identifier,
       'password': password,
+      'turnstile_token': token,
     });
     final session = _session(body);
     _epoch++;

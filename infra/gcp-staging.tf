@@ -56,6 +56,7 @@ locals {
     "twilio-auth-token",
     "turnstile-secret",
     "turnstile-hostname",
+    "turnstile-site-key",
     "azure-speech-key",
     "azure-speech-resource",
     "azure-speech-region",
