@@ -49,7 +49,14 @@ class PhotoWorker:
                 clean.height,
             )
             generation = storage.publish(upload, attempt, clean)
-            self.jobs.finish(upload.id, token, generation)
+            try:
+                self.jobs.finish(upload.id, token, generation)
+            except ApiError as error:
+                if error.code == "lease_lost" and self.jobs.requeue_cleanup_if_inactive(
+                    upload.id, attempt.id
+                ):
+                    storage.cleanup(upload, attempt, keep_clean=False)
+                raise
         except UploadError as error:
             code = str(error)
             # UploadError originates only in our adapters/sanitizer, never SDK text.

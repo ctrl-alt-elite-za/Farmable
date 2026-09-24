@@ -419,6 +419,50 @@ def test_section_delete_requeues_all_photo_objects_for_cleanup(records):
     assert (upload_id, attempt.id, False) in records.storage.cleaned
 
 
+def test_inflight_publication_after_section_delete_is_cleaned(records):
+    section_id = uuid4()
+    created = records.client.post(
+        f"/farms/{records.ids.farm}/sections",
+        json={
+            "mutation_id": str(uuid4()),
+            "id": str(section_id),
+            "name": "In-flight photo section",
+        },
+    )
+    assert created.status_code == 200, created.text
+    payload = upload_payload(records)
+    payload["section_id"] = str(section_id)
+    upload_response = records.client.post(f"/farms/{records.ids.farm}/photo-uploads", json=payload)
+    assert upload_response.status_code == 200, upload_response.text
+    upload_id = UUID(upload_response.json()["upload_id"])
+    completed = records.client.post(
+        f"/farms/{records.ids.farm}/photo-uploads/{upload_id}/complete"
+    )
+    assert completed.status_code == 202
+    claimed = records.jobs.claim(upload_id)
+    assert claimed is not None
+    _upload, attempt = claimed
+
+    original_publish = records.storage.publish
+
+    def publish_then_delete(upload, current_attempt, clean):
+        deleted = records.client.post(
+            f"/farms/{records.ids.farm}/sections/{section_id}/delete",
+            json={"mutation_id": str(uuid4()), "expected_version": 1},
+        )
+        assert deleted.status_code == 200, deleted.text
+        return original_publish(upload, current_attempt, clean)
+
+    records.storage.publish = publish_then_delete
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    try:
+        worker.process(*claimed)
+    finally:
+        worker.executor.shutdown()
+
+    assert (upload_id, attempt.id, False) in records.storage.cleaned
+
+
 def test_planting_legacy_crop_and_catalogue_code_share_one_identity(records):
     base = f"/farms/{records.ids.farm}/plantings"
     body = {
