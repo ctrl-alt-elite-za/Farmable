@@ -1,0 +1,42 @@
+{
+  "parser_version": 1,
+  "status": "partial_coverage_not_approved_for_complete_historical_run",
+  "source": {
+    "title": "Crops and Markets First Quarter 2025",
+    "publisher": "South African Department of Agriculture",
+    "url": "https://www.nda.gov.za/images/Branches/Economica%20Development%20Trade%20and%20Marketing/Statistc%20and%20%20Economic%20Analysis/statistical-information/crops-and-markets-1st-quarter-2025-.pdf",
+    "retrieved_on": "2026-09-23",
+    "sha256": "5141a2405c4ecbe1e464e65fb9c22b23115c5fc3afa79c52be6e308b53131a0a",
+    "bytes": 1657853,
+    "pages": 39,
+    "structurally_readable": true,
+    "pdf_metadata": {
+      "created": "2025-07-28",
+      "modified": "2025-07-28",
+      "release_evidence": false
+    },
+    "redistribution_status": "unverified"
+  },
+  "coverage": {
+    "market": "Johannesburg (JHB)",
+    "months": ["2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "2025-03"],
+    "fields": ["tonnes", "rand_per_tonne"],
+    "visual_review": "Every listed crop page was rendered and inspected from the original PDF.",
+    "crops": {
+      "butternut": { "source_label": "Butternut squashes", "pdf_page": 36, "printed_page": 33 },
+      "cabbage": { "source_label": "Cabbage", "pdf_page": 30, "printed_page": 27 },
+      "carrots": { "source_label": "Carrots", "pdf_page": 29, "printed_page": 26 },
+      "green_beans": { "source_label": "Green beans", "pdf_page": 33, "printed_page": 30 },
+      "onions": { "source_label": "Onions", "pdf_page": 27, "printed_page": 24 },
+      "potatoes": { "source_label": "Potatoes", "pdf_page": 25, "printed_page": 22 },
+      "tomatoes": { "source_label": "Tomatoes", "pdf_page": 28, "printed_page": 25 }
+    },
+    "missing_required_crops": ["spinach"]
+  },
+  "availability": {
+    "available_on": null,
+    "status": "unknown_blocks_historical_use",
+    "evidence": "No matching archived capture or publisher release record was found. PDF metadata and the current server Last-Modified value are not release evidence."
+  },
+  "decision": "The report can support later outcome coverage for seven crops after a protocol approves the source and its availability. It cannot complete the eight-crop contract because spinach is absent, and it is not approved as a planting-time feature."
+}

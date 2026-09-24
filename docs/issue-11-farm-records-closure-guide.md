@@ -159,7 +159,7 @@ mapping (#15), the dashboard (#12), and a custom crop catalogue remain out of
 scope. Legacy free-text crop labels are retained for compatibility; they do
 not establish a validated catalogue identity or a harvest estimate.
 
-The crop catalogue (`crop_types`/`crop_calendars`, migration `0025`) seeds crop
+The crop catalogue (`crop_types`/`crop_calendars`, migration `0026`) seeds crop
 identities (cabbage, spinach, tomato, potato, onion and carrot), **not harvest
 durations**. Invented calendars are deliberately excluded from production.
 Until validated calendars are supplied, harvest dates remain null. Tests
@@ -168,6 +168,12 @@ case; they do not validate agronomic data. Load future validated data through
 an additive migration or an approved import, never by rewriting an applied
 migration. Do not treat this guide or passing code tests as evidence that
 production harvest estimates are already populated.
+
+Migration `0026` follows the identity branch's existing `0025` login-lease
+migration, which is unchanged. Earlier PR #74 revisions used `0025` for the
+crop catalogue too. Recreate disposable review databases built from that old
+PR revision before retesting. Do not restamp or reset a non-disposable
+database: coordinate a migration repair if it has that earlier PR schema.
 
 ## Acceptance-to-evidence map
 

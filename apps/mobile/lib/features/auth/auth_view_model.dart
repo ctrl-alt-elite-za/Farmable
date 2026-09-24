@@ -50,6 +50,12 @@ class AuthViewModel extends AsyncNotifier<AuthStanding> {
     final unchanged =
         next is SignedIn && next.session.token == launched.session.token;
     if (!unchanged) state = AsyncData(next);
+
+    // Profile edits made offline go out at the first launch with a signal.
+    // No network at all when there are none.
+    if (next is SignedIn) {
+      unawaited(ref.read(accountServiceProvider).syncPending());
+    }
   }
 
   /// Re-reads where the farmer stands, refreshing the session if it is due.
@@ -166,8 +172,13 @@ class AuthViewModel extends AsyncNotifier<AuthStanding> {
 
   /// Forgets the session. The farm database is untouched — the records are
   /// the farmer's whether or not anybody is signed in.
+  ///
+  /// The account's details on this phone — profile, pending edits, privacy
+  /// choices, any export — go with the session, so the next person to log in
+  /// here never sees the last one's.
   Future<AuthFailure?> signOut() => _attempt(() async {
     await _service.signOut();
+    await ref.read(accountServiceProvider).forget();
     state = const AsyncData(SignedOut());
   });
 
@@ -261,5 +272,7 @@ String authAdvice(AuthFailure failure) => switch (failure) {
   AuthFailure.notYetSupported =>
     'Resetting a password from the app is not ready yet. Your saved farm '
         'still opens without logging in.',
+  AuthFailure.gone =>
+    'That is no longer on your account. Go back and open it again.',
   AuthFailure.unknown => 'Try that once more.',
 };

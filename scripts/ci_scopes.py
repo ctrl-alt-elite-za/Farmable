@@ -16,8 +16,10 @@ def scopes(paths: list[str]) -> dict[str, bool]:
         for path in paths
     )
     backend = shared or any(
-        path.startswith(("apps/backend/", "apps/ml-service/")) for path in paths
+        path.startswith(("apps/backend/", "apps/ml-service/", "ml/")) for path in paths
     )
+    # ML changes share the mobile API consumer's contract check, as documented
+    # in docs/ci.md, and use the existing backend-gated Python checks.
     mobile = shared or backend or any(path.startswith("apps/mobile/") for path in paths)
     assistant = any(
         path.startswith(
@@ -29,7 +31,12 @@ def scopes(paths: list[str]) -> dict[str, bool]:
         )
         for path in paths
     )
-    return {"backend": backend, "mobile": mobile, "any": backend or mobile, "assistant": assistant}
+    return {
+        "backend": backend,
+        "mobile": mobile,
+        "any": backend or mobile,
+        "assistant": assistant,
+    }
 
 
 def main() -> None:

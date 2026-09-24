@@ -44,7 +44,7 @@ abstract class SessionStorage {
 
 /// A JSON file in the app's own documents directory.
 class FileSessionStorage implements SessionStorage {
-  static const _fileName = 'almanac_demo_auth.json';
+  final String _fileName;
 
   /// Where the file lives. Defaults to the app's documents directory, and is
   /// injectable so a test can point it at a real directory it controls — the
@@ -52,8 +52,10 @@ class FileSessionStorage implements SessionStorage {
   /// make unwritable, not a stand-in that only pretends to be one.
   final Future<Directory> Function() _directory;
 
-  FileSessionStorage({Future<Directory> Function()? directory})
-    : _directory = directory ?? getApplicationDocumentsDirectory;
+  FileSessionStorage({
+    Future<Directory> Function()? directory,
+    this._fileName = 'almanac_demo_auth.json',
+  }) : _directory = directory ?? getApplicationDocumentsDirectory;
 
   File? _cached;
 

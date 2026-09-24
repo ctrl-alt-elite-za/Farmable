@@ -15,6 +15,10 @@ library;
 import 'package:go_router/go_router.dart';
 
 import '../features/account/account_screen.dart';
+import '../features/account/delete_account_screen.dart';
+import '../features/account/edit_details_screen.dart';
+import '../features/account/export_screen.dart';
+import '../features/account/privacy_screen.dart';
 import '../features/auth/auth_choice_screen.dart';
 import '../features/auth/brand_intro_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
@@ -27,6 +31,7 @@ import '../features/home/home_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
 import '../features/recommendations/recommendation_detail_screen.dart';
 import '../features/recommendations/recommendations_screen.dart';
+import '../features/self_test/self_test_screen.dart';
 import '../features/shell/bottom_nav_island.dart';
 import '../features/status/status_screen.dart';
 import '../features/zone/zone_screen.dart';
@@ -141,11 +146,29 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
     ),
     // Who is signed in, and Log out. Never a gate: it reads the session, it
     // does not require one.
-    GoRoute(path: '/profile', builder: (_, _) => const AccountScreen()),
+    GoRoute(
+      path: '/profile',
+      builder: (_, _) => const AccountScreen(),
+      routes: [
+        GoRoute(path: 'edit', builder: (_, _) => const EditDetailsScreen()),
+        GoRoute(path: 'privacy', builder: (_, _) => const PrivacyScreen()),
+        GoRoute(path: 'export', builder: (_, _) => const ExportScreen()),
+        GoRoute(path: 'delete', builder: (_, _) => const DeleteAccountScreen()),
+      ],
+    ),
 
     // Kept, and kept working: `e2e/mobile/*.yaml` drive this screen, and it is
     // the one place the app states plainly whether it can reach its API.
     GoRoute(path: '/status', builder: (_, _) => const StatusScreen()),
+
+    // ------------------------------------------------------------ self-test
+    //
+    // Issue #4's device self-test. Its own block at the end of the table so a
+    // branch adding routes above does not collide with it. Reached from the
+    // Status screen, or directly with --dart-define=INITIAL_ROUTE=/self-test.
+    // Nothing on it asks for a permission until the person taps Run.
+    GoRoute(path: '/self-test', builder: (_, _) => const SelfTestScreen()),
+    // -------------------------------------------------------- end self-test
   ],
   errorBuilder: (context, state) => NotBuiltYetScreen(
     destination: NavDestination.home,

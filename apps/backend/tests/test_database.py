@@ -58,6 +58,10 @@ def test_only_owned_application_tables_are_registered():
         "crop_types",
         "crop_calendars",
         "planting_crops",
+        "reference_imports",
+        "reference_market_prices",
+        "reference_crop_calendars",
+        "reference_crop_costs",
     }
 
 

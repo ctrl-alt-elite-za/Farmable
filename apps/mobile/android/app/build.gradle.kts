@@ -34,6 +34,11 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // Keeps what ML Kit and ARCore load by reflection. See the file.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
@@ -46,4 +51,12 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // ARCore, for the self-test's AR surface and depth checks
+    // (DeviceProbe.kt). Pinned; "optional" in the manifest, so phones
+    // without ARCore still install the app. No maintained Flutter plugin
+    // wraps ARCore planes and depth, which is why the app calls it directly.
+    implementation("com.google.ar:core:1.56.0")
 }
