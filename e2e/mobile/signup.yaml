@@ -81,13 +81,8 @@ name: A farmer creates an account and verifies phone, then email
     id: 'field-confirm-password'
 - inputText: 'three blind field mice'
 - hideKeyboard
-# Keyboard dismissal moves this bottom-of-form button on small screens.
-# Wait for layout to settle so the tap cannot hit the confirmation field.
-- waitForAnimationToEnd
 - scrollUntilVisible:
     element: 'Create account'
-    centerElement: true
-- waitForAnimationToEnd
 - tapOn: 'Create account'
 # Phone step.
 - extendedWaitUntil:
