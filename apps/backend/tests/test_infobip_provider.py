@@ -101,6 +101,7 @@ def test_notify_existing_account_sends_a_warning(loop_thread):
     sessions, _ = _database_auth()
     provider = LiveOtpProvider(registry.infobip, FakeEmailSender(), loop_thread, sessions)
     try:
+
         def worker():
             provider.notify_existing_account(Channel.PHONE, "+27820000000")
 

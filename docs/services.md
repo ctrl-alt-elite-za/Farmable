@@ -141,19 +141,19 @@ package name and signing certificate, manually verified in Google Cloud.
 
 ## Reliability and fallbacks
 
-| Service        | Per-attempt bound                              | Fallback for feature consumers            |
-| -------------- | ---------------------------------------------- | ----------------------------------------- |
-| Twilio Verify  | 10 s                                           | No authentication success; retry later    |
-| Turnstile      | 5 s                                            | Reject verification; retry widget         |
-| Azure STT      | 15 s total request                             | Typed input                               |
-| Azure TTS      | 10 s per submitted sentence                    | Display text                              |
-| Gemini         | 10 s to visible first text / 60 s stream total | Explicit assistant-unavailable state      |
-| crop.health    | 20 s                                           | Keep photo, show diagnosis unavailable    |
-| SoilGrids      | 10 s                                           | Manual soil inputs / labelled cached data |
-| Open-Meteo     | 10 s                                           | Labelled cached weather / unavailable     |
-| Maps geocoding | 10 s                                           | Manual location selection                 |
-| Infobip (SMS OTP delivery) | 10 s                                      | `503 provider_unavailable`; no half-sent code stored |
-| Gmail SMTP (email OTP delivery) | 10 s per attempt, 3 attempts        | `503 provider_unavailable`; no half-sent code stored |
+| Service                         | Per-attempt bound                              | Fallback for feature consumers                       |
+| ------------------------------- | ---------------------------------------------- | ---------------------------------------------------- |
+| Twilio Verify                   | 10 s                                           | No authentication success; retry later               |
+| Turnstile                       | 5 s                                            | Reject verification; retry widget                    |
+| Azure STT                       | 15 s total request                             | Typed input                                          |
+| Azure TTS                       | 10 s per submitted sentence                    | Display text                                         |
+| Gemini                          | 10 s to visible first text / 60 s stream total | Explicit assistant-unavailable state                 |
+| crop.health                     | 20 s                                           | Keep photo, show diagnosis unavailable               |
+| SoilGrids                       | 10 s                                           | Manual soil inputs / labelled cached data            |
+| Open-Meteo                      | 10 s                                           | Labelled cached weather / unavailable                |
+| Maps geocoding                  | 10 s                                           | Manual location selection                            |
+| Infobip (SMS OTP delivery)      | 10 s                                           | `503 provider_unavailable`; no half-sent code stored |
+| Gmail SMTP (email OTP delivery) | 10 s per attempt, 3 attempts                   | `503 provider_unavailable`; no half-sent code stored |
 
 Only network/timeouts, HTTP 429, and 5xx retry: at most three attempts, waits
 0.5 s and 1 s plus 0–250 ms random jitter. Validation errors and other 4xx do

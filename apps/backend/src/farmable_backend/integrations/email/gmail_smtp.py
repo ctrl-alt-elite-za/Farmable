@@ -39,9 +39,7 @@ class GmailSmtpEmailSender:
             if not value
         ]
         if missing:
-            raise RuntimeError(
-                "Missing required email configuration: " + ", ".join(missing)
-            )
+            raise RuntimeError("Missing required email configuration: " + ", ".join(missing))
         self._host: str = settings.smtp_host  # type: ignore[assignment]
         self._port = settings.smtp_port
         self._tls_mode = settings.smtp_tls_mode

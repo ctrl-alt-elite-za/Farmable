@@ -59,9 +59,7 @@ def test_send_whatsapp_template_without_sender_is_misconfigured():
             infobip_api_key="fixture-key",  # noqa: S106 - deliberately synthetic
             infobip_whatsapp_sender=None,
         )
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(refuse_all_requests)
-        ) as client:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(refuse_all_requests)) as client:
             adapter = Infobip("infobip", client, settings)
             result = await adapter.send_whatsapp_template(
                 "27724992855", "test_whatsapp_template_en", ["Tshegofatso"]
