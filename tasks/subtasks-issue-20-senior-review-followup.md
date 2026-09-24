@@ -7,7 +7,7 @@
 **Status:** PR #61 is a tested foundation and remains separate from closing #20.
 
 **Implementation checkpoint, 24 September 2026:** R01 is implemented and tested.
-30 of 53 individual checklist items are complete; 23 remain open. R02's original
+32 of 53 individual checklist items are complete; 21 remain open. R02's original
 workbook coverage is audited for 2008–2024. Official archive captures establish
 conservative availability bounds for 2008–2020, while 2021–2024 remain unknown.
 The official Q1 2025 report adds six months for seven crops but omits spinach, so
@@ -32,13 +32,17 @@ Evidence: [acceptance checks](../ml/ACCEPTANCE.md),
 [information policy and coverage contract](../ml/backtest/INFORMATION_POLICY.md),
 and [reference-schema reconciliation](../ml/data/REFERENCE_SCHEMA_RECONCILIATION.md).
 
-**Follow-up, 24 September 2026:** R05.04 is now satisfied by protocol-only PR
-[#77](https://github.com/ctrl-alt-elite-za/Farmable/pull/77); it is not yet merged
-on `main`. The reporting layer now supports the registered retrospective scenario
-without claiming strict historical publication availability. It retains complete
-grid validation and synthetic labels. This is preparatory R07/R08 work, not a real
-run or completion of either group. See `ml/ACCEPTANCE.md` for the remaining runner
-integration gaps and evidence.
+**Follow-up, 24 September 2026:** Protocol-only PR
+[#77](https://github.com/ctrl-alt-elite-za/Farmable/pull/77) merged on `main` at
+`73e2c6296a5a`; the actual preparation gate passes and the protocol bytes match.
+The reporting layer and simulation core now support the registered retrospective
+scenario without claiming strict historical publication availability. The core
+integrates analytical cutoffs, constant-2025 prices, method selection, frozen
+production inputs, marketing costs and every-default scoring. All 146 focused
+tests pass, including actual LightGBM fits on synthetic inputs. This is R07/R08
+implementation progress, not a real run or completion of either group. Canonical
+source loading, ORM imports, the gated CLI/Colab workflow and real artifacts remain
+open; see `ml/ACCEPTANCE.md` for evidence and boundaries.
 
 This checklist converts the senior review into bounded implementation work. No real
 forecast, recommendation, or decision result may be published before the protocol
@@ -106,8 +110,8 @@ fixtures, and the report-safety fix may proceed before that gate.
 - [x] **R05.02** Include the approved cost/CPI policy and all budget/calendar assumptions.
 - [x] **R05.03** Review every rule against the amended Issue #20 acceptance criteria.
 - [x] **R05.04** Open a protocol-only PR with no real decision results (#77).
-- [ ] **R05.05** Merge the protocol on `main` before running any real decision evaluation.
-- [ ] **R05.06** Record the merged protocol commit and verify the history gate against the actual mainline ancestry.
+- [x] **R05.05** Merge the protocol on `main` before running any real decision evaluation.
+- [x] **R05.06** Record the merged protocol commit and verify the history gate against the actual mainline ancestry.
 
 **Completion evidence:** `ml/backtest/check_protocol_first.py --check-ready` passes against the merged mainline protocol.
 

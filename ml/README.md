@@ -14,6 +14,29 @@ and LightGBM are pinned in the package manifest and workspace lockfile. Reportin
 CPI data and extraction provenance are in `ml/data/SOURCES.md`. Proposed statistical
 settings and source caveats are in `ml/backtest/PROTOCOL.md`.
 
+## Retrospective simulation core
+
+`farmable_ml.retrospective.RetrospectiveSimulation` now connects the forecasting
+components to the registered version-1 comparison. It takes nominal observations
+from one market and a `CpiSeries`, normalizes prices once to constant 2025 rand,
+and applies the frozen protocol costs, seasons, harvest offsets and marketing
+rates. `freeze()` selects methods and recommendations without realized outcomes;
+`score()` evaluates those frozen choices and retains every default and skip.
+`run()` performs both stages over the complete 1,248-key grid by default.
+
+The explicit `ObservationPolicy.RETROSPECTIVE` uses observation-month eligibility,
+not invented publisher release dates. Existing forecasting callers keep the
+strict publication cutoff unless they explicitly select the new policy. The
+historical `Candidate` contract is unchanged; fixed modern production assumptions
+belong only to the dedicated retrospective path.
+
+PR #77 is merged and the protocol preparation gate passes. This core is tested
+with fabricated observations, including real LightGBM training on those fixtures;
+it is not a source adapter or a real-data publishing command. Canonical input
+loading, database imports, the gated CLI/Colab workflow and real artifacts remain
+open. Do not call this component on real data without enforcing the source and
+protocol gates in the eventual runner. See `ACCEPTANCE.md` for the current evidence.
+
 ## Run the foundation checks
 
 From the repository root after `uv sync`:

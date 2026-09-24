@@ -26,6 +26,11 @@ class Crop(StrEnum):
     TOMATOES = "tomatoes"
 
 
+class ObservationPolicy(StrEnum):
+    PUBLICATION = "published_before_planting"
+    RETROSPECTIVE = "observation_before_planting"
+
+
 EXCLUDED = {
     "beetroot": "No cost budget in the issue's included crop set.",
     "pumpkins": "No cost budget in the issue's included crop set.",
@@ -160,9 +165,21 @@ def read_prices(content: bytes) -> PriceInput:
 
 
 def observations_before(
-    records: tuple[PriceObservation, ...], cutoff: date
+    records: tuple[PriceObservation, ...],
+    cutoff: date,
+    *,
+    policy: ObservationPolicy = ObservationPolicy.PUBLICATION,
 ) -> tuple[PriceObservation, ...]:
-    """Return only vintages available strictly before the beginning of planting."""
+    """Filter by publication, or explicitly by retrospective observation month.
+
+    The latter permits the previous month's price on its next-month analytical
+    eligibility date. It does not rewrite or certify publisher release dates.
+    Existing callers retain the strict publication rule by default.
+    """
     if cutoff.day != 1:
         raise ValueError("planting cutoff must be the first day of a month")
+    if not isinstance(policy, ObservationPolicy):
+        raise ValueError("an explicit supported observation policy is required")
+    if policy is ObservationPolicy.RETROSPECTIVE:
+        return tuple(record for record in records if record.observation_month < cutoff)
     return tuple(record for record in records if record.available_on < cutoff)

@@ -1,6 +1,6 @@
 # Issue #20 acceptance evidence
 
-Updated 2026-09-23. This is implementation evidence for the senior-review
+Updated 2026-09-24. This is implementation evidence for the senior-review
 follow-up and retrospective-scenario registration, **not a completed issue**. No
 real decision backtest was executed.
 
@@ -8,6 +8,43 @@ The project owner selected the retrospective fixed-2025-input scenario so code a
 artifacts can be completed before historical data cleanup. `backtest/PROTOCOL.md`
 freezes the current-vintage price, CPI, cost, calendar and reporting rules and
 prohibits the historical publication-availability claim.
+
+## 24 September follow-up: integrated retrospective simulation
+
+PR #77 has now merged on `main` at `73e2c6296a5a`. The preparation check passes
+against freshly fetched `origin/main`; the working protocol byte-matches the
+registered SHA-256 `a090d4e9d517b2b8c0d9d5009b5b9c5c9a827386e178f6e265052270923ea99d`.
+No real decision experiment has been executed by this follow-up.
+
+- `ObservationPolicy.RETROSPECTIVE` makes a monthly observation eligible on the
+  first day of the next month. Historical ranges, the diagnostic baseline,
+  LightGBM features/labels and every validation fold share this explicit policy.
+  Existing callers still default to strict publication availability, and source
+  timestamps are not rewritten.
+- `farmable_ml.retrospective` integrates constant-2025 price normalization,
+  per-crop/horizon method selection, the registered frozen production assumptions,
+  marketing deductions, recommendation freezing and subsequent outcome scoring.
+  Assumption tables are checked against the actual registered protocol in tests.
+- All 1,248 audit-grid keys remain present. Missing forecasts, seasonality and
+  unavailable realized prices are skips, never zero-profit substitutes. Post-2024
+  prices remain excluded from scoring even if supplied. Negative margins and
+  alphabetical exact ties are retained.
+- A per-simulation predictor cache reuses identical historical fits without
+  sharing predictions across datasets. Failed method selections retain their
+  evaluated folds and per-method losses instead of losing the audit evidence.
+- Verification: **146 tests passed** across `ml/forecast`, `ml/backtest`, market
+  workbook-audit tests and source-manifest tests. This includes 16 new tests,
+  real pinned LightGBM fits on fabricated observations, an integrated real-model
+  walk-forward selection, future-price mutation, preserved strict-mode behavior,
+  input-order reproducibility, Decimal-context isolation and full-grid synthetic
+  report comparison. Changed Python Ruff/format and targeted mypy checks pass.
+
+The simulation core is not the real-data publication entry point. Canonical
+source loading with hash verification, ORM reference imports, the gated CLI and
+Colab workflow, full artifact/manifest export and two independent real runs are
+still required. No real result files, deployed models or forecast snapshot were
+generated, and #20 remains incomplete. The latest checks above supersede the
+pre-merge protocol status in the earlier checkpoint below.
 
 ## 24 September follow-up: retrospective report support
 
@@ -32,7 +69,7 @@ work. No real forecast/backtest or Colab execution has occurred. The protocol ga
 still rejects the actual `origin/main` because #77 has not merged there. #73 merged
 into the foundation branch, which does not satisfy that gate.
 
-Next implementation work remains:
+At that reporting-only checkpoint, the remaining work was:
 
 - Implement the registered next-month observation eligibility in the runner:
   the existing strict `observations_before` helper uses `< cutoff`, while version 1
@@ -45,7 +82,7 @@ Next implementation work remains:
   workflow before running/publishing real artifacts. The report's caller
   attestation does not implement or independently verify those requirements.
 
-Changes are limited to reporting, its tests and these handoff notes. No input
+That checkpoint changed only reporting, its tests and these handoff notes. No input
 values, protocol rules, trained model parameters, UI, database schema or CI gates
 were changed.
 
