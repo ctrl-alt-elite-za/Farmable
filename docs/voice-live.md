@@ -7,6 +7,10 @@ remain outstanding. This change does not implement Flutter audio, #24, deploymen
 
 ## Endpoint
 
+For the farm assistant, use the new [conversation-scoped contract](assistant-live.md).
+The endpoint below remains a compatibility handoff without farm tools or
+conversation-specific consent. Gemini Live remains the selected voice provider.
+
 `POST /voice/live-session`, with `Authorization: Bearer <Farmable access token>`.
 Send **no body and no query parameters**. Both phone and email must be verified;
 expired, revoked, duplicate, or invalid credentials receive `401`. The caller

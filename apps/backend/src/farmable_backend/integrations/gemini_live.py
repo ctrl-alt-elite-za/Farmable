@@ -2,6 +2,7 @@
 
 import re
 import threading
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -37,7 +38,7 @@ class GeminiLive(Adapter):
         # All other provider fields are discarded, including unexpected secrets.
         return ServiceResult(self.service, True, data={"credential": name})
 
-    async def issue(self) -> ServiceResult:
+    async def issue(self, *, setup: dict | None = None) -> ServiceResult:
         if not self.configured:
             return self.failure("disabled")
         if not self.slots.acquire(blocking=False):
@@ -47,6 +48,10 @@ class GeminiLive(Adapter):
             expires = now + timedelta(minutes=10)
             connect_by = now + timedelta(seconds=60)
             model = f"models/{self.settings.gemini_live_model}"
+            # Only server callers can supply this policy. Never forward HTTP body
+            # fields here; an explicit setup is locked in full by the token.
+            if setup is not None and setup.get("model") != model:
+                return self.failure("invalid_setup")
             request = self.client.build_request(
                 "POST",
                 "https://generativelanguage.googleapis.com/v1beta/auth_tokens",
@@ -57,7 +62,9 @@ class GeminiLive(Adapter):
                     "newSessionExpireTime": connect_by.isoformat(),
                     # REST discovery schema, not the SDK's liveConnectConstraints wrapper.
                     # Empty fieldMask locks the entire setup: no client tools/overrides.
-                    "bidiGenerateContentSetup": {
+                    "bidiGenerateContentSetup": deepcopy(setup)
+                    if setup is not None
+                    else {
                         "model": model,
                         "generationConfig": {"responseModalities": ["AUDIO"]},
                         "sessionResumption": {},

@@ -73,3 +73,5 @@ mlruns/
 
 # Private local prototype state (never the production database).
 .farmable-demo/
+# Private billing exports, response captures, human labels and judge artifacts.
+.farmable-evidence/

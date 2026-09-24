@@ -31,22 +31,27 @@ def admit(sessions, authorization: str | None, configured: bool) -> None:
         owner = authenticate(session, authorization)
         if not configured:
             raise ApiError(503, "voice_disabled")
-        session.scalar(select(User).where(User.id == owner).with_for_update())
-        now = db_now(session).timestamp()
-        rate = session.get(VoiceSessionRate, owner)
-        hits = [] if rate is None else [hit for hit in rate.hits if hit > now - 3600]
-        recent = [hit for hit in hits if hit > now - 60]
-        waits = []
-        if len(recent) >= 3:
-            waits.append(min(recent) + 60 - now)
-        if len(hits) >= 20:
-            waits.append(min(hits) + 3600 - now)
-        if waits:
-            raise ApiError(429, "voice_rate_limited", max(1, math.ceil(max(waits))))
-        if rate is None:
-            rate = VoiceSessionRate(owner_id=owner, hits=[])
-            session.add(rate)
-        rate.hits = [*hits, now]
+        consume_attempt(session, owner)
+
+
+def consume_attempt(session, owner):
+    """Shared admission for legacy credentials and conversation-scoped Live sessions."""
+    session.scalar(select(User).where(User.id == owner).with_for_update())
+    now = db_now(session).timestamp()
+    rate = session.get(VoiceSessionRate, owner)
+    hits = [] if rate is None else [hit for hit in rate.hits if hit > now - 3600]
+    recent = [hit for hit in hits if hit > now - 60]
+    waits = []
+    if len(recent) >= 3:
+        waits.append(min(recent) + 60 - now)
+    if len(hits) >= 20:
+        waits.append(min(hits) + 3600 - now)
+    if waits:
+        raise ApiError(429, "voice_rate_limited", max(1, math.ceil(max(waits))))
+    if rate is None:
+        rate = VoiceSessionRate(owner_id=owner, hits=[])
+        session.add(rate)
+    rate.hits = [*hits, now]
 
 
 router = APIRouter(
