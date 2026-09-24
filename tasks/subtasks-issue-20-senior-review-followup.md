@@ -6,8 +6,8 @@
 **Review source:** senior review comment on PR #61, 23 September 2026
 **Status:** PR #61 is a tested foundation and remains separate from closing #20.
 
-**Implementation checkpoint, 23 September 2026:** R01 is implemented and tested.
-29 of 53 individual checklist items are complete; 24 remain open. R02's original
+**Implementation checkpoint, 24 September 2026:** R01 is implemented and tested.
+30 of 53 individual checklist items are complete; 23 remain open. R02's original
 workbook coverage is audited for 2008–2024. Official archive captures establish
 conservative availability bounds for 2008–2020, while 2021–2024 remain unknown.
 The official Q1 2025 report adds six months for seven crops but omits spinach, so
@@ -31,6 +31,14 @@ Evidence: [acceptance checks](../ml/ACCEPTANCE.md),
 [calendar review](../ml/data/CALENDAR_REVIEW.md),
 [information policy and coverage contract](../ml/backtest/INFORMATION_POLICY.md),
 and [reference-schema reconciliation](../ml/data/REFERENCE_SCHEMA_RECONCILIATION.md).
+
+**Follow-up, 24 September 2026:** R05.04 is now satisfied by protocol-only PR
+[#77](https://github.com/ctrl-alt-elite-za/Farmable/pull/77); it is not yet merged
+on `main`. The reporting layer now supports the registered retrospective scenario
+without claiming strict historical publication availability. It retains complete
+grid validation and synthetic labels. This is preparatory R07/R08 work, not a real
+run or completion of either group. See `ml/ACCEPTANCE.md` for the remaining runner
+integration gaps and evidence.
 
 This checklist converts the senior review into bounded implementation work. No real
 forecast, recommendation, or decision result may be published before the protocol
@@ -97,7 +105,7 @@ fixtures, and the report-safety fix may proceed before that gate.
 - [x] **R05.01** Replace the draft with a registered protocol containing period, crops, exclusions, source vintages, formulas, forecast selection, missing-data rules, metrics, bootstrap, and sentence template.
 - [x] **R05.02** Include the approved cost/CPI policy and all budget/calendar assumptions.
 - [x] **R05.03** Review every rule against the amended Issue #20 acceptance criteria.
-- [ ] **R05.04** Open a protocol-only PR with no real decision results.
+- [x] **R05.04** Open a protocol-only PR with no real decision results (#77).
 - [ ] **R05.05** Merge the protocol on `main` before running any real decision evaluation.
 - [ ] **R05.06** Record the merged protocol commit and verify the history gate against the actual mainline ancestry.
 

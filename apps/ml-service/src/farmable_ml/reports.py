@@ -1,7 +1,7 @@
 """Deterministic every-default reports from a scored decision ledger.
 
-Statistical defaults are proposed settings for protocol review. This module does
-not run an experiment or certify that input rows came from public market data.
+Supports strict historical and registered retrospective scenario reporting. This
+module does not run an experiment or certify that rows came from public market data.
 """
 
 import hashlib
@@ -30,6 +30,44 @@ CAVEATS = [
     "Year-cluster resampling retains dependence within years, but not between years.",
     "At most 13 planting-year clusters limit confidence-interval interpretation.",
 ]
+STRICT_SCENARIO = "strict_historical"
+RETROSPECTIVE_SCENARIO = "retrospective_fixed_2025"
+RETROSPECTIVE_CAVEATS = [
+    "Current-vintage Johannesburg history has unresolved publication/revision uncertainty.",
+    "The next-month observation cutoff is analytical, not a publisher release-date claim.",
+    "Current-vintage CPI and the full 2025 mean enter retrospective prediction and scoring.",
+    "Planting calendars, harvest offsets and guideline yields are provisional frozen assumptions.",
+    "VAT bases are mixed or unknown; source-displayed treatment has not been harmonized.",
+    "Western Cape production costs are applied to Johannesburg market prices.",
+    "Post-2024 spinach prices are missing; the Q1 2025 candidate source is not spliced in.",
+    "Missing realized prices for late harvests remain explicit skips, not zero gains.",
+    "Working-capital interest and fixed costs are excluded from the listed gross margins.",
+]
+
+
+def _information_status(
+    data_kind: str,
+    scenario: str,
+    information_cutoff_verified: bool,
+    observation_cutoff_verified: bool,
+) -> str:
+    if scenario not in {STRICT_SCENARIO, RETROSPECTIVE_SCENARIO}:
+        raise ValueError("report requires an explicit supported scenario")
+    if data_kind == "synthetic":
+        if information_cutoff_verified or observation_cutoff_verified:
+            raise ValueError("synthetic fixtures cannot claim verified historical information")
+        return "synthetic_not_applicable"
+    if scenario == RETROSPECTIVE_SCENARIO:
+        if information_cutoff_verified:
+            raise ValueError("retrospective scenario cannot claim strict historical availability")
+        if not observation_cutoff_verified:
+            raise ValueError("retrospective observation cutoff is not verified")
+        return "verified_observation_cutoff_only"
+    if not information_cutoff_verified:
+        raise ValueError("historical information cutoff is not verified")
+    if observation_cutoff_verified:
+        raise ValueError("observation-only attestation belongs to the retrospective scenario")
+    return "verified_strictly_before_planting"
 
 
 @dataclass(frozen=True)
@@ -119,15 +157,16 @@ def build_report(
     input_hashes: dict[str, str],
     data_kind: str,
     information_cutoff_verified: bool = False,
+    scenario: str = STRICT_SCENARIO,
+    observation_cutoff_verified: bool = False,
     config: Bootstrap | None = None,
 ) -> dict[str, Any]:
     config = config if config is not None else Bootstrap()
     if data_kind not in {"synthetic", "historical"}:
         raise ValueError("data_kind must be explicit")
-    if data_kind == "historical" and not information_cutoff_verified:
-        raise ValueError("historical information cutoff is not verified")
-    if data_kind == "synthetic" and information_cutoff_verified:
-        raise ValueError("synthetic fixtures cannot claim verified historical information")
+    status = _information_status(
+        data_kind, scenario, information_cutoff_verified, observation_cutoff_verified
+    )
     if not input_hashes or any(
         len(value) != 64 or any(c not in "0123456789abcdef" for c in value)
         for value in input_hashes.values()
@@ -161,22 +200,17 @@ def build_report(
     }
     report["pooled"] = metrics(ordered, config)
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "data_kind": data_kind,
-        "information_policy": {
-            "status": (
-                "verified_strictly_before_planting"
-                if information_cutoff_verified
-                else "synthetic_not_applicable"
-            )
-        },
+        "scenario": scenario,
+        "information_policy": {"status": status},
         "coverage": coverage,
         "currency": "ZAR",
         "price_basis_year": 2025,
         "unit": "ZAR/ha/month",
         "input_hashes": dict(sorted(input_hashes.items())),
         "excluded": dict(EXCLUDED),
-        "caveats": CAVEATS,
+        "caveats": CAVEATS + (RETROSPECTIVE_CAVEATS if scenario == RETROSPECTIVE_SCENARIO else []),
         "bootstrap": asdict(config),
         "results": report,
     }
@@ -195,6 +229,12 @@ def render_table(report: dict[str, Any]) -> str:
         "# Decision backtest",
         "",
         f"Data kind: **{report['data_kind']}**.",
+        "Scenario: "
+        + (
+            "retrospective fixed-2025-input simulation (not historical publication evidence)."
+            if report["scenario"] == RETROSPECTIVE_SCENARIO
+            else "strict historical information availability."
+        ),
         f"Ledger coverage: {period} (bounds; synthetic months may be sparse).",
         "",
         "Amounts: 2025 ZAR per hectare per occupied month. Rates are percentages.",
@@ -237,13 +277,28 @@ def _report_period(report: dict[str, Any]) -> str:
     kind = report.get("data_kind")
     if not coverage or kind not in {"synthetic", "historical"} or coverage["data_kind"] != kind:
         raise ValueError("report requires validated ledger coverage and matching data kind")
+    scenario = report.get("scenario")
+    if scenario not in {STRICT_SCENARIO, RETROSPECTIVE_SCENARIO}:
+        raise ValueError("report requires an explicit supported scenario")
+    expected_status = (
+        "synthetic_not_applicable"
+        if kind == "synthetic"
+        else "verified_observation_cutoff_only"
+        if scenario == RETROSPECTIVE_SCENARIO
+        else "verified_strictly_before_planting"
+    )
+    if report.get("information_policy", {}).get("status") != expected_status:
+        raise ValueError("report policy has inconsistent information-cutoff evidence")
+    if scenario == RETROSPECTIVE_SCENARIO and not all(
+        caveat in report.get("caveats", []) for caveat in CAVEATS + RETROSPECTIVE_CAVEATS
+    ):
+        raise ValueError("retrospective report is missing required caveats")
     if kind == "historical" and (
         not coverage["complete_historical_grid"]
         or coverage["start_month"] != HISTORICAL_MONTHS[0].strftime("%Y-%m")
         or coverage["end_month"] != HISTORICAL_MONTHS[-1].strftime("%Y-%m")
         or coverage["observed_months"] != len(HISTORICAL_MONTHS)
         or coverage["decision_keys"] != len(HISTORICAL_KEYS)
-        or report.get("information_policy", {}).get("status") != "verified_strictly_before_planting"
     ):
         raise ValueError("insufficient historical coverage or information-cutoff evidence")
     if coverage["start_month"] is None:
@@ -255,13 +310,29 @@ def render_sentence(report: dict[str, Any]) -> str:
     period = _report_period(report)
     pooled = report["results"]["pooled"]
     rates = [report["results"][crop.value]["switch_win_rate"] for crop in Crop]
-    if pooled["median_gain_rand"] is None or any(rate is None for rate in rates):
-        return "INSUFFICIENT EVIDENCE: switch statistics are undefined for one or more defaults.\n"
     prefix = (
         "SYNTHETIC TEST FIXTURE — NOT A REAL RESULT.\n"
         if report["data_kind"] == "synthetic"
         else ""
     )
+    if pooled["median_gain_rand"] is None or any(rate is None for rate in rates):
+        return prefix + (
+            "INSUFFICIENT EVIDENCE: switch statistics are undefined for one or more defaults.\n"
+        )
+    if report["scenario"] == RETROSPECTIVE_SCENARIO:
+        return (
+            prefix + "In a retrospective fixed-2025-input simulation of "
+            f"{pooled['decisions']} scorable planting decisions ({period}), "
+            "when Farmable recommended switching away from a farmer's usual crop, "
+            "the switch earned more profit "
+            f"{display(pooled['switch_win_rate'], percent=True)}% of the time, with a median "
+            f"increase of R {display(pooled['median_gain_rand'])} per hectare per month "
+            f"(ranging from {display(min(rates), percent=True)}% to "
+            f"{display(max(rates), percent=True)}% across the 8 starting crops). "
+            "Uses current-vintage Joburg Market history, fixed Western Cape production "
+            "assumptions and retrospective inflation adjustment; it does not show what "
+            "information was published at the historical planting date.\n"
+        )
     return (
         prefix + f"In a historical simulation of {pooled['decisions']} planting decisions "
         f"({period}), using only data available at planting time, when Farmable recommended "
@@ -297,12 +368,12 @@ def write_synthetic_report(report: dict[str, Any], directory: Path) -> str:
         raise ValueError("only synthetic fixtures are allowed by this development writer")
     payload = canonical_json(report)
     run_id = hashlib.sha256(payload).hexdigest()
-    directory.mkdir(parents=True, exist_ok=False)
     artifacts = {
         "decision_backtest.json": payload,
         "decision_backtest.md": render_table(report).encode("utf-8"),
         "slide_sentence.txt": render_sentence(report).encode("utf-8"),
     }
+    directory.mkdir(parents=True, exist_ok=False)
     for filename, data in artifacts.items():
         (directory / filename).write_bytes(data)
     (directory / "manifest.json").write_bytes(

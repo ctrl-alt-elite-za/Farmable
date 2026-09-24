@@ -18,6 +18,29 @@ a **retrospective fixed-2025-input scenario** governed by `PROTOCOL.md`:
 Future source cleanup may enable the stricter policy preserved below, but adopting
 it will require a dated protocol amendment and a separate result run.
 
+### Report API for the registered scenario
+
+Report schema 3 separates input provenance (`data_kind`, synthetic or historical
+observations) from the experiment's `scenario`. For version 1, pass
+`scenario="retrospective_fixed_2025"`. A report built from real observations also
+requires `observation_cutoff_verified=True`: the caller must have verified that
+future observation values cannot affect earlier forecasts, selection or advice.
+This is a caller attestation, not proof produced by the report renderer or a
+substitute for the protocol-history gate and runner mutation tests.
+
+The renderer uses the registered retrospective sentence and includes the required
+source/scenario caveats. It rejects strict-publication attestation for this mode.
+The default `strict_historical` mode still requires
+`information_cutoff_verified=True`; observation-only verification cannot satisfy
+it. Synthetic fixtures may exercise either scenario but cannot assert either
+real-data attestation. They retain their warning even when statistics are undefined.
+
+Both real-observation modes require the complete 1,248-key audit grid, preserving
+explicit skips. Existing schema-2 reports must be rebuilt from their ledgers with
+an explicit scenario; do not relabel an old summary as retrospective evidence.
+The artifact writer remains synthetic-only. Real execution/publishing is still
+reserved for a separately gated runner after the protocol is merged on `main`.
+
 ## Deferred strict historical-vintage policy
 
 This section records the deferred stricter design; it does not describe version 1
@@ -76,7 +99,7 @@ missing or changed. Synthetic fixtures cannot set that attestation.
 
 ## Report coverage contract
 
-Historical report schema 2 requires an audit row for each of the 156 planting months
+Historical report schema 3 requires an audit row for each of the 156 planting months
 from January 2012 through December 2024 and each of the eight default crops: 1,248
 unique keys. Omitted, duplicate and out-of-period keys fail before metrics run.
 Unscorable comparisons must remain explicit skipped rows with a reason and no

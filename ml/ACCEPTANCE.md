@@ -9,6 +9,62 @@ artifacts can be completed before historical data cleanup. `backtest/PROTOCOL.md
 freezes the current-vintage price, CPI, cost, calendar and reporting rules and
 prohibits the historical publication-availability claim.
 
+## 24 September follow-up: retrospective report support
+
+The registered scenario and the implementation were inconsistent: `build_report`
+only accepted strict historical availability, and the sentence renderer always
+used the old planting-time-publication claim. Report schema 3 now carries an
+explicit scenario separately from synthetic/real-observation provenance.
+
+- `retrospective_fixed_2025` uses the registered sentence and required caveats.
+  Real-observation reports require observation-cutoff attestation, never a false
+  claim that current-vintage inputs were published at the old planting origin.
+- The existing strict mode, complete-grid validation, losses, skips, denominators
+  and bootstrap calculations are preserved. Synthetic warnings are retained,
+  including insufficient-evidence output. The development writer still refuses
+  every real-observation report and validates before creating output directories.
+- Regression tests use fabricated ledgers only. They check both rendering paths,
+  altered policy metadata, missing coverage, required caveats, deterministic
+  synthetic artifacts and the real-publication restriction.
+
+This removes a reporting integration blocker, **not** the remaining execution
+work. No real forecast/backtest or Colab execution has occurred. The protocol gate
+still rejects the actual `origin/main` because #77 has not merged there. #73 merged
+into the foundation branch, which does not satisfy that gate.
+
+Next implementation work remains:
+
+- Implement the registered next-month observation eligibility in the runner:
+  the existing strict `observations_before` helper uses `< cutoff`, while version 1
+  permits an observation on its next-month analytical eligibility date. Keep the
+  strict mode intact rather than forging historical release dates.
+- Wire constant-2025 price conversion and frozen modern costs/calendars into
+  recommendations; existing `Candidate` requires costs available before planting.
+  Apply the registered marketing deductions consistently in predictions and scores.
+- Complete the protocol-gated runner, canonical reference imports and Colab
+  workflow before running/publishing real artifacts. The report's caller
+  attestation does not implement or independently verify those requirements.
+
+Changes are limited to reporting, its tests and these handoff notes. No input
+values, protocol rules, trained model parameters, UI, database schema or CI gates
+were changed.
+
+Verification on the isolated follow-up branch:
+
+- `pytest ml/backtest/test_reports.py ml/backtest/test_retrospective_reports.py ml/backtest/test_decision.py -q`:
+  **57 passed** (the original report/decision baseline was 34 passing tests).
+- `pytest ml/forecast ml/backtest scripts/tests/test_audit_issue20_market_workbooks.py scripts/tests/test_issue20_source_manifests.py -q`:
+  **130 passed**, with one Windows pytest-cache permission warning; no test skips.
+  This includes real LightGBM fits on synthetic data and temporary-Git-repository
+  protocol tests. Pinned ML dependencies match `uv.lock` (LightGBM 4.7.0, NumPy
+  2.5.3, PyArrow 25.0.1, SciPy 1.18.1, Narwhals 2.26.0), on Python 3.12.14.
+- Changed Python Ruff/format checks and `mypy -p farmable_ml.reports` passed.
+- Actual preparation gate: expected failure, `protocol is missing from mainline
+  origin/main: ml/backtest/PROTOCOL.md`. No results were generated to bypass it.
+
+These are component/integration tests for the offline ML package, not a claim
+that the full application, hosted CI or a real-data experiment was executed.
+
 ## Verified locally
 
 ### Senior-review follow-up
