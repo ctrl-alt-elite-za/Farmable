@@ -31,14 +31,14 @@ No authentication. The request carries no credential; the report is the whole bo
 }
 ```
 
-| Field                                                     | Type                                    |
-| --------------------------------------------------------- | --------------------------------------- |
-| `platform`                                                | `"ios"` or `"android"`                  |
-| `app_version`, `build_sha`, `device_model`, `started_at`  | string (`started_at` is ISO-8601 UTC)   |
+| Field                                                     | Type                                                     |
+| --------------------------------------------------------- | -------------------------------------------------------- |
+| `platform`                                                | `"ios"` or `"android"`                                   |
+| `app_version`, `build_sha`, `device_model`, `started_at`  | string (`started_at` is ISO-8601 UTC)                    |
 | `detector_ms`                                             | number, milliseconds; `null` if the detector did not run |
-| `camera_preview`, `lidar_depth`, `ar_plane`, `mic_record` | `"pass"`, `"fail"` or `"unsupported"`   |
-| `notes`                                                   | array of strings, one per non-pass item |
-| `overall`                                                 | `"pass"` or `"fail"`                    |
+| `camera_preview`, `lidar_depth`, `ar_plane`, `mic_record` | `"pass"`, `"fail"` or `"unsupported"`                    |
+| `notes`                                                   | array of strings, one per non-pass item                  |
+| `overall`                                                 | `"pass"` or `"fail"`                                     |
 
 Every entry in `notes` reads `"<field>: <why>"`, and the reason should name a GitHub
 issue, e.g. `"lidar_depth: no depth camera reported (#31)"`.

@@ -85,7 +85,7 @@ The app needs **iOS 15.5 or later** (Google ML Kit's minimum) and **Android 7.0
 (API 24) or later**.
 
 1. Open the app. It opens on Home and asks for nothing.
-2. Tap the **Profile** tab, then **Device self-test** under *This phone*.
+2. Tap the **Profile** tab, then **Device self-test** under _This phone_.
 3. Tap **Run self-test**. Permissions are asked for one at a time, as the check
    that needs each one starts — camera first, then microphone, then location —
    and the screen says what each is for before any prompt appears. Grant them.
@@ -137,7 +137,7 @@ Build with `--dart-define=API_URL=` set to a URL the phone can actually reach - 
 `localhost`, which on a phone means the phone itself.
 
 **AR says "Google Play Services for AR is missing or out of date".** Install or
-update *Google Play Services for AR* from the Play Store and run the test again.
+update _Google Play Services for AR_ from the Play Store and run the test again.
 
 **A row says permission was refused.** The phone remembers a refusal. Allow the
 permission in the phone's Settings for Almanac and run the test again.
