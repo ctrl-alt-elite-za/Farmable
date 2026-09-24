@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import math
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
@@ -25,6 +26,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from farmable_backend.models import RateLimitCounter
 
 LOGIN_IN_FLIGHT_LIMIT = 32
+LOGIN_LEASE_SECONDS = 60
 
 
 class RateLimited(Exception):
@@ -128,14 +130,19 @@ def _locked_counter(session: Session, *, scope: str, subject: str) -> RateLimitC
     return counter
 
 
-def admit_login(sessions: sessionmaker[Session], *, account: str, ip: str) -> None:
+def _active_login_leases(counter: RateLimitCounter, now: float) -> dict[str, float]:
+    return {key: expiry for key, expiry in counter.login_leases.items() if expiry > now}
+
+
+def admit_login(sessions: sessionmaker[Session], *, account: str, ip: str) -> str:
     """Reserve one bounded login verification across both abuse buckets.
 
     The reservations are durable and locked in one transaction, so separate
     API replicas cannot all start unbounded Argon2 work from the same stale
-    counter value.
+    counter value. Individual expiring leases recover capacity after a process
+    crash and prevent a late completion from releasing another request's slot.
     """
-    now = _now_ts()
+    reservation = uuid4().hex
     limits = (
         ("login_fail_account", account, 5),
         ("login_fail_ip", ip, 20),
@@ -145,15 +152,21 @@ def admit_login(sessions: sessionmaker[Session], *, account: str, ip: str) -> No
             (scope, _locked_counter(session, scope=scope, subject=subject), limit)
             for scope, subject, limit in limits
         ]
+        now = _now_ts()
         for _scope, counter, limit in counters:
             counter.hits = [hit for hit in counter.hits if hit > now - 900]
-            if len(counter.hits) >= limit or counter.in_flight >= LOGIN_IN_FLIGHT_LIMIT:
-                retry_after = (
-                    max(1, math.ceil(min(counter.hits) + 900 - now)) if counter.hits else 1
+            leases = _active_login_leases(counter, now)
+            if len(counter.hits) >= limit or len(leases) >= LOGIN_IN_FLIGHT_LIMIT:
+                deadline = (
+                    min(counter.hits) + 900 if len(counter.hits) >= limit else min(leases.values())
                 )
+                retry_after = max(1, math.ceil(deadline - now))
                 raise RateLimited("login_rate_limited", retry_after)
+            counter.login_leases = leases
         for _scope, counter, _limit in counters:
-            counter.in_flight += 1
+            counter.login_leases = {**counter.login_leases, reservation: now + LOGIN_LEASE_SECONDS}
+            counter.in_flight = len(counter.login_leases)
+    return reservation
 
 
 def finish_login(
@@ -162,6 +175,7 @@ def finish_login(
     account: str,
     ip: str,
     success: bool,
+    reservation: str,
 ) -> bool:
     """Consume a login reservation and return whether the request is fenced.
 
@@ -171,7 +185,6 @@ def finish_login(
     issued. On failure, the newly recorded hit is reflected by the return
     value.
     """
-    now = _now_ts()
     limits = (
         ("login_fail_account", account, 5),
         ("login_fail_ip", ip, 20),
@@ -181,9 +194,17 @@ def finish_login(
         for scope, subject, limit in limits
         for counter in [_locked_counter(session, scope=scope, subject=subject)]
     ]
+    now = _now_ts()
+    lease_valid = True
     for counter, _limit in counters:
-        counter.in_flight = max(0, counter.in_flight - 1)
+        leases = _active_login_leases(counter, now)
+        lease_valid = lease_valid and reservation in leases
+        leases.pop(reservation, None)
+        counter.login_leases = leases
+        counter.in_flight = len(leases)
         counter.hits = [hit for hit in counter.hits if hit > now - 900]
+    if not lease_valid:
+        return False
     was_admitted = all(len(counter.hits) < limit for counter, limit in counters)
     if not success:
         for counter, _limit in counters:

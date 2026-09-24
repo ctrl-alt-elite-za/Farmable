@@ -374,7 +374,7 @@ class AuthService:
         identifier = identifier.strip()
         normalized_identifier = identifier.lower()
         try:
-            admit_login(self.sessions, account=normalized_identifier, ip=ip)
+            reservation = admit_login(self.sessions, account=normalized_identifier, ip=ip)
         except RateLimited as exc:
             raise AuthError(exc.code, 429, exc.retry_after) from exc
         failure: AuthError | None = None
@@ -400,6 +400,7 @@ class AuthService:
                 account=normalized_identifier,
                 ip=ip,
                 success=valid,
+                reservation=reservation,
             )
             if not valid:
                 failure = (
