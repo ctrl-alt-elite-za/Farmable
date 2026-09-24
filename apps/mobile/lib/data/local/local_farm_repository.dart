@@ -38,8 +38,18 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   /// and "92 days" without the assertions rotting overnight.
   final DateTime Function() now;
 
-  LocalFarmRepository(this.db, {DateTime Function()? now})
+  /// Whose farm this repository shows: the signed-in account's, or the demo
+  /// seed's. Every farm-level read filters on it, so one account's records
+  /// never appear while another account — or nobody — is signed in, even
+  /// though they share the phone's one database. Null reads everything, for
+  /// tests that predate accounts.
+  final String? ownerId;
+
+  LocalFarmRepository(this.db, {DateTime Function()? now, this.ownerId})
     : now = now ?? DateTime.now;
+
+  Expression<bool> _mine(GeneratedColumn<String> owner) =>
+      ownerId == null ? const Constant(true) : owner.equals(ownerId!);
 
   // ---------------------------------------------------------------- reads
 
@@ -69,7 +79,12 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
 
   @override
   Stream<List<rec.Observation>> watchObservations(String sectionId) =>
-      _watch([db.observations], () => _observations(sectionId));
+      // The outbox too: a record's delivery state moves with no change to
+      // the record itself.
+      _watch([
+        db.observations,
+        db.syncMutations,
+      ], () => _observations(sectionId));
 
   @override
   Stream<List<rec.FarmTask>> watchTimeline(String sectionId) =>
@@ -87,7 +102,11 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   Future<rec.FarmSnapshot?> _loadFarm() async {
     final farmRow = await _farmRow();
     if (farmRow == null) return null;
-    final user = await (db.select(db.users)..limit(1)).getSingleOrNull();
+    final user =
+        await (db.select(db.users)
+              ..where((t) => t.id.equals(farmRow.ownerId))
+              ..limit(1))
+            .getSingleOrNull();
     final sections = await _sectionRows();
 
     final summaries = <rec.SectionSummary>[];
@@ -108,8 +127,12 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
 
   Future<rec.SectionSummary?> _loadSection(String sectionId) async {
     final row =
-        await (db.select(db.sections)
-              ..where((t) => t.id.equals(sectionId) & t.deletedAt.isNull()))
+        await (db.select(db.sections)..where(
+              (t) =>
+                  t.id.equals(sectionId) &
+                  t.deletedAt.isNull() &
+                  _mine(t.ownerId),
+            ))
             .getSingleOrNull();
     if (row == null) return null;
     return _summarise(row);
@@ -189,7 +212,10 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     final rows =
         await (db.select(db.observations)
               ..where(
-                (t) => t.sectionId.equals(sectionId) & t.deletedAt.isNull(),
+                (t) =>
+                    t.sectionId.equals(sectionId) &
+                    t.deletedAt.isNull() &
+                    _mine(t.ownerId),
               )
               ..orderBy([
                 (t) => OrderingTerm(
@@ -198,7 +224,10 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
                 ),
               ]))
             .get();
-    return rows.map(_toObservation).toList();
+    final delivery = await _delivery(rows);
+    return [
+      for (final row in rows) _toObservation(row, delivery: delivery[row.id]),
+    ];
   }
 
   /// Ordered strictly by due date.
@@ -211,7 +240,10 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     final rows =
         await (db.select(db.farmTasks)
               ..where(
-                (t) => t.sectionId.equals(sectionId) & t.deletedAt.isNull(),
+                (t) =>
+                    t.sectionId.equals(sectionId) &
+                    t.deletedAt.isNull() &
+                    _mine(t.ownerId),
               )
               ..orderBy([(t) => OrderingTerm(expression: t.dueDate)]))
             .get();
@@ -224,6 +256,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
               ..where(
                 (t) =>
                     t.deletedAt.isNull() &
+                    _mine(t.ownerId) &
                     t.status.isIn(const ['pending', 'in_progress']),
               )
               ..orderBy([(t) => OrderingTerm(expression: t.dueDate)])
@@ -264,6 +297,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     var predicate =
         columns['sync_state']!.equals('pending') &
         columns['deleted_at']!.isNull();
+    if (ownerId != null) {
+      predicate = predicate & columns['owner_id']!.equals(ownerId!);
+    }
     if (sectionId != null) {
       final column = columns['section_id'];
       if (column == null) return 0;
@@ -362,6 +398,20 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     });
 
     return (await _observationById(observationId))!;
+  }
+
+  @override
+  Future<void> retryObservationSync(String observationId) async {
+    final row =
+        await (db.select(db.observations)
+              ..where((t) => t.id.equals(observationId) & _mine(t.ownerId)))
+            .getSingleOrNull();
+    if (row == null) return;
+    await SyncOutbox(
+      db,
+      ownerId: row.ownerId,
+      farmId: row.farmId,
+    ).retryRecord(row.id);
   }
 
   @override
@@ -561,9 +611,14 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
   /// add a record to a section the farmer has deleted. Throwing is the same
   /// answer this gives for an id that never existed, and the screen above it
   /// already navigates back when a section goes.
-  Future<Section> _requireSection(String sectionId) => (db.select(
-    db.sections,
-  )..where((t) => t.id.equals(sectionId) & t.deletedAt.isNull())).getSingle();
+  Future<Section> _requireSection(String sectionId) =>
+      (db.select(db.sections)..where(
+            (t) =>
+                t.id.equals(sectionId) &
+                t.deletedAt.isNull() &
+                _mine(t.ownerId),
+          ))
+          .getSingle();
 
   Future<rec.Observation?> _observationById(String id) async {
     final row = await (db.select(
@@ -581,13 +636,13 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
 
   Future<Farm?> _farmRow() =>
       (db.select(db.farms)
-            ..where((t) => t.deletedAt.isNull())
+            ..where((t) => t.deletedAt.isNull() & _mine(t.ownerId))
             ..limit(1))
           .getSingleOrNull();
 
   Future<List<Section>> _sectionRows() =>
       (db.select(db.sections)
-            ..where((t) => t.deletedAt.isNull())
+            ..where((t) => t.deletedAt.isNull() & _mine(t.ownerId))
             ..orderBy([(t) => OrderingTerm(expression: t.createdAt)]))
           .get();
 
@@ -680,7 +735,10 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     isCurrent: r.isCurrent,
   );
 
-  rec.Observation _toObservation(Observation r) => rec.Observation(
+  rec.Observation _toObservation(
+    Observation r, {
+    rec.RecordDelivery? delivery,
+  }) => rec.Observation(
     id: r.id,
     sectionId: r.sectionId,
     type: r.type,
@@ -692,7 +750,43 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     syncState: rec.SyncState.parse(r.syncState),
     healthScore: r.healthScore,
     localMediaId: r.localMediaId,
+    delivery: delivery,
   );
+
+  /// Each observation's delivery, from its own outbox rows and those of the
+  /// photo it carries. The worst state wins: a record is only "sent" once
+  /// everything behind it is.
+  Future<Map<String, rec.RecordDelivery>> _delivery(
+    List<Observation> rows,
+  ) async {
+    if (rows.isEmpty) return const {};
+    final ids = {
+      for (final r in rows) ...[r.id, ?r.localMediaId],
+    };
+    final mutations = await (db.select(
+      db.syncMutations,
+    )..where((t) => t.recordId.isIn(ids))).get();
+    final byRecord = <String, List<SyncMutation>>{};
+    for (final m in mutations) {
+      (byRecord[m.recordId] ??= []).add(m);
+    }
+    final result = <String, rec.RecordDelivery>{};
+    for (final r in rows) {
+      final own = [...?byRecord[r.id], ...?byRecord[r.localMediaId]];
+      if (own.isEmpty) continue;
+      final states = {for (final m in own) m.deliveryState};
+      result[r.id] = states.contains('failed')
+          ? rec.RecordDelivery.failed
+          : states.contains('conflict')
+          ? rec.RecordDelivery.conflict
+          : states.contains('syncing')
+          ? rec.RecordDelivery.sending
+          : states.contains('pending')
+          ? rec.RecordDelivery.queued
+          : rec.RecordDelivery.sent;
+    }
+    return result;
+  }
 
   rec.FarmTask _toTask(FarmTask r) => rec.FarmTask(
     id: r.id,

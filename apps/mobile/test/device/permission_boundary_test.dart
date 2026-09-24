@@ -23,7 +23,12 @@ const _promptingPackages = [
 /// The only features allowed to reach the device layer. Add a feature here
 /// when it gains a camera, microphone or location flow — and make sure it
 /// asks only when the person starts that flow.
-const _allowedDeviceCallers = ['lib/features/self_test/'];
+const _allowedDeviceCallers = [
+  'lib/features/self_test/',
+  // An observation's photo: the camera opens only when "Add a photo" is
+  // tapped on the observation form.
+  'lib/features/zone/',
+];
 
 Iterable<File> _dartFiles(String dir) =>
     Directory(dir)

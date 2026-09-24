@@ -65,6 +65,9 @@ dependencies:
   google_mlkit_object_detection: 0.17.1
   device_info_plus: 13.2.0 # device model for the self-test report
   package_info_plus: 10.2.1 # app version for the self-test report
+  # Sync (#17) only sends while the phone reports a network; airplane mode
+  # pauses the queue instead of spending its retry budget on dead sends.
+  connectivity_plus: 7.3.1
 
 dev_dependencies:
   flutter_test:

@@ -275,6 +275,24 @@ class LocalPhotos extends Table {
   IntColumn get byteLength => integer()();
   TextColumn get cloudId => text().nullable()();
 
+  /// The server's `upload_id`, kept once a reservation answers so a restart
+  /// polls the same upload. Replaying the reservation with the same mutation
+  /// and media ids returns this same upload anyway; it is bookkeeping, never
+  /// a second identity.
+  TextColumn get uploadId => text().nullable()();
+
+  /// The last `attempt_id` the server reported as failed *and* retryable.
+  TextColumn get failedAttemptId => text().nullable()();
+
+  /// Set only by the farmer's explicit "try again". The transport asks the
+  /// server to retry only while this names the attempt the server still
+  /// reports as failed, so recovery is never looped automatically.
+  TextColumn get recoverAttemptId => text().nullable()();
+
+  /// When the phone's copy was removed, after the server confirmed a ready,
+  /// cleaned copy of its own. Null while the phone's copy is the only one.
+  DateTimeColumn get purgedAt => dateTime().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }

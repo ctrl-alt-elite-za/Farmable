@@ -216,7 +216,11 @@ class SyncOutbox {
   }
 
   /// Conflicts need reconciliation, not blind manual retry.
-  Future<void> retry(String mutationId) async {
+  ///
+  /// For a photo this is also the farmer's consent to server-side recovery of
+  /// the attempt that failed: the transport may send one retry request naming
+  /// that attempt, and no other.
+  Future<void> retry(String mutationId) => db.transaction(() async {
     final changed =
         await (db.update(db.syncMutations)..where(
               (t) =>
@@ -233,7 +237,102 @@ class SyncOutbox {
               ),
             );
     if (changed != 1) throw StateError('not_retryable');
+    final row = await (db.select(
+      db.syncMutations,
+    )..where((t) => _scope(t) & t.mutationId.equals(mutationId))).getSingle();
+    if (row.recordType == 'media') {
+      final media = await photo(row.recordId);
+      await _photo(row.recordId).write(
+        LocalPhotosCompanion(recoverAttemptId: Value(media?.failedAttemptId)),
+      );
+    }
+  });
+
+  /// Every failed send behind one record — the record's own and the photo it
+  /// waits on — made pending again. Returns how many were reset.
+  Future<int> retryRecord(String recordId) async {
+    final rows = await entries();
+    final media = <String>{
+      for (final r in rows)
+        if (r.recordId == recordId && r.payload != null)
+          ?(jsonDecode(r.payload!) as Map<String, dynamic>)['localMediaId']
+              as String?,
+    };
+    var reset = 0;
+    for (final r in rows) {
+      if (r.deliveryState != 'failed') continue;
+      if (r.recordId != recordId && !media.contains(r.recordId)) continue;
+      await retry(r.mutationId);
+      reset++;
+    }
+    return reset;
   }
+
+  /// A send that failed for want of a network is due again the moment the
+  /// network is back: a backoff chosen while the phone was offline only
+  /// delays the farmer. Rate limits and server trouble keep their delay.
+  Future<void> expedite() =>
+      (db.update(db.syncMutations)..where(
+            (t) =>
+                _scope(t) &
+                t.deliveryState.equals('pending') &
+                t.errorCode.equals('network'),
+          ))
+          .write(const SyncMutationsCompanion(nextAttemptAt: Value(null)));
+
+  UpdateStatement<$LocalPhotosTable, LocalPhoto> _photo(String id) =>
+      db.update(db.localPhotos)..where(
+        (t) =>
+            t.id.equals(id) &
+            t.ownerId.equals(ownerId) &
+            t.farmId.equals(farmId),
+      );
+
+  /// Persisted before anything is sent to storage, so a restart polls the
+  /// same upload.
+  Future<void> recordUpload(String mediaId, String uploadId) =>
+      _photo(mediaId).write(LocalPhotosCompanion(uploadId: Value(uploadId)));
+
+  /// The attempt the server last reported as failed and retryable, or null
+  /// once nothing is failed. Also spends any recovery the farmer asked for:
+  /// it named one failure, and that failure has now been answered.
+  Future<void> recordFailedAttempt(String mediaId, String? attemptId) =>
+      _photo(mediaId).write(
+        LocalPhotosCompanion(
+          failedAttemptId: Value(attemptId),
+          recoverAttemptId: const Value(null),
+        ),
+      );
+
+  /// The section a photo was taken in: that of the observation carrying it.
+  Future<String?> mediaSection(String mediaId) async {
+    final row =
+        await (db.select(db.observations)
+              ..where(
+                (t) =>
+                    t.localMediaId.equals(mediaId) &
+                    t.ownerId.equals(ownerId) &
+                    t.farmId.equals(farmId),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return row?.sectionId;
+  }
+
+  /// Photos the server holds a ready, cleaned copy of, whose phone copy is
+  /// still on disk.
+  Future<List<LocalPhoto>> releasable() =>
+      (db.select(db.localPhotos)..where(
+            (t) =>
+                t.ownerId.equals(ownerId) &
+                t.farmId.equals(farmId) &
+                t.cloudId.isNotNull() &
+                t.purgedAt.isNull(),
+          ))
+          .get();
+
+  Future<void> markReleased(String mediaId, DateTime at) =>
+      _photo(mediaId).write(LocalPhotosCompanion(purgedAt: Value(at)));
 }
 
 bool isUuid(String value) => RegExp(

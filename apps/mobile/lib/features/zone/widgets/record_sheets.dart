@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../app/theme/app_theme.dart';
@@ -13,6 +14,7 @@ import '../../../core/ui/buttons.dart';
 import '../../../core/utils/dates.dart';
 import '../../../domain/farm_records.dart';
 import '../observation_draft.dart';
+import '../../../data/device/photo_capture.dart';
 import '../zone_view_model.dart';
 
 /// Tapping a timeline item opens this: Edit · Mark complete · Reschedule ·
@@ -457,17 +459,23 @@ class _Field extends StatelessWidget {
   }
 }
 
-class _ObservationForm extends StatefulWidget {
+class _ObservationForm extends ConsumerStatefulWidget {
   final ZoneActions actions;
   final Observation? observation;
 
   const _ObservationForm({required this.actions, this.observation});
 
   @override
-  State<_ObservationForm> createState() => _ObservationFormState();
+  ConsumerState<_ObservationForm> createState() => _ObservationFormState();
 }
 
-class _ObservationFormState extends State<_ObservationForm> {
+class _ObservationFormState extends ConsumerState<_ObservationForm> {
+  /// Minted when the form opens, so a second tap on Save is the same
+  /// observation and the same photo, never a second of either.
+  final _ids = ObservationIds();
+  CapturedPhoto? _photo;
+  var _saving = false;
+
   late final TextEditingController _type;
   late final TextEditingController _note;
   late final TextEditingController _action;
@@ -504,10 +512,47 @@ class _ObservationFormState extends State<_ObservationForm> {
     health: _health,
   );
 
+  Future<void> _takePhoto() async {
+    final photo = await ref.read(photoTakerProvider).take(context);
+    if (photo != null && mounted) setState(() => _photo = photo);
+  }
+
   Future<void> _save() async {
+    if (_saving) return;
     final draft = _draft;
     final existing = widget.observation;
     final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final photo = _photo;
+
+    if (existing == null && photo != null) {
+      setState(() => _saving = true);
+      try {
+        await widget.actions.addObservationWithPhoto(
+          ids: _ids,
+          type: draft.resolvedType,
+          note: draft.resolvedNote,
+          health: draft.health,
+          actionTaken: draft.resolvedAction,
+          photo: photo,
+        );
+      } on Object {
+        // Nothing was saved. The words stay in the form; only the photo has
+        // to be taken again.
+        if (mounted) setState(() => _saving = false);
+        messenger?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'That photo could not be kept on this phone. Take another one, '
+              'or save without it.',
+            ),
+          ),
+        );
+        return;
+      }
+      navigator.pop();
+      return;
+    }
 
     if (existing == null) {
       await widget.actions.addObservation(
@@ -559,8 +604,61 @@ class _ObservationFormState extends State<_ObservationForm> {
         selected: _health,
         onChanged: (state) => setState(() => _health = state),
       ),
+      // A photo belongs to the moment it was taken, so only a new
+      // observation can carry one.
+      if (widget.observation == null) ...[
+        const SizedBox(height: AlmanacDimens.sp4),
+        _PhotoField(
+          photo: _photo,
+          onTake: _takePhoto,
+          onRemove: () => setState(() => _photo = null),
+        ),
+      ],
     ],
   );
+}
+
+class _PhotoField extends StatelessWidget {
+  final CapturedPhoto? photo;
+  final VoidCallback onTake;
+  final VoidCallback onRemove;
+
+  const _PhotoField({
+    required this.photo,
+    required this.onTake,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final taken = photo;
+    if (taken == null) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          key: const Key('observation-add-photo'),
+          onPressed: onTake,
+          icon: const Icon(LucideIcons.camera, size: 18),
+          label: const Text('Add a photo'),
+        ),
+      );
+    }
+    return Row(
+      children: [
+        const Icon(LucideIcons.image, size: 18),
+        const SizedBox(width: AlmanacDimens.sp2),
+        Expanded(
+          child: Text(
+            // Recorded input is said to be recorded, as on every camera
+            // screen in test mode.
+            taken.recorded ? 'Photo added (test photo)' : 'Photo added',
+            key: const Key('observation-photo-added'),
+          ),
+        ),
+        TextButton(onPressed: onRemove, child: const Text('Remove')),
+      ],
+    );
+  }
 }
 
 /// Three choices, each an icon **and** a word. Never three coloured dots.

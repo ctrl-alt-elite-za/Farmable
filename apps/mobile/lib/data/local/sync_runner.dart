@@ -8,8 +8,16 @@ import 'sync_outbox.dart';
 enum DeliveryFailure { transient, validation, conflict, auth, missingMedia }
 
 class SyncFailure implements Exception {
-  const SyncFailure(this.kind);
+  const SyncFailure(this.kind, {this.code, this.retryAfter});
   final DeliveryFailure kind;
+
+  /// A fixed, loggable reason stored as the outbox row's error code. Never a
+  /// server message, a URL or a path. Defaults to [kind]'s name.
+  final String? code;
+
+  /// The server's `Retry-After`, honoured in place of the usual backoff when
+  /// it is longer.
+  final Duration? retryAfter;
 }
 
 class SyncAcknowledgement {
@@ -236,9 +244,11 @@ class SyncRunner {
           );
           continue;
         }
-        final kind = error is SyncFailure
-            ? error.kind
-            : DeliveryFailure.transient;
+        final failure = error is SyncFailure
+            ? error
+            : const SyncFailure(DeliveryFailure.transient);
+        final kind = failure.kind;
+        final code = failure.code ?? kind.name;
         if (kind == DeliveryFailure.auth) {
           _authPaused = true;
           await outbox.release(
@@ -256,11 +266,14 @@ class SyncRunner {
               : retry
               ? 'pending'
               : 'failed';
+          var delay = retryDelay(row.budgetCount, random());
+          final asked = failure.retryAfter;
+          if (asked != null && asked > delay) delay = asked;
           await outbox.release(
             row,
             state,
-            kind.name,
-            retry ? now().add(retryDelay(row.budgetCount, random())) : now(),
+            code,
+            retry ? now().add(delay) : now(),
           );
         }
       }
