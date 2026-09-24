@@ -35,7 +35,9 @@ from farmable_backend.models import (
     AssistantConversation,
     AssistantLiveConsent,
     AssistantLiveSession,
+    AssistantModelCall,
     AssistantTurn,
+    AssistantTurnCost,
     AuthIdentity,
     AuthSession,
     CropDiagnosis,
@@ -197,6 +199,24 @@ class AccountService:
                     query = query.where(*visible(db_now(session)))
                 rows = session.scalars(query).all()
                 document[name] = [_row(row) for row in rows]
+            calls = session.scalars(
+                select(AssistantModelCall)
+                .join(AssistantTurn)
+                .where(
+                    AssistantTurn.owner_id == owner,
+                )
+                .order_by(AssistantModelCall.id)
+            ).all()
+            document["assistant_model_calls"] = [_row(row) for row in calls]
+            costs = session.scalars(
+                select(AssistantTurnCost)
+                .join(AssistantTurn)
+                .where(
+                    AssistantTurn.owner_id == owner,
+                )
+                .order_by(AssistantTurnCost.id)
+            ).all()
+            document["assistant_turn_costs"] = [_row(row) for row in costs]
             return document
 
     def logout(self, authorization: str | None) -> None:

@@ -745,7 +745,8 @@ def test_withdrawal_before_stream_never_calls_provider_or_revives_on_regrant(ass
         "interrupted"
     )
     with assistant.sessions() as session:
-        assert session.get(AssistantBudget, 1).reserved_micro_usd == 10
+        # No exchange was ever started: settlement can prove this turn cost zero.
+        assert session.get(AssistantBudget, 1).reserved_micro_usd == 0
 
 
 def test_withdrawal_during_stream_closes_upstream_on_another_replica(assistant):

@@ -4,7 +4,8 @@ import asyncio
 import json
 from contextlib import suppress
 
-from farmable_backend.assistant import tools
+from farmable_backend.assistant import accounting, tools
+from farmable_backend.assistant.cache import ContextCache
 from farmable_backend.integrations.gemini import Gemini, has_visible_text
 from farmable_backend.record_access import ApiError
 
@@ -92,6 +93,7 @@ class Runtime:
         # One logical call means one HTTP attempt: reservation must not be
         # multiplied by retrying an ambiguously billed generation request.
         self.gemini = Gemini("gemini", registry.client, registry.gemini.settings, max_attempts=1)
+        self.cache = ContextCache(registry)
         self.active = set()
 
     async def watch(self, auth, conversation, turn):
@@ -110,7 +112,7 @@ class Runtime:
             async with asyncio.timeout(TURN_SECONDS):
                 history = await self.worker.call(self.store.history, auth, conversation)
                 # Keep bounded plain-text history; no internal thought/signature
-                # persistence or cross-user/provider cache.
+                # persistence or farmer-history provider cache.
                 contents = []
                 history_bytes = 0
                 for prior in history.turns:
@@ -164,12 +166,26 @@ class Runtime:
                     request = self.gemini.request(payload, streaming=True)
                     if request is None:
                         raise ApiError(503, "assistant_unconfigured")
+                    call_id = await self.worker.call(
+                        accounting.begin_call, self.store, auth, conversation, turn.id, round_index
+                    )
+                    payload = await self.cache.apply(
+                        payload, self.store, self.worker, call_id, self.store.model()
+                    )
+                    # Cache creation can yield long enough for consent withdrawal.
+                    current = await self.worker.call(self.store.get, auth, conversation, turn.id)
+                    if current.status != "running":
+                        yield terminal(current)
+                        final = True
+                        return
+                    request = self.gemini.request(payload, streaming=True)
                     stream = self.gemini.stream(
                         request, has_text=visible_output, first_text_timeout=10
                     )
                     queue = asyncio.Queue(maxsize=1)
                     producer = asyncio.create_task(pump(stream, queue))
                     parts, calls, counts = [], [], {}
+                    response_model = None
                     completed, finish = False, None
                     try:
                         while True:
@@ -197,9 +213,13 @@ class Runtime:
                             if event_count > MAX_EVENTS:
                                 raise ApiError(502, "assistant_response_limit")
                             if not event.ok:
+                                if payload.get("cachedContent") and event.status in {400, 404}:
+                                    await self.cache.discard(payload["cachedContent"])
                                 raise ApiError(503, "assistant_unavailable")
                             completed = completed or event.done
                             data = event.data or {}
+                            if "modelVersion" in data:
+                                response_model = data["modelVersion"]
                             counts.update(usage_counts(data))
                             if data.get("promptFeedback", {}).get("blockReason"):
                                 raise ApiError(422, "assistant_response_blocked")
@@ -244,6 +264,16 @@ class Runtime:
                             producer.cancel()
                         with suppress(asyncio.CancelledError):
                             await producer
+                        # Persist numbers even if cancellation fenced chat output. A
+                        # crash/write failure leaves a durable unknown-cost receipt.
+                        await self.worker.call(
+                            accounting.finish_call,
+                            self.store.sessions,
+                            call_id,
+                            counts,
+                            response_model,
+                            complete=completed and finish == "STOP",
+                        )
                     usage.append(counts)
                     await self.worker.call(
                         self.store.update, auth, conversation, turn.id, usage=usage
@@ -342,8 +372,13 @@ class Runtime:
             if not final:
                 with suppress(Exception):
                     await self.worker.call(self.store.interrupt, auth, conversation, turn.id)
+            # Durable background reconciliation retries database failures. Unknown
+            # costs retain reservations; only fully priced terminal turns settle.
+            with suppress(Exception):
+                await self.worker.call(accounting.reconcile_turn, self.store.sessions, turn.id)
 
     async def close(self):
         # Streaming requests are drained by ASGI shutdown; durable deadlines
         # recover abandoned turns after an ungraceful process termination.
         await self.gemini.release()
+        await self.cache.close()

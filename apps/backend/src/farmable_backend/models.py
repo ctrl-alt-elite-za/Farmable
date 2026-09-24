@@ -310,6 +310,77 @@ class AssistantLiveSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class AssistantTurnCost(Base):
+    """Durable reservation settlement; deletion removes identity, never budget debt."""
+
+    __tablename__ = "assistant_turn_costs"
+    __table_args__ = (
+        CheckConstraint(
+            column("state").in_(("reserved", "unknown", "settled")), name="ck_assistant_cost_state"
+        ),
+        CheckConstraint(column("reserved_micro_usd") >= 0, name="ck_assistant_cost_reserved"),
+        CheckConstraint(column("settled_micro_usd") >= 0, name="ck_assistant_cost_settled"),
+        Index("ix_assistant_costs_due", "state", "next_check_at"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    turn_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("assistant_turns.id", ondelete="SET NULL"), unique=True
+    )
+    day: Mapped[date] = mapped_column(Date)
+    policy: Mapped[str] = mapped_column(Text)
+    reserved_micro_usd: Mapped[int] = mapped_column(BigInteger)
+    settled_micro_usd: Mapped[int | None] = mapped_column(BigInteger)
+    state: Mapped[str] = mapped_column(Text)
+    error: Mapped[str | None] = mapped_column(Text)
+    next_check_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantModelCall(Base):
+    """Content-free usage survives account erasure with its turn link removed."""
+
+    __tablename__ = "assistant_model_calls"
+    __table_args__ = (
+        UniqueConstraint("turn_id", "round_index", name="uq_assistant_call_round"),
+        CheckConstraint(column("round_index").between(0, 3), name="ck_assistant_call_round"),
+        CheckConstraint(
+            column("state").in_(("started", "unknown", "unpriced", "priced")),
+            name="ck_assistant_call_state",
+        ),
+        CheckConstraint(
+            column("estimated_micro_usd") >= 0,
+            name="ck_assistant_call_cost",
+        ),
+        CheckConstraint(
+            column("data_kind").in_(("synthetic", "provider")),
+            name="ck_assistant_call_kind",
+        ),
+        Index("ix_assistant_calls_project_created", "billing_project", "created_at"),
+        Index("ix_assistant_calls_cost", "cost_id"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    cost_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("assistant_turn_costs.id", ondelete="CASCADE")
+    )
+    turn_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("assistant_turns.id", ondelete="SET NULL")
+    )
+    round_index: Mapped[int] = mapped_column(BigInteger)
+    billing_project: Mapped[str | None] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(Text)
+    response_model: Mapped[str | None] = mapped_column(Text)
+    data_kind: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text)
+    error: Mapped[str | None] = mapped_column(Text)
+    usage: Mapped[dict[str, int]] = mapped_column(JSON_DOCUMENT)
+    pricing: Mapped[dict[str, Any] | None] = mapped_column(JSON_DOCUMENT)
+    estimated_micro_usd: Mapped[int | None] = mapped_column(BigInteger)
+    cache_mode: Mapped[str] = mapped_column(Text, nullable=False, default="disabled")
+    cache_cost_micro_usd: Mapped[int | None] = mapped_column(BigInteger, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class AssistantTurn(Base):
     __tablename__ = "assistant_turns"
     __table_args__ = (

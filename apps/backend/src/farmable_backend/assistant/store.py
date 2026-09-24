@@ -13,6 +13,7 @@ from farmable_backend.models import (
     AssistantConsent,
     AssistantConversation,
     AssistantTurn,
+    AssistantTurnCost,
 )
 from farmable_backend.record_access import ApiError, authenticate, db_now, farm_scope, utc
 
@@ -237,6 +238,16 @@ class Store:
                 )
                 session.add(record)
                 session.flush()
+                session.add(
+                    AssistantTurnCost(
+                        turn_id=record.id,
+                        day=now.date(),
+                        policy=policy_hash,
+                        reserved_micro_usd=reserve,
+                        state="reserved",
+                        next_check_at=now,
+                    )
+                )
                 return view(record), True
         except IntegrityError:
             raise ApiError(409, "turn_conflict") from None

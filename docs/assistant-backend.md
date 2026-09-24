@@ -31,16 +31,16 @@ fallback or usage limits satisfy backend acceptance. The existing direct Live
 connection cannot be forcibly revoked by the backend; see the voice contract's
 limits. No Azure-equivalence or completed voice-journey claim is made.
 
-| Requirement                                                           | Evidence in this repository                                                                                                                           | Remaining acceptance                                                                                                                                                 |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Per-service adapters, retries and circuit breakers                    | `integrations/registry.py`, individual service modules and `base.py`; `test_integrations.py` checks retry and circuit behavior                        | Real-provider verification; Azure REST request bounds are not the required SDK silence behavior                                                                      |
-| Success/error/slow fakes and staging-only fault flags                 | `integrations/fakes.py`, `settings.py`; parametrized fake, timeout and fault tests in `test_integrations.py`                                          | Recorded real-response comparison and consumer-level degradation checks; current fixtures are synthetic                                                              |
-| Smoke command, crop coverage, credentials/cost/fallback documentation | `integrations/smoke.py`, `make smoke`, `docs/services.md`, `docs/provider-verification.md`                                                            | Authorized real staging runs, account/security settings and crop-coverage evidence; a command existing is not a PASS                                                 |
-| Twilio confined to integrations                                       | `integrations/twilio.py`; static source regression in `test_integrations.py` checks SDK imports and literal provider hosts outside the boundary       | Continue enforcing this boundary; the check is not a sandbox against dynamically constructed imports/URLs                                                            |
-| Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only planning previews, explicit confirmation API and stale-plan checks                                                          | Frontend confirmation journey, production input acceptance and real-model grounded action verification                                                               |
-| Voice and crop diagnosis                                              | Gemini Live handoff plus conversation-scoped voice consent, read tools and durable session interruption; consented, queued farm-scoped crop diagnosis | Selected Gemini device-audio/language acceptance and playback interruption; live crop coverage/accuracy; Azure-specific criteria are not claimed as implemented      |
-| Accounting, evaluation and privacy                                    | Bounded admission reservations, synthetic regressions, owner export/deletion, conversation consent/revocation and 30-day chat-content expiry          | Actual priced settlement, system-spend acceptance, calibrated/adversarial evaluations, provider/backup retention review, consent UI and appropriate provider caching |
-| Deployment and full journey                                           | Existing CI checks; no live activation in this PR                                                                                                     | Approved configuration, real-provider contracts, physical-device and deployed end-to-end evidence                                                                    |
+| Requirement                                                           | Evidence in this repository                                                                                                                           | Remaining acceptance                                                                                                                                            |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Per-service adapters, retries and circuit breakers                    | `integrations/registry.py`, individual service modules and `base.py`; `test_integrations.py` checks retry and circuit behavior                        | Real-provider verification; Azure REST request bounds are not the required SDK silence behavior                                                                 |
+| Success/error/slow fakes and staging-only fault flags                 | `integrations/fakes.py`, `settings.py`; parametrized fake, timeout and fault tests in `test_integrations.py`                                          | Recorded real-response comparison and consumer-level degradation checks; current fixtures are synthetic                                                         |
+| Smoke command, crop coverage, credentials/cost/fallback documentation | `integrations/smoke.py`, `make smoke`, `docs/services.md`, `docs/provider-verification.md`                                                            | Authorized real staging runs, account/security settings and crop-coverage evidence; a command existing is not a PASS                                            |
+| Twilio confined to integrations                                       | `integrations/twilio.py`; static source regression in `test_integrations.py` checks SDK imports and literal provider hosts outside the boundary       | Continue enforcing this boundary; the check is not a sandbox against dynamically constructed imports/URLs                                                       |
+| Authenticated assistant and interrupted text history                  | PR #71 runtime, read-only planning previews, explicit confirmation API and stale-plan checks                                                          | Frontend confirmation journey, production input acceptance and real-model grounded action verification                                                          |
+| Voice and crop diagnosis                                              | Gemini Live handoff plus conversation-scoped voice consent, read tools and durable session interruption; consented, queued farm-scoped crop diagnosis | Selected Gemini device-audio/language acceptance and playback interruption; live crop coverage/accuracy; Azure-specific criteria are not claimed as implemented |
+| Accounting, evaluation and privacy                                    | Durable text usage settlement/recovery, static caching, billing comparison, adversarial/captured-response harness, consent and 30-day chat expiry     | Actual invoice/system-spend validation, human-labelled live calibration, provider/backup retention review; consent UI remains frontend integration              |
+| Deployment and full journey                                           | Existing CI checks; no live activation in this PR                                                                                                     | Approved configuration, real-provider contracts, physical-device and deployed end-to-end evidence                                                               |
 
 Keep #7 open and this PR explicitly partial. Do not substitute the synthetic
 evaluation command, the demo planner or a green CI run for these missing criteria.
@@ -185,14 +185,14 @@ Its missing-`SET` warnings still require maintainer review and the
 
 Generation defaults to disabled. Operators must supply all of:
 
-| Setting                            | Meaning                                                                     |
-| ---------------------------------- | --------------------------------------------------------------------------- |
-| `ASSISTANT_ENABLED`                | Explicit enablement, default false                                          |
-| `ASSISTANT_POLICY_MODEL`           | Exact configured Gemini model; `fixture-model` only for isolated fake tests |
-| `ASSISTANT_POLICY_DATE`            | ISO date of reviewed pricing/reservation policy; expires after 30 days      |
-| `ASSISTANT_TURN_RESERVE_MICRO_USD` | Positive conservative reservation for the **entire** bounded turn           |
-| `ASSISTANT_DAILY_BUDGET_MICRO_USD` | Maximum global reservation total per UTC day                                |
-| `ASSISTANT_DAILY_TURNS_PER_USER`   | Rolling 24-hour admission limit, default 20, maximum 100                    |
+| Setting                            | Meaning                                                                       |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| `ASSISTANT_ENABLED`                | Explicit enablement, default false                                            |
+| `ASSISTANT_POLICY_MODEL`           | Exact configured Gemini model; `fixture-model` only for isolated fake tests   |
+| `ASSISTANT_POLICY_DATE`            | ISO date of reviewed pricing/reservation policy; expires after 30 days        |
+| `ASSISTANT_TURN_RESERVE_MICRO_USD` | Positive conservative reservation for the **entire** bounded turn             |
+| `ASSISTANT_DAILY_BUDGET_MICRO_USD` | Admission limit for held reservations plus settled text estimates per UTC day |
+| `ASSISTANT_DAILY_TURNS_PER_USER`   | Rolling 24-hour admission limit, default 20, maximum 100                      |
 
 Existing integration-mode/key/model configuration still applies. No deployment
 variables, Secret Manager values or provider billing settings are changed by this
@@ -205,9 +205,18 @@ match across replicas for the UTC day; a differing policy fails closed rather th
 silently raising the cap mid-day. Changing policy requires an operator-controlled
 rollout/day transition, never deleting reservation rows to force admission.
 
-The recorded reservation is **not actual billed cost**. Sanitized token usage is
-recorded per completed provider exchange when supplied; missing usage stays
-unknown, not zero cost. Model-priced settlement and reconciliation are unfinished.
+The recorded reservation is **not actual billed cost**. Each text-model exchange
+now has a durable content-free receipt and can be priced from a reviewed, bounded
+rate card. Missing/partial usage stays unknown, not zero cost; numeric receipts can
+survive cancellation without restoring chat content. The new read-only billing
+comparator isolates an approved Google account/project/service and preserves gross
+cost, credits and net cost. See [assistant-accounting.md](assistant-accounting.md)
+for migration `0016`, configuration and the exact limitations. Actual invoice
+validation and system-wide reconciliation across voice/other providers remain open.
+Terminal text turns replace their reservation with fully priced exchange costs
+exactly once; unknown costs retain their reservation. A bounded worker reconciles
+missed callbacks. Opt-in caching contains only static instructions/tools, never
+farmers' history, and prices creation/storage separately from reported input hits.
 A too-small operator reservation can understate actual spend: this gate cannot
 guarantee the provider invoice ceiling. Provider quotas and a validated pricing
 policy are still required; budget alerts alone are not a hard stop. Do not label
@@ -216,8 +225,8 @@ this as completion of #7's production spend-accounting requirement.
 ## Privacy and release gates
 
 Account exports include this owner's conversation/turn records. Deleting the
-identity cascades conversation content; the global anonymous reservation total
-remains so account recreation cannot refund the system budget. No audio is
+identity cascades conversation content; anonymous receipts and settlement keys
+remain so recreation cannot discard spend or refund unknown costs. No audio is
 captured here. Provider-side retention is governed separately by the chosen
 provider/account terms; a local deletion does not prove upstream deletion.
 
@@ -250,6 +259,10 @@ deletion. Conversation containers and consent receipts also remain. This is chat
 **content** retention, not deletion of every account record. Approved planting
 plans are independent records and are not modified by chat cleanup.
 
+Per-exchange numeric accounting receipts are separate: account deletion removes
+their turn link but preserves content-free usage/cost metadata. They contain no
+owner/farm ID or chat content and cannot restore a deleted conversation.
+
 Notice `gemini-conversation-v3` describes this policy and planning data sent to Gemini. Existing v1/v2 grants are
 invalid for new generation and require explicit consent again; no grants are
 silently upgraded. Frontend consent controls remain a separate integration task.
@@ -262,9 +275,9 @@ Google account's retention terms before making any upstream deletion promise.
 
 Still required for backend #7: the selected voice path's speech/language,
 fallback and interruption/replacement-turn acceptance; live crop-diagnosis
-coverage/accuracy acceptance; provider context caching where
-appropriate; actual model-priced usage settlement and reconciled system spending;
-calibrated/adversarial model-quality evaluations; real-response contracts and
+coverage/accuracy acceptance; live cache/pricing validation and invoice-backed
+system spending across providers; calibrated model-quality evaluations;
+real-response contracts and
 authorized provider/manual checks in [services.md](services.md). Green synthetic
 tests do not establish these requirements, and this PR does not close #7.
 
@@ -278,6 +291,14 @@ backend issue #7's acceptance.
 
 `make eval-assistant SET=dev` runs deterministic protocol/security regression
 checks, explicitly labelled as synthetic—not a calibrated model judge report.
+They include injected tool-result instructions, unauthorized actions/URL
+arguments and labelled grounding failures. These executable fences and grader
+tests do not prove live models always resist injection or hallucination.
+`evaluate.py --set captured` scores captured-response judgement artifacts offline;
+`--set judge` is an explicit, budget-policy-gated live judge runner. Both enforce
+provenance and calibration/holdout separation. See
+[assistant-evaluation.md](assistant-evaluation.md); no calibrated/live acceptance
+report was produced during implementation.
 `make assistant-evals` is the CI runner's alias for the same command.
 `make test` includes these tests and migration-shape checks.
 `make test-integration` explicitly runs the PostgreSQL admission/budget races

@@ -20,6 +20,8 @@ def test_only_owned_application_tables_are_registered():
         "assistant_live_sessions",
         "assistant_turns",
         "assistant_budget",
+        "assistant_model_calls",
+        "assistant_turn_costs",
         "plan_revisions",
         "crop_diagnoses",
         "detector_models",

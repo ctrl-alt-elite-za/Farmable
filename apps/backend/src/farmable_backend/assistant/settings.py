@@ -6,6 +6,8 @@ from datetime import date
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from farmable_backend.assistant.pricing import TextPricePolicy
+
 
 class AssistantSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ASSISTANT_", extra="forbid")
@@ -15,6 +17,10 @@ class AssistantSettings(BaseSettings):
     policy_date: date | None = None
     policy_model: str = Field(default="", max_length=128)
     daily_turns_per_user: int = Field(default=20, ge=1, le=100)
+    billing_project: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]{4,61}[a-z0-9]$")
+    text_pricing: TextPricePolicy | None = None
+    cache_enabled: bool = False
+    cache_ttl_seconds: int = Field(default=300, ge=60, le=600)
 
     def validate_live(self, today: date, model: str) -> None:
         # Reservation must cover ALL bounded model calls in a turn. Never infer

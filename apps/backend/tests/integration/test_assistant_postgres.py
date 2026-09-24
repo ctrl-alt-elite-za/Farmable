@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import pytest
 from farmable_backend.account import AccountService
-from farmable_backend.assistant import retention
+from farmable_backend.assistant import accounting, retention
 from farmable_backend.assistant.live import LIVE_NOTICE_VERSION, LiveConsentGrant, LiveStore
 from farmable_backend.assistant.privacy import NOTICE_VERSION, ConsentGrant
 from farmable_backend.assistant.retention import purge_batch
@@ -22,7 +22,9 @@ from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.models import (
     AssistantBudget,
     AssistantLiveSession,
+    AssistantModelCall,
     AssistantTurn,
+    AssistantTurnCost,
     AuthIdentity,
     Farm,
     ForecastRun,
@@ -42,9 +44,134 @@ from farmable_backend.records_service import RecordsService
 from sqlalchemy import delete, event, func, select
 from sqlalchemy.orm import sessionmaker
 from test_assistant import policy, seed
+from test_assistant_accounting import pricing, usage
 from test_forecasts import bundle
 
 pytestmark = pytest.mark.integration
+
+
+def test_model_call_receipt_prevents_duplicate_exchange_across_replicas():
+    engine = make_engine(Settings())
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    owner = seed(sessions)
+    store = Store(sessions, policy(), ServiceSettings(environment="ci", integrations_mode="fake"))
+    conversation = store.create(owner.auth, ConversationCreate(id=uuid4(), farm_id=owner.farm))
+    store.consent(
+        owner.auth,
+        conversation.id,
+        ConsentGrant(notice_version=NOTICE_VERSION, model="fixture-model"),
+    )
+    with sessions.begin() as session:
+        budget = session.get(AssistantBudget, 1, with_for_update=True)
+        old = budget.day, budget.policy, budget.reserved_micro_usd
+        budget.day, budget.policy, budget.reserved_micro_usd = None, None, 0
+    turn_id = uuid4()
+    barrier = Barrier(2, timeout=10)
+    receipt = None
+    cost_id = None
+
+    def before_lock(conn, cursor, statement, params, context, many):
+        if statement.startswith("SELECT farms.") and "FOR UPDATE" in statement:
+            barrier.wait()
+
+    def begin(_):
+        try:
+            return accounting.begin_call(store, owner.auth, conversation.id, turn_id, 0)
+        except ApiError as error:
+            return error.code
+
+    try:
+        store.admit(owner.auth, conversation.id, TurnCreate(id=turn_id, message="Hello"))
+        event.listen(engine, "before_cursor_execute", before_lock)
+        try:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(begin, [0, 1]))
+        finally:
+            event.remove(engine, "before_cursor_execute", before_lock)
+        assert results.count("assistant_call_already_started") == 1
+        receipt = next(result for result in results if result != "assistant_call_already_started")
+        with sessions() as session:
+            cost_id = session.get(AssistantModelCall, receipt).cost_id
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(AssistantModelCall)
+                    .where(
+                        AssistantModelCall.turn_id == turn_id,
+                    )
+                )
+                == 1
+            )
+        with sessions.begin() as session:
+            session.execute(delete(User).where(User.id == owner.owner))
+        accounting.finish_call(sessions, receipt, {}, None, complete=False)
+        with sessions() as session:
+            row = session.get(AssistantModelCall, receipt)
+            assert row.turn_id is None and row.state == "unknown"
+    finally:
+        with sessions.begin() as session:
+            if receipt is not None:
+                session.execute(delete(AssistantModelCall).where(AssistantModelCall.id == receipt))
+            if cost_id is not None:
+                session.execute(delete(AssistantTurnCost).where(AssistantTurnCost.id == cost_id))
+            session.execute(delete(User).where(User.id == owner.owner))
+            budget = session.get(AssistantBudget, 1, with_for_update=True)
+            budget.day, budget.policy, budget.reserved_micro_usd = old
+        engine.dispose()
+
+
+def test_settlement_across_replicas_refunds_once_and_survives_erasure():
+    engine = make_engine(Settings())
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    owner = seed(sessions)
+    config = policy(text_pricing=pricing())
+    config.turn_reserve_micro_usd = 500
+    store = Store(sessions, config, ServiceSettings(environment="ci", integrations_mode="fake"))
+    conversation = store.create(owner.auth, ConversationCreate(id=uuid4(), farm_id=owner.farm))
+    store.consent(
+        owner.auth,
+        conversation.id,
+        ConsentGrant(notice_version=NOTICE_VERSION, model="fixture-model"),
+    )
+    with sessions.begin() as session:
+        budget = session.get(AssistantBudget, 1, with_for_update=True)
+        old = budget.day, budget.policy, budget.reserved_micro_usd
+        budget.day, budget.policy, budget.reserved_micro_usd = None, None, 0
+    cost_id = None
+    barrier = Barrier(2, timeout=10)
+
+    def before_lock(conn, cursor, statement, params, context, many):
+        if statement.startswith("SELECT assistant_budget.") and "FOR UPDATE" in statement:
+            barrier.wait()
+
+    try:
+        turn_id = uuid4()
+        store.admit(owner.auth, conversation.id, TurnCreate(id=turn_id, message="Hello"))
+        receipt = accounting.begin_call(store, owner.auth, conversation.id, turn_id, 0)
+        with sessions.begin() as session:
+            cost_id = session.get(AssistantModelCall, receipt).cost_id
+            session.execute(delete(User).where(User.id == owner.owner))
+        accounting.finish_call(sessions, receipt, usage(), "fixture-version", complete=True)
+        event.listen(engine, "before_cursor_execute", before_lock)
+        try:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                list(pool.map(lambda _: accounting.reconcile_cost(sessions, cost_id), [0, 1]))
+        finally:
+            event.remove(engine, "before_cursor_execute", before_lock)
+        with sessions() as session:
+            assert session.get(AssistantBudget, 1).reserved_micro_usd == 112
+            cost = session.get(AssistantTurnCost, cost_id)
+            assert (
+                cost.turn_id is None and cost.state == "settled" and cost.settled_micro_usd == 112
+            )
+    finally:
+        with sessions.begin() as session:
+            if cost_id is not None:
+                session.execute(delete(AssistantTurnCost).where(AssistantTurnCost.id == cost_id))
+            session.execute(delete(User).where(User.id == owner.owner))
+            budget = session.get(AssistantBudget, 1, with_for_update=True)
+            budget.day, budget.policy, budget.reserved_micro_usd = old
+        engine.dispose()
 
 
 def test_live_admission_across_farms_and_withdrawal_across_replicas():
