@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import io
 import json
+import secrets
 import zipfile
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -151,9 +152,18 @@ def zip_bytes(document: dict[str, Any]) -> bytes:
 
 
 class AccountService:
-    def __init__(self, sessions: sessionmaker[Session], provider: OtpProvider | None = None):
+    def __init__(
+        self,
+        sessions: sessionmaker[Session],
+        provider: OtpProvider | None = None,
+        export_token_secret: str | None = None,
+    ):
         self.sessions = sessions
         self.provider = provider or DisabledOtpProvider()
+        # Production supplies a stable dedicated secret through Settings. The
+        # generated fallback keeps isolated/test services usable without ever
+        # deriving bearer credentials from the database URL.
+        self._export_token_secret = export_token_secret or secrets.token_urlsafe(32)
 
     def owner_id(self, authorization: str | None) -> UUID:
         with self.sessions.begin() as session:
@@ -556,12 +566,11 @@ class AccountService:
             raise
 
     def _export_token(self, job_id: UUID) -> str:
-        bind = self.sessions.kw.get("bind")
-        url = getattr(bind, "url", None)
-        if url is None:
-            raise RuntimeError("export token key is unavailable")
-        secret = url.render_as_string(hide_password=False).encode()
-        digest = hmac.new(secret, b"farmable-export-token:" + job_id.bytes, hashlib.sha256).digest()
+        digest = hmac.new(
+            self._export_token_secret.encode(),
+            b"farmable-export-token:" + job_id.bytes,
+            hashlib.sha256,
+        ).digest()
         return base64.urlsafe_b64encode(digest).decode().rstrip("=")
 
     @staticmethod
@@ -604,6 +613,7 @@ class AccountService:
             if (
                 job is None
                 or job.status != "ready"
+                or job.downloaded_at is not None
                 or job.artifact is None
                 or job.expires_at is None
                 or _as_utc(job.expires_at) < datetime.now(UTC)

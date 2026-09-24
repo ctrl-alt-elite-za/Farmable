@@ -136,7 +136,17 @@ def create_app(
                 app.state.records = RecordRuntime(
                     RecordsService(database.sessions), lambda: create_gcs_photos(config)
                 )
-                app.state.account = AccountRuntime(AccountService(database.sessions, provider))
+                app.state.account = AccountRuntime(
+                    AccountService(
+                        database.sessions,
+                        provider,
+                        export_token_secret=(
+                            config.export_token_secret.get_secret_value()
+                            if config.export_token_secret is not None
+                            else None
+                        ),
+                    )
+                )
             yield
         finally:
             try:
