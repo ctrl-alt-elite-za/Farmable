@@ -28,6 +28,7 @@ trap cleanup EXIT
 # Account ownership/deletion and farm-backfill races require real PostgreSQL locks.
 "${compose[@]}" run --rm tests pytest -o addopts= apps/backend/tests/integration/test_account_postgres.py apps/backend/tests/integration/test_backfill_account_farms_postgres.py -m integration -q
 # Forecast/voice races do not match the older auth/farm keyword filter above.
+"${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_assistant_postgres.py -m integration -q
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_voice_sessions_postgres.py apps/backend/tests/integration/test_forecast_postgres.py -m integration -q
 "${compose[@]}" run --rm tests pytest apps/backend/tests/integration/test_weather_postgres.py -m integration -q
 # Real PostgreSQL, full authenticated ASGI path; print the measured p95 in CI logs.

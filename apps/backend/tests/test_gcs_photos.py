@@ -1,6 +1,7 @@
 """GCS SDK contract tests; these do not prove live IAM or policy enforcement."""
 
 import base64
+import hashlib
 import json
 import logging
 import threading
@@ -112,6 +113,37 @@ def test_reads_are_generation_pinned_raw_and_bounded(gcs):
     args = gcs.bucket.blob.return_value.download_as_bytes.call_args.kwargs
     assert args["if_generation_match"] == 99 and args["end"] == 10 and args["raw_download"] is True
     assert args["timeout"] == (5, 15)
+
+
+def test_diagnosis_reads_only_hash_verified_clean_generation(gcs):
+    gcs.attempt.clean_generation = "42"
+    gcs.attempt.clean_size = 3
+    gcs.attempt.clean_sha256 = hashlib.sha256(b"abc").hexdigest()
+    blob = gcs.bucket.blob.return_value
+    blob.download_as_bytes.return_value = b"abc"
+    assert gcs.adapter.read_clean(gcs.upload, gcs.attempt) == b"abc"
+    gcs.bucket.blob.assert_called_with(clean_key(gcs.upload, gcs.attempt), generation="42")
+    args = blob.download_as_bytes.call_args.kwargs
+    assert args["if_generation_match"] == 42
+    assert args["start"] == 0 and args["end"] == 3 and args["raw_download"] is True
+    assert args["timeout"] == (5, 15)
+    for altered in (b"xyz", b"abcd", b"ab"):
+        blob.download_as_bytes.return_value = altered
+        with pytest.raises(UploadError, match="^clean_object_conflict$"):
+            gcs.adapter.read_clean(gcs.upload, gcs.attempt)
+    blob.download_as_bytes.side_effect = NotFound("sensitive-storage-detail")
+    with pytest.raises(UploadError, match="^clean_photo_unavailable$"):
+        gcs.adapter.read_clean(gcs.upload, gcs.attempt)
+
+
+@pytest.mark.parametrize("size", [None, 0, -1, 4_500_001])
+def test_diagnosis_rejects_unbounded_clean_reads(gcs, size):
+    gcs.attempt.clean_generation = "42"
+    gcs.attempt.clean_sha256 = "0" * 64
+    gcs.attempt.clean_size = size
+    with pytest.raises(UploadError, match="^clean_photo_unavailable$"):
+        gcs.adapter.read_clean(gcs.upload, gcs.attempt)
+    gcs.bucket.blob.assert_not_called()
 
 
 def test_lost_publish_reply_validates_existing_bytes_before_reuse(gcs):

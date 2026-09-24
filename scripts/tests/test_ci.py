@@ -767,11 +767,30 @@ def test_a_committed_secret_fixture_is_blocked_by_gitleaks():
     # History, not just HEAD: committing and then deleting a secret still leaks.
     assert '--log-opts="--all"' in scan["run"]
     assert "--config /repo/.gitleaks.toml" in scan["run"]
+    assert "--gitleaks-ignore-path /repo/.gitleaksignore" in scan["run"]
     hooks = yaml.safe_load((repo / ".pre-commit-config.yaml").read_text())
     assert any(h["id"] == "gitleaks" for source in hooks["repos"] for h in source["hooks"])
     required = json.loads((repo / ".github/required-checks.json").read_text())
     assert "gitleaks" in required
     assert f"`{CHECKS['gitleaks'][0]}`" in (repo / "docs/ci.md").read_text()
+
+
+def test_gitleaks_exceptions_only_match_reviewed_historical_fixtures():
+    repo = Path(__file__).resolve().parents[2]
+    entries = [
+        line.strip()
+        for line in (repo / ".gitleaksignore").read_text().splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    prefix = (
+        "f10da6a57c33fc832f49c229df57ad063abfae7a:"
+        "apps/backend/tests/test_auth_acceptance.py:generic-api-key:"
+    )
+    assert sorted(entries) == [prefix + str(line) for line in (291, 304, 335)]
+    config = tomllib.loads((repo / ".gitleaks.toml").read_text())
+    assert config["extend"]["useDefault"] is True
+    assert not config.get("allowlist") and not config.get("allowlists")
+    assert all(not rule.get("allowlist") and not rule.get("allowlists") for rule in config["rules"])
 
 
 def test_offline_launch_smoke_runs_with_backend_networking_disabled():

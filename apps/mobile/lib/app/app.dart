@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/auth/auth_view_model.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
@@ -26,6 +27,7 @@ class _AlmanacAppState extends ConsumerState<AlmanacApp> {
     // concern rather than one screen's. Nothing waits on this: the screens
     // subscribe to storage and render whatever is on disk, including nothing.
     ref.watch(seedProvider);
+    keepSessionFresh(ref);
 
     return MaterialApp.router(
       title: 'Almanac',

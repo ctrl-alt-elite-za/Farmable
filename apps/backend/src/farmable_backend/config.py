@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     export_token_secret: SecretStr | None = None
     photo_bucket: str | None = None
     photo_signer_email: str | None = None
+    diagnosis_enabled: bool = False
     forecast_data_mode: Literal["disabled", "sample", "historical"] = "disabled"
 
     @field_validator("database_url")

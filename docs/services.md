@@ -13,9 +13,11 @@ a verified Farmable user. It is separately disabled by default. See
 quotas, failure behavior, and the remaining real-provider/Flutter checks.
 This is backend credential provisioning, not a working microphone or voice UI.
 
-The current #7 demo scope prioritizes SMS/email OTP and Gemini/Gemini Live;
-the older PR #36 provider checklist below is historical, not a requirement to
-activate Azure, soil scanning, or every optional provider before the demo.
+The earlier demo prioritization is not the production acceptance scope. Issue #7
+remains open for its provider requirements and transferred backend work. Existing
+adapters must be verified, not rebuilt or treated as accepted solely because their
+synthetic tests pass. PR #71 adds read-only text orchestration, not completion of
+the whole issue; see [the acceptance map](assistant-backend.md#issue-7-acceptance-map).
 
 ## Live SMS/email OTP delivery (#9 follow-up)
 
@@ -88,7 +90,9 @@ consumer tests above remain separate acceptance requirements.
 `apps/backend/src/farmable_backend/integrations/` is the sole provider boundary.
 API lifespan owns `app.state.services`; reuse its adapters so each service keeps
 its own circuit state. Worker startup validates the same safety settings.
-Feature/job logic using these adapters is deliberately outside this issue.
+Feature/job logic was outside the original adapter foundation. Issue #7 now also
+owns the transferred assistant, voice, interruption and crop-diagnosis backend
+requirements; their completion is separate from adapter-level verification.
 
 `INTEGRATIONS_MODE=disabled` is the default: no provider calls. `fake` requires
 `ENVIRONMENT=ci` or `staging` and always uses an isolated HTTP transport, even
