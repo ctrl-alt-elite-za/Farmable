@@ -28,6 +28,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import '../../app/config.dart';
 import '../../core/utils/ids.dart';
 import '../../domain/auth/auth_models.dart';
 import '../../domain/auth/auth_service.dart';
@@ -44,6 +45,7 @@ const Duration refreshWhenWithin = Duration(days: 28);
 class ApiAuthService implements AuthService {
   final Dio _dio;
   final SessionStorage _storage;
+  final String? _turnstileToken;
 
   /// Injectable so a test can pin it and walk a session up to its expiry.
   final DateTime Function() now;
@@ -58,7 +60,12 @@ class ApiAuthService implements AuthService {
   /// quietly sign the farmer in again.
   int _epoch = 0;
 
-  ApiAuthService(this._dio, this._storage, {this.now = DateTime.now});
+  ApiAuthService(
+    this._dio,
+    this._storage, {
+    this.now = DateTime.now,
+    String? turnstileToken,
+  }) : _turnstileToken = turnstileToken ?? (testMode ? 'fixture-token' : null);
 
   /// A client for [baseUrl] with this service's defaults.
   ///
@@ -94,6 +101,7 @@ class ApiAuthService implements AuthService {
         'phone': phone,
         'email': normalisedEmail,
         'password': password,
+        'turnstile_token': ?_turnstileToken,
       },
       headers: {'Idempotency-Key': newUuid()},
     );
@@ -164,6 +172,7 @@ class ApiAuthService implements AuthService {
           ? identifier.trim().toLowerCase()
           : identifier,
       'password': password,
+      'turnstile_token': ?_turnstileToken,
     });
     final session = _session(body);
     _epoch++;

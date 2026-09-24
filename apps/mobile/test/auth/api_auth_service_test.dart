@@ -26,6 +26,13 @@ void main() {
   ApiAuthService service() =>
       ApiAuthService(api.dio(), storage, now: () => phoneNow);
 
+  ApiAuthService serviceWithTurnstile() => ApiAuthService(
+    api.dio(),
+    storage,
+    now: () => phoneNow,
+    turnstileToken: 'fixture-token',
+  );
+
   setUp(() {
     phoneNow = DateTime.utc(2026, 9, 23, 8);
     api = FakeAuthApi(now: () => phoneNow);
@@ -63,6 +70,21 @@ void main() {
   }
 
   group('sign-up and verification', () {
+    test('includes an acquired Turnstile token in sign-up', () async {
+      await serviceWithTurnstile().signUp(
+        firstName: 'Thandi',
+        surname: 'Mokoena',
+        phone: '+27825550123',
+        email: 'thandi@example.com',
+        password: _password,
+      );
+
+      expect(
+        api.to('/auth/signup').single.body['turnstile_token'],
+        'fixture-token',
+      );
+    });
+
     test('sends the contract body and persists the pending signup', () async {
       final pending = await service().signUp(
         firstName: ' Thandi ',
@@ -181,6 +203,20 @@ void main() {
   });
 
   group('login', () {
+    test('includes an acquired Turnstile token in login', () async {
+      api.seedVerified();
+      await serviceWithTurnstile().logIn(
+        mode: LoginMode.email,
+        identifier: 'thandi@example.com',
+        password: _password,
+      );
+
+      expect(
+        api.to('/auth/login').single.body['turnstile_token'],
+        'fixture-token',
+      );
+    });
+
     test(
       'sends identifier and password only, and stores the session',
       () async {
