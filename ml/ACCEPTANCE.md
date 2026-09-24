@@ -2,7 +2,18 @@
 
 Updated 2026-09-24. This is implementation evidence for the senior-review
 follow-up and retrospective-scenario registration, **not a completed issue**. No
-real decision backtest was executed.
+complete real decision backtest was written.
+
+### First real-input run after PR #82
+
+All 17 original workbooks in local ignored storage match the committed byte hashes.
+After PR #82 merged, the first registered runner execution stopped before writing
+result files: a later 2025 deployment-snapshot forecast lacked the 2025 lag months
+required by its selected LightGBM method. No decision scores were inspected. A
+dated Amendment 1 in `backtest/PROTOCOL.md` defines that snapshot from frozen
+pre-2025 seasonal ranges, leaving the historical decision simulation unchanged.
+The amendment and code must merge before another real run; its results belong in a
+separate PR.
 
 The project owner selected the retrospective fixed-2025-input scenario so code and
 artifacts can be completed before historical data cleanup. `backtest/PROTOCOL.md`
@@ -11,9 +22,10 @@ prohibits the historical publication-availability claim.
 
 ### Registered protocol and simulation integration (24 September 2026)
 
-Protocol-only PR #77 merged on `main` at `73e2c6296a5a`. The working protocol
-byte-matches the registered SHA-256 `a090d4e9d517b2b8c0d9d5009b5b9c5c9a827386e178f6e265052270923ea99d`,
-and `check_protocol_first.py --check-ready` passes. Kea's issue-20 follow-up
+Protocol-only PR #77 merged on `main` at `73e2c6296a5a`. Its original protocol
+has SHA-256 `a090d4e9d517b2b8c0d9d5009b5b9c5c9a827386e178f6e265052270923ea99d`.
+The proposed amendment cannot pass `check_protocol_first.py --check-ready` until
+it is merged on `main`. Kea's issue-20 follow-up
 simulation core is integrated into the local runner for frozen recommendations and
 decision scoring. The runner retains its audited workbook loader, ORM import work,
 forecast evaluation, snapshot export and deterministic artifact packaging.

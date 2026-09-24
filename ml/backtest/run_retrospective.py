@@ -27,9 +27,9 @@ sys.path.insert(0, str(ROOT / "ml/backtest"))
 from audit_issue20_market_workbooks import audit_rows, read_sheet  # noqa: E402
 from check_protocol_first import check_protocol_first  # noqa: E402
 from farmable_ml.cpi import read_cpi  # noqa: E402
-from farmable_ml.data import Crop, PriceObservation  # noqa: E402
+from farmable_ml.data import Crop, ObservationPolicy, PriceObservation  # noqa: E402
 from farmable_ml.experiment import Experiment  # noqa: E402
-from farmable_ml.forecast import shift_month  # noqa: E402
+from farmable_ml.forecast import historical_range, shift_month  # noqa: E402
 from farmable_ml.reports import (  # noqa: E402
     RETROSPECTIVE_CAVEATS,
     RETROSPECTIVE_SCENARIO,
@@ -142,10 +142,19 @@ def identity(repo: Path, protocol_commit: str) -> dict[str, Any]:
 
 def snapshot(experiment: Experiment, run_id: str, sources: dict[str, str]) -> dict[str, Any]:
     rows = []
+    cutoff = date(2025, 1, 1)
     for crop in Crop:
         assumption = ASSUMPTIONS[crop]
         for month in range(1, 13):
-            forecast = experiment.selected_forecast(crop, date(2025, month, 1))
+            target = shift_month(date(2025, month, 1), assumption.harvest_offset_months)
+            forecast = historical_range(
+                experiment.records,
+                crop=crop,
+                market=MARKET,
+                origin=cutoff,
+                target=target,
+                policy=ObservationPolicy.RETROSPECTIVE,
+            )
             rows.append(
                 {
                     "crop": crop.value,
@@ -170,6 +179,7 @@ def snapshot(experiment: Experiment, run_id: str, sources: dict[str, str]) -> di
         "assumptions": RETROSPECTIVE_CAVEATS
         + [
             "Snapshot planting months refer to 2025; history ends in December 2024.",
+            "Deployment snapshot uses frozen pre-2025 historical ranges under Amendment 1.",
             "As-of denotes the registered scenario date, not source publication availability.",
             "Prices are gross market prices; decision margins also deduct crop marketing rates.",
             "All planting months are exported; calendar eligibility remains a separate constraint.",

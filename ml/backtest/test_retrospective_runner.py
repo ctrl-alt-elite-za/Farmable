@@ -1,10 +1,14 @@
 """Public runner must fail closed before loading any real input or writing output."""
 
+from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 import run_retrospective as runner
 from check_protocol_first import ProtocolGateError
+from farmable_ml.experiment import Experiment
+from farmable_ml.forecast import shift_month
 from farmable_ml.reports import Bootstrap, build_report
 from farmable_ml.snapshot import read_snapshot
 from test_experiment import simple_models, synthetic_records  # noqa: F401
@@ -37,6 +41,27 @@ def test_workbook_loader_rejects_hash_mismatch_before_parsing(tmp_path, monkeypa
     monkeypatch.setattr(runner, "read_sheet", must_not_parse)
     with pytest.raises(ValueError, match="bytes/hash mismatch"):
         runner.load_workbooks(audit, tmp_path)
+
+
+def test_snapshot_uses_only_pre_2025_seasonal_history():
+    records = synthetic_records()
+    later = tuple(
+        replace(
+            row,
+            observation_month=shift_month(row.observation_month, 12),
+            available_on=shift_month(row.available_on, 12),
+            price_rand_per_kg=Decimal("9999"),
+        )
+        for row in records
+        if row.observation_month.year == 2024
+    )
+    original = runner.snapshot(Experiment(records), "test", {})
+    changed = runner.snapshot(Experiment(records + later), "test", {})
+    assert original == changed
+    assert len(original["rows"]) == 96
+    assert {row["method"] for row in original["rows"]} == {"historical_range"}
+    assert original["rows"][0]["plant_month"] == 1
+    assert original["rows"][-1]["plant_month"] == 12
 
 
 def test_reproducible_output_integrated(tmp_path, monkeypatch, simple_models):  # noqa: F811
