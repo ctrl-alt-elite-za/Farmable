@@ -10,6 +10,8 @@
 /// crossing into `build` is how a failed login becomes a red screen.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -22,8 +24,43 @@ class AuthViewModel extends AsyncNotifier<AuthStanding> {
 
   /// Reads the phone, never the network. This is what makes a cold launch on
   /// a dead signal land on Home rather than on a spinner.
+  ///
+  /// The session is extended afterwards, in the background — see
+  /// [_refreshInBackground]. Nothing waits on it.
   @override
-  Future<AuthStanding> build() => ref.watch(authServiceProvider).restore();
+  Future<AuthStanding> build() async {
+    final standing = await ref.watch(authServiceProvider).restore();
+    if (standing is SignedIn) unawaited(_refreshInBackground(standing));
+    return standing;
+  }
+
+  /// Extends the session if it is due, and signs the farmer out cleanly if the
+  /// server says it has ended — revoked on another phone, or the account gone.
+  ///
+  /// Applied only if nothing else has changed the standing in the meantime:
+  /// a farmer who taps Log out while this is in flight stays logged out.
+  Future<void> _refreshInBackground(SignedIn launched) async {
+    final AuthStanding next;
+    try {
+      next = await _service.refreshSession();
+    } on Object {
+      return;
+    }
+    if (!ref.mounted || !identical(state.value, launched)) return;
+    final unchanged =
+        next is SignedIn && next.session.token == launched.session.token;
+    if (!unchanged) state = AsyncData(next);
+  }
+
+  /// Re-reads where the farmer stands, refreshing the session if it is due.
+  ///
+  /// What an account screen calls after an authenticated request comes back
+  /// [AuthFailure.invalidSession]: the service has already dropped the
+  /// session, and this is how the screens find out.
+  Future<void> recheck() async {
+    final next = await _service.refreshSession();
+    if (ref.mounted) state = AsyncData(next);
+  }
 
   /// Creates the account and moves to phone verification.
   Future<AuthFailure?> signUp({
@@ -176,6 +213,17 @@ class AuthViewModel extends AsyncNotifier<AuthStanding> {
 final authViewModelProvider =
     AsyncNotifierProvider<AuthViewModel, AuthStanding>(AuthViewModel.new);
 
+/// Called from the app root's `build`, so the session is read — and, when it
+/// is due, refreshed — however the app opens.
+///
+/// A cold launch lands on Home, and Home deliberately never reads the session;
+/// without this, a farmer who only ever opens their farm would never have
+/// their session extended and would find it lapsed the day they needed it. A
+/// listener rather than a watch, so a change of standing never rebuilds the
+/// app. Nothing waits on it: Home draws from local storage regardless.
+void keepSessionFresh(WidgetRef ref) =>
+    ref.listen(authViewModelProvider, (_, _) {});
+
 /// What to tell the farmer, and what to do about it.
 ///
 /// Every one of these is an instruction, not a diagnosis. "Check the password
@@ -203,7 +251,15 @@ String authAdvice(AuthFailure failure) => switch (failure) {
   // language. It gets the one honest instruction: this particular step is the
   // one thing that needs a signal.
   AuthFailure.offline =>
-    'Creating an account needs a signal. Your saved farm still opens without '
-        'one.',
+    'This step needs a signal. Your saved farm still opens without one.',
+  AuthFailure.rejected =>
+    'Something in those details was not accepted. Check each one and try '
+        'again.',
+  AuthFailure.unavailable =>
+    'Almanac could not do that just now. Try again in a few minutes — your '
+        'saved farm still opens.',
+  AuthFailure.notYetSupported =>
+    'Resetting a password from the app is not ready yet. Your saved farm '
+        'still opens without logging in.',
   AuthFailure.unknown => 'Try that once more.',
 };

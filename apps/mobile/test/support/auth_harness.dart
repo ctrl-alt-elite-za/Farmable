@@ -1,4 +1,5 @@
-/// Runs the real auth screens against the real demo service.
+/// Runs the real auth screens against the real demo service — or, with `api`,
+/// against the real [ApiAuthService] over a fake of the backend.
 ///
 /// Nothing here mocks [AuthService]. The screens are wired to
 /// [DemoAuthService] over an in-memory [SessionStorage] with the clock pinned,
@@ -15,17 +16,20 @@ library;
 import 'package:almanac/app/providers.dart';
 import 'package:almanac/app/router.dart';
 import 'package:almanac/app/theme/app_theme.dart';
+import 'package:almanac/data/auth/api_auth_service.dart';
 import 'package:almanac/data/auth/demo_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
 import 'package:almanac/data/health_service.dart';
 import 'package:almanac/data/local/database.dart';
 import 'package:almanac/data/local/seed.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
+import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/auth/widgets/auth_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'fake_auth_api.dart';
 import 'harness.dart' show pinnedToday, phoneSize;
 
 export 'harness.dart'
@@ -94,6 +98,12 @@ Future<AuthHarness> pumpAuthApp(
   /// app without wiping the phone.
   SessionStorage? session,
   AlmanacDatabase? storage,
+
+  /// Runs the screens against the real [ApiAuthService] over this fake
+  /// backend instead of the demo, the way every non-demo build does. The
+  /// build flag that picks between them is overridden too, so the screens
+  /// see the same answer the provider does.
+  FakeAuthApi? api,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = surface;
@@ -112,16 +122,26 @@ Future<AuthHarness> pumpAuthApp(
         _FixedHealth(online ? Reachability.online : Reachability.offline),
       ),
       sessionStorageProvider.overrideWithValue(record),
-      // The real demo service, with its cosmetic pause removed. The pause
-      // exists so a person can see the busy state; a test that waited for it
-      // would only be testing `Future.delayed`.
-      authServiceProvider.overrideWith(
-        (ref) => DemoAuthService(
-          ref.watch(sessionStorageProvider),
-          now: () => pinnedToday,
-          settleDelay: Duration.zero,
+      demoAuthProvider.overrideWithValue(api == null),
+      if (api != null)
+        authServiceProvider.overrideWith(
+          (ref) => ApiAuthService(
+            api.dio(),
+            ref.watch(sessionStorageProvider),
+            now: () => pinnedToday,
+          ),
+        )
+      else
+        // The real demo service, with its cosmetic pause removed. The pause
+        // exists so a person can see the busy state; a test that waited for
+        // it would only be testing `Future.delayed`.
+        authServiceProvider.overrideWith(
+          (ref) => DemoAuthService(
+            ref.watch(sessionStorageProvider),
+            now: () => pinnedToday,
+            settleDelay: Duration.zero,
+          ),
         ),
-      ),
     ],
   );
 
@@ -137,13 +157,21 @@ Future<AuthHarness> pumpAuthApp(
           platformBrightness: brightness,
           viewInsets: EdgeInsets.only(bottom: keyboardInset),
         ),
-        child: MaterialApp.router(
-          routerConfig: router,
-          theme: almanacLightTheme(),
-          darkTheme: almanacDarkTheme(),
-          themeMode: brightness == Brightness.dark
-              ? ThemeMode.dark
-              : ThemeMode.light,
+        // The same app-root hook `AlmanacApp` runs, so a launch here reads
+        // and refreshes the session exactly as a launch on a phone does.
+        child: Consumer(
+          builder: (context, ref, child) {
+            keepSessionFresh(ref);
+            return child!;
+          },
+          child: MaterialApp.router(
+            routerConfig: router,
+            theme: almanacLightTheme(),
+            darkTheme: almanacDarkTheme(),
+            themeMode: brightness == Brightness.dark
+                ? ThemeMode.dark
+                : ThemeMode.light,
+          ),
         ),
       ),
     ),

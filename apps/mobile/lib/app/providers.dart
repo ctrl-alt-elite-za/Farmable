@@ -8,7 +8,9 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/auth/api_auth_service.dart';
 import '../data/auth/demo_auth_service.dart';
+import '../data/auth/secure_session_storage.dart';
 import '../data/auth/session_storage.dart';
 import '../data/health_service.dart';
 import '../data/local/database.dart' show AlmanacDatabase;
@@ -17,6 +19,7 @@ import '../data/local/seed.dart';
 import '../domain/auth/auth_service.dart';
 import '../domain/farm_records.dart';
 import '../domain/farm_records_repository.dart';
+import 'config.dart';
 
 /// The local database. Opened once for the life of the app.
 final databaseProvider = Provider<AlmanacDatabase>((ref) {
@@ -72,28 +75,37 @@ final pendingChangesProvider = StreamProvider<int>(
 
 // ----------------------------------------------------------------- auth
 //
-// Two providers, and the second one is the seam. Everything the auth screens
-// can do goes through `AuthService`; the only thing that names an
-// implementation is the line below. See `domain/auth/auth_service.dart` for
-// what changes when PR #51's real client replaces the demo — it is this
-// provider and nothing else.
+// Everything the auth screens can do goes through `AuthService`, and the only
+// thing that decides which implementation answers is [demoAuthProvider]. See
+// `domain/auth/auth_service.dart` for the seam.
 
-/// Where the demo's session lives between launches.
+/// Whether authentication runs against the local demo instead of the API.
 ///
-/// NOT secure storage, and not a stand-in for it. Issue #9 puts tokens in the
-/// platform keystore, which is #51's `SessionStore`; this is a JSON file
-/// holding a session that grants access to nothing on any server.
+/// THE ONE PLACE this is decided. True for `DEMO_MODE` builds, which have to
+/// run in a room with no backend, and for any build with no API configured —
+/// the default `https://api.invalid` — where a real sign-up could only ever
+/// fail. Every other build, the CI emulator build included, talks to the real
+/// `/auth/*` routes.
+final demoAuthProvider = Provider<bool>((ref) => demoMode || isOfflineBuild);
+
+/// Where the session lives between launches.
+///
+/// The real session goes in platform secure storage and nowhere else. The
+/// demo keeps its JSON file: it holds a demo token that grants access to
+/// nothing on any server, alongside the demo's local accounts.
 final sessionStorageProvider = Provider<SessionStorage>(
-  (ref) => FileSessionStorage(),
+  (ref) => ref.watch(demoAuthProvider)
+      ? FileSessionStorage()
+      : SecureSessionStorage(),
 );
 
-/// THE SEAM. Swap this line, and only this line, for the real client.
-final authServiceProvider = Provider<AuthService>(
-  (ref) => DemoAuthService(
-    ref.watch(sessionStorageProvider),
-    now: ref.watch(clockProvider),
-  ),
-);
+final authServiceProvider = Provider<AuthService>((ref) {
+  final storage = ref.watch(sessionStorageProvider);
+  final now = ref.watch(clockProvider);
+  return ref.watch(demoAuthProvider)
+      ? DemoAuthService(storage, now: now)
+      : ApiAuthService(ApiAuthService.client(apiUrl), storage, now: now);
+});
 
 /// Whether the API is reachable.
 ///
