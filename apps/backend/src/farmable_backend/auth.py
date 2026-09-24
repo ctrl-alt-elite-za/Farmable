@@ -506,6 +506,7 @@ class AuthService:
         channel: Channel,
         *,
         ip: str = "unknown",
+        idempotency_key: str | None = None,
     ) -> None:
         failure: AuthError | None = None
         with self.sessions.begin() as session:
@@ -521,6 +522,22 @@ class AuthService:
             if channel is Channel.PHONE:
                 self._check_sms_limits(ip, user.phone)
             failure = self._send(session, user, channel)
+            if idempotency_key is not None:
+                claim = session.get(
+                    IdempotencyRecord,
+                    ("auth_otp_resend", str(user_id), idempotency_key),
+                    with_for_update=True,
+                )
+                if claim is not None and claim.status_code == IN_PROGRESS_STATUS:
+                    # Commit the replay outcome with the new challenge. A
+                    # response-store failure or worker exit after this commit
+                    # must not let the same key dispatch a second message.
+                    claim.status_code = failure.status_code if failure is not None else 204
+                    claim.response_body = (
+                        {"error": {"code": failure.code, "retry_after": failure.retry_after}}
+                        if failure is not None
+                        else {}
+                    )
         if failure is not None:
             raise failure
 
@@ -798,7 +815,14 @@ class InMemoryAuthService:
         self.sessions[_hash_token(refresh)] = user_id
         return SessionTokens(access, refresh, expires_at, self._as_user(user_id))
 
-    def resend(self, user_id: UUID, channel: Channel, *, ip: str = "unknown") -> None:
+    def resend(
+        self,
+        user_id: UUID,
+        channel: Channel,
+        *,
+        ip: str = "unknown",
+        idempotency_key: str | None = None,
+    ) -> None:
         user = self.users.get(user_id)
         if user is None or (channel is Channel.EMAIL and not user["phone_verified"]):
             raise AuthError("invalid_verification", 400)

@@ -169,10 +169,11 @@ class ApiAuthService implements AuthService {
     required String userId,
     required VerificationChannel channel,
   }) async {
-    await _post('/auth/otp/resend', {
-      'user_id': userId,
-      'channel': channel.name,
-    });
+    await _post(
+      '/auth/otp/resend',
+      {'user_id': userId, 'channel': channel.name},
+      headers: {'Idempotency-Key': newUuid()},
+    );
   }
 
   /// [mode] is not sent: the backend takes one `identifier` and matches it

@@ -207,7 +207,7 @@ class FakeAuthApi implements HttpClientAdapter {
       ('POST', '/auth/signup') => _signup(body),
       ('POST', '/auth/verify/phone') => _verify(body, phone: true),
       ('POST', '/auth/verify/email') => _verify(body, phone: false),
-      ('POST', '/auth/otp/resend') => _empty(204),
+      ('POST', '/auth/otp/resend') => _resend(options),
       ('POST', '/auth/login') => _login(body),
       ('POST', '/auth/refresh') => await _refresh(body),
       ('POST', '/auth/logout') => _logout(auth),
@@ -220,6 +220,14 @@ class FakeAuthApi implements HttpClientAdapter {
       ),
       _ => _error(404, 'not_found'),
     };
+  }
+
+  ResponseBody _resend(RequestOptions options) {
+    final key = (options.headers['Idempotency-Key'] as String? ?? '').trim();
+    if (key.length < 16 || key.length > 200) {
+      return _error(400, 'idempotency_key_required');
+    }
+    return _empty(204);
   }
 
   ResponseBody _signup(Map<String, Object?> body) {

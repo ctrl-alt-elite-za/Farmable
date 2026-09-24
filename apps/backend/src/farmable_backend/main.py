@@ -369,7 +369,9 @@ def create_app(
     @app.post("/auth/signup", response_model=AuthProgressResponse, operation_id="authSignup")
     async def signup(request: Request, payload: SignUpRequest) -> AuthProgressResponse:
         await require_turnstile(request, payload.turnstile_token, "sign_up")
-        body = payload.model_dump(mode="json")
+        # Turnstile tokens are single-use, so a retry needs a fresh proof.
+        # The proof is verified above but is not part of the account mutation.
+        body = payload.model_dump(mode="json", exclude={"turnstile_token"})
         key, replayed = await idempotent_claim(
             request, "auth_signup", body, scope=client_ip(request)
         )
@@ -466,6 +468,7 @@ def create_app(
                 payload.user_id,
                 Channel(payload.channel),
                 ip=client_ip(request),
+                idempotency_key=key or None,
             )
             await idempotent_store(
                 request, "auth_otp_resend", body, 204, {}, scope=str(payload.user_id)
