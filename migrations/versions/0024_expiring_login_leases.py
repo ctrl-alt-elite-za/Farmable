@@ -1,15 +1,15 @@
 """Expire abandoned login admission; drain old API workers before rollout.
 
-Revision ID: 0017
-Revises: 0016
+Revision ID: 0024
+Revises: 0023
 """
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = "0017"
-down_revision = "0016"
+revision = "0024"
+down_revision = "0023"
 branch_labels = None
 depends_on = None
 

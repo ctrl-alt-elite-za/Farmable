@@ -1,7 +1,7 @@
 """versioned account consents
 
-Revision ID: 0014
-Revises: 0013
+Revision ID: 0021
+Revises: 0020
 """
 
 from collections.abc import Sequence
@@ -9,8 +9,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0014"
-down_revision: str | None = "0013"
+revision: str = "0021"
+down_revision: str | None = "0020"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
