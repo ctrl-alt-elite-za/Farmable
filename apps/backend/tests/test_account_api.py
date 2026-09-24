@@ -898,6 +898,26 @@ def test_logout_revokes_only_the_current_session(accounts):
     assert stale.status_code == 401
 
 
+def test_logout_after_access_expiry_revokes_refresh_token(accounts):
+    alice = _headers(accounts.alice)
+    with accounts.sessions.begin() as session:
+        stored = session.scalar(
+            select(AuthSession).where(
+                AuthSession.access_token_hash
+                == hashlib.sha256(accounts.alice.access_token.encode()).hexdigest()
+            )
+        )
+        assert stored is not None
+        stored.created_at = datetime.now(UTC) - timedelta(minutes=16)
+
+    assert accounts.client.get("/account/profile", headers=alice).status_code == 401
+    assert accounts.client.post("/auth/logout", headers=alice).status_code == 204
+    stale = accounts.client.post(
+        "/auth/refresh", json={"refresh_token": accounts.alice.refresh_token}
+    )
+    assert stale.status_code == 401
+
+
 def test_revoke_all_invalidates_every_session_for_the_caller(accounts):
     alice = _headers(accounts.alice)
     second = accounts.auth.login("sipho@example.com", PASSWORD)

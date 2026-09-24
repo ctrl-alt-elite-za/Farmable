@@ -720,16 +720,21 @@ class AccountService:
     def logout(self, authorization: str | None) -> None:
         digest = _bearer_digest(authorization)
         with self.sessions.begin() as session:
-            owner = authenticate(session, authorization)
-            session.execute(
-                update(AuthSession)
-                .where(
-                    AuthSession.user_id == owner,
-                    AuthSession.access_token_hash == digest,
-                    AuthSession.revoked_at.is_(None),
-                )
-                .values(revoked_at=datetime.now(UTC))
+            # Logout is a revocation-only operation. Permit the exact access
+            # token that created this session to revoke it for the lifetime of
+            # its refresh token, even after the access token can no longer
+            # authorize account data. Otherwise signing out after 15 minutes
+            # leaves a copied refresh token usable until its 30-day expiry.
+            auth_session = session.scalar(
+                select(AuthSession).where(AuthSession.access_token_hash == digest).with_for_update()
             )
+            if (
+                auth_session is None
+                or auth_session.revoked_at is not None
+                or _as_utc(auth_session.expires_at) <= db_now(session)
+            ):
+                raise ApiError(401, "invalid_session")
+            auth_session.revoked_at = datetime.now(UTC)
 
     def list_consents(self, authorization: str | None) -> list[dict[str, Any]]:
         with self.sessions.begin() as session:
