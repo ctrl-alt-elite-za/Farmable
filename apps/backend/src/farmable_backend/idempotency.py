@@ -47,14 +47,13 @@ def fingerprint(payload: dict[str, Any], *, key: str) -> str:
     request's high-entropy idempotency key supplies a per-claim salt and also
     keys the final digest.
     """
-    protected = dict(payload)
-    password = protected.get("password")
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    password = payload.get("password")
     if isinstance(password, str):
         salt = hashlib.sha256(f"farmable-idempotency:{key}".encode()).digest()
-        protected["password"] = hashlib.scrypt(
-            password.encode(), salt=salt, n=2**14, r=8, p=1
+        return hashlib.scrypt(
+            canonical.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32
         ).hex()
-    canonical = json.dumps(protected, sort_keys=True, separators=(",", ":"), default=str)
     return hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
 
 
