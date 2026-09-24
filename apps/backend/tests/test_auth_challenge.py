@@ -15,19 +15,12 @@ class PageConfig(HTMLParser):
     def __init__(self, html):
         super().__init__()
         self.config = None
-        self.read_config = False
         self.feed(html)
 
     def handle_starttag(self, tag, attrs):
-        self.read_config = tag == "script" and dict(attrs).get("id") == "challenge-config"
-
-    def handle_data(self, data):
-        if self.read_config:
-            self.config = json.loads(data)
-
-    def handle_endtag(self, tag):
-        if tag == "script":
-            self.read_config = False
+        attributes = dict(attrs)
+        if tag == "div" and attributes.get("id") == "challenge":
+            self.config = json.loads(attributes["data-config"])
 
 
 @pytest.mark.parametrize("action", ["sign_up", "login"])
@@ -118,6 +111,27 @@ def test_challenge_script_is_served_with_correct_type_and_not_in_api_contract(se
     assert response.headers["x-content-type-options"] == "nosniff"
     assert "/auth/turnstile" not in app.openapi()["paths"]
     assert "/auth/turnstile.js" not in app.openapi()["paths"]
+
+
+def test_challenge_configuration_cannot_escape_its_html_attribute(settings):
+    # Defense in depth: even an injected settings object bypassing Pydantic
+    # validation must not turn configuration into executable markup.
+    malicious = '"><img src=x onerror="alert(1)"><script>alert(2)</script>'
+    integration = ServiceSettings(
+        environment="production",
+        integrations_mode="live",
+        turnstile_hostname="api.farmable.test",
+        turnstile_secret=SecretStr("fixture-secret"),
+    ).model_copy(update={"turnstile_site_key": malicious})
+    with TestClient(
+        create_app(settings, readiness=lambda: {}, service_settings=integration),
+        base_url="https://api.farmable.test",
+    ) as client:
+        response = client.get("/auth/turnstile", params={"action": "login", "state": uuid4()})
+    assert response.status_code == 200
+    assert PageConfig(response.text).config["sitekey"] == malicious
+    assert "<img" not in response.text
+    assert "<script>alert(2)</script>" not in response.text
 
 
 @pytest.mark.parametrize(

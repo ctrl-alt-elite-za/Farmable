@@ -13,7 +13,7 @@ function page(simulation = false) {
     'utf8',
   );
   const context = {
-    document: { getElementById: () => ({ textContent: JSON.stringify(config) }) },
+    document: { getElementById: () => ({ dataset: { config: JSON.stringify(config) } }) },
     FarmableChallenge: { postMessage: (message) => messages.push(JSON.parse(message)) },
     turnstile: {
       render: (_selector, value) => {

@@ -2,6 +2,7 @@
 
 import json
 import secrets
+from html import escape
 from pathlib import Path
 from typing import Literal
 from uuid import UUID
@@ -41,14 +42,17 @@ def challenge_page(
         or request.url.hostname != settings.turnstile_hostname
     ):
         raise ApiError(503, "provider_unavailable")
-    config = json.dumps(
-        {
-            "action": action,
-            "state": str(state),
-            "sitekey": None if simulation else settings.turnstile_site_key,
-            "simulation": simulation,
-        }
-    ).replace("<", "\\u003c")
+    config = escape(
+        json.dumps(
+            {
+                "action": action,
+                "state": str(state),
+                "sitekey": None if simulation else settings.turnstile_site_key,
+                "simulation": simulation,
+            }
+        ),
+        quote=True,
+    )
     nonce = secrets.token_urlsafe(24)
     provider_script = (
         ""
@@ -62,8 +66,7 @@ def challenge_page(
         f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>Verify to continue</title></head><body>"
-        '<div id="challenge"></div>'
-        f'<script id="challenge-config" type="application/json" nonce="{nonce}">{config}</script>'
+        f'<div id="challenge" data-config="{config}"></div>'
         f'<script nonce="{nonce}" src="/auth/turnstile.js"></script>'
         f"{provider_script}</body></html>",
         headers={
