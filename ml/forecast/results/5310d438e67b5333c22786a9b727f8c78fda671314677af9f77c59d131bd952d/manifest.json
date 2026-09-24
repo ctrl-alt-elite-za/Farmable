@@ -28,56 +28,106 @@
           "cost_rand_per_ha": "60756.87",
           "harvest_offset_months": 5,
           "marketing_rate": "0.125",
-          "planting_months": [9, 10, 11],
+          "planting_months": [
+            9,
+            10,
+            11
+          ],
           "yield_kg_per_ha": "22500"
         },
         "cabbage": {
           "cost_rand_per_ha": "115183.85",
           "harvest_offset_months": 3,
           "marketing_rate": "0.125",
-          "planting_months": [1, 2, 3, 4, 5, 11, 12],
+          "planting_months": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            11,
+            12
+          ],
           "yield_kg_per_ha": "75000"
         },
         "carrots": {
           "cost_rand_per_ha": "68312.94",
           "harvest_offset_months": 4,
           "marketing_rate": "0.125",
-          "planting_months": [1, 2, 3, 8, 9, 10],
+          "planting_months": [
+            1,
+            2,
+            3,
+            8,
+            9,
+            10
+          ],
           "yield_kg_per_ha": "50000"
         },
         "green_beans": {
           "cost_rand_per_ha": "136357.03",
           "harvest_offset_months": 3,
           "marketing_rate": "0.125",
-          "planting_months": [1, 9, 10, 11, 12],
+          "planting_months": [
+            1,
+            9,
+            10,
+            11,
+            12
+          ],
           "yield_kg_per_ha": "10000"
         },
         "onions": {
           "cost_rand_per_ha": "108783.41",
           "harvest_offset_months": 7,
           "marketing_rate": "0.125",
-          "planting_months": [2, 3],
+          "planting_months": [
+            2,
+            3
+          ],
           "yield_kg_per_ha": "42500"
         },
         "potatoes": {
           "cost_rand_per_ha": "181097.86",
           "harvest_offset_months": 5,
           "marketing_rate": "0.125",
-          "planting_months": [1, 2, 7, 8, 9, 10],
+          "planting_months": [
+            1,
+            2,
+            7,
+            8,
+            9,
+            10
+          ],
           "yield_kg_per_ha": "45000"
         },
         "spinach": {
           "cost_rand_per_ha": "167412.66",
           "harvest_offset_months": 3,
           "marketing_rate": "0.125",
-          "planting_months": [1, 2, 3, 4, 8, 9, 10, 11, 12],
+          "planting_months": [
+            1,
+            2,
+            3,
+            4,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
           "yield_kg_per_ha": "20000"
         },
         "tomatoes": {
           "cost_rand_per_ha": "168968.20",
           "harvest_offset_months": 3,
           "marketing_rate": "0",
-          "planting_months": [8, 9, 10, 11],
+          "planting_months": [
+            8,
+            9,
+            10,
+            11
+          ],
           "yield_kg_per_ha": "62500"
         }
       },
