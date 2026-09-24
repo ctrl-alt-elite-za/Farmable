@@ -1,0 +1,34 @@
+# Build with TEST_MODE=true and INITIAL_ROUTE=/health/camera.
+# This exercises the labelled synthetic replay, not detector accuracy or speed.
+appId: za.co.almanac.app
+name: Recorded crop pan keeps warning boxes tappable
+---
+- launchApp:
+    clearState: true
+- assertVisible: '.*Test replay.*synthetic crop boxes.*'
+- scrollUntilVisible:
+    element:
+      id: 'crop-scan-start'
+    direction: DOWN
+- tapOn:
+    id: 'crop-scan-start'
+- scrollUntilVisible:
+    element:
+      id: 'crop-2'
+    direction: UP
+    timeout: 10000
+- assertVisible: '.*Test replay.*synthetic boxes.*'
+- assertNotVisible: '.*[Hh]old still.*'
+- tapOn:
+    id: 'crop-2'
+- scrollUntilVisible:
+    element: '.*Tomato selected.*'
+    direction: DOWN
+- assertVisible: '.*Tomato selected.*'
+- assertVisible: '.*Orange box: check suggested.*'
+- scrollUntilVisible:
+    element: '.*Stop replay.*'
+    direction: DOWN
+- tapOn: '.*Stop replay.*'
+- assertNotVisible:
+    id: 'crop-2'
