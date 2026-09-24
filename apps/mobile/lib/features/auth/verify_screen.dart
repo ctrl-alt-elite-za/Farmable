@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/app_motion.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.g.dart';
@@ -257,7 +258,7 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
           ),
         ],
         const SizedBox(height: AlmanacDimens.sp6),
-        _CodeNote(onPhone: onPhone),
+        _CodeNote(onPhone: onPhone, demo: ref.watch(demoAuthProvider)),
         const SizedBox(height: AlmanacDimens.sp4),
         AuthFooterLink(
           leading: 'Wrong number or address?',
@@ -341,7 +342,12 @@ class _ResendRow extends StatelessWidget {
 class _CodeNote extends StatelessWidget {
   final bool onPhone;
 
-  const _CodeNote({required this.onPhone});
+  /// Whether this is the demo, where no code is sent and any six digits pass.
+  /// Said on screen in the demo so nobody presents it believing a code went
+  /// out — and never said in a real build, where it would be untrue.
+  final bool demo;
+
+  const _CodeNote({required this.onPhone, required this.demo});
 
   @override
   Widget build(BuildContext context) {
@@ -364,12 +370,18 @@ class _CodeNote extends StatelessWidget {
           const SizedBox(width: AlmanacDimens.sp3),
           Expanded(
             child: Text(
-              onPhone
-                  ? 'The code lasts 10 minutes and works once. This build has '
-                        'no SMS behind it yet — any six digits will do.'
-                  : 'Not in your inbox? Look in spam, or ask for a new code. '
-                        'This build has no mail behind it yet — any six digits '
-                        'will do.',
+              switch ((onPhone, demo)) {
+                (true, true) =>
+                  'The code lasts 10 minutes and works once. This build has '
+                      'no SMS behind it yet — any six digits will do.',
+                (false, true) =>
+                  'Not in your inbox? Look in spam, or ask for a new code. '
+                      'This build has no mail behind it yet — any six digits '
+                      'will do.',
+                (true, false) => 'The code lasts 10 minutes and works once.',
+                (false, false) =>
+                  'Not in your inbox? Look in spam, or ask for a new code.',
+              },
               style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: c.onSurfaceVariant),
             ),

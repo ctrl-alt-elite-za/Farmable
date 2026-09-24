@@ -85,6 +85,7 @@ class _OtpSlotsState extends State<OtpSlots> {
       // One control, named once. Without this the row announces as six
       // decorative containers and the real field has no label at all.
       textField: true,
+      identifier: 'verification-code',
       label: 'Verification code, $otpLength digits',
       value: value.isEmpty ? 'empty' : '${value.length} of $otpLength entered',
       child: Stack(

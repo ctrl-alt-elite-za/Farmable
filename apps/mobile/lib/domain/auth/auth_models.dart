@@ -82,12 +82,21 @@ class AuthUser {
 /// way to ask anyone whether a session still stands, so this field alone
 /// decides — see [isValidAt], which exists so no caller invents a second rule.
 class AuthSession {
+  /// The bearer token. Sent on authenticated calls and nowhere else.
   final String token;
+
+  /// What buys a new [token] before this one lapses. Null for a demo session,
+  /// which has no server to refresh against.
+  ///
+  /// Never sent anywhere but `/auth/refresh` — the account API is explicit
+  /// that a refresh token on any other request is a mistake.
+  final String? refreshToken;
   final DateTime expiresAt;
   final AuthUser user;
 
   const AuthSession({
     required this.token,
+    this.refreshToken,
     required this.expiresAt,
     required this.user,
   });
@@ -96,15 +105,21 @@ class AuthSession {
 
   Map<String, Object?> toJson() => {
     'token': token,
+    if (refreshToken != null) 'refresh_token': refreshToken,
     'expires_at': expiresAt.toIso8601String(),
     'user': user.toJson(),
   };
 
   static AuthSession fromJson(Map<String, Object?> json) => AuthSession(
     token: json['token']! as String,
+    refreshToken: json['refresh_token'] as String?,
     expiresAt: DateTime.parse(json['expires_at']! as String),
     user: AuthUser.fromJson((json['user']! as Map).cast<String, Object?>()),
   );
+
+  /// Never the tokens. This string reaches logs and crash reports.
+  @override
+  String toString() => 'AuthSession(expiresAt: $expiresAt)';
 }
 
 /// An account that has been created but still owes at least one code.
@@ -167,6 +182,22 @@ enum AuthFailure {
   /// for a disk that is full.
   storageUnavailable,
   offline,
+
+  /// The server refused what was sent as malformed — `422 validation_error`.
+  /// The form checks shape before sending, so reaching this means the two
+  /// disagree; the farmer is told to check their details rather than shown
+  /// the server's message, which is written for developers.
+  rejected,
+
+  /// The service answered but could not do the work — a code provider that
+  /// is down, a server error. Not [offline]: there *is* a signal, and saying
+  /// otherwise would send the farmer looking for one.
+  unavailable,
+
+  /// The app can ask for this, but no server can answer it yet. Password
+  /// reset is the case today: the backend has no reset endpoint, so a real
+  /// build says so rather than pretending to send a code.
+  notYetSupported,
   unknown,
 }
 

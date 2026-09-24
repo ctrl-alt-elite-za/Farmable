@@ -1,17 +1,15 @@
-/// Where the demo keeps what must survive a restart.
+/// Where a session record is kept between launches.
 ///
-/// A port, not an implementation detail. The screens never see it; only
-/// [DemoAuthService] does, and only through this interface — so when PR #51's
-/// `SessionStore` over the platform keystore lands, the file implementation
-/// below is deleted rather than migrated.
+/// A port, not an implementation detail. The screens never see it; only the
+/// [AuthService] implementations do, and only through this interface. Two
+/// implementations ship: [SecureSessionStorage] (the platform keystore, for
+/// the real API session) and [FileSessionStorage] below (the demo).
 ///
-/// **This is not secure storage and does not pretend to be.** Issue #9
-/// requires tokens in the platform keystore, and that is #51's `SessionStore`.
-/// What is here is a JSON file in the app's private documents directory,
-/// holding a demo session that grants access to nothing on any server. It
-/// exists so that "log in, kill the app, reopen it, still signed in" can be
-/// demonstrated and tested without a backend. See the seam notes in
-/// `domain/auth/auth_service.dart`.
+/// **[FileSessionStorage] is not secure storage and does not pretend to be.**
+/// It is a JSON file in the app's private documents directory, holding a demo
+/// session that grants access to nothing on any server. It is only ever
+/// chosen alongside [DemoAuthService] — see `demoAuthProvider` in
+/// `app/providers.dart` — and never holds a real token.
 library;
 
 import 'dart:convert';

@@ -21,22 +21,12 @@ class NotBuiltYetScreen extends StatelessWidget {
   final String body;
   final VoidCallback? onBack;
 
-  /// One thing that already works here, offered in place of "Back to Home".
-  /// Used by Profile for the device self-test (#4), which is the only way to
-  /// reach it in a build that opens on Home.
-  final String? actionLabel;
-  final IconData? actionIcon;
-  final VoidCallback? onAction;
-
   const NotBuiltYetScreen({
     super.key,
     required this.destination,
     required this.title,
     required this.body,
     this.onBack,
-    this.actionLabel,
-    this.actionIcon,
-    this.onAction,
   });
 
   @override
@@ -54,10 +44,9 @@ class NotBuiltYetScreen extends StatelessWidget {
               icon: LucideIcons.sprout,
               headline: 'Not built yet',
               body: body,
-              actionLabel:
-                  actionLabel ?? (onBack == null ? null : 'Back to Home'),
-              actionIcon: actionIcon ?? LucideIcons.house,
-              onAction: onAction ?? onBack,
+              actionLabel: onBack == null ? null : 'Back to Home',
+              actionIcon: LucideIcons.house,
+              onAction: onBack,
             ),
             const Spacer(flex: 2),
           ],

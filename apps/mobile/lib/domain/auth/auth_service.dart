@@ -1,32 +1,23 @@
 /// THE SEAM.
 ///
 /// Everything the authentication screens can ask for, and nothing about how
-/// it is answered. One implementation ships today — [DemoAuthService] in
-/// `data/auth/demo_auth_service.dart`, which is entirely local and completes
-/// every call without a network. PR #51 builds the real thing: an `AuthApi`
-/// over `dio` plus a `SessionStore` over the platform keystore.
+/// it is answered. Two implementations ship:
 ///
-/// ## Swapping the demo for the real implementation
+/// * [ApiAuthService] in `data/auth/api_auth_service.dart` — the real one.
+///   Calls the backend's `/auth/*` routes over `dio` and keeps the session in
+///   platform secure storage (Keystore on Android, Keychain on iOS).
+/// * [DemoAuthService] in `data/auth/demo_auth_service.dart` — entirely local,
+///   completes every call without a network. Used by the widget tests, by
+///   `DEMO_MODE` builds and by any build with no API configured.
 ///
-/// Three things change and nothing else:
+/// Which one runs is decided in exactly one place: `demoAuthProvider` in
+/// `app/providers.dart`. No screen, no view model and no test of a screen
+/// names an implementation, so the screens behave the same over either.
 ///
-/// 1. Write `ApiAuthService implements AuthService`, delegating to #51's
-///    `AuthApi` for the calls and its `SessionStore` for persistence. The
-///    method bodies are close to one-liners; #51's `AuthController` already
-///    performs each of these steps.
-/// 2. Point `authServiceProvider` (in `app/providers.dart`) at it.
-/// 3. Delete `DemoAuthService`, `SessionStorage`'s file implementation, and
-///    the `demoAuth` flag in `app/config.dart`.
-///
-/// No screen, no view model and no test of a screen changes, because none of
-/// them names an implementation. `test/support/auth_harness.dart` overrides
-/// the same provider, so the widget tests keep working against whichever
-/// implementation is wired in.
-///
-/// The type vocabulary here was chosen to line up with #51's `domain/auth.dart`
-/// — `AuthUser`, a session with an `expiresAt` and an `isValidAt`, a
-/// `PendingSignup` carrying `userId` and `nextStep`, and the same generic
-/// `invalidCredentials` failure — so the adapter is a rename, not a redesign.
+/// The type vocabulary lines up with the backend's contract
+/// (`packages/api-client/openapi.json`): `AuthUser` is its `UserResponse`, a
+/// session carries its `expires_at`, and a [PendingSignup] carries the
+/// `user_id` and `next_step` of its `AuthProgressResponse`.
 library;
 
 import 'auth_models.dart';
@@ -117,6 +108,15 @@ abstract class AuthService {
   /// Must not touch the network: this is what makes a cold launch in a field
   /// with no signal land on Home instead of on a spinner.
   Future<AuthStanding> restore();
+
+  /// Extends the session if it is due, without ever blocking on the network.
+  ///
+  /// Returns where the farmer stands afterwards. A server that says the
+  /// session is gone (revoked, expired, account deleted) signs the farmer out
+  /// here — the session is dropped from the phone and [SignedOut] comes back.
+  /// No signal is not a reason to sign anybody out: the session on the phone
+  /// is returned unchanged and the next attempt tries again.
+  Future<AuthStanding> refreshSession();
 
   /// Forgets the session. Never touches the farm database — the farmer's
   /// records are theirs whether or not they are signed in.

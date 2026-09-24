@@ -13,8 +13,8 @@
 library;
 
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../features/account/account_screen.dart';
 import '../features/auth/auth_choice_screen.dart';
 import '../features/auth/brand_intro_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
@@ -140,21 +140,9 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
             'add now is what these will be built from.',
       ),
     ),
-    GoRoute(
-      path: '/profile',
-      builder: (context, _) => NotBuiltYetScreen(
-        destination: NavDestination.profile,
-        title: 'Profile',
-        body:
-            'Your details, your privacy choices and what the app is allowed '
-            'to use. Being built.',
-        // The one piece of "what the app is allowed to use" that exists
-        // already: the device self-test (#4). Asks for nothing until Run.
-        actionLabel: 'Device self-test',
-        actionIcon: LucideIcons.smartphone,
-        onAction: () => GoRouter.of(context).push('/self-test'),
-      ),
-    ),
+    // Who is signed in, and Log out. Never a gate: it reads the session, it
+    // does not require one.
+    GoRoute(path: '/profile', builder: (_, _) => const AccountScreen()),
 
     // Kept, and kept working: `e2e/mobile/*.yaml` drive this screen, and it is
     // the one place the app states plainly whether it can reach its API.
