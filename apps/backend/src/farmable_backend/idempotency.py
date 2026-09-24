@@ -51,9 +51,7 @@ def fingerprint(payload: dict[str, Any], *, key: str) -> str:
     password = payload.get("password")
     if isinstance(password, str):
         salt = hashlib.sha256(f"farmable-idempotency:{key}".encode()).digest()
-        return hashlib.scrypt(
-            canonical.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32
-        ).hex()
+        return hashlib.scrypt(canonical.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32).hex()
     return hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
 
 
