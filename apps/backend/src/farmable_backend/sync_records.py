@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from farmable_backend.farm_records import _fingerprint
 from farmable_backend.models import (
     CropCalendar,
+    CropDiagnosis,
     CropType,
     Farm,
     FarmTask,
@@ -170,8 +171,7 @@ class SyncRecordRepository:
             values.pop("crop_type_code", None) if kind.resource == "plantings" else None
         )
         if kind.resource == "plantings":
-            if crop_type_code is not None:
-                _validate_planted_on(self.session, values.get("planted_on"))
+            _validate_planted_on(self.session, values.get("planted_on"))
             crop_type_code = _resolve_crop_identity(self.session, values["crop"], crop_type_code)
         record = kind.model(
             id=record_id,
@@ -254,7 +254,7 @@ class SyncRecordRepository:
             values.pop("crop_type_code", None) if kind.resource == "plantings" else None
         )
         if kind.resource == "plantings":
-            if crop_type_code is not None and values.get("planted_on") != record.planted_on:
+            if values.get("planted_on") != record.planted_on:
                 _validate_planted_on(self.session, values.get("planted_on"))
             crop_type_code = _resolve_crop_identity(self.session, values["crop"], crop_type_code)
             if (
@@ -277,8 +277,8 @@ class SyncRecordRepository:
             section_kind_row = self.session.get(SectionKind, record.id)
             if section_kind_row is None:
                 self.session.add(SectionKind(section_id=record.id, kind=section_kind or "crop"))
-            else:
-                section_kind_row.kind = section_kind or "crop"
+            elif section_kind is not None:
+                section_kind_row.kind = section_kind
             self.session.flush()
         if kind.resource == "plantings":
             self._set_planting_crop(record.id, crop_type_code, values.get("planted_on"))
@@ -330,6 +330,27 @@ class SyncRecordRepository:
         section_kind = self.session.get(SectionKind, section_id)
         if section_kind is not None:
             self.session.delete(section_kind)
+        # Diagnosis workers share the farm/section lock order and require a
+        # processing state plus the current lease to publish or retry. Cancel
+        # pending work atomically with deletion, including leased requests.
+        diagnoses = self.session.scalars(
+            select(CropDiagnosis)
+            .where(
+                CropDiagnosis.owner_id == self.owner_id,
+                CropDiagnosis.farm_id == self.farm_id,
+                CropDiagnosis.section_id == section_id,
+                CropDiagnosis.state.in_(("queued", "processing")),
+            )
+            .with_for_update()
+        )
+        for diagnosis in diagnoses:
+            diagnosis.state = "cancelled"
+            diagnosis.result = None
+            diagnosis.error = None
+            diagnosis.withdrawn_at = diagnosis.withdrawn_at or now
+            diagnosis.updated_at = now
+            diagnosis.lease_token = None
+            diagnosis.lease_expires_at = None
         # Photo uploads are durable storage intents rather than generic sync
         # records. Invalidate every attempt and requeue cleanup, including
         # attempts previously marked cleaned and claims held by a worker.

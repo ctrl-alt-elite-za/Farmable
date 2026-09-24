@@ -204,7 +204,9 @@ class SectionUpdate(StrictModel):
     mutation_id: UUID
     expected_version: Version
     name: Short
-    kind: Kind = "crop"
+    # Older clients do not send this additive field. Omission/null preserves
+    # the existing kind; creation still defaults to a crop section.
+    kind: Kind | None = None
     boundary: dict[str, Any] | None = None
     area_m2: Area | None = None
 

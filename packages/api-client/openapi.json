@@ -4024,10 +4024,16 @@
             "type": "integer"
           },
           "kind": {
-            "default": "crop",
-            "enum": ["crop", "animal"],
-            "title": "Kind",
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": ["crop", "animal"],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
           },
           "mutation_id": {
             "format": "uuid",

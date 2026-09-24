@@ -1,9 +1,10 @@
 """REST and sync contract for #11: owner scope, idempotency and change polling."""
 
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
-from farmable_backend.models import FarmTask, SyncChange
+from farmable_backend.models import FarmTask, Planting, SyncChange
 from farmable_backend.records_schemas import (
     FinancialCreate,
     FinancialUpdate,
@@ -630,6 +631,62 @@ def test_crop_harvest_window_from_calendar(records):
     assert planting["harvest_to"] == "2026-12-20"  # 2026-09-01 + 110 days
 
 
+@pytest.mark.parametrize("kind", [None, "animal", "crop"])
+def test_legacy_section_update_preserves_animal_kind_unless_explicit(records, kind):
+    base = f"/farms/{records.ids.farm}/sections"
+    body = {**create_body(records, "sections"), "kind": "animal"}
+    assert records.client.post(base, json=body).status_code == 200
+    update = update_body(records, "sections")
+    if kind is not None:
+        update["kind"] = kind
+    response = records.client.put(f"{base}/{body['id']}", json=update)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["name"] == "South block"
+    assert response.json()["record"]["kind"] == (kind or "animal")
+    assert records.client.get(f"{base}/{body['id']}").json()["section"]["kind"] == (
+        kind or "animal"
+    )
+    assert records.client.put(f"{base}/{body['id']}", json=update).json() == response.json()
+
+
+@pytest.mark.parametrize("crop", ["cabbage", "Butternut"])
+@pytest.mark.parametrize("offset", [-731, 731])
+@pytest.mark.parametrize("operation", ["create", "update"])
+def test_planting_date_bound_without_explicit_catalogue_code(records, crop, offset, operation):
+    base = f"/farms/{records.ids.farm}/plantings"
+    body = {**create_body(records, "plantings"), "crop": crop}
+    bad_date = (datetime.now(UTC).date() + timedelta(days=offset)).isoformat()
+    if operation == "create":
+        response = records.client.post(base, json={**body, "planted_on": bad_date})
+    else:
+        assert records.client.post(base, json=body).status_code == 200
+        response = records.client.put(
+            f"{base}/{body['id']}",
+            json={**update_body(records, "plantings"), "crop": crop, "planted_on": bad_date},
+        )
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "planted_on_out_of_range"
+    with records.sessions() as session:
+        row = session.get(Planting, UUID(body["id"]))
+        if operation == "create":
+            assert row is None
+        else:
+            assert row.version == 1
+            assert row.planted_on == date(2026, 8, 1)
+
+
+@pytest.mark.parametrize("offset", [-730, 730, None])
+def test_planting_date_bound_accepts_endpoints_and_unknown_date(records, offset):
+    base = f"/farms/{records.ids.farm}/plantings"
+    planted_on = (
+        None if offset is None else (datetime.now(UTC).date() + timedelta(days=offset)).isoformat()
+    )
+    body = {**create_body(records, "plantings"), "planted_on": planted_on}
+    response = records.client.post(base, json=body)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["planted_on"] == planted_on
+
+
 def test_unknown_crop_rejected(records):
     base = f"/farms/{records.ids.farm}/plantings"
     body = create_body(records, "plantings")
@@ -652,20 +709,20 @@ def test_planted_on_out_of_range_rejected(records):
 def test_legacy_crop_text_is_preserved_and_old_planting_edits_sync(records):
     base = f"/farms/{records.ids.farm}/plantings"
     planting_id = str(uuid4())
-    created = records.client.post(
-        base,
-        json={
-            "mutation_id": str(uuid4()),
-            "id": planting_id,
-            "section_id": str(records.ids.section),
-            "crop": "Butternut",
-            "planted_on": "2000-01-01",
-            "is_current": False,
-        },
-    )
-    assert created.status_code == 200, created.text
-    assert created.json()["record"]["crop"] == "Butternut"
-    assert created.json()["record"]["crop_type_code"] is None
+    # Historical data can already exist, but new out-of-range submissions must
+    # not bypass validation merely because the client omits catalogue fields.
+    with records.sessions.begin() as session:
+        session.add(
+            Planting(
+                id=UUID(planting_id),
+                owner_id=records.ids.owner,
+                farm_id=records.ids.farm,
+                section_id=records.ids.section,
+                crop="Butternut",
+                planted_on=date(2000, 1, 1),
+                is_current=False,
+            )
+        )
 
     updated = records.client.put(
         f"{base}/{planting_id}",
@@ -679,6 +736,8 @@ def test_legacy_crop_text_is_preserved_and_old_planting_edits_sync(records):
     )
     assert updated.status_code == 200, updated.text
     assert updated.json()["record"]["crop"] == "Butternut"
+    assert updated.json()["record"]["crop_type_code"] is None
+    assert updated.json()["record"]["planted_on"] == "2000-01-01"
 
 
 def test_section_delete_requires_versions_for_attached_children(records):

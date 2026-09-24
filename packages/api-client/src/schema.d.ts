@@ -3176,12 +3176,8 @@ export interface components {
       } | null;
       /** Expected Version */
       expected_version: number;
-      /**
-       * Kind
-       * @default crop
-       * @enum {string}
-       */
-      kind: 'crop' | 'animal';
+      /** Kind */
+      kind?: ('crop' | 'animal') | null;
       /**
        * Mutation Id
        * Format: uuid
