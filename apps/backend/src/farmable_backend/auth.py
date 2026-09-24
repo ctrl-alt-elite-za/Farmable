@@ -226,9 +226,7 @@ class LiveOtpProvider:
         except FuturesTimeoutError as error:
             raise AuthError("delivery_unknown", 503) from error
         if not result.ok:
-            raise AuthError(
-                "delivery_unknown" if result.ambiguous else "provider_unavailable", 503
-            )
+            raise AuthError("delivery_unknown" if result.ambiguous else "provider_unavailable", 503)
 
     def _send_email(self, destination: str, subject: str, html: str, text: str) -> None:
         # Reuses the existing durable rate-limit counter table (no schema

@@ -606,6 +606,7 @@ class AccountService:
                 "created_at": _value(job.created_at),
                 "expires_at": _value(job.expires_at),
             }
+
     def download_export_job(self, job_id: UUID, token: str) -> tuple[bytes, str]:
         """Authorize solely by the possession of ``token`` (a bearer session
         is never required here, matching the issue's "authorized download

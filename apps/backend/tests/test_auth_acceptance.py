@@ -328,9 +328,7 @@ def test_signup_ambiguous_delivery_persists_challenge_and_replays_without_resend
         assert first.json()["error"]["code"] == "delivery_unknown"
         user_id = first.json()["error"]["user_id"]
         assert replay.json() == first.json()
-        verified = client.post(
-            "/auth/verify/phone", json={"user_id": user_id, "code": "111111"}
-        )
+        verified = client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
         assert verified.status_code == 200
     assert provider.deliveries == 2
 
@@ -342,13 +340,16 @@ def test_interrupted_signup_claim_recovers_account_without_resending(settings):
     key = _idempotency_key("signup-interrupted")
     scope = "testclient"
     request_fingerprint = fingerprint(body)
-    assert claim(
-        sessions,
-        route="auth_signup",
-        scope=scope,
-        key=key,
-        request_fingerprint=request_fingerprint,
-    ) is None
+    assert (
+        claim(
+            sessions,
+            route="auth_signup",
+            scope=scope,
+            key=key,
+            request_fingerprint=request_fingerprint,
+        )
+        is None
+    )
 
     with pytest.raises(AuthError) as raised:
         auth.signup(
@@ -378,9 +379,7 @@ def test_interrupted_signup_claim_recovers_account_without_resending(settings):
         assert recovered.status_code == replay.status_code == 503
         assert recovered.json() == replay.json()
         user_id = recovered.json()["error"]["user_id"]
-        verified = client.post(
-            "/auth/verify/phone", json={"user_id": user_id, "code": "111111"}
-        )
+        verified = client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
         assert verified.status_code == 200
     assert provider.deliveries == 2  # phone signup plus the email OTP after verification
 
@@ -396,9 +395,7 @@ def test_resend_ambiguous_delivery_persists_challenge_and_replays_without_resend
         replay = _resend_request(client, user_id, key=key)
         assert first.status_code == replay.status_code == 503
         assert replay.json() == first.json()
-        verified = client.post(
-            "/auth/verify/phone", json={"user_id": user_id, "code": "111111"}
-        )
+        verified = client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
         assert verified.status_code == 200
     assert provider.deliveries == 3
 
