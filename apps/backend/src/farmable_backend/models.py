@@ -359,10 +359,14 @@ class Section(Base):
     # Migration 0003 is pinned to this table's original columns by
     # test_farm_schema.py, so kind = crop|animal (#11) lives in a companion
     # table (migration 0011's farm_locations pattern), not a new column here.
+    # lazy="select" (not "joined"): a joined eager load adds a LEFT OUTER JOIN
+    # to every Section query, including the .with_for_update() locking
+    # queries in record_access.section_scope/SyncRecordRepository._load --
+    # Postgres rejects FOR UPDATE on the nullable side of an outer join.
     kind_row: Mapped["SectionKind | None"] = relationship(
         primaryjoin="Section.id == foreign(SectionKind.section_id)",
         uselist=False,
-        lazy="joined",
+        lazy="select",
         viewonly=True,
     )
 
@@ -421,10 +425,12 @@ class Planting(Base):
     # Migration 0003 is pinned to this table's original columns by
     # test_farm_schema.py, so the catalogue-restricted crop and its computed
     # harvest window (#11) live in a companion table, not new columns here.
+    # lazy="select": same reason as Section.kind_row above -- avoid adding a
+    # LEFT OUTER JOIN to the .with_for_update() locking queries on Planting.
     crop_row: Mapped["PlantingCrop | None"] = relationship(
         primaryjoin="Planting.id == foreign(PlantingCrop.planting_id)",
         uselist=False,
-        lazy="joined",
+        lazy="select",
         viewonly=True,
     )
 
