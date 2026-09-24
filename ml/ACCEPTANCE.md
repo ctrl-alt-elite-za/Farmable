@@ -1,8 +1,27 @@
 # Issue #20 acceptance evidence
 
-Updated 2026-09-24. This is implementation evidence for the senior-review
-follow-up and retrospective-scenario registration, **not a completed issue**. No
-complete real decision backtest was written.
+Updated 2026-09-24. This is implementation and real-run evidence for the
+retrospective scenario, **not a completed issue**. The real result is reproducible,
+but the registered eight-default slide sentence is withheld because tomatoes have
+no scorable switches. See `RESULTS_REVIEW.md`.
+
+### Real result after PR #83
+
+Amendment 1 merged in PR #83. The protocol readiness gate passed on the resulting
+`main`. All 17 original workbooks matched the committed hashes, and the runner
+produced run `5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d`.
+An independent repeat produced the same ID and byte-identical copies of all ten
+artifact files. The 96-row Parquet snapshot passed its validator, and its JSON
+counterpart passed the backend's retrospective consumer quality checks.
+
+The 1,248-key decision ledger has 444 scorable rows, 326 switches and 316 positive
+switch gains. Tomatoes have 42 scorable rows, all no-switch; their switch win rate
+and gain statistics are correctly null. `slide_sentence.txt` therefore reports
+`INSUFFICIENT EVIDENCE`. This result must not be converted into an eight-default
+pitch claim. Colab execution, real database import, reviewer inspection and the
+final results-history gate remain open.
+
+The sections below retain earlier implementation checkpoints as historical records.
 
 ### First real-input run after PR #82
 
@@ -12,8 +31,8 @@ result files: a later 2025 deployment-snapshot forecast lacked the 2025 lag mont
 required by its selected LightGBM method. No decision scores were inspected. A
 dated Amendment 1 in `backtest/PROTOCOL.md` defines that snapshot from frozen
 pre-2025 seasonal ranges, leaving the historical decision simulation unchanged.
-The amendment and code must merge before another real run; its results belong in a
-separate PR.
+The amendment and code merged before the successful real run; its results belong in
+a separate PR.
 
 The project owner selected the retrospective fixed-2025-input scenario so code and
 artifacts can be completed before historical data cleanup. `backtest/PROTOCOL.md`
@@ -24,8 +43,7 @@ prohibits the historical publication-availability claim.
 
 Protocol-only PR #77 merged on `main` at `73e2c6296a5a`. Its original protocol
 has SHA-256 `a090d4e9d517b2b8c0d9d5009b5b9c5c9a827386e178f6e265052270923ea99d`.
-The proposed amendment cannot pass `check_protocol_first.py --check-ready` until
-it is merged on `main`. Kea's issue-20 follow-up
+The amendment later merged in PR #83. Kea's issue-20 follow-up
 simulation core is integrated into the local runner for frozen recommendations and
 decision scoring. The runner retains its audited workbook loader, ORM import work,
 forecast evaluation, snapshot export and deterministic artifact packaging.

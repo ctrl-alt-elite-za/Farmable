@@ -1,0 +1,209 @@
+{
+  "artifacts": {
+    "backtest/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/decision_backtest.json": "c8c84ac1b7872163cca6f67bda40b2f86a2070912a16d5ab09057f655920286a",
+    "backtest/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/decision_backtest.md": "57aa3d1afbd5950783ab7aa2ab86ca88ad696092b4976256f0f98cc4328a4194",
+    "backtest/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/decision_ledger.parquet": "6ee84f0024cb7d611e601e013e839efe2ac0b88843b04047e7acb879bd5a2ebe",
+    "backtest/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/slide_sentence.txt": "c8c723891a0bf8c21049824e56d3fa93f91e14738e2df965d7fa0140576e5211",
+    "forecast/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/forecast.json": "488bf805b10fa1ebdc5feb864f044ee1398deb194324d2ac6e9c9f1f2ca87924",
+    "forecast/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/forecast_backtest.json": "1850fc8d0e84f44fdbdc6b6e14b8cbcf048e983a0097df0ce44e6de02019ea0d",
+    "forecast/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/forecast_ledger.parquet": "4d6e669a9c0fa9b463aca9dbe3941aa2ddecc32faf7b1494b7122f01aedde5c2",
+    "forecast/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/forecasts.parquet": "17c131dd089516e05569f9840349c3b235cf548aa3f9815411ab295c0629788d"
+  },
+  "caveats": [
+    "Current-vintage Johannesburg history has unresolved publication/revision uncertainty.",
+    "The next-month observation cutoff is analytical, not a publisher release-date claim.",
+    "Current-vintage CPI and the full 2025 mean enter retrospective prediction and scoring.",
+    "Planting calendars, harvest offsets and guideline yields are provisional frozen assumptions.",
+    "VAT bases are mixed or unknown; source-displayed treatment has not been harmonized.",
+    "Western Cape production costs are applied to Johannesburg market prices.",
+    "Post-2024 spinach prices are missing; the Q1 2025 candidate source is not spliced in.",
+    "Missing realized prices for late harvests remain explicit skips, not zero gains.",
+    "Working-capital interest and fixed costs are excluded from the listed gross margins."
+  ],
+  "data_kind": "retrospective",
+  "identity": {
+    "configuration": {
+      "assumptions": {
+        "butternut": {
+          "cost_rand_per_ha": "60756.87",
+          "harvest_offset_months": 5,
+          "marketing_rate": "0.125",
+          "planting_months": [
+            9,
+            10,
+            11
+          ],
+          "yield_kg_per_ha": "22500"
+        },
+        "cabbage": {
+          "cost_rand_per_ha": "115183.85",
+          "harvest_offset_months": 3,
+          "marketing_rate": "0.125",
+          "planting_months": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            11,
+            12
+          ],
+          "yield_kg_per_ha": "75000"
+        },
+        "carrots": {
+          "cost_rand_per_ha": "68312.94",
+          "harvest_offset_months": 4,
+          "marketing_rate": "0.125",
+          "planting_months": [
+            1,
+            2,
+            3,
+            8,
+            9,
+            10
+          ],
+          "yield_kg_per_ha": "50000"
+        },
+        "green_beans": {
+          "cost_rand_per_ha": "136357.03",
+          "harvest_offset_months": 3,
+          "marketing_rate": "0.125",
+          "planting_months": [
+            1,
+            9,
+            10,
+            11,
+            12
+          ],
+          "yield_kg_per_ha": "10000"
+        },
+        "onions": {
+          "cost_rand_per_ha": "108783.41",
+          "harvest_offset_months": 7,
+          "marketing_rate": "0.125",
+          "planting_months": [
+            2,
+            3
+          ],
+          "yield_kg_per_ha": "42500"
+        },
+        "potatoes": {
+          "cost_rand_per_ha": "181097.86",
+          "harvest_offset_months": 5,
+          "marketing_rate": "0.125",
+          "planting_months": [
+            1,
+            2,
+            7,
+            8,
+            9,
+            10
+          ],
+          "yield_kg_per_ha": "45000"
+        },
+        "spinach": {
+          "cost_rand_per_ha": "167412.66",
+          "harvest_offset_months": 3,
+          "marketing_rate": "0.125",
+          "planting_months": [
+            1,
+            2,
+            3,
+            4,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "yield_kg_per_ha": "20000"
+        },
+        "tomatoes": {
+          "cost_rand_per_ha": "168968.20",
+          "harvest_offset_months": 3,
+          "marketing_rate": "0",
+          "planting_months": [
+            8,
+            9,
+            10,
+            11
+          ],
+          "yield_kg_per_ha": "62500"
+        }
+      },
+      "bootstrap_replicates": 10000,
+      "seed": 20,
+      "snapshot_year": 2025
+    },
+    "dependencies": {
+      "lightgbm": "4.7.0",
+      "numpy": "2.5.3",
+      "openpyxl": "3.1.5",
+      "pyarrow": "25.0.1",
+      "xlrd": "2.0.2"
+    },
+    "files": {
+      "apps/ml-service/pyproject.toml": "a259881df8c3728abc9980da67d00d4d7744d11435d1d15529728753a7e0cad3",
+      "apps/ml-service/src/farmable_ml/__init__.py": "ea9c0903c53050d146498aa060f27e6a0d01c391264856193bedc77700e74c35",
+      "apps/ml-service/src/farmable_ml/challenger.py": "86fac1a10f4611dc59b02b342de01b62b411ff1da45e3d425d0695260987669f",
+      "apps/ml-service/src/farmable_ml/cpi.py": "145fde5f28c300decb28f13c7f574ffda1420c8b59bc721c839eecd72be9917a",
+      "apps/ml-service/src/farmable_ml/data.py": "08e76239bd74159d3f8362fb651a5853129eac117d0de91336ee535a7903b207",
+      "apps/ml-service/src/farmable_ml/decision.py": "d5e1590424adfa5e10bc784a7e2e919dd229f7ae955070a8ff1123963dcfc49f",
+      "apps/ml-service/src/farmable_ml/experiment.py": "325769dbee4669a4eeccd4f1eab12c0ee1a36b5b4ecfa321595555df45deb31f",
+      "apps/ml-service/src/farmable_ml/forecast.py": "7123e0f7562bd6a3e7a5b74cffcb57a8dcfb3b94ccd3a390bd2ecfb45ae788e2",
+      "apps/ml-service/src/farmable_ml/money.py": "a452a2d856d36db0f152d71e984db5769073292226fb3b62dc7188db388d7f3f",
+      "apps/ml-service/src/farmable_ml/reports.py": "117cd1e6eef4e08ad45c39084406844d3876984f5669653ff5f2e65f78277960",
+      "apps/ml-service/src/farmable_ml/retrospective.py": "e331e3d435e7f92e8e1a576e68724c8c9cb000fb8eb1c8df25c84c36d58956ae",
+      "apps/ml-service/src/farmable_ml/scenario.py": "1069b42f9e5b300ae30cc42cf2755e54a1ff4887bcb87ad940646e9c8009585c",
+      "apps/ml-service/src/farmable_ml/snapshot.py": "3985d5641b67398a7f44ea97426b2e6bc9e6613241f4c0c00f869fd9b9742e2f",
+      "apps/ml-service/src/farmable_ml/vintage.py": "90d2cf2ec1d7c3a1a288cbf5ab86f070844fc0e4ca71b1e52b10d8b0191ce89b",
+      "ml/backtest/PROTOCOL.md": "5fddc3d1f26f4b558c39224f3ffc0f317bae0d281e8ca3a16e781116bd944e15",
+      "ml/backtest/check_protocol_first.py": "d303f50e474a9d01c1e2ae8db6737d84836fb0969e55ff6f805f2d48b6e492b9",
+      "ml/backtest/run_retrospective.py": "7d705fff61ba3e110e70434e823cd6847e5cfb0acbe528668d4c50d5e8d2aea7",
+      "ml/data/budget_source_audit.json": "105501be5296caa2b41acd1fa2d3c00df5911cbe5cc76610bd8504182abf6258",
+      "ml/data/calendar_source_audit.json": "84f3e74a029490da32f7911f92e005d754555ea2539defa79cc02485effdd4b2",
+      "ml/data/cpi_za_monthly.csv": "7a02be81e4e719bf86da93a95e6ddea4d93e607fa2fc306d95e234c4b384bbce",
+      "ml/data/market_workbook_audit.json": "461cf7c8c33db22d34163f835abe58de3c2699864486878cda6556d545fa6386",
+      "scripts/audit_issue20_market_workbooks.py": "57b0ec4d0ec07dbc809f04a06ea24aecb5313cb11a1cc07597d82c044a0dfdec",
+      "uv.lock": "8fafc07036679e72418e381a740089b21073dbc68ddc9538727e7e784d5adef7"
+    },
+    "platform": "Windows",
+    "protocol_commit": "73e2c6296a5a7d7042a865fae29f665bf6ba8cb8",
+    "python": "3.12.11",
+    "scenario": "retrospective_fixed_2025_v1"
+  },
+  "input_hashes": {
+    "budget_source_audit.json": "105501be5296caa2b41acd1fa2d3c00df5911cbe5cc76610bd8504182abf6258",
+    "calendar_source_audit.json": "84f3e74a029490da32f7911f92e005d754555ea2539defa79cc02485effdd4b2",
+    "cpi_za_monthly.csv": "7a02be81e4e719bf86da93a95e6ddea4d93e607fa2fc306d95e234c4b384bbce",
+    "market_workbook_audit.json": "461cf7c8c33db22d34163f835abe58de3c2699864486878cda6556d545fa6386",
+    "statistics-on-fresh-produce-markets-2008-ms-excel.xls": "e811a155aa457fbecd5d7e76dc6a5edfd19908b4272b2e525e6512f124f438f0",
+    "statistics-on-fresh-produce-markets-2009-ms-excel.xls": "5ac5d44fda3244454ca1082359c13ca708bde7785f173d259b68b13a4a605f3b",
+    "statistics-on-fresh-produce-markets-2010-ms-excel.xls": "ff6ce2e0943a018b0f7448d1f57ee1a92bfec84bc161b382fbb6e6631e2e20e5",
+    "statistics-on-fresh-produce-markets-2011-ms-excel.xls": "9a5448b48781de24ed21951cb4219663566b739033ad77efa289af81d675ace4",
+    "statistics-on-fresh-produce-markets-2012-ms-excel.xls": "92814310dd2a140042c262d93659953c050b9c070881ccdcbb297371d711c5ff",
+    "statistics-on-fresh-produce-markets-2013.xlsx": "84b842196d7e43eab0da025957ceaa288154e718c79cf13ecd2c8465159f8334",
+    "statistics-on-fresh-produce-markets-2014.xlsx": "a66e4ab76bba14d21f867c10bd75f43763e842dc1046d8f49d46952da96c67ac",
+    "statistics-on-fresh-produce-markets-2015-ms-excel.xls": "3fc3912a8d0c73c6e20022a9b01d3108a013413adcf67c2a754db5d344f8a0cd",
+    "statistics-on-fresh-produce-markets-2016-ms-excel.xls": "06718acbf883fab6f0cb27f312457cc0607781fc4f1586517e4c2519cf8f01ab",
+    "statistics-on-fresh-produce-markets-2017-ms-excel.xls": "8892faebec9a96b66a06691ba73e5317a1af2218ff274441ea966101c29a176e",
+    "statistics-on-fresh-produce-markets-2018-ms-excel-final-for-the-web.xls": "39c61010120392ad97bdc818e517b87b33b86ed2fab0f1f9639e1edc27157b84",
+    "statistics-on-fresh-produce-markets-2019.xls": "26e3ce6749f04db4f7ed8d4356c3c0faee8ffba54f6fb59e10d7f1f5d615bf36",
+    "statistics-on-fresh-produce-markets-2020.xlsx": "fcfadd459775233adb5ae647b8efd360446c147842d147948e63a5be411a0609",
+    "statistics-on-fresh-produce-markets-2021.xlsx": "e102f77a1ea0b7e180471a7a1a492c8cf38a4e5a0a042f26cfb8339c54df2fbf",
+    "statistics-on-fresh-produce-markets-2022.xlsx": "119d89c2882b3a2971a4de23741fdbe6b0cb35e4360bb66541188cafa91d7e99",
+    "statistics-on-fresh-produce-markets-2023.xlsx": "2e4f4e0a2d534452da0c5b95e7be2daefdf6d033fb9e607a7faca4bb92db97bd",
+    "statistics-on-fresh-produce-markets-2024.xlsx": "3a1d8fd63fb1b9876b4b72c7056e0677b02a59262f012fc2c7d26d8689645b26"
+  },
+  "row_counts": {
+    "decisions": 1248,
+    "prices": 1632,
+    "snapshot": 96
+  },
+  "run_id": "5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d",
+  "skip_reasons": {
+    "missing_forecast": 84,
+    "missing_realized_price": 18,
+    "out_of_season": 702
+  }
+}
