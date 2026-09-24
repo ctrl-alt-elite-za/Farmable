@@ -283,11 +283,11 @@ def create_app(
         # Only enforced against a real DB-backed AuthService (has .sessions);
         # test doubles without persistence (InMemoryAuthService, etc.) can't
         # meaningfully dedupe and are left alone.
-        key = request.headers.get("Idempotency-Key")
+        key = request.headers.get("Idempotency-Key", "").strip()
         sessions = getattr(auth(request), "sessions", None)
         if not key or sessions is None or not hasattr(sessions, "begin"):
             return None
-        fp = idempotency_fingerprint(body)
+        fp = idempotency_fingerprint(body, key=key)
         try:
             return await run_in_threadpool(
                 idempotency_replay,
@@ -320,7 +320,7 @@ def create_app(
                 route=route,
                 scope=scope,
                 key=key,
-                request_fingerprint=idempotency_fingerprint(body),
+                request_fingerprint=idempotency_fingerprint(body, key=key),
             )
         except IdempotencyConflict:
             raise AuthError("idempotency_key_conflict", 409) from None
@@ -338,11 +338,11 @@ def create_app(
     async def idempotent_store(
         request: Request, route: str, body: dict, status_code: int, response: dict, *, scope: str
     ) -> None:
-        key = request.headers.get("Idempotency-Key")
+        key = request.headers.get("Idempotency-Key", "").strip()
         sessions = getattr(auth(request), "sessions", None)
         if not key or sessions is None or not hasattr(sessions, "begin"):
             return
-        fp = idempotency_fingerprint(body)
+        fp = idempotency_fingerprint(body, key=key)
         await run_in_threadpool(
             idempotency_store,
             sessions,

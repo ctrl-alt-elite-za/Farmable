@@ -28,6 +28,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import '../../core/utils/ids.dart';
 import '../../domain/auth/auth_models.dart';
 import '../../domain/auth/auth_service.dart';
 import 'session_storage.dart';
@@ -85,13 +86,17 @@ class ApiAuthService implements AuthService {
     required String password,
   }) async {
     final normalisedEmail = email.trim().toLowerCase();
-    final body = await _post('/auth/signup', {
-      'first_name': firstName.trim(),
-      'surname': surname.trim(),
-      'phone': phone,
-      'email': normalisedEmail,
-      'password': password,
-    });
+    final body = await _post(
+      '/auth/signup',
+      {
+        'first_name': firstName.trim(),
+        'surname': surname.trim(),
+        'phone': phone,
+        'email': normalisedEmail,
+        'password': password,
+      },
+      headers: {'Idempotency-Key': newUuid()},
+    );
 
     final pending = PendingSignup(
       userId: _string(body, 'user_id'),
@@ -361,11 +366,16 @@ class ApiAuthService implements AuthService {
   /// [AuthException] the response means. A `204` returns an empty map.
   Future<Map<String, Object?>> _post(
     String path,
-    Map<String, Object?> body,
-  ) async {
+    Map<String, Object?> body, {
+    Map<String, Object?>? headers,
+  }) async {
     final Response<Object?> response;
     try {
-      response = await _dio.post<Object?>(path, data: body);
+      response = await _dio.post<Object?>(
+        path,
+        data: body,
+        options: headers == null ? null : Options(headers: headers),
+      );
     } on DioException catch (e) {
       throw AuthException(_transportFailure(e));
     }

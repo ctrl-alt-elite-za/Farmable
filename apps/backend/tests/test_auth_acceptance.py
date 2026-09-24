@@ -339,7 +339,7 @@ def test_interrupted_signup_claim_recovers_account_without_resending(settings):
     body = _signup_body()
     key = _idempotency_key("signup-interrupted")
     scope = "testclient"
-    request_fingerprint = fingerprint(body)
+    request_fingerprint = fingerprint(body, key=key)
     assert (
         claim(
             sessions,

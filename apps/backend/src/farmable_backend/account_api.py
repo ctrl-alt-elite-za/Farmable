@@ -149,7 +149,11 @@ async def write_profile(request: Request, response: Response, payload: ProfileUp
             ip=client_ip(request),
             idempotency_key=key,
             idempotency_scope=scope,
-            request_fingerprint=idempotency_fingerprint(payload.model_dump(mode="json")),
+            request_fingerprint=(
+                idempotency_fingerprint(payload.model_dump(mode="json"), key=key)
+                if key is not None
+                else None
+            ),
         )
     )
 
@@ -228,7 +232,7 @@ async def create_export_job(
     scope = ""
     if key:
         scope = str(await worker.call(worker.service.owner_id, token(request)))
-        request_fingerprint = idempotency_fingerprint(body)
+        request_fingerprint = idempotency_fingerprint(body, key=key)
     else:
         request_fingerprint = None
     job_id, download_token = await worker.call(
