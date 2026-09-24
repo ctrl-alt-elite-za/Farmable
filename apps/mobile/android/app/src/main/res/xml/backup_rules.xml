@@ -8,6 +8,8 @@
   decrypted - it would only make that phone's first launch fail to read its
   session. Excluding it means a restored app starts signed out, cleanly.
   Everything else - the farm database included - is backed up as before.
+  Data exports are not written here at all: they go to the cache directory,
+  which Android never backs up (see lib/data/account/export_store.dart).
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="." />

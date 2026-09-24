@@ -25,6 +25,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
@@ -57,7 +58,22 @@ class ApiAuthService implements AuthService {
   /// quietly sign the farmer in again.
   int _epoch = 0;
 
+  /// The access token of a session ended by [endSessionLocally]. Held in
+  /// memory so that even if the phone failed to write the cleared record,
+  /// [restore] never hands that session out again for the rest of this run.
+  String? _endedToken;
+
   ApiAuthService(this._dio, this._storage, {this.now = DateTime.now});
+
+  /// Which session this is: changes whenever a session is granted, ended or
+  /// dropped, and not when one is merely refreshed.
+  ///
+  /// An operation that must act for one account — sending that account's
+  /// pending edits, saving that account's export — captures this when it
+  /// starts and passes it to [authorized], which refuses to send once it has
+  /// moved. Without it, a request queued by one farmer goes out under the next
+  /// farmer's session.
+  int get generation => _epoch;
 
   /// A client for [baseUrl] with this service's defaults.
   ///
@@ -190,7 +206,11 @@ class ApiAuthService implements AuthService {
     final record = await _read();
 
     final session = _sessionIn(record);
-    if (session != null && session.isValidAt(now())) return SignedIn(session);
+    if (session != null &&
+        session.isValidAt(now()) &&
+        session.token != _endedToken) {
+      return SignedIn(session);
+    }
 
     final pending = _pendingIn(record);
     if (pending != null) return AwaitingVerification(pending);
@@ -200,6 +220,7 @@ class ApiAuthService implements AuthService {
 
   @override
   Future<AuthStanding> refreshSession() async {
+    final origin = _epoch;
     final standing = await restore();
     if (standing is! SignedIn) return standing;
     if (standing.session.expiresAt.difference(now()) > refreshWhenWithin) {
@@ -207,7 +228,7 @@ class ApiAuthService implements AuthService {
     }
 
     try {
-      return SignedIn(await _refresh(standing.session));
+      return SignedIn(await _refresh(standing.session, origin));
     } on AuthException catch (e) {
       if (e.failure == AuthFailure.invalidSession) return restore();
       // No signal, a busy server, a full phone: none of them is a reason to
@@ -227,9 +248,26 @@ class ApiAuthService implements AuthService {
   Future<void> signOut() async {
     final record = await _read();
     final session = _sessionIn(record);
+    await _write(record, session: null, pending: null);
+    // After the write, not before: a refresh that starts while the write is
+    // in flight still reads the old session, and has to be caught out by an
+    // epoch that moves once that session is really gone.
+    _epoch++;
+    if (session != null) unawaited(_revoke(session.token));
+  }
+
+  /// Ends the session on this phone without telling the server — for after
+  /// account deletion, when there is no longer a server-side session to
+  /// revoke. Also stops any refresh in flight from writing one back.
+  ///
+  /// The session is blocked in memory first, so local access ends even if the
+  /// write that forgets it fails — the failure is still thrown, for the caller
+  /// to report, but nothing on this run can use that session again.
+  Future<void> endSessionLocally() async {
+    final record = await _read();
+    _endedToken = _sessionIn(record)?.token;
     _epoch++;
     await _write(record, session: null, pending: null);
-    if (session != null) unawaited(_revoke(session.token));
   }
 
   /// Forgets the half-finished signup on this phone.
@@ -251,34 +289,87 @@ class ApiAuthService implements AuthService {
   /// rejected refresh drops the session and throws
   /// [AuthFailure.invalidSession]; the caller re-reads the farmer's standing
   /// through the view model, which lands them signed out cleanly.
+  ///
+  /// A `401 invalid_credentials` — a wrong password re-entered to confirm
+  /// account deletion — is an answer about the password, not the session, so
+  /// it is handed back rather than treated as a lapsed token.
+  ///
+  /// Bound to the session it started under — the one [generation] names, or
+  /// the current one when none is given. Once that has changed the request is
+  /// refused before it is sent, and a late `401` is dropped *before* it can
+  /// refresh or clear anything: a stale answer for farmer A must never spend
+  /// or discard farmer B's session.
   Future<Response<Object?>> authorized(
     String method,
     String path, {
     Object? data,
     Map<String, Object?>? query,
+    ResponseType? responseType,
+    int? generation,
   }) async {
+    final origin = generation ?? _epoch;
+    void stillSame() {
+      if (origin != _epoch) {
+        throw const AuthException(AuthFailure.invalidSession);
+      }
+    }
+
+    stillSame();
     final standing = await refreshSession();
+    stillSame();
     if (standing is! SignedIn) {
       throw const AuthException(AuthFailure.invalidSession);
     }
 
     var session = standing.session;
-    var response = await _send(method, path, session.token, data, query);
-    if (response.statusCode != 401) return response;
+    var response = await _send(
+      method,
+      path,
+      session.token,
+      data,
+      query,
+      responseType,
+    );
+    if (!_sessionRejected(response)) return response;
 
-    session = await _refresh(session);
-    response = await _send(method, path, session.token, data, query);
-    if (response.statusCode == 401) {
-      await _dropSession();
+    // Checked before refreshing, not after: the refresh itself writes and
+    // drops sessions, so by "after" the damage would be done.
+    stillSame();
+    session = await _refresh(session, origin);
+    stillSame();
+    response = await _send(
+      method,
+      path,
+      session.token,
+      data,
+      query,
+      responseType,
+    );
+    if (_sessionRejected(response)) {
+      if (origin == _epoch) await _dropSession(onlyToken: session.token);
       throw const AuthException(AuthFailure.invalidSession);
     }
     return response;
   }
 
+  bool _sessionRejected(Response<Object?> response) =>
+      response.statusCode == 401 &&
+      failureForResponse(401, _decoded(response.data)) !=
+          AuthFailure.invalidCredentials;
+
   // ------------------------------------------------------------------ guts
 
-  /// Single-flight refresh. A rejection drops the session before it throws.
-  Future<AuthSession> _refresh(AuthSession current) {
+  /// Single-flight refresh of [current], for the session generation [origin].
+  ///
+  /// Refused without a request if [origin] is no longer the current
+  /// generation: [current] then belongs to a session that has already gone,
+  /// and its refresh token must not be spent, nor its rejection allowed to
+  /// clear whoever is signed in now. A rejection drops [current] — that exact
+  /// session, and no other — before it throws.
+  Future<AuthSession> _refresh(AuthSession current, int origin) {
+    if (origin != _epoch) {
+      return Future.error(const AuthException(AuthFailure.invalidSession));
+    }
     final inFlight = _refreshing;
     if (inFlight != null) return inFlight;
 
@@ -286,7 +377,7 @@ class ApiAuthService implements AuthService {
     final attempt = () async {
       final token = current.refreshToken;
       if (token == null) {
-        await _dropSession();
+        await _dropSession(onlyToken: current.token);
         throw const AuthException(AuthFailure.invalidSession);
       }
 
@@ -295,7 +386,7 @@ class ApiAuthService implements AuthService {
         body = await _post('/auth/refresh', {'refresh_token': token});
       } on AuthException catch (e) {
         if (e.failure == AuthFailure.invalidSession && epoch == _epoch) {
-          await _dropSession();
+          await _dropSession(onlyToken: current.token);
         }
         rethrow;
       }
@@ -314,10 +405,18 @@ class ApiAuthService implements AuthService {
     return attempt.whenComplete(() => _refreshing = null);
   }
 
-  Future<void> _dropSession() async {
-    _epoch++;
+  /// Drops the stored session — only if it is still the one holding
+  /// [onlyToken], the session the server just refused. Whoever has signed in
+  /// since keeps theirs.
+  Future<void> _dropSession({required String onlyToken}) async {
     try {
-      await _write(await _read(), session: null);
+      final record = await _read();
+      // Nothing to drop — already signed out, or the phone wiped. Writing
+      // here would put an empty record back where a wipe removed one.
+      final stored = _sessionIn(record);
+      if (stored == null || stored.token != onlyToken) return;
+      await _write(record, session: null);
+      _epoch++; // After the write — see [signOut].
     } on AuthException {
       // The server has already refused this session, so nothing it holds
       // works anywhere. A phone that also cannot forget it loses nothing.
@@ -341,6 +440,7 @@ class ApiAuthService implements AuthService {
     String accessToken,
     Object? data,
     Map<String, Object?>? query,
+    ResponseType? responseType,
   ) async {
     try {
       return await _dio.request<Object?>(
@@ -350,6 +450,7 @@ class ApiAuthService implements AuthService {
         options: Options(
           method: method,
           headers: {'Authorization': 'Bearer $accessToken'},
+          responseType: responseType,
         ),
       );
     } on DioException catch (e) {
@@ -462,15 +563,39 @@ AuthFailure failureForResponse(int status, Object? data) {
       return AuthFailure.invalidSession;
     case 'validation_error':
       return AuthFailure.rejected;
+    case 'not_found':
+      return AuthFailure.gone;
   }
 
   return switch (status) {
     401 => AuthFailure.invalidSession,
+    403 || 404 => AuthFailure.gone,
     422 => AuthFailure.rejected,
     429 => AuthFailure.tooManyAttempts,
     >= 500 => AuthFailure.unavailable,
     _ => AuthFailure.unknown,
   };
+}
+
+/// A response body as JSON, whatever form it arrived in. A request made for
+/// bytes (the export) still gets a JSON error body on failure, and the failure
+/// mapping needs to read it.
+Object? _decoded(Object? data) {
+  try {
+    if (data is List<int>) return jsonDecode(utf8.decode(data));
+    if (data is String && data.isNotEmpty) return jsonDecode(data);
+  } on Object {
+    return null;
+  }
+  return data;
+}
+
+/// Throws the [AuthException] a non-2xx response means. For callers of
+/// [ApiAuthService.authorized], which hands responses back unjudged.
+void throwUnlessSuccess(Response<Object?> response) {
+  final status = response.statusCode ?? 0;
+  if (status >= 200 && status < 300) return;
+  throw AuthException(failureForResponse(status, _decoded(response.data)));
 }
 
 /// A request that never got an answer. Timeouts and refused connections are

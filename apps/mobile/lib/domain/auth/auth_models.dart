@@ -198,6 +198,11 @@ enum AuthFailure {
   /// reset is the case today: the backend has no reset endpoint, so a real
   /// build says so rather than pretending to send a code.
   notYetSupported,
+
+  /// The thing asked about is not on this account — `404`, or a `403` for a
+  /// record that belongs to someone else. Said the same way for both, so the
+  /// app never confirms that another account's record exists.
+  gone,
   unknown,
 }
 
