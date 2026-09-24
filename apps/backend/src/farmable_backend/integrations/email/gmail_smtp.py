@@ -16,6 +16,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
 
+from farmable_backend.integrations.email.base import DeliveryUnknown
 from farmable_backend.integrations.settings import ServiceSettings
 
 logger = logging.getLogger(__name__)
@@ -78,11 +79,14 @@ class GmailSmtpEmailSender:
         body = message.as_string()
 
         for attempt in range(MAX_ATTEMPTS):
+            connection: smtplib.SMTP | None = None
+            accepted = False
+            cleanup_failed = False
             try:
-                with self._connect() as connection:
-                    connection.sendmail(self._user, [to], body)
+                connection = self._connect()
+                connection.sendmail(self._user, [to], body)
+                accepted = True
                 logger.info("Email send succeeded")
-                return True
             except smtplib.SMTPAuthenticationError:
                 logger.critical(
                     "SMTP authentication failed - Google may have blocked a login from a "
@@ -93,9 +97,28 @@ class GmailSmtpEmailSender:
                 if 500 <= error.smtp_code < 600:
                     logger.error("Email send failed with a permanent SMTP error")
                     return False
-                logger.warning("Email send failed with a transient SMTP error; retrying")
-            except (smtplib.SMTPException, OSError, TimeoutError):
-                logger.warning("Email send failed with a transient network error; retrying")
+                if connection is not None:
+                    raise DeliveryUnknown from error
+                logger.warning("Email connection failed with a transient SMTP error; retrying")
+            except DeliveryUnknown:
+                raise
+            except (smtplib.SMTPException, OSError, TimeoutError) as error:
+                if connection is not None:
+                    raise DeliveryUnknown from error
+                logger.warning("Email connection failed with a transient network error; retrying")
+            finally:
+                if connection is not None:
+                    try:
+                        connection.quit()
+                    except (smtplib.SMTPException, OSError, TimeoutError):
+                        if accepted:
+                            logger.warning("SMTP cleanup failed after accepted delivery")
+                        else:
+                            cleanup_failed = True
+            if accepted:
+                return True
+            if cleanup_failed:
+                logger.warning("SMTP cleanup failed before delivery; retrying")
             if attempt < MAX_ATTEMPTS - 1:
                 self._sleep(BACKOFF_BASE_SECONDS * 2**attempt)
         logger.error("Email send failed after exhausting retries")

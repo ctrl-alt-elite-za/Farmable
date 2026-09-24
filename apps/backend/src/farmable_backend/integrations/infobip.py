@@ -1,3 +1,4 @@
+import re
 from uuid import uuid4
 
 import httpx
@@ -5,6 +6,34 @@ import httpx
 from .base import Adapter, ServiceResult
 
 _FAKE_BASE_URL = "fake.infobip.test"
+_ACCEPTED_SMS_STATUSES = frozenset({"MESSAGE_ACCEPTED", "PENDING_ACCEPTED"})
+
+
+def _normalized_destination(value: str) -> str:
+    return re.sub(r"\D", "", value)
+
+
+def _validated_sms_result(result: ServiceResult, destination: str) -> ServiceResult:
+    if not result.ok:
+        return result
+    messages = (result.data or {}).get("messages")
+    if not isinstance(messages, list) or len(messages) != 1:
+        return ServiceResult(result.service, False, error="invalid_response", status=result.status)
+    message = messages[0]
+    if not isinstance(message, dict):
+        return ServiceResult(result.service, False, error="invalid_response", status=result.status)
+    status = message.get("status")
+    message_id = message.get("messageId")
+    if (
+        not isinstance(message.get("to"), str)
+        or _normalized_destination(message["to"]) != _normalized_destination(destination)
+        or not isinstance(message_id, str)
+        or not message_id
+        or not isinstance(status, dict)
+        or status.get("name") not in _ACCEPTED_SMS_STATUSES
+    ):
+        return ServiceResult(result.service, False, error="invalid_response", status=result.status)
+    return result
 
 
 class Infobip(Adapter):
@@ -42,14 +71,18 @@ class Infobip(Adapter):
         }
         if sender:
             message["sender"] = sender
-        return await self.call(
+        result = await self.call(
             httpx.Request(
                 "POST",
                 f"https://{base_url}/sms/3/messages",
                 headers={"Authorization": f"App {api_key}"},
                 json={"messages": [message]},
-            )
+            ),
+            # Infobip has no verified idempotency key for this endpoint. A
+            # timeout after dispatch must not create duplicate billable SMS.
+            retry=False,
         )
+        return _validated_sms_result(result, destination)
 
     async def send_whatsapp_template(
         self,

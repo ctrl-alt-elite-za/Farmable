@@ -61,7 +61,8 @@ def test_fake_contracts(service, mode):
         try:
             result = await invoke(registry, service)
             assert result.ok is (mode == "success")
-            assert registry.transport.calls[service] == (1 if result.ok else 3)
+            expected_calls = 1 if service == "infobip" else (1 if result.ok else 3)
+            assert registry.transport.calls[service] == expected_calls
             if result.ok:
                 if service == "azure_tts":
                     assert result.audio == example_audio()
@@ -83,8 +84,9 @@ def test_adapters_timeout(service):
         registry.adapters[service].timeout = 0.003
         try:
             result = await invoke(registry, service)
-            assert not result.ok and result.error == "timeout"
-            assert registry.transport.calls[service] == 3
+            expected_error = "delivery_unknown" if service == "infobip" else "timeout"
+            assert not result.ok and result.error == expected_error
+            assert registry.transport.calls[service] == (1 if service == "infobip" else 3)
             assert registry.adapters[service].failures == 1  # Logical failures, not retry attempts.
         finally:
             await registry.close()

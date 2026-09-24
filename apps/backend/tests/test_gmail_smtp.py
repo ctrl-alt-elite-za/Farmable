@@ -4,6 +4,7 @@ import smtplib
 from unittest.mock import MagicMock
 
 import pytest
+from farmable_backend.integrations.email.base import DeliveryUnknown
 from farmable_backend.integrations.email.gmail_smtp import MAX_ATTEMPTS, GmailSmtpEmailSender
 from farmable_backend.integrations.settings import ServiceSettings
 from pydantic import SecretStr
@@ -113,3 +114,26 @@ def test_network_error_retries_then_succeeds(monkeypatch):
     sender = GmailSmtpEmailSender(make_settings(), sleep=lambda _: None)
     assert sender.send("farmer@example.test", "Subject", "<p>hi</p>", "hi") is True
     assert smtp_cls.call_count == 2
+
+
+@pytest.mark.parametrize("cleanup_error", [OSError("quit failed"), TimeoutError("quit timeout")])
+def test_cleanup_failure_after_send_does_not_repeat_accepted_message(monkeypatch, cleanup_error):
+    connection = MagicMock()
+    connection.sendmail.return_value = {}
+    connection.quit.side_effect = cleanup_error
+    monkeypatch.setattr(smtplib, "SMTP", MagicMock(return_value=connection))
+
+    sender = GmailSmtpEmailSender(make_settings(), sleep=lambda _: None)
+    assert sender.send("farmer@example.test", "Subject", "<p>hi</p>", "hi") is True
+    connection.sendmail.assert_called_once()
+
+
+def test_submission_failure_is_ambiguous_and_not_retried(monkeypatch):
+    connection = MagicMock()
+    connection.sendmail.side_effect = OSError("response lost")
+    monkeypatch.setattr(smtplib, "SMTP", MagicMock(return_value=connection))
+
+    sender = GmailSmtpEmailSender(make_settings(), sleep=lambda _: None)
+    with pytest.raises(DeliveryUnknown):
+        sender.send("farmer@example.test", "Subject", "<p>hi</p>", "hi")
+    connection.sendmail.assert_called_once()

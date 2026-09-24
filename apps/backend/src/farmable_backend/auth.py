@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.email_templates import notification_email, otp_email
-from farmable_backend.integrations.email.base import EmailSender
+from farmable_backend.integrations.email.base import DeliveryUnknown, EmailSender
 from farmable_backend.integrations.infobip import Infobip
 from farmable_backend.models import AuthIdentity, AuthSession, Farm, User, VerificationChallenge
 from farmable_backend.rate_limits import (
@@ -237,7 +237,11 @@ class LiveOtpProvider:
         )
         if count is not None:
             logging.getLogger(__name__).warning("Approaching the Gmail daily send limit")
-        if not self._email_sender.send(destination, subject, html, text):
+        try:
+            sent = self._email_sender.send(destination, subject, html, text)
+        except DeliveryUnknown as error:
+            raise AuthError("delivery_unknown", 503) from error
+        if not sent:
             raise AuthError("provider_unavailable", 503)
 
     def deliver(self, channel: Channel, destination: str, code: str) -> None:

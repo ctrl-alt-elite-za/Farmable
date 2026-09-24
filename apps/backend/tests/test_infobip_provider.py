@@ -8,6 +8,7 @@ import asyncio
 import threading
 from collections.abc import Iterator
 
+import httpx
 import pytest
 from farmable_backend.auth import (
     EMAIL_DAILY_CAP_LIMIT,
@@ -166,3 +167,73 @@ def test_email_daily_cap_blocks_further_sends(loop_thread):
         assert len(email_sender.calls) == EMAIL_DAILY_CAP_LIMIT
     finally:
         close_registry(loop_thread, registry)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "messages": [
+                {
+                    "to": "27820000000",
+                    "messageId": "id",
+                    "status": {"name": "REJECTED_NOT_ENOUGH_CREDITS"},
+                }
+            ]
+        },
+        {"messages": []},
+        {"messages": [{"to": "27820000000", "status": {"name": "PENDING_ACCEPTED"}}]},
+        {
+            "messages": [
+                {
+                    "to": "27820000001",
+                    "messageId": "id",
+                    "status": {"name": "PENDING_ACCEPTED"},
+                }
+            ]
+        },
+    ],
+)
+def test_infobip_rejects_unaccepted_or_malformed_sms_results(payload):
+    async def run():
+        async def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            registry = ServiceRegistry(
+                ServiceSettings(environment="ci", integrations_mode="fake")
+            )
+            await registry.client.aclose()
+            registry.client = client
+            registry.infobip.client = client
+            try:
+                result = await registry.infobip.send_sms("+27820000000", "fixture")
+                assert not result.ok and result.error == "invalid_response"
+            finally:
+                await client.aclose()
+
+    asyncio.run(run())
+
+
+def test_infobip_does_not_retry_ambiguous_sms_delivery():
+    async def run():
+        calls = 0
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal calls
+            calls += 1
+            raise httpx.ReadTimeout("response lost")
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            registry = ServiceRegistry(ServiceSettings(environment="ci", integrations_mode="fake"))
+            await registry.client.aclose()
+            registry.client = client
+            registry.infobip.client = client
+            try:
+                result = await registry.infobip.send_sms("+27820000000", "fixture")
+                assert calls == 1
+                assert not result.ok and result.error == "delivery_unknown" and result.ambiguous
+            finally:
+                await client.aclose()
+
+    asyncio.run(run())

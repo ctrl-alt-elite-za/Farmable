@@ -80,7 +80,7 @@
     "infobip": {
       "messages": [
         {
-          "to": "27000000000",
+          "to": "27820000000",
           "status": { "groupId": 1, "groupName": "PENDING", "id": 26, "name": "PENDING_ACCEPTED" },
           "messageId": "fixture-only-not-a-live-message"
         }
