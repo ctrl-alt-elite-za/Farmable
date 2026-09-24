@@ -60,6 +60,53 @@ See [the backend guide](apps/backend/README.md) for local services, safe default
 migrations, and integration tests. Unit tests do not require Docker. Commands for
 languages with no source files yet remain no-ops.
 
+## Email delivery (Gmail SMTP)
+
+Live OTP/notification email (issue #9) sends through Gmail SMTP behind a
+provider-agnostic `EmailSender` interface
+(`apps/backend/src/farmable_backend/integrations/email/`). See
+[docs/services.md](docs/services.md) for the full reliability/config table;
+Twilio SMS is unchanged (see the same doc).
+
+**Create a Gmail App Password** (required — the account password won't work):
+
+1. Enable 2-Step Verification on the sending Gmail account.
+2. Go to Google Account → Security → App passwords, create one for "Mail",
+   and copy the 16-character password (no spaces).
+
+**Required environment variables** (see `.env.example`):
+
+| Variable             | Meaning                                                        |
+| -------------------- | -------------------------------------------------------------- |
+| `SMTP_HOST`          | `smtp.gmail.com`                                               |
+| `SMTP_PORT`          | `587` (STARTTLS, default) or `465` (SSL)                       |
+| `SMTP_TLS_MODE`      | `starttls` or `ssl`, matching the port                         |
+| `SMTP_USER`          | The Gmail address that sends, e.g. `noreply.almanac@gmail.com` |
+| `SMTP_PASSWORD`      | The 16-character App Password, never the account password      |
+| `EMAIL_FROM_NAME`    | Display name shown to recipients, e.g. `Almanac`               |
+| `EMAIL_FROM_ADDRESS` | Sender address shown to recipients                             |
+
+All are required when `INTEGRATIONS_MODE=live`; `GmailSmtpEmailSender` raises
+immediately at construction if any are missing, rather than failing on the
+first send. Outbound port 25 is blocked on Google Cloud (Cloud Run/Compute
+Engine/App Engine); 587 and 465 both work, which is why 587/STARTTLS is the
+default.
+
+**Run the manual test-send script** once configuration is in place:
+
+```bash
+uv run python scripts/send_test_email.py you@example.com
+```
+
+Prints `PASS`/`FAIL`; never run this in CI or any automated check — it sends
+one real email and, on a Gmail trial-limited sending domain, consumes part of
+Gmail's roughly 500-emails/day account limit.
+
+**Switching providers later**: implement `EmailSender.send(to, subject, html,
+text) -> bool` in a new class under `integrations/email/`, then construct it
+instead of `GmailSmtpEmailSender` where `LiveOtpProvider` is built (currently
+`main.py`'s lifespan). No other code changes.
+
 ## Troubleshooting
 
 **`corepack enable` fails with `EACCES`.** Plain `corepack enable` writes its

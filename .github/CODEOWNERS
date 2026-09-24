@@ -46,3 +46,17 @@
 /scripts/               @bandilleee @TshegofatsoMkhabela @Kea-nhlapo
 /compose.yaml           @bandilleee @TshegofatsoMkhabela @Kea-nhlapo
 /Makefile               @bandilleee @TshegofatsoMkhabela @Kea-nhlapo
+
+# ---------------------------------------------------------------------------
+# Cloud tests and docs — same owners as /infra/ and /.github/ above. Listed
+# explicitly because /scripts/ and the catch-all would otherwise let a change to
+# the checks that guard a deploy be approved from outside the cloud lane.
+#
+# Which of the two must approve depends on who opened the pull request, and
+# CODEOWNERS cannot express that; the cloud-review-policy check enforces it.
+# ---------------------------------------------------------------------------
+/scripts/tests/test_cloud_review_policy.py       @bandilleee @TshegofatsoMkhabela
+/scripts/tests/test_staging_infrastructure.py    @bandilleee @TshegofatsoMkhabela
+/scripts/tests/test_forecast_deployment.py       @bandilleee @TshegofatsoMkhabela
+/docs/deploy-staging-acceptance.md               @bandilleee @TshegofatsoMkhabela
+/docs/forecast-deployment.md                     @bandilleee @TshegofatsoMkhabela

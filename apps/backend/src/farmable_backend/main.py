@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from contextvars import copy_context
 from functools import partial
 from http import HTTPStatus
+from uuid import UUID
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -16,16 +17,23 @@ from starlette.exceptions import HTTPException
 from farmable_backend.account import AccountService
 from farmable_backend.account_api import AccountRuntime
 from farmable_backend.account_api import router as account_router
+from farmable_backend.assistant.api import router as assistant_router
+from farmable_backend.assistant.live_api import router as assistant_live_router
+from farmable_backend.assistant.runtime import Runtime as AssistantRuntime
+from farmable_backend.assistant.settings import AssistantSettings
+from farmable_backend.assistant.store import Store as AssistantStore
 from farmable_backend.auth import (
     AuthError,
     AuthService,
     AuthUser,
     Channel,
     DeterministicFakeOtpProvider,
+    LiveOtpProvider,
     SessionTokens,
 )
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
+from farmable_backend.diagnosis_api import router as diagnosis_router
 from farmable_backend.forecast_api import router as forecast_router
 from farmable_backend.gcs_photos import create_gcs_photos
 from farmable_backend.idempotency import (
@@ -41,10 +49,12 @@ from farmable_backend.idempotency import (
 from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
 from farmable_backend.idempotency import replay as idempotency_replay
 from farmable_backend.idempotency import store as idempotency_store
+from farmable_backend.integrations.email.gmail_smtp import GmailSmtpEmailSender
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
 from farmable_backend.middleware import RateLimiter, SafeDefaultsMiddleware, error_response
+from farmable_backend.planning.api import router as planning_router
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import RecordBodyLimit, RecordRuntime
 from farmable_backend.records_api import router as records_router
@@ -110,6 +120,7 @@ def create_app(
         services = ServiceRegistry(integration_config)
         app.state.services = services
         app.state.forecast_data_mode = config.forecast_data_mode
+        app.state.diagnosis_enabled = config.diagnosis_enabled
         app.state.sha = config.commit_sha
         database = None
         try:
@@ -118,20 +129,45 @@ def create_app(
                 app.state.readiness = readiness
             elif database is not None:
                 app.state.readiness = database.readiness
-                provider = (
-                    DeterministicFakeOtpProvider()
-                    if integration_config.integrations_mode == "fake"
-                    else None
-                )
+                if integration_config.integrations_mode == "fake":
+                    provider = DeterministicFakeOtpProvider()
+                elif integration_config.integrations_mode == "live":
+                    provider = LiveOtpProvider(
+                        services.infobip,
+                        GmailSmtpEmailSender(integration_config),
+                        asyncio.get_running_loop(),
+                        database.sessions,
+                    )
+                else:
+                    provider = None
                 app.state.auth = AuthService(database.sessions, provider)
                 app.state.records = RecordRuntime(
                     RecordsService(database.sessions), lambda: create_gcs_photos(config)
                 )
-                app.state.account = AccountRuntime(AccountService(database.sessions, provider))
+                app.state.account = AccountRuntime(
+                    AccountService(
+                        database.sessions,
+                        provider,
+                        export_token_secret=(
+                            config.export_token_secret.get_secret_value()
+                            if config.export_token_secret is not None
+                            else None
+                        ),
+                    )
+                )
+                app.state.assistant = AssistantRuntime(
+                    AssistantStore(database.sessions, AssistantSettings(), integration_config),
+                    app.state.records,
+                    services,
+                    config.forecast_data_mode,
+                )
             yield
         finally:
             try:
                 # Drain uncancelled database work before disposing its pool.
+                assistant = getattr(app.state, "assistant", None)
+                if assistant is not None:
+                    await assistant.close()
                 await run_in_threadpool(auth_executor.shutdown, wait=True, cancel_futures=True)
                 records = getattr(app.state, "records", None)
                 if records is not None:
@@ -165,8 +201,12 @@ def create_app(
     app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
     app.include_router(records_router)
     app.include_router(account_router)
+    app.include_router(assistant_router)
+    app.include_router(assistant_live_router)
     app.include_router(voice_router)
     app.include_router(forecast_router)
+    app.include_router(planning_router)
+    app.include_router(diagnosis_router)
 
     @app.exception_handler(ApiError)
     async def record_error(request: Request, exc: ApiError) -> JSONResponse:
@@ -220,7 +260,11 @@ def create_app(
         }
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
         return error_response(
-            exc.status_code, exc.code, messages.get(exc.code, "Request failed"), headers=headers
+            exc.status_code,
+            exc.code,
+            messages.get(exc.code, "Request failed"),
+            user_id=str(exc.user_id) if exc.user_id is not None else None,
+            headers=headers,
         )
 
     def auth(request: Request):
@@ -330,8 +374,17 @@ def create_app(
             request, "auth_signup", body, scope=client_ip(request)
         )
         if replayed is not None:
-            _status, response_body = replayed
+            status, response_body = replayed
+            if status >= 400:
+                error = response_body.get("error", {})
+                raise AuthError(
+                    error.get("code", "request_failed"),
+                    status,
+                    error.get("retry_after"),
+                    user_id=UUID(error["user_id"]) if error.get("user_id") else None,
+                )
             return AuthProgressResponse(**response_body)
+        mutation_committed = False
         try:
             user = await call_auth(
                 auth(request).signup,
@@ -341,7 +394,10 @@ def create_app(
                 str(payload.email),
                 payload.password,
                 ip=client_ip(request),
+                idempotency_key=key or None,
+                idempotency_scope=client_ip(request),
             )
+            mutation_committed = True
             response = AuthProgressResponse(user_id=user.id, next_step="phone")
             await idempotent_store(
                 request,
@@ -352,8 +408,28 @@ def create_app(
                 scope=client_ip(request),
             )
             return response
+        except AuthError as exc:
+            if exc.code == "delivery_unknown":
+                await idempotent_store(
+                    request,
+                    "auth_signup",
+                    body,
+                    exc.status_code,
+                    {
+                        "error": {
+                            "code": exc.code,
+                            "retry_after": exc.retry_after,
+                            "user_id": str(exc.user_id) if exc.user_id is not None else None,
+                        }
+                    },
+                    scope=client_ip(request),
+                )
+            else:
+                await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
+            raise
         except Exception:
-            await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
+            if not mutation_committed:
+                await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
             raise
 
     @app.post(
@@ -377,6 +453,12 @@ def create_app(
             request, "auth_otp_resend", body, scope=str(payload.user_id)
         )
         if replayed is not None:
+            status, response_body = replayed
+            if status >= 400:
+                error = response_body.get("error", {})
+                raise AuthError(
+                    error.get("code", "request_failed"), status, error.get("retry_after")
+                )
             return
         try:
             await call_auth(
@@ -388,6 +470,21 @@ def create_app(
             await idempotent_store(
                 request, "auth_otp_resend", body, 204, {}, scope=str(payload.user_id)
             )
+        except AuthError as exc:
+            if exc.code == "delivery_unknown":
+                await idempotent_store(
+                    request,
+                    "auth_otp_resend",
+                    body,
+                    exc.status_code,
+                    {"error": {"code": exc.code, "retry_after": exc.retry_after}},
+                    scope=str(payload.user_id),
+                )
+            else:
+                await idempotent_abandon(
+                    request, "auth_otp_resend", scope=str(payload.user_id), key=key
+                )
+            raise
         except Exception:
             await idempotent_abandon(
                 request, "auth_otp_resend", scope=str(payload.user_id), key=key

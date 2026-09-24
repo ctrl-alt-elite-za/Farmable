@@ -267,16 +267,21 @@ def test_photo_worker_resources_are_optional_and_always_closed(
     monkeypatch.setattr(worker, "create_task_app", lambda _: app)
     monkeypatch.setattr(worker, "Database", database_factory)
     monkeypatch.setattr(worker, "PhotoWorker", photo_factory)
+    retention = SimpleNamespace(stop=asyncio.Event())
+    retention.run = AsyncMock(side_effect=retention.stop.wait)
+    monkeypatch.setattr(worker, "RetentionWorker", lambda _: retention)
     if constructor_fails or queue_fails:
         with pytest.raises(RuntimeError):
             asyncio.run(worker.run())
     else:
         asyncio.run(worker.run())
+    database_factory.assert_called_once()
+    database.close.assert_called_once()
+    assert retention.stop.is_set()
+    retention.run.assert_awaited_once()
     if configured:
-        database.close.assert_called_once()
         if not constructor_fails:
             assert photo.stop.is_set()
             photo.run.assert_awaited_once()
     else:
-        database_factory.assert_not_called()
         photo_factory.assert_not_called()

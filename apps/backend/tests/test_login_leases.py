@@ -63,7 +63,7 @@ def test_failure_lockout_survives_lease_expiry(monkeypatch):
 
 def test_login_lease_migration_matches_column():
     output = io.StringIO()
-    command.upgrade(Config("alembic.ini", output_buffer=output), "0016:0017", sql=True)
+    command.upgrade(Config("alembic.ini", output_buffer=output), "0023:0024", sql=True)
     assert "ADD COLUMN login_leases JSONB DEFAULT '{}' NOT NULL" in output.getvalue()
     column = RateLimitCounter.__table__.c.login_leases
     assert not column.nullable and column.server_default.arg == "{}"

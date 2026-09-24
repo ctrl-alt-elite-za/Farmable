@@ -454,6 +454,9 @@ def test_weather_worker_starts_without_photo_bucket_and_closes_resources(monkeyp
     monkeypatch.setattr(worker_entry, "Database", lambda _: database)
     monkeypatch.setattr(worker_entry, "ServiceRegistry", lambda _: services)
     monkeypatch.setattr(worker_entry, "WeatherWorker", lambda *args: weather)
+    retention = SimpleNamespace(stop=asyncio.Event())
+    retention.run = AsyncMock(side_effect=retention.stop.wait)
+    monkeypatch.setattr(worker_entry, "RetentionWorker", lambda _: retention)
     photo_factory = Mock()
     monkeypatch.setattr(worker_entry, "PhotoWorker", photo_factory)
     if queue_fails:
@@ -462,6 +465,8 @@ def test_weather_worker_starts_without_photo_bucket_and_closes_resources(monkeyp
     else:
         asyncio.run(worker_entry.run())
     assert weather.stop.is_set()
+    assert retention.stop.is_set()
+    retention.run.assert_awaited_once()
     weather.run.assert_awaited_once()
     services.close.assert_awaited_once()
     database.close.assert_called_once()

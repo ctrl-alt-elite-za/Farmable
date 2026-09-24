@@ -8,11 +8,12 @@ against the FastAPI app directly with SQLite + the fake providers, which is
 this repo's established pattern for auth behavior tests (see test_auth.py).
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from farmable_backend.auth import AuthService, DeterministicFakeOtpProvider
+from farmable_backend.auth import AuthError, AuthService, DeterministicFakeOtpProvider
+from farmable_backend.idempotency import claim, fingerprint
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
@@ -53,6 +54,18 @@ class CountingOtpProvider:
 
     def notify_existing_account(self, channel, destination):
         self.inner.notify_existing_account(channel, destination)
+
+
+class AmbiguousOtpProvider(CountingOtpProvider):
+    def __init__(self, *, fail_after: int = 0):
+        super().__init__()
+        self.fail_after = fail_after
+
+    def deliver(self, channel, destination, code):
+        self.deliveries += 1
+        if self.deliveries > self.fail_after:
+            raise AuthError("delivery_unknown", 503)
+        self.inner.deliver(channel, destination, code)
 
 
 def _engine():
@@ -302,6 +315,89 @@ def test_idempotency_key_replays_the_original_signup_response(settings):
     assert provider.deliveries == 1  # only the first request actually sent an OTP
     with sessions() as session:
         assert len(session.scalars(select(AuthIdentity)).all()) == 1  # no second account
+
+
+def test_signup_ambiguous_delivery_persists_challenge_and_replays_without_resend(settings):
+    provider = AmbiguousOtpProvider()
+    app, _, provider, _ = _app(settings, provider)
+    with TestClient(app) as client:
+        key = _idempotency_key("signup-ambiguous")
+        first = _signup_request(client, key=key)
+        replay = _signup_request(client, key=key)
+        assert first.status_code == replay.status_code == 503
+        assert first.json()["error"]["code"] == "delivery_unknown"
+        user_id = first.json()["error"]["user_id"]
+        assert replay.json() == first.json()
+        verified = client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
+        assert verified.status_code == 200
+    assert provider.deliveries == 2
+
+
+def test_interrupted_signup_claim_recovers_account_without_resending(settings):
+    provider = AmbiguousOtpProvider()
+    app, auth, provider, sessions = _app(settings, provider)
+    body = _signup_body()
+    key = _idempotency_key("signup-interrupted")
+    scope = "testclient"
+    request_fingerprint = fingerprint(body)
+    assert (
+        claim(
+            sessions,
+            route="auth_signup",
+            scope=scope,
+            key=key,
+            request_fingerprint=request_fingerprint,
+        )
+        is None
+    )
+
+    with pytest.raises(AuthError) as raised:
+        auth.signup(
+            body["first_name"],
+            body["surname"],
+            body["phone"],
+            body["email"],
+            body["password"],
+            ip=scope,
+            idempotency_key=key,
+            idempotency_scope=scope,
+        )
+    assert raised.value.code == "delivery_unknown"
+    assert provider.deliveries == 1
+
+    # Simulate the API worker dying before it stores the final response. The
+    # account transaction has already committed its provisional user ID.
+    with sessions.begin() as session:
+        record = session.get(IdempotencyRecord, ("auth_signup", scope, key))
+        assert record is not None
+        assert record.response_body["user_id"]
+        record.created_at = datetime.now(UTC) - timedelta(minutes=6)
+
+    with TestClient(app) as client:
+        recovered = _signup_request(client, body, key=key)
+        replay = _signup_request(client, body, key=key)
+        assert recovered.status_code == replay.status_code == 503
+        assert recovered.json() == replay.json()
+        user_id = recovered.json()["error"]["user_id"]
+        verified = client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
+        assert verified.status_code == 200
+    assert provider.deliveries == 2  # phone signup plus the email OTP after verification
+
+
+def test_resend_ambiguous_delivery_persists_challenge_and_replays_without_resend(settings):
+    provider = AmbiguousOtpProvider(fail_after=1)
+    app, _, provider, _ = _app(settings, provider)
+    with TestClient(app) as client:
+        signup = _signup_request(client)
+        user_id = signup.json()["user_id"]
+        key = _idempotency_key("resend-ambiguous")
+        first = _resend_request(client, user_id, key=key)
+        replay = _resend_request(client, user_id, key=key)
+        assert first.status_code == replay.status_code == 503
+        assert replay.json() == first.json()
+        verified = client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
+        assert verified.status_code == 200
+    assert provider.deliveries == 3
 
 
 def test_idempotency_key_reuse_with_different_payload_is_rejected(settings):

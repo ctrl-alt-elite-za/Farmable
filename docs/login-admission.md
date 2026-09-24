@@ -11,7 +11,7 @@ release another request's capacity. Failure counts retain their independent
 15-minute window; lease expiry does not clear a password lockout. Session writes
 and the final lockout check remain in one database transaction.
 
-Apply migration `0017` after `0016`, with independent migration review. Drain and
+Apply migration `0024` after `0023`, with independent migration review. Drain and
 stop old API workers before running the new version: legacy workers only maintain
 an integer counter and cannot participate in lease fencing. New code recomputes
 that compatibility counter from the lease map; it preserves existing failure

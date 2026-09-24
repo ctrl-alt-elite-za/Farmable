@@ -20,6 +20,12 @@ smoke:
 smoke-voice:
 	uv run python scripts/smoke_gemini_live.py $(SMOKE_ARGS)
 
+.PHONY: eval-assistant assistant-evals
+assistant-evals: eval-assistant
+
+eval-assistant:
+	uv run python -m farmable_backend.assistant.evaluate --set $(or $(SET),dev)
+
 setup:
 	@command -v uv >/dev/null 2>&1 || { echo "Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; }
 	@command -v corepack >/dev/null 2>&1 || { echo "corepack not found - install Node $$(cat .nvmrc) first (see README)"; exit 1; }

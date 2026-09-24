@@ -16,6 +16,7 @@ import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
@@ -94,6 +95,25 @@ def claim(
                 if record.request_fingerprint != request_fingerprint:
                     raise IdempotencyConflict from None
                 if record.status_code == IN_PROGRESS_STATUS:
+                    provisional_user_id = record.response_body.get("user_id")
+                    if route == "auth_signup" and isinstance(provisional_user_id, str):
+                        try:
+                            provisional_user_id = str(UUID(provisional_user_id))
+                        except ValueError:
+                            provisional_user_id = None
+                    if route == "auth_signup" and provisional_user_id is not None:
+                        # The signup transaction already committed the account
+                        # if this marker is visible. Convert the interrupted
+                        # claim into a durable, replayable delivery outcome;
+                        # never run the provider again.
+                        record.status_code = 503
+                        record.response_body = {
+                            "error": {
+                                "code": "delivery_unknown",
+                                "user_id": provisional_user_id,
+                            }
+                        }
+                        return record.status_code, record.response_body
                     created_at = record.created_at
                     if created_at.tzinfo is None:
                         created_at = created_at.replace(tzinfo=UTC)

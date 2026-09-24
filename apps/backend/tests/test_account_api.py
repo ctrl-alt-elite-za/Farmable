@@ -412,6 +412,33 @@ def test_ambiguous_combined_contact_delivery_is_replayed_without_duplicates(acco
         assert identity is not None and identity.email == "sipho@example.com"
 
 
+def test_ambiguous_contact_delivery_persists_challenge_for_confirmation(accounts):
+    provider = accounts.provider
+
+    def deliver(channel, destination, code):
+        if channel is Channel.PHONE:
+            raise AuthError("delivery_unknown", 503)
+
+    provider.deliver.side_effect = deliver
+    headers = _headers(accounts.alice, "ambiguous-phone")
+    payload = {"phone": "+27821234569"}
+
+    first = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert first.status_code == replay.status_code == 503
+    assert first.json()["error"]["code"] == "delivery_unknown"
+    assert replay.json() == first.json()
+    assert provider.deliver.call_count == 1
+
+    confirmed = accounts.client.post(
+        "/account/contact/confirm",
+        headers=_headers(accounts.alice),
+        json={"channel": "phone", "code": "111111"},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["phone"] == "+27821234569"
+
+
 def test_failed_combined_contact_delivery_does_not_repeat_first_success(accounts):
     deliveries = []
     provider = accounts.provider
@@ -808,9 +835,7 @@ def test_export_requires_active_consent(accounts):
 
 
 def test_export_job_download_is_single_use_state_tracked(accounts):
-    """The token is not literally one-shot (polling status must not consume
-    it), but each download is recorded, and an already-expired/cleaned-up job
-    consistently 404s — pinned by the cleanup test below."""
+    """The token is one-shot; status polling does not consume it."""
     alice = _headers(accounts.alice)
     created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
     job_id, download_token = created.json()["id"], created.json()["download_token"]
@@ -821,8 +846,16 @@ def test_export_job_download_is_single_use_state_tracked(accounts):
         f"/account/export/jobs/{job_id}/download", params={"token": download_token}
     )
     assert first.status_code == 200
-    assert second.status_code == 200
-    assert first.content == second.content
+    assert second.status_code == 404
+
+
+def test_export_job_rejects_invalid_idempotency_keys(accounts):
+    alice = _headers(accounts.alice)
+    for key in ("", "short", "x" * 201):
+        headers = {**alice, "Idempotency-Key": key}
+        response = accounts.client.post("/account/export/jobs?format=json", headers=headers)
+        assert response.status_code == 400
+        assert response.json()["error"]["code"] == "idempotency_key_required"
 
 
 def test_expired_export_job_cleanup_clears_artifact_and_blocks_download(accounts):

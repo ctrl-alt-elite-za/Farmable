@@ -14,8 +14,13 @@ from farmable_backend.logging import correlation_id, request_id
 logger = logging.getLogger(__name__)
 
 
-def error_response(status: int, code: str, message: str, **kwargs) -> JSONResponse:
-    return JSONResponse({"error": {"code": code, "message": message}}, status_code=status, **kwargs)
+def error_response(
+    status: int, code: str, message: str, *, user_id: str | None = None, **kwargs
+) -> JSONResponse:
+    error = {"code": code, "message": message}
+    if user_id is not None:
+        error["user_id"] = user_id
+    return JSONResponse({"error": error}, status_code=status, **kwargs)
 
 
 class RateLimiter:

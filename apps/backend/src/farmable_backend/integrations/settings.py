@@ -13,8 +13,11 @@ SERVICES = (
     "soilgrids",
     "open_meteo",
     "maps",
+    "infobip",
 )
-TIMEOUTS = dict(zip(SERVICES, (10.0, 5.0, 15.0, 10.0, 60.0, 20.0, 10.0, 10.0, 10.0), strict=True))
+TIMEOUTS = dict(
+    zip(SERVICES, (10.0, 5.0, 15.0, 10.0, 60.0, 20.0, 10.0, 10.0, 10.0, 10.0), strict=True)
+)
 
 
 class ServiceSettings(BaseSettings):
@@ -34,6 +37,7 @@ class ServiceSettings(BaseSettings):
     fault_soilgrids: bool = False
     fault_open_meteo: bool = False
     fault_maps: bool = False
+    fault_infobip: bool = False
     twilio_account_sid: str | None = Field(
         default=None, pattern=r"^AC[0-9a-fA-F]{32}$", max_length=34
     )
@@ -61,6 +65,17 @@ class ServiceSettings(BaseSettings):
     )
     crop_health_api_key: SecretStr | None = Field(default=None, repr=False)
     maps_server_api_key: SecretStr | None = Field(default=None, repr=False)
+    infobip_base_url: str | None = Field(default=None, max_length=253)
+    infobip_api_key: SecretStr | None = Field(default=None, repr=False)
+    infobip_sms_sender: str | None = Field(default=None, max_length=32)
+    infobip_whatsapp_sender: str | None = Field(default=None, max_length=32)
+    smtp_host: str | None = Field(default=None, max_length=253)
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_tls_mode: Literal["starttls", "ssl"] = "starttls"
+    smtp_user: str | None = Field(default=None, max_length=254)
+    smtp_password: SecretStr | None = Field(default=None, repr=False)
+    email_from_name: str | None = Field(default=None, max_length=78)
+    email_from_address: str | None = Field(default=None, max_length=254)
 
     @model_validator(mode="after")
     def safe_test_controls(self) -> Self:

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
+from asyncio import AbstractEventLoop, run_coroutine_threadsafe
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import Enum
@@ -16,11 +19,23 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from farmable_backend.models import AuthIdentity, AuthSession, Farm, User, VerificationChallenge
+from farmable_backend.email_templates import notification_email, otp_email
+from farmable_backend.idempotency import IN_PROGRESS_STATUS
+from farmable_backend.integrations.email.base import DeliveryUnknown, EmailSender
+from farmable_backend.integrations.infobip import Infobip
+from farmable_backend.models import (
+    AuthIdentity,
+    AuthSession,
+    Farm,
+    IdempotencyRecord,
+    User,
+    VerificationChallenge,
+)
 from farmable_backend.rate_limits import (
     RateLimited,
     admit_login,
     finish_login,
+    retry_after_if_limited,
 )
 from farmable_backend.rate_limits import check as rate_check
 
@@ -94,10 +109,17 @@ def check_sms_limits(sessions: sessionmaker[Session], *, ip: str, phone: str) ->
 
 
 class AuthError(Exception):
-    def __init__(self, code: str, status_code: int = 400, retry_after: int | None = None):
+    def __init__(
+        self,
+        code: str,
+        status_code: int = 400,
+        retry_after: int | None = None,
+        user_id: UUID | None = None,
+    ):
         self.code = code
         self.status_code = status_code
         self.retry_after = retry_after
+        self.user_id = user_id
         super().__init__(code)
 
 
@@ -150,7 +172,7 @@ class DeterministicFakeOtpProvider:
 
 
 class DisabledOtpProvider:
-    """Fail closed until issue #7 supplies configured live SMS and email adapters."""
+    """Fail closed until a live SMS and email adapter is configured and wired."""
 
     def create_code(self, channel: Channel) -> str:
         return f"{secrets.randbelow(1_000_000):06d}"
@@ -160,6 +182,106 @@ class DisabledOtpProvider:
 
     def notify_existing_account(self, channel: Channel, destination: str) -> None:
         raise AuthError("provider_unavailable", 503)
+
+
+EMAIL_DAILY_CAP_SCOPE = "email_daily_cap"
+EMAIL_DAILY_CAP_WARNING_THRESHOLD = 400
+EMAIL_DAILY_CAP_LIMIT = 500
+
+
+class LiveOtpProvider:
+    """Live delivery: SMS via Infobip, email via a pluggable ``EmailSender``.
+
+    OtpProvider methods run synchronously on the auth thread pool. SMS goes
+    through the shared async Infobip adapter (its httpx client/circuit
+    breaker lives on the main asyncio event loop); ``run_coroutine_threadsafe``
+    bridges the two without a second event loop or connection pool. Email is
+    synchronous SMTP and is called directly - no bridging needed.
+    """
+
+    def __init__(
+        self,
+        infobip: Infobip,
+        email_sender: EmailSender,
+        loop: AbstractEventLoop,
+        sessions: sessionmaker[Session],
+    ):
+        self._infobip = infobip
+        self._email_sender = email_sender
+        self._loop = loop
+        self._sessions = sessions
+
+    def create_code(self, channel: Channel) -> str:
+        return f"{secrets.randbelow(1_000_000):06d}"
+
+    def _send_sms(self, destination: str, text: str) -> None:
+        future = run_coroutine_threadsafe(self._infobip.send_sms(destination, text), self._loop)
+        # Adapter.call() bounds itself to at most max_attempts * timeout plus
+        # backoff sleeps between attempts; the bridge timeout must cover that
+        # whole worst case, or a mid-retry request would raise an untranslated
+        # TimeoutError here while the coroutine keeps running on the main loop.
+        budget = self._infobip.timeout * self._infobip.max_attempts + 10
+        try:
+            result = future.result(timeout=budget)
+        except FuturesTimeoutError as error:
+            raise AuthError("delivery_unknown", 503) from error
+        if not result.ok:
+            raise AuthError("delivery_unknown" if result.ambiguous else "provider_unavailable", 503)
+
+    def _send_email(self, destination: str, subject: str, html: str, text: str) -> None:
+        # Reuses the existing durable rate-limit counter table (no schema
+        # change) purely to track/cap Gmail's daily send volume; unrelated to
+        # the per-account/IP abuse limits enforced upstream of this provider.
+        try:
+            rate_check(
+                self._sessions,
+                scope=EMAIL_DAILY_CAP_SCOPE,
+                subject="global",
+                window_seconds=86400,
+                limit=EMAIL_DAILY_CAP_LIMIT,
+                code="email_daily_cap",
+            )
+        except RateLimited as error:
+            raise AuthError("provider_unavailable", 503) from error
+        count = retry_after_if_limited(
+            self._sessions,
+            scope=EMAIL_DAILY_CAP_SCOPE,
+            subject="global",
+            window_seconds=86400,
+            limit=EMAIL_DAILY_CAP_WARNING_THRESHOLD,
+        )
+        if count is not None:
+            logging.getLogger(__name__).warning("Approaching the Gmail daily send limit")
+        try:
+            sent = self._email_sender.send(destination, subject, html, text)
+        except DeliveryUnknown as error:
+            raise AuthError("delivery_unknown", 503) from error
+        if not sent:
+            raise AuthError("provider_unavailable", 503)
+
+    def deliver(self, channel: Channel, destination: str, code: str) -> None:
+        if channel is Channel.PHONE:
+            self._send_sms(
+                destination, f"Your Almanac verification code is {code}. It expires in 10 minutes."
+            )
+        else:
+            html, text = otp_email(code)
+            self._send_email(destination, "Your Almanac verification code", html, text)
+
+    def notify_existing_account(self, channel: Channel, destination: str) -> None:
+        if channel is Channel.PHONE:
+            self._send_sms(
+                destination,
+                "Someone tried to sign up for Almanac with this phone number. "
+                "If this wasn't you, no action is needed.",
+            )
+        else:
+            html, text = notification_email(
+                "Almanac sign-up attempt",
+                "Someone tried to sign up for Almanac with this email address. "
+                "If this wasn't you, no action is needed.",
+            )
+            self._send_email(destination, "Almanac sign-up attempt", html, text)
 
 
 class _MemoryUser(TypedDict):
@@ -212,6 +334,8 @@ class AuthService:
         password: str,
         *,
         ip: str = "unknown",
+        idempotency_key: str | None = None,
+        idempotency_scope: str = "",
     ) -> AuthUser:
         email = email.strip().lower()
         phone = phone.strip()
@@ -291,8 +415,29 @@ class AuthService:
                         self._notify_collision(winner, email, phone)
                     return placeholder
                 raise
-            self._send(session, user, Channel.PHONE)
-            return _user(user)
+            if idempotency_key is not None:
+                # The provisional user ID is committed atomically with the
+                # account and OTP challenge. If the request worker dies
+                # before the outer handler can store the final response, a
+                # later retry can still recover this exact account without
+                # sending another OTP.
+                claim = session.get(
+                    IdempotencyRecord,
+                    ("auth_signup", idempotency_scope, idempotency_key),
+                    with_for_update=True,
+                )
+                if claim is not None and claim.status_code == IN_PROGRESS_STATUS:
+                    claim.response_body = {"user_id": str(user.id)}
+            failure = self._send(session, user, Channel.PHONE)
+            result = _user(user)
+        if failure is not None:
+            raise AuthError(
+                failure.code,
+                failure.status_code,
+                failure.retry_after,
+                user_id=user.id,
+            )
+        return result
 
     def _notify_collision(self, existing: AuthIdentity, email: str, phone: str) -> None:
         # Best-effort: the real owner is warned that someone tried to sign up
@@ -355,7 +500,14 @@ class AuthService:
             raise AuthError("invalid_verification", 400)
         return result
 
-    def resend(self, user_id: UUID, channel: Channel, *, ip: str = "unknown") -> None:
+    def resend(
+        self,
+        user_id: UUID,
+        channel: Channel,
+        *,
+        ip: str = "unknown",
+    ) -> None:
+        failure: AuthError | None = None
         with self.sessions.begin() as session:
             user = session.scalar(
                 select(AuthIdentity).where(AuthIdentity.id == user_id).with_for_update()
@@ -368,7 +520,9 @@ class AuthService:
                 raise AuthError("invalid_verification", 400)
             if channel is Channel.PHONE:
                 self._check_sms_limits(ip, user.phone)
-            self._send(session, user, channel)
+            failure = self._send(session, user, channel)
+        if failure is not None:
+            raise failure
 
     def login(self, identifier: str, password: str, *, ip: str = "unknown") -> SessionTokens:
         identifier = identifier.strip()
@@ -477,7 +631,12 @@ class AuthService:
         # already-committed transaction (see rate_limits.py).
         check_sms_limits(self.sessions, ip=ip, phone=phone)
 
-    def _send(self, session: Session, user: AuthIdentity, channel: Channel) -> None:
+    def _send(
+        self,
+        session: Session,
+        user: AuthIdentity,
+        channel: Channel,
+    ) -> AuthError | None:
         recent = session.scalars(
             select(VerificationChallenge).where(
                 VerificationChallenge.user_id == user.id,
@@ -499,7 +658,22 @@ class AuthService:
             .values(consumed_at=_now())
         )
         code = self.provider.create_code(channel)
-        self.provider.deliver(channel, user.phone if channel is Channel.PHONE else user.email, code)
+        try:
+            self.provider.deliver(
+                channel, user.phone if channel is Channel.PHONE else user.email, code
+            )
+        except AuthError as error:
+            if error.code != "delivery_unknown":
+                raise
+            session.add(
+                VerificationChallenge(
+                    user_id=user.id,
+                    channel=channel.value,
+                    code_hash=PASSWORD_HASHER.hash(code),
+                    expires_at=_now() + OTP_TTL,
+                )
+            )
+            return error
         session.add(
             VerificationChallenge(
                 user_id=user.id,
@@ -508,6 +682,7 @@ class AuthService:
                 expires_at=_now() + OTP_TTL,
             )
         )
+        return None
 
     def _new_session(self, session: Session, user: AuthIdentity) -> SessionTokens:
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
@@ -555,7 +730,10 @@ class InMemoryAuthService:
         password: str,
         *,
         ip: str = "unknown",
+        idempotency_key: str | None = None,
+        idempotency_scope: str = "",
     ) -> AuthUser:
+        del idempotency_key, idempotency_scope
         if any(u["email"] == email.lower() or u["phone"] == phone for u in self.users.values()):
             # #9 enumeration resistance: identical shape to a new sign-up, no
             # account/OTP created or sent for this request.

@@ -220,7 +220,10 @@ async def create_export_job(
 ):
     response.headers["Cache-Control"] = "no-store"
     worker = runtime(request)
-    key = request.headers.get("Idempotency-Key")
+    raw_key = request.headers.get("Idempotency-Key")
+    key = raw_key.strip() if raw_key is not None else None
+    if key is not None and not 16 <= len(key) <= 200:
+        raise ApiError(400, "idempotency_key_required")
     body = {"format": format}
     scope = ""
     if key:

@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import io
 import json
+import secrets
 import zipfile
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -29,6 +30,7 @@ from farmable_backend.account_schemas import (
     ProfileResponse,
     ProfileUpdate,
 )
+from farmable_backend.assistant.retention import visible
 from farmable_backend.auth import (
     OTP_TTL,
     PASSWORD_HASHER,
@@ -54,9 +56,17 @@ from farmable_backend.idempotency import (
 from farmable_backend.models import (
     DEFAULT_ACCOUNT_LANGUAGE,
     AccountProfile,
+    AssistantConsent,
+    AssistantConversation,
+    AssistantLiveConsent,
+    AssistantLiveSession,
+    AssistantModelCall,
+    AssistantTurn,
+    AssistantTurnCost,
     AuthIdentity,
     AuthSession,
     Consent,
+    CropDiagnosis,
     ExportJob,
     Farm,
     FarmLocation,
@@ -67,6 +77,7 @@ from farmable_backend.models import (
     PendingContactChange,
     PhotoAttempt,
     PhotoUpload,
+    PlanRevision,
     Planting,
     SavedPlan,
     Section,
@@ -76,7 +87,7 @@ from farmable_backend.models import (
 )
 from farmable_backend.rate_limits import RateLimited
 from farmable_backend.rate_limits import check as rate_limit_check
-from farmable_backend.record_access import ApiError, authenticate
+from farmable_backend.record_access import ApiError, authenticate, db_now
 
 EXPORT_SCHEMA_VERSION = 1
 EXPORT_BASENAME = "farmable-export"
@@ -151,9 +162,18 @@ def zip_bytes(document: dict[str, Any]) -> bytes:
 
 
 class AccountService:
-    def __init__(self, sessions: sessionmaker[Session], provider: OtpProvider | None = None):
+    def __init__(
+        self,
+        sessions: sessionmaker[Session],
+        provider: OtpProvider | None = None,
+        export_token_secret: str | None = None,
+    ):
         self.sessions = sessions
         self.provider = provider or DisabledOtpProvider()
+        # Production supplies a stable dedicated secret through Settings. The
+        # generated fallback keeps isolated/test services usable without ever
+        # deriving bearer credentials from the database URL.
+        self._export_token_secret = export_token_secret or secrets.token_urlsafe(32)
 
     def owner_id(self, authorization: str | None) -> UUID:
         with self.sessions.begin() as session:
@@ -369,6 +389,7 @@ class AccountService:
         idempotency_key: str | None = None,
     ) -> None:
         normalized = new_value.strip().lower() if channel is Channel.EMAIL else new_value.strip()
+        failure: ApiError | None = None
         with self.sessions.begin() as session:
             owner = authenticate(session, authorization)
             # Lock the parent identity row first so two concurrent first-use
@@ -432,7 +453,9 @@ class AccountService:
                 else:
                     self.provider.deliver(channel, normalized, code)
             except _AuthError as exc:
-                raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
+                if exc.code != "delivery_unknown":
+                    raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
+                failure = ApiError(exc.status_code, exc.code, exc.retry_after)
             session.add(
                 VerificationChallenge(
                     user_id=owner,
@@ -441,6 +464,8 @@ class AccountService:
                     expires_at=datetime.now(UTC) + OTP_TTL,
                 )
             )
+        if failure is not None:
+            raise failure
 
     def farm(self, authorization: str | None) -> AccountFarmResponse:
         with self.sessions.begin() as session:
@@ -551,12 +576,11 @@ class AccountService:
             raise
 
     def _export_token(self, job_id: UUID) -> str:
-        bind = self.sessions.kw.get("bind")
-        url = getattr(bind, "url", None)
-        if url is None:
-            raise RuntimeError("export token key is unavailable")
-        secret = url.render_as_string(hide_password=False).encode()
-        digest = hmac.new(secret, b"farmable-export-token:" + job_id.bytes, hashlib.sha256).digest()
+        digest = hmac.new(
+            self._export_token_secret.encode(),
+            b"farmable-export-token:" + job_id.bytes,
+            hashlib.sha256,
+        ).digest()
         return base64.urlsafe_b64encode(digest).decode().rstrip("=")
 
     @staticmethod
@@ -599,6 +623,7 @@ class AccountService:
             if (
                 job is None
                 or job.status != "ready"
+                or job.downloaded_at is not None
                 or job.artifact is None
                 or job.expires_at is None
                 or _as_utc(job.expires_at) < datetime.now(UTC)
@@ -653,6 +678,36 @@ class AccountService:
                 select(model).where(model.owner_id == owner).order_by(model.id)
             ).all()
             document[name] = [_row(row) for row in rows]
+        # Plan history and assistant content are personal data too. Account
+        # erasure explicitly deletes plan history and cascades assistant rows.
+        for name, model in (
+            ("plan_revisions", PlanRevision),
+            ("crop_diagnoses", CropDiagnosis),
+            ("assistant_conversations", AssistantConversation),
+            ("assistant_consents", AssistantConsent),
+            ("assistant_live_consents", AssistantLiveConsent),
+            ("assistant_live_sessions", AssistantLiveSession),
+            ("assistant_turns", AssistantTurn),
+        ):
+            query = select(model).where(model.owner_id == owner).order_by(model.id)
+            if model is AssistantTurn:
+                query = query.where(*visible(db_now(session)))
+            rows = session.scalars(query).all()
+            document[name] = [_row(row) for row in rows]
+        calls = session.scalars(
+            select(AssistantModelCall)
+            .join(AssistantTurn)
+            .where(AssistantTurn.owner_id == owner)
+            .order_by(AssistantModelCall.id)
+        ).all()
+        document["assistant_model_calls"] = [_row(row) for row in calls]
+        costs = session.scalars(
+            select(AssistantTurnCost)
+            .join(AssistantTurn)
+            .where(AssistantTurn.owner_id == owner)
+            .order_by(AssistantTurnCost.id)
+        ).all()
+        document["assistant_turn_costs"] = [_row(row) for row in costs]
         return document
 
     @staticmethod
@@ -748,6 +803,13 @@ class AccountService:
             if not _verify_password(identity.password_hash, password):
                 raise ApiError(401, "invalid_credentials")
             now = datetime.now(UTC)
+            # Serialize erasure with plan confirmation/sync writes so a request
+            # admitted just before deletion cannot restore an archived version.
+            session.scalars(
+                select(Farm).where(Farm.owner_id == owner).order_by(Farm.id).with_for_update()
+            ).all()
+            session.execute(delete(PlanRevision).where(PlanRevision.owner_id == owner))
+            session.execute(delete(CropDiagnosis).where(CropDiagnosis.owner_id == owner))
             # Deliberate deviation from the tombstone contract that
             # farm_records.tombstone_* follows (deleted_at + version bump +
             # sync_state="pending" + a SyncChange row). That contract exists to

@@ -153,7 +153,7 @@ class RecordBodyLimit:
         if (
             scope["type"] != "http"
             or scope.get("method") not in ("POST", "PUT")
-            or not scope.get("path", "").startswith("/farms/")
+            or not scope.get("path", "").startswith(("/farms/", "/assistant/"))
         ):
             return await self.app(scope, receive, send)
         chunks = []

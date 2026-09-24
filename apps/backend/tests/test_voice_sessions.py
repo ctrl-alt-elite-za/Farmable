@@ -161,7 +161,10 @@ def test_timeout_and_fault_are_safe(voice, failure):
     assert voice.app.state.services.transport.calls["gemini"] == (failure == "slow")
 
 
-def test_rest_policy_and_long_lived_key_never_returned():
+@pytest.mark.parametrize("scoped", [False, True])
+def test_rest_policy_and_long_lived_key_never_returned(scoped):
+    from farmable_backend.assistant.live import setup_for
+
     async def run():
         key = "synthetic-server-key-not-a-real-credential"
         config = ServiceSettings(
@@ -179,7 +182,8 @@ def test_rest_policy_and_long_lived_key_never_returned():
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
             adapter = GeminiLive(client, config)
-            result = await adapter.issue()
+            setup = setup_for("fixture-live-model") if scoped else None
+            result = await adapter.issue(setup=setup)
         assert result.ok and result.data["mode"] == "live"
         assert key not in str(result.data) + repr(result) + repr(config)
         assert len(requests) == 1
@@ -188,11 +192,14 @@ def test_rest_policy_and_long_lived_key_never_returned():
         assert request.headers["x-goog-api-key"] == key
         policy = json.loads(request.content)
         assert policy["uses"] == 1 and "fieldMask" not in policy
-        assert policy["bidiGenerateContentSetup"] == {
-            "model": "models/fixture-live-model",
-            "generationConfig": {"responseModalities": ["AUDIO"]},
-            "sessionResumption": {},
-        }
+        assert policy["bidiGenerateContentSetup"] == (
+            setup
+            or {
+                "model": "models/fixture-live-model",
+                "generationConfig": {"responseModalities": ["AUDIO"]},
+                "sessionResumption": {},
+            }
+        )
         assert datetime.fromisoformat(policy["expireTime"]) == result.data["expires_at"]
         assert (
             datetime.fromisoformat(policy["newSessionExpireTime"])
