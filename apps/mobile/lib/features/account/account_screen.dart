@@ -62,6 +62,14 @@ class AccountScreen extends ConsumerWidget {
               ),
               SignedOut() => const _SignedOut(),
             },
+            // The device self-test (#4) — the part of "what the app is
+            // allowed to use" that exists so far, and the way a phone build
+            // that opens on Home reaches it. Asks for nothing until Run.
+            SectionHeader(
+              title: 'This phone',
+              actionLabel: 'Device self-test',
+              onAction: () => context.push('/self-test'),
+            ),
           ],
         ),
       ),
