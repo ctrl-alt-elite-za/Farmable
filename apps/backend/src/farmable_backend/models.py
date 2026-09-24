@@ -37,6 +37,16 @@ FINANCIAL_TYPES = ("expense", "income")
 PLAN_STATUSES = ("saved", "approved", "rejected")
 ACCOUNT_LANGUAGES = ("en", "af", "nso", "st", "xh", "zu")
 DEFAULT_ACCOUNT_LANGUAGE = "en"
+REFERENCE_CROPS = (
+    "butternut",
+    "cabbage",
+    "carrots",
+    "green_beans",
+    "onions",
+    "potatoes",
+    "spinach",
+    "tomatoes",
+)
 
 JSON_DOCUMENT = JSON().with_variant(JSONB(), "postgresql")
 CHANGE_CURSOR = BigInteger().with_variant(Integer(), "sqlite")
@@ -118,6 +128,113 @@ class WeightFormula(Base):
     version: Mapped[str] = mapped_column(Text)
     formula: Mapped[dict[str, Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ReferenceImport(Base):
+    """Immutable identity for one validated canonical reference dataset."""
+
+    __tablename__ = "reference_imports"
+    __table_args__ = (
+        UniqueConstraint("dataset_kind", "dataset_key", name="uq_reference_imports_dataset"),
+        CheckConstraint(
+            column("source_sha256").regexp_match("^[0-9a-f]{64}$"),
+            name="ck_reference_imports_source_sha256_hex",
+        ),
+        CheckConstraint(
+            column("payload_sha256").regexp_match("^[0-9a-f]{64}$"),
+            name="ck_reference_imports_payload_sha256_hex",
+        ),
+        CheckConstraint(column("parser_version") > 0, name="ck_reference_imports_parser_positive"),
+        CheckConstraint(column("row_count") > 0, name="ck_reference_imports_rows_positive"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    dataset_kind: Mapped[str] = mapped_column(Text)
+    dataset_key: Mapped[str] = mapped_column(Text)
+    source_file: Mapped[str] = mapped_column(Text)
+    source_sha256: Mapped[str] = mapped_column(Text)
+    payload_sha256: Mapped[str] = mapped_column(Text)
+    parser_version: Mapped[int] = mapped_column(BigInteger)
+    row_count: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ReferenceMarketPrice(Base):
+    __tablename__ = "reference_market_prices"
+    __table_args__ = (
+        UniqueConstraint(
+            "crop", "market", "observation_month", name="uq_reference_market_prices_natural"
+        ),
+        CheckConstraint(column("crop").in_(REFERENCE_CROPS), name="ck_reference_prices_crop"),
+        CheckConstraint(column("price_rand_per_kg") > 0, name="ck_reference_prices_positive"),
+        CheckConstraint(
+            column("availability_kind").in_(("publication", "analytical_next_month")),
+            name="ck_reference_prices_availability_kind",
+        ),
+    )
+
+    import_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("reference_imports.id", ondelete="CASCADE"), primary_key=True
+    )
+    crop: Mapped[str] = mapped_column(Text, primary_key=True)
+    market: Mapped[str] = mapped_column(Text, primary_key=True)
+    observation_month: Mapped[date] = mapped_column(Date, primary_key=True)
+    available_on: Mapped[date] = mapped_column(Date)
+    price_rand_per_kg: Mapped[Decimal] = mapped_column(Numeric(14, 4))
+    availability_kind: Mapped[str] = mapped_column(Text)
+
+
+class ReferenceCropCalendar(Base):
+    __tablename__ = "reference_crop_calendars"
+    __table_args__ = (
+        UniqueConstraint(
+            "crop", "region", "effective_on", "revision", name="uq_reference_calendars_natural"
+        ),
+        CheckConstraint(column("crop").in_(REFERENCE_CROPS), name="ck_reference_calendars_crop"),
+        CheckConstraint(column("harvest_offset_months") > 0, name="ck_reference_calendar_offset"),
+        CheckConstraint(column("yield_kg_per_ha") > 0, name="ck_reference_calendar_yield"),
+    )
+
+    import_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("reference_imports.id", ondelete="CASCADE"), primary_key=True
+    )
+    crop: Mapped[str] = mapped_column(Text, primary_key=True)
+    region: Mapped[str] = mapped_column(Text, primary_key=True)
+    effective_on: Mapped[date] = mapped_column(Date, primary_key=True)
+    available_on: Mapped[date] = mapped_column(Date)
+    revision: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    planting_months: Mapped[list[int]] = mapped_column(JSON_DOCUMENT)
+    harvest_offset_months: Mapped[int] = mapped_column(BigInteger)
+    yield_kg_per_ha: Mapped[Decimal] = mapped_column(Numeric(14, 4))
+    assumption_kind: Mapped[str] = mapped_column(Text)
+
+
+class ReferenceCropCost(Base):
+    __tablename__ = "reference_crop_costs"
+    __table_args__ = (
+        UniqueConstraint(
+            "crop", "region", "effective_on", "revision", name="uq_reference_costs_natural"
+        ),
+        CheckConstraint(column("crop").in_(REFERENCE_CROPS), name="ck_reference_costs_crop"),
+        CheckConstraint(column("cost_rand_per_ha") >= 0, name="ck_reference_cost_nonnegative"),
+        CheckConstraint(
+            column("marketing_rate").between(0, Decimal("0.999999")),
+            name="ck_reference_cost_marketing_rate",
+        ),
+    )
+
+    import_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("reference_imports.id", ondelete="CASCADE"), primary_key=True
+    )
+    crop: Mapped[str] = mapped_column(Text, primary_key=True)
+    region: Mapped[str] = mapped_column(Text, primary_key=True)
+    effective_on: Mapped[date] = mapped_column(Date, primary_key=True)
+    available_on: Mapped[date] = mapped_column(Date)
+    revision: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    basis_year: Mapped[int] = mapped_column(BigInteger)
+    cost_rand_per_ha: Mapped[Decimal] = mapped_column(Numeric(14, 4))
+    marketing_rate: Mapped[Decimal] = mapped_column(Numeric(8, 6))
+    vat_basis: Mapped[str] = mapped_column(Text)
 
 
 class User(Base):
@@ -225,6 +342,209 @@ class AccountProfile(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class AssistantConversation(Base):
+    __tablename__ = "assistant_conversations"
+    __table_args__ = (
+        _farm_owner_fk("assistant_conversations"),
+        UniqueConstraint("id", "owner_id", name="uq_assistant_conversation_owner"),
+        Index("ix_assistant_conversations_owner", "owner_id"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE")
+    )
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AssistantConsent(Base):
+    __tablename__ = "assistant_consents"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("id", "owner_id"),
+            ("assistant_conversations.id", "assistant_conversations.owner_id"),
+            ondelete="CASCADE",
+            name="fk_assistant_consent_conversation_owner",
+        ),
+        Index("ix_assistant_consents_owner", "owner_id"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    model: Mapped[str] = mapped_column(Text)
+    notice_version: Mapped[str] = mapped_column(Text)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantLiveConsent(Base):
+    __tablename__ = "assistant_live_consents"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("id", "owner_id"),
+            ("assistant_conversations.id", "assistant_conversations.owner_id"),
+            ondelete="CASCADE",
+            name="fk_assistant_live_consent_owner",
+        ),
+        Index("ix_assistant_live_consents_owner", "owner_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    model: Mapped[str] = mapped_column(Text)
+    notice_version: Mapped[str] = mapped_column(Text)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantLiveSession(Base):
+    """Content-free capability metadata, never audio, transcripts or credentials."""
+
+    __tablename__ = "assistant_live_sessions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("conversation_id", "owner_id"),
+            ("assistant_conversations.id", "assistant_conversations.owner_id"),
+            ondelete="CASCADE",
+            name="fk_assistant_live_session_owner",
+        ),
+        CheckConstraint(
+            column("state").in_(("issuing", "active", "interrupted", "failed")),
+            name="ck_assistant_live_session_state",
+        ),
+        CheckConstraint(column("tool_count").between(0, 32), name="ck_assistant_live_tool_count"),
+        Index("ix_assistant_live_sessions_owner_expiry", "owner_id", "expires_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    conversation_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    model: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text, default="issuing", server_default="issuing")
+    tool_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantTurnCost(Base):
+    """Durable reservation settlement; deletion removes identity, never budget debt."""
+
+    __tablename__ = "assistant_turn_costs"
+    __table_args__ = (
+        CheckConstraint(
+            column("state").in_(("reserved", "unknown", "settled")), name="ck_assistant_cost_state"
+        ),
+        CheckConstraint(column("reserved_micro_usd") >= 0, name="ck_assistant_cost_reserved"),
+        CheckConstraint(column("settled_micro_usd") >= 0, name="ck_assistant_cost_settled"),
+        Index("ix_assistant_costs_due", "state", "next_check_at"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    turn_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("assistant_turns.id", ondelete="SET NULL"), unique=True
+    )
+    day: Mapped[date] = mapped_column(Date)
+    policy: Mapped[str] = mapped_column(Text)
+    reserved_micro_usd: Mapped[int] = mapped_column(BigInteger)
+    settled_micro_usd: Mapped[int | None] = mapped_column(BigInteger)
+    state: Mapped[str] = mapped_column(Text)
+    error: Mapped[str | None] = mapped_column(Text)
+    next_check_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantModelCall(Base):
+    """Content-free usage survives account erasure with its turn link removed."""
+
+    __tablename__ = "assistant_model_calls"
+    __table_args__ = (
+        UniqueConstraint("turn_id", "round_index", name="uq_assistant_call_round"),
+        CheckConstraint(column("round_index").between(0, 3), name="ck_assistant_call_round"),
+        CheckConstraint(
+            column("state").in_(("started", "unknown", "unpriced", "priced")),
+            name="ck_assistant_call_state",
+        ),
+        CheckConstraint(
+            column("estimated_micro_usd") >= 0,
+            name="ck_assistant_call_cost",
+        ),
+        CheckConstraint(
+            column("data_kind").in_(("synthetic", "provider")),
+            name="ck_assistant_call_kind",
+        ),
+        Index("ix_assistant_calls_project_created", "billing_project", "created_at"),
+        Index("ix_assistant_calls_cost", "cost_id"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    cost_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("assistant_turn_costs.id", ondelete="CASCADE")
+    )
+    turn_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("assistant_turns.id", ondelete="SET NULL")
+    )
+    round_index: Mapped[int] = mapped_column(BigInteger)
+    billing_project: Mapped[str | None] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(Text)
+    response_model: Mapped[str | None] = mapped_column(Text)
+    data_kind: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text)
+    error: Mapped[str | None] = mapped_column(Text)
+    usage: Mapped[dict[str, int]] = mapped_column(JSON_DOCUMENT)
+    pricing: Mapped[dict[str, Any] | None] = mapped_column(JSON_DOCUMENT)
+    estimated_micro_usd: Mapped[int | None] = mapped_column(BigInteger)
+    cache_mode: Mapped[str] = mapped_column(Text, nullable=False, default="disabled")
+    cache_cost_micro_usd: Mapped[int | None] = mapped_column(BigInteger, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantTurn(Base):
+    __tablename__ = "assistant_turns"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("conversation_id", "owner_id"),
+            ("assistant_conversations.id", "assistant_conversations.owner_id"),
+            ondelete="CASCADE",
+            name="fk_assistant_turn_conversation_owner",
+        ),
+        CheckConstraint(
+            column("status").in_(("running", "completed", "interrupted", "failed")),
+            name="ck_assistant_turn_status",
+        ),
+        CheckConstraint(column("reserved_micro_usd") >= 0, name="ck_assistant_turn_reservation"),
+        Index("ix_assistant_turns_history", "conversation_id", "created_at", "id"),
+        Index("ix_assistant_turns_owner_created", "owner_id", "created_at"),
+        Index("ix_assistant_turns_retention", "content_deleted_at", "created_at", "id"),
+    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    conversation_id: Mapped[UUID] = mapped_column(Uuid)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    message: Mapped[str] = mapped_column(Text)
+    reply: Mapped[str] = mapped_column(Text, default="", server_default="")
+    status: Mapped[str] = mapped_column(Text, default="running")
+    error: Mapped[str | None] = mapped_column(Text)
+    tools: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list)
+    usage: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list)
+    model: Mapped[str] = mapped_column(Text)
+    policy: Mapped[str] = mapped_column(Text)
+    reserved_micro_usd: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    content_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantBudget(Base):
+    """One migration-seeded lock serializes global and per-user admission."""
+
+    __tablename__ = "assistant_budget"
+    __table_args__ = (
+        CheckConstraint(column("id") == 1, name="ck_assistant_budget_singleton"),
+        CheckConstraint(column("reserved_micro_usd") >= 0, name="ck_assistant_budget_nonnegative"),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    day: Mapped[date | None] = mapped_column(Date)
+    policy: Mapped[str | None] = mapped_column(Text)
+    reserved_micro_usd: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
 
 
 class Farm(Base):
@@ -511,6 +831,35 @@ class SavedPlan(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class PlanRevision(Base):
+    """Append-only application snapshots; account erasure explicitly removes them."""
+
+    __tablename__ = "plan_revisions"
+    __table_args__ = (
+        _farm_owner_fk("plan_revisions"),
+        _section_owner_fk("plan_revisions"),
+        UniqueConstraint("plan_id", "version", name="uq_plan_revisions_plan_version"),
+        CheckConstraint(column("version") > 0, name="ck_plan_revisions_version_positive"),
+        CheckConstraint(
+            column("origin").in_(("baseline", "manual", "planner_confirmation")),
+            name="ck_plan_revisions_origin",
+        ),
+        Index("ix_plan_revisions_owner_farm", "owner_id", "farm_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    plan_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("saved_plans.id", ondelete="CASCADE"))
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
+    version: Mapped[int] = mapped_column(BigInteger)
+    origin: Mapped[str] = mapped_column(Text)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class SyncMutation(Base):
     __tablename__ = "sync_mutations"
     __table_args__ = (
@@ -569,6 +918,51 @@ class SyncChange(Base):
     operation: Mapped[str] = mapped_column(Text)
     version: Mapped[int] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CropDiagnosis(Base):
+    """Explicitly submitted, consented focus-photo work; never an automatic scan."""
+
+    __tablename__ = "crop_diagnoses"
+    __table_args__ = (
+        _farm_owner_fk("crop_diagnoses"),
+        _section_owner_fk("crop_diagnoses"),
+        ForeignKeyConstraint(
+            ("media_id", "farm_id", "owner_id"),
+            ("media.id", "media.farm_id", "media.owner_id"),
+            name="fk_crop_diagnoses_media_scope",
+        ),
+        CheckConstraint(
+            column("state").in_(("queued", "processing", "ready", "unavailable", "cancelled")),
+            name="ck_crop_diagnoses_state",
+        ),
+        CheckConstraint(column("attempts").between(0, 3), name="ck_crop_diagnoses_attempts"),
+        Index("ix_crop_diagnoses_due", "state", "next_attempt_at"),
+        Index("ix_crop_diagnoses_owner_created", "owner_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE")
+    )
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    section_id: Mapped[UUID] = mapped_column(Uuid)
+    media_id: Mapped[UUID] = mapped_column(Uuid)
+    planting_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("plantings.id"))
+    planting_version: Mapped[int] = mapped_column(BigInteger)
+    crop: Mapped[str] = mapped_column(Text)
+    fingerprint: Mapped[str] = mapped_column(Text)
+    consent_notice_version: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text, default="queued")
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON_DOCUMENT)
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class PhotoUpload(Base):

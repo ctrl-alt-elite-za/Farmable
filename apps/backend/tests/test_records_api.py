@@ -34,7 +34,7 @@ from farmable_backend.records_service import RecordsService
 from farmable_backend.uploads import PostUpload, UploadError
 from fastapi.testclient import TestClient
 from PIL import Image
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import URL, create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -131,14 +131,22 @@ class FakeStorage:
 
 
 @pytest.fixture
-def records(settings):
+def records(settings, request, tmp_path):
     # Sequential HTTP/unit checks use memory, like the existing ORM unit suite.
     # Real concurrent transactions are tested against isolated PostgreSQL below.
-    engine = create_engine(
-        "sqlite+pysqlite:///:memory:",
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
-    )
+    if getattr(request, "param", None) == "separate_connections":
+        # Concurrent HTTP callbacks need separate DBAPI connections. StaticPool
+        # would let one session's rollback undo another session's transaction.
+        engine = create_engine(
+            URL.create("sqlite+pysqlite", database=str(tmp_path / "records.db")),
+            connect_args={"check_same_thread": False},
+        )
+    else:
+        engine = create_engine(
+            "sqlite+pysqlite:///:memory:",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
     Base.metadata.create_all(engine)
     sessions = sessionmaker(engine, expire_on_commit=False)
     ids = seed(sessions)

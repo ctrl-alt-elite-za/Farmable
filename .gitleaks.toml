@@ -9,7 +9,3 @@ id = "aws-access-key-strict"
 description = "AWS Access Key ID (no example-key allowlisting)"
 regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
 tags = ["key", "aws"]
-
-[allowlist]
-description = "Synthetic idempotency keys from acceptance-test history"
-commits = ["f10da6a57c33fc832f49c229df57ad063abfae7a"]

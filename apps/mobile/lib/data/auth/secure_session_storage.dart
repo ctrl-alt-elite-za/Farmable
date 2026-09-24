@@ -22,21 +22,26 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'session_storage.dart';
 
 class SecureSessionStorage implements SessionStorage {
-  static const _key = 'almanac.session';
+  /// The session's key. Account data the farmer's session unlocks — their
+  /// profile, pending edits, consent — lives under `almanac.account` in its
+  /// own record, so dropping one never rewrites the other.
+  final String _key;
 
   final FlutterSecureStorage _storage;
 
-  SecureSessionStorage({FlutterSecureStorage? storage})
-    : _storage =
-          storage ??
-          const FlutterSecureStorage(
-            aOptions: AndroidOptions(storageNamespace: 'almanac_session'),
-            iOptions: IOSOptions(
-              // Readable once the phone has been unlocked since boot, and never
-              // copied to another device in a backup or migration.
-              accessibility: KeychainAccessibility.first_unlock_this_device,
-            ),
-          );
+  SecureSessionStorage({
+    FlutterSecureStorage? storage,
+    this._key = 'almanac.session',
+  }) : _storage =
+           storage ??
+           const FlutterSecureStorage(
+             aOptions: AndroidOptions(storageNamespace: 'almanac_session'),
+             iOptions: IOSOptions(
+               // Readable once the phone has been unlocked since boot, and never
+               // copied to another device in a backup or migration.
+               accessibility: KeychainAccessibility.first_unlock_this_device,
+             ),
+           );
 
   /// Same rule as [FileSessionStorage.read]: a record that cannot be read is
   /// treated as absent. The farmer logs in again; they do not get an app that

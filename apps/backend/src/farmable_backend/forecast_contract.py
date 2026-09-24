@@ -16,10 +16,14 @@ RunId = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")]
 Amount = Annotated[Decimal, Field(max_digits=14, decimal_places=4, allow_inf_nan=False)]
 PositiveAmount = Annotated[Amount, Field(gt=0)]
 Month = Annotated[StrictInt, Field(ge=1, le=12)]
-Mode = Literal["disabled", "sample", "historical"]
-Kind = Literal["synthetic", "historical"]
+Mode = Literal["disabled", "sample", "historical", "retrospective"]
+Kind = Literal["synthetic", "historical", "retrospective"]
 Method = Literal["fixture", "historical_range", "lightgbm"]
 SAMPLE_WARNING = "Synthetic demonstration data. Not a validated forecast or farming recommendation."
+RETROSPECTIVE_WARNING = (
+    "Retrospective fixed-2025-input simulation using current-vintage market history. "
+    "Does not establish what information was published at the historical planting date."
+)
 
 
 class ForecastRow(StrictModel):

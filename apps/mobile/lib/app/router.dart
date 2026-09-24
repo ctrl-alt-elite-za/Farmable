@@ -15,6 +15,10 @@ library;
 import 'package:go_router/go_router.dart';
 
 import '../features/account/account_screen.dart';
+import '../features/account/delete_account_screen.dart';
+import '../features/account/edit_details_screen.dart';
+import '../features/account/export_screen.dart';
+import '../features/account/privacy_screen.dart';
 import '../features/auth/auth_choice_screen.dart';
 import '../features/auth/brand_intro_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
@@ -142,7 +146,16 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
     ),
     // Who is signed in, and Log out. Never a gate: it reads the session, it
     // does not require one.
-    GoRoute(path: '/profile', builder: (_, _) => const AccountScreen()),
+    GoRoute(
+      path: '/profile',
+      builder: (_, _) => const AccountScreen(),
+      routes: [
+        GoRoute(path: 'edit', builder: (_, _) => const EditDetailsScreen()),
+        GoRoute(path: 'privacy', builder: (_, _) => const PrivacyScreen()),
+        GoRoute(path: 'export', builder: (_, _) => const ExportScreen()),
+        GoRoute(path: 'delete', builder: (_, _) => const DeleteAccountScreen()),
+      ],
+    ),
 
     // Kept, and kept working: `e2e/mobile/*.yaml` drive this screen, and it is
     // the one place the app states plainly whether it can reach its API.

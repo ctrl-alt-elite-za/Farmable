@@ -162,6 +162,35 @@ class GcsPhotos:
         except (cloud_errors.GoogleAPICallError, GoogleAuthError, RequestException):
             raise UploadError("storage_unavailable") from None
 
+    def read_clean(self, upload, attempt) -> bytes:
+        if (
+            not attempt.clean_generation
+            or not attempt.clean_sha256
+            or not attempt.clean_size
+            or not 0 < attempt.clean_size <= 4_500_000
+        ):
+            raise UploadError("clean_photo_unavailable")
+        blob = self.bucket.blob(clean_key(upload, attempt), generation=attempt.clean_generation)
+        try:
+            data = blob.download_as_bytes(
+                start=0,
+                end=attempt.clean_size,
+                raw_download=True,
+                if_generation_match=int(attempt.clean_generation),
+                timeout=TIMEOUT,
+                retry=retry_policy(),
+            )
+            if (
+                len(data) != attempt.clean_size
+                or hashlib.sha256(data).hexdigest() != attempt.clean_sha256
+            ):
+                raise UploadError("clean_object_conflict")
+            return data
+        except cloud_errors.NotFound:
+            raise UploadError("clean_photo_unavailable") from None
+        except (cloud_errors.GoogleAPICallError, GoogleAuthError, RequestException):
+            raise UploadError("storage_unavailable") from None
+
     def publish(self, upload, attempt, clean: CleanPhoto) -> str:
         blob = self.bucket.blob(clean_key(upload, attempt))
         digest = hashlib.sha256(clean.data).hexdigest()
