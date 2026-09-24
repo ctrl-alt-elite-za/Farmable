@@ -20,9 +20,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from farmable_backend.email_templates import notification_email, otp_email
+from farmable_backend.idempotency import IN_PROGRESS_STATUS
 from farmable_backend.integrations.email.base import DeliveryUnknown, EmailSender
 from farmable_backend.integrations.infobip import Infobip
-from farmable_backend.models import AuthIdentity, AuthSession, Farm, User, VerificationChallenge
+from farmable_backend.models import (
+    AuthIdentity,
+    AuthSession,
+    Farm,
+    IdempotencyRecord,
+    User,
+    VerificationChallenge,
+)
 from farmable_backend.rate_limits import (
     RateLimited,
     admit_login,
@@ -328,6 +336,8 @@ class AuthService:
         password: str,
         *,
         ip: str = "unknown",
+        idempotency_key: str | None = None,
+        idempotency_scope: str = "",
     ) -> AuthUser:
         email = email.strip().lower()
         phone = phone.strip()
@@ -407,6 +417,19 @@ class AuthService:
                         self._notify_collision(winner, email, phone)
                     return placeholder
                 raise
+            if idempotency_key is not None:
+                # The provisional user ID is committed atomically with the
+                # account and OTP challenge. If the request worker dies
+                # before the outer handler can store the final response, a
+                # later retry can still recover this exact account without
+                # sending another OTP.
+                claim = session.get(
+                    IdempotencyRecord,
+                    ("auth_signup", idempotency_scope, idempotency_key),
+                    with_for_update=True,
+                )
+                if claim is not None and claim.status_code == IN_PROGRESS_STATUS:
+                    claim.response_body = {"user_id": str(user.id)}
             failure = self._send(session, user, Channel.PHONE)
             result = _user(user)
         if failure is not None:
@@ -709,7 +732,10 @@ class InMemoryAuthService:
         password: str,
         *,
         ip: str = "unknown",
+        idempotency_key: str | None = None,
+        idempotency_scope: str = "",
     ) -> AuthUser:
+        del idempotency_key, idempotency_scope
         if any(u["email"] == email.lower() or u["phone"] == phone for u in self.users.values()):
             # #9 enumeration resistance: identical shape to a new sign-up, no
             # account/OTP created or sent for this request.

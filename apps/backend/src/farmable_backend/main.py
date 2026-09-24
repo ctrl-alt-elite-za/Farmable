@@ -353,6 +353,7 @@ def create_app(
                     user_id=UUID(error["user_id"]) if error.get("user_id") else None,
                 )
             return AuthProgressResponse(**response_body)
+        mutation_committed = False
         try:
             user = await call_auth(
                 auth(request).signup,
@@ -362,7 +363,10 @@ def create_app(
                 str(payload.email),
                 payload.password,
                 ip=client_ip(request),
+                idempotency_key=key or None,
+                idempotency_scope=client_ip(request),
             )
+            mutation_committed = True
             response = AuthProgressResponse(user_id=user.id, next_step="phone")
             await idempotent_store(
                 request,
@@ -393,7 +397,8 @@ def create_app(
                 await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
             raise
         except Exception:
-            await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
+            if not mutation_committed:
+                await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
             raise
 
     @app.post(

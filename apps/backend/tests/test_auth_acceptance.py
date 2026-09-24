@@ -8,11 +8,12 @@ against the FastAPI app directly with SQLite + the fake providers, which is
 this repo's established pattern for auth behavior tests (see test_auth.py).
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 from farmable_backend.auth import AuthError, AuthService, DeterministicFakeOtpProvider
+from farmable_backend.idempotency import claim, fingerprint
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
@@ -332,6 +333,56 @@ def test_signup_ambiguous_delivery_persists_challenge_and_replays_without_resend
         )
         assert verified.status_code == 200
     assert provider.deliveries == 2
+
+
+def test_interrupted_signup_claim_recovers_account_without_resending(settings):
+    provider = AmbiguousOtpProvider()
+    app, auth, provider, sessions = _app(settings, provider)
+    body = _signup_body()
+    key = _idempotency_key("signup-interrupted")
+    scope = "testclient"
+    request_fingerprint = fingerprint(body)
+    assert claim(
+        sessions,
+        route="auth_signup",
+        scope=scope,
+        key=key,
+        request_fingerprint=request_fingerprint,
+    ) is None
+
+    with pytest.raises(AuthError) as raised:
+        auth.signup(
+            body["first_name"],
+            body["surname"],
+            body["phone"],
+            body["email"],
+            body["password"],
+            ip=scope,
+            idempotency_key=key,
+            idempotency_scope=scope,
+        )
+    assert raised.value.code == "delivery_unknown"
+    assert provider.deliveries == 1
+
+    # Simulate the API worker dying before it stores the final response. The
+    # account transaction has already committed its provisional user ID.
+    with sessions.begin() as session:
+        record = session.get(IdempotencyRecord, ("auth_signup", scope, key))
+        assert record is not None
+        assert record.response_body["user_id"]
+        record.created_at = datetime.now(UTC) - timedelta(minutes=6)
+
+    with TestClient(app) as client:
+        recovered = _signup_request(client, body, key=key)
+        replay = _signup_request(client, body, key=key)
+        assert recovered.status_code == replay.status_code == 503
+        assert recovered.json() == replay.json()
+        user_id = recovered.json()["error"]["user_id"]
+        verified = client.post(
+            "/auth/verify/phone", json={"user_id": user_id, "code": "111111"}
+        )
+        assert verified.status_code == 200
+    assert provider.deliveries == 2  # phone signup plus the email OTP after verification
 
 
 def test_resend_ambiguous_delivery_persists_challenge_and_replays_without_resend(settings):
