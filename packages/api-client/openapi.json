@@ -342,18 +342,6 @@
           "message": {
             "title": "Message",
             "type": "string"
-          },
-          "user_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "User Id"
           }
         },
         "required": ["code", "message"],

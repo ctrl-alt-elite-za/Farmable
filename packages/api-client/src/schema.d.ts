@@ -1022,8 +1022,6 @@ export interface components {
       code: string;
       /** Message */
       message: string;
-      /** User Id */
-      user_id?: string | null;
     };
     /** ErrorResponse */
     ErrorResponse: {
