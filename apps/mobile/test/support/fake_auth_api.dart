@@ -30,8 +30,15 @@ class SeenRequest {
   final String path;
   final Map<String, Object?> body;
   final String? authorization;
+  final String? idempotencyKey;
 
-  const SeenRequest(this.method, this.path, this.body, this.authorization);
+  const SeenRequest(
+    this.method,
+    this.path,
+    this.body,
+    this.authorization,
+    this.idempotencyKey,
+  );
 }
 
 class _Account {
@@ -145,7 +152,10 @@ class FakeAuthApi implements HttpClientAdapter {
       _ => <String, Object?>{},
     };
     final auth = options.headers['Authorization'] as String?;
-    requests.add(SeenRequest(options.method, options.path, body, auth));
+    final idempotencyKey = options.headers['Idempotency-Key'] as String?;
+    requests.add(
+      SeenRequest(options.method, options.path, body, auth, idempotencyKey),
+    );
 
     final forced = forcedStatus;
     if (forced != null) return ResponseBody.fromString('', forced);

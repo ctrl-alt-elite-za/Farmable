@@ -13,6 +13,7 @@ state.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -37,9 +38,24 @@ IN_PROGRESS_STATUS = 102
 CLAIM_TIMEOUT = timedelta(minutes=5)
 
 
-def fingerprint(payload: dict[str, Any]) -> str:
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(canonical.encode()).hexdigest()
+def fingerprint(payload: dict[str, Any], *, key: str) -> str:
+    """Return a deterministic, keyed digest for one idempotency claim.
+
+    Request bodies can contain credentials (signup includes a password), so a
+    plain fast hash would expose a cheap offline password verifier if the
+    idempotency table leaked. Derive password material with scrypt first; the
+    request's high-entropy idempotency key supplies a per-claim salt and also
+    keys the final digest.
+    """
+    protected = dict(payload)
+    password = protected.get("password")
+    if isinstance(password, str):
+        salt = hashlib.sha256(f"farmable-idempotency:{key}".encode()).digest()
+        protected["password"] = hashlib.scrypt(
+            password.encode(), salt=salt, n=2**14, r=8, p=1
+        ).hex()
+    canonical = json.dumps(protected, sort_keys=True, separators=(",", ":"), default=str)
+    return hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
 
 
 def replay(
