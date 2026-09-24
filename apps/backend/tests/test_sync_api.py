@@ -60,7 +60,7 @@ CREATE_FIELDS = {
 
 UPDATE_FIELDS = {
     "sections": lambda ids: {"name": "South block", "area_m2": "1300.00"},
-    "plantings": lambda ids: {"crop": "tomato", "planted_on": "2026-08-02"},
+    "plantings": lambda ids: {"crop": "spinach", "planted_on": "2026-08-02"},
     "tasks": lambda ids: {"title": "Weed again", "due_date": "2026-10-02", "status": "done"},
     "financials": lambda ids: {
         "type": "income",

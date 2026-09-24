@@ -6,7 +6,7 @@ import threading
 from datetime import UTC, datetime, timedelta, timezone
 from io import BytesIO
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from farmable_backend.gcs_photos import ObjectInfo
@@ -22,6 +22,7 @@ from farmable_backend.models import (
     Media,
     Observation,
     PhotoAttempt,
+    PhotoUpload,
     Section,
     SyncChange,
     SyncMutation,
@@ -377,6 +378,89 @@ def test_photo_flow_waits_for_validation_and_has_one_publication(records):
     with records.sessions() as session:
         assert session.scalar(select(func.count()).select_from(Media)) == 1
         assert session.scalar(select(func.count()).select_from(SyncChange)) == 2
+
+
+def test_section_delete_requeues_all_photo_objects_for_cleanup(records):
+    section_id = uuid4()
+    created = records.client.post(
+        f"/farms/{records.ids.farm}/sections",
+        json={
+            "mutation_id": str(uuid4()),
+            "id": str(section_id),
+            "name": "Photo section",
+        },
+    )
+    assert created.status_code == 200, created.text
+    payload = upload_payload(records)
+    payload["section_id"] = str(section_id)
+    upload_response = records.client.post(f"/farms/{records.ids.farm}/photo-uploads", json=payload)
+    assert upload_response.status_code == 200, upload_response.text
+    upload_id = UUID(upload_response.json()["upload_id"])
+    records.client.post(f"/farms/{records.ids.farm}/photo-uploads/{upload_id}/complete")
+    process(records, records.jobs.claim(upload_id))
+
+    deleted = records.client.post(
+        f"/farms/{records.ids.farm}/sections/{section_id}/delete",
+        json={"mutation_id": str(uuid4()), "expected_version": 1},
+    )
+    assert deleted.status_code == 200, deleted.text
+    with records.sessions() as session:
+        upload = session.get(PhotoUpload, upload_id)
+        attempt = session.scalar(select(PhotoAttempt).where(PhotoAttempt.upload_id == upload_id))
+        assert upload.state == "failed"
+        assert attempt.cleaned_at is None
+        assert attempt.cleanup_token is None
+
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    try:
+        worker.clean_batch()
+    finally:
+        worker.executor.shutdown()
+    assert (upload_id, attempt.id, False) in records.storage.cleaned
+
+
+def test_planting_legacy_crop_and_catalogue_code_share_one_identity(records):
+    base = f"/farms/{records.ids.farm}/plantings"
+    body = {
+        "mutation_id": str(uuid4()),
+        "id": str(uuid4()),
+        "section_id": str(records.ids.section),
+        "crop": "spinach",
+        "planted_on": "2026-09-01",
+    }
+    response = records.client.post(base, json=body)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["crop"] == "spinach"
+    assert response.json()["record"]["crop_type_code"] == "spinach"
+
+    mismatch = {
+        **body,
+        "id": str(uuid4()),
+        "mutation_id": str(uuid4()),
+        "crop_type_code": "cabbage",
+    }
+    response = records.client.post(base, json=mismatch)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "crop_type_conflict"
+
+    unsupported = {**body, "id": str(uuid4()), "mutation_id": str(uuid4()), "crop": "banana"}
+    response = records.client.post(base, json=unsupported)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "unknown_crop_type"
+
+    with records.sessions.begin() as session:
+        session.add(CropType(code="tomato", name="Tomato"))
+    no_calendar = {
+        **body,
+        "id": str(uuid4()),
+        "mutation_id": str(uuid4()),
+        "crop": "tomato",
+        "is_current": False,
+    }
+    response = records.client.post(base, json=no_calendar)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["harvest_from"] is None
+    assert response.json()["record"]["harvest_to"] is None
 
 
 def test_reservation_conflicts_and_mutation_namespace(records):

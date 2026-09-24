@@ -12,11 +12,14 @@ from sqlalchemy.orm import Session
 from farmable_backend.farm_records import _fingerprint
 from farmable_backend.models import (
     CropCalendar,
+    CropType,
     Farm,
     FarmTask,
     FinancialRecord,
     Media,
     Observation,
+    PhotoAttempt,
+    PhotoUpload,
     Planting,
     PlantingCrop,
     SavedPlan,
@@ -68,18 +71,34 @@ def _validate_planted_on(session: Session, planted_on: date | None) -> None:
         raise ApiError(422, "planted_on_out_of_range")
 
 
-def _resolve_crop_window(
-    session: Session, crop_type_code: str | None, planted_on: date | None
-) -> tuple[str | None, date | None, date | None]:
+def _resolve_crop_identity(session: Session, crop: str, crop_type_code: str | None) -> str:
+    """Resolve legacy crop text and the catalogue code to one identity."""
+    legacy_code = crop.strip().casefold()
     if crop_type_code is None:
-        return None, None, None
+        crop_type_code = legacy_code
+    else:
+        crop_type_code = crop_type_code.strip().casefold()
+        if session.get(CropType, crop_type_code) is None:
+            raise ApiError(422, "unknown_crop_type")
+    if crop_type_code != legacy_code:
+        raise ApiError(422, "crop_type_conflict")
+    catalogue = session.get(CropType, crop_type_code)
+    if catalogue is None:
+        raise ApiError(422, "unknown_crop_type")
+    return catalogue.code
+
+
+def _resolve_crop_window(
+    session: Session, crop_type_code: str, planted_on: date | None
+) -> tuple[date | None, date | None]:
     calendar = session.get(CropCalendar, crop_type_code)
     if calendar is None:
-        raise ApiError(422, "unknown_crop_type")
+        # A catalogue entry without a validated calendar is still a valid
+        # identity, but it must not produce dates from illustrative defaults.
+        return None, None
     if planted_on is None:
-        return crop_type_code, None, None
+        return None, None
     return (
-        crop_type_code,
         planted_on + timedelta(days=calendar.harvest_days_min),
         planted_on + timedelta(days=calendar.harvest_days_max),
     )
@@ -151,6 +170,8 @@ class SyncRecordRepository:
         )
         if kind.resource == "plantings":
             _validate_planted_on(self.session, values.get("planted_on"))
+            crop_type_code = _resolve_crop_identity(self.session, values["crop"], crop_type_code)
+            values["crop"] = crop_type_code
         record = kind.model(
             id=record_id,
             farm_id=self.farm_id,
@@ -172,25 +193,20 @@ class SyncRecordRepository:
     ) -> None:
         """Full-replace the companion crop_type_code/harvest window (#11)."""
         existing = self.session.get(PlantingCrop, planting_id)
-        code, harvest_from, harvest_to = _resolve_crop_window(
-            self.session, crop_type_code, planted_on
-        )
-        if code is None:
-            if existing is not None:
-                self.session.delete(existing)
-                self.session.flush()
-            return
+        if crop_type_code is None:
+            raise ApiError(422, "unknown_crop_type")
+        harvest_from, harvest_to = _resolve_crop_window(self.session, crop_type_code, planted_on)
         if existing is None:
             self.session.add(
                 PlantingCrop(
                     planting_id=planting_id,
-                    crop_type_code=code,
+                    crop_type_code=crop_type_code,
                     harvest_from=harvest_from,
                     harvest_to=harvest_to,
                 )
             )
         else:
-            existing.crop_type_code = code
+            existing.crop_type_code = crop_type_code
             existing.harvest_from = harvest_from
             existing.harvest_to = harvest_to
         self.session.flush()
@@ -233,6 +249,8 @@ class SyncRecordRepository:
         )
         if kind.resource == "plantings":
             _validate_planted_on(self.session, values.get("planted_on"))
+            crop_type_code = _resolve_crop_identity(self.session, values["crop"], crop_type_code)
+            values["crop"] = crop_type_code
         for name, value in values.items():
             setattr(record, name, value)
         record.version += 1
@@ -279,6 +297,41 @@ class SyncRecordRepository:
                         version=row.version,
                     )
                 )
+        # Photo uploads are durable storage intents rather than generic sync
+        # records.  Invalidate every attempt and make cleanup immediately
+        # claimable, including attempts previously marked cleaned and claims
+        # currently held by a worker.  The upload state must not remain
+        # ``ready`` or the janitor would intentionally preserve the clean key.
+        uploads = list(
+            self.session.scalars(
+                select(PhotoUpload)
+                .where(
+                    PhotoUpload.owner_id == self.owner_id,
+                    PhotoUpload.farm_id == self.farm_id,
+                    PhotoUpload.section_id == section_id,
+                )
+                .with_for_update()
+            )
+        )
+        cleanup_due = now - timedelta(hours=1, seconds=1)
+        for upload in uploads:
+            upload.state = "failed"
+            upload.error_code = "scope_unavailable"
+            attempts = list(
+                self.session.scalars(
+                    select(PhotoAttempt)
+                    .where(PhotoAttempt.upload_id == upload.id)
+                    .with_for_update()
+                )
+            )
+            for attempt in attempts:
+                attempt.terminal_at = cleanup_due
+                attempt.form_expires_at = cleanup_due
+                attempt.lease_token = None
+                attempt.lease_expires_at = None
+                attempt.cleanup_token = None
+                attempt.cleanup_expires_at = None
+                attempt.cleaned_at = None
         self.session.flush()
 
     def apply(self, *, resource: str, operation: str, record_id: UUID | None, payload: Any) -> Any:

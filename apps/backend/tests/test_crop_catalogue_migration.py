@@ -26,3 +26,4 @@ def test_crop_catalogue_migration_seeds_the_expected_crops():
     sql = output.getvalue()
     for code in ("cabbage", "spinach", "tomato", "potato", "onion", "carrot"):
         assert f"'{code}'" in sql
+    assert "INSERT INTO crop_calendars" not in sql
