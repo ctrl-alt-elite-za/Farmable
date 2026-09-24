@@ -125,6 +125,9 @@ prints the same local command:
 - `assistant-evals` — `make eval-assistant SET=dev`
 - `mobile-test` — `make mobile-checks`
 - `demo-regression` — `make demo-regression`
+- `cloud-review-policy` — `PR_NUMBER=<pr> GITHUB_TOKEN=$(gh auth token) GITHUB_REPOSITORY=ctrl-alt-elite-za/Farmable python3 .github/cloud_review_policy.py`
+  — a cloud change needs a specific approver, which CODEOWNERS cannot express:
+  Bandile for anyone else's, Tshego for Bandile's
 
 ### Flutter
 

@@ -38,6 +38,12 @@ CHECKS = {
         "make demo-regression",
         "Fix the demo journey: section load, preview, replan, approval.",
     ),
+    "cloud-review-policy": (
+        "PR_NUMBER=<pr> GITHUB_TOKEN=$(gh auth token) "
+        "GITHUB_REPOSITORY=ctrl-alt-elite-za/Farmable python3 .github/cloud_review_policy.py",
+        "Get the approver the job names to approve the latest commit: Bandile for anyone "
+        "else's cloud change, Tshego for Bandile's. A new push withdraws the approval.",
+    ),
 }
 
 DIAGNOSTICS = {
