@@ -98,10 +98,17 @@ class DemoAccountService implements AccountService {
     return (await cached())!;
   }
 
+  /// Only the signed-in account's copy, the same rule as the real service.
   @override
   Future<ExportFile?> currentExport() async {
     final file = await _exports.current();
-    if (file != null && file.isExpiredAt(now())) {
+    if (file == null) return null;
+    final user = await _user();
+    final ours =
+        user != null &&
+        (await _record(user))['export'] is Map &&
+        !file.isExpiredAt(now());
+    if (!ours) {
       await _exports.clear();
       return null;
     }
@@ -130,8 +137,9 @@ class DemoAccountService implements AccountService {
         'preferred_language': snapshot.language.name,
       },
     };
+    final ExportFile file;
     try {
-      return await _exports.save(
+      file = await _exports.save(
         utf8.encode(jsonEncode(document)),
         format,
         now(),
@@ -139,6 +147,12 @@ class DemoAccountService implements AccountService {
     } on Object {
       throw const AuthException(AuthFailure.storageUnavailable);
     }
+    final user = await _requireUser();
+    await _save(user, {
+      ...await _record(user),
+      'export': {'created_at': file.createdAt.toUtc().toIso8601String()},
+    });
+    return file;
   }
 
   @override
@@ -151,16 +165,15 @@ class DemoAccountService implements AccountService {
   }
 
   @override
-  Future<void> deleteAccount({required String password}) async {
+  Future<DeletionOutcome> deleteAccount({required String password}) async {
     await _requireUser();
     if (password.isEmpty) throw const AuthException(AuthFailure.rejected);
-    // Past this point the account no longer exists, so the result is success
-    // whatever the wipe manages: reporting a failure here would tell the
-    // farmer nothing was deleted when their account is already gone.
     try {
-      await _wipe.run();
+      return await _wipe.run()
+          ? DeletionOutcome.complete
+          : DeletionOutcome.phoneNotCleared;
     } on Object {
-      // Each part of the wipe is independent; see DeviceWipe.
+      return DeletionOutcome.phoneNotCleared;
     }
   }
 

@@ -231,6 +231,49 @@ void main() {
       );
     });
 
+    testWidgets('[P2] an allowed choice does not outlive log-out, or pass to '
+        'another account', (tester) async {
+      api.seedVerified(
+        firstName: 'Lerato',
+        surname: 'Molefe',
+        phone: '+27825559876',
+        email: 'lerato@example.com',
+      );
+      final harness = await pumpAuthApp(
+        tester,
+        location: '/profile/privacy',
+        api: api,
+        session: await loggedIn(tester),
+      );
+      final gate = externalProcessingConsentProvider.future;
+
+      await tapLabel(tester, 'Allow outside services');
+      expect(await harness.container.read(gate), isTrue);
+
+      await harness.container.read(authViewModelProvider.notifier).signOut();
+      await tester.pumpAndSettle();
+      expect(await harness.container.read(gate), isFalse);
+
+      // B logs in on this phone: B's session is written to the same storage
+      // (on the real clock — dio arms timers the fake one never fires), then
+      // the app re-reads where it stands, as it does on its next launch.
+      await tester.runAsync(
+        () => ApiAuthService(api.dio(), harness.storage, now: () => pinnedToday)
+            .logIn(
+              mode: LoginMode.email,
+              identifier: 'lerato@example.com',
+              password: goodPassphrase,
+            ),
+      );
+      await harness.container.read(authViewModelProvider.notifier).recheck();
+      await tester.pumpAndSettle();
+      expect(
+        harness.container.read(authViewModelProvider).value,
+        isA<SignedIn>(),
+      );
+      expect(await harness.container.read(gate), isFalse);
+    });
+
     testWidgets('the notice reads without failure language', (tester) async {
       await pumpAuthApp(
         tester,

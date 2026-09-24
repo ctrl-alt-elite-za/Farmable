@@ -24,9 +24,11 @@ import '../data/local/database.dart' show AlmanacDatabase;
 import '../data/local/local_farm_repository.dart';
 import '../data/local/seed.dart';
 import '../domain/account/account_service.dart';
+import '../domain/auth/auth_models.dart';
 import '../domain/auth/auth_service.dart';
 import '../domain/farm_records.dart';
 import '../domain/farm_records_repository.dart';
+import '../features/auth/auth_view_model.dart';
 import 'config.dart';
 
 /// The local database. Opened once for the life of the app.
@@ -165,12 +167,21 @@ final accountServiceProvider = Provider<AccountService>((ref) {
 });
 
 /// Whether the farmer has agreed to outside services processing what they
-/// send. False until they say yes — including while nobody is signed in.
+/// send. False until they say yes — and false while nobody is signed in.
 /// Features that call an outside service read this first.
+///
+/// Recomputed whenever the farmer's standing changes, so logging out, or
+/// another account logging in, can never leave the last account's "yes"
+/// behind. The answer is also dropped if the account changes while it is
+/// being read, so a late read cannot restore someone else's approval.
 final externalProcessingConsentProvider = FutureProvider<bool>((ref) async {
-  ref.watch(authServiceProvider);
+  final standing = await ref.watch(authViewModelProvider.future);
+  if (standing is! SignedIn) return false;
   final snapshot = await ref.watch(accountServiceProvider).cached();
-  return snapshot?.consent?.externalProcessing ?? false;
+  if (snapshot == null || snapshot.userId != standing.session.user.id) {
+    return false;
+  }
+  return snapshot.consent?.externalProcessing ?? false;
 });
 
 /// Whether the API is reachable.

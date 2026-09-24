@@ -55,7 +55,10 @@ abstract class AccountService {
   /// [password] is re-entered on purpose: a phone left unlocked is not
   /// consent to deletion. A wrong one is [AuthFailure.invalidCredentials] and
   /// changes nothing anywhere.
-  Future<void> deleteAccount({required String password});
+  ///
+  /// Throws only when nothing was deleted. Once the server has deleted the
+  /// account the result is a [DeletionOutcome], never an exception.
+  Future<DeletionOutcome> deleteAccount({required String password});
 
   /// Forgets the account data on this phone — profile, pending edits,
   /// privacy choices, exports. Called on sign-out, so the next person to log

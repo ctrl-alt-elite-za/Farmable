@@ -22,6 +22,7 @@ import '../../app/theme/tokens.g.dart';
 import '../../core/ui/buttons.dart';
 import '../../core/ui/fields.dart';
 import '../../core/ui/layout.dart';
+import '../../domain/account/account_models.dart';
 import '../../domain/auth/auth_models.dart';
 import '../auth/auth_view_model.dart';
 import '../auth/widgets/auth_scaffold.dart';
@@ -57,23 +58,34 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       _failure = null;
     });
 
-    final failure = await ref
+    final result = await ref
         .read(accountViewModelProvider.notifier)
         .deleteAccount(password: _password.text);
 
     if (!mounted) return;
-    if (failure == null) {
+    final outcome = result.outcome;
+    if (outcome != null) {
+      // The account is gone either way. What differs is whether the phone
+      // could clear everything, and the farmer is told which — never that
+      // nothing was deleted, and never that the phone is clean when it isn't.
       final messenger = ScaffoldMessenger.maybeOf(context);
       context.go('/home');
       messenger?.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Your account has been deleted, and this phone has been cleared.',
-          ),
+        SnackBar(
+          content: Text(switch (outcome) {
+            DeletionOutcome.complete =>
+              'Your account has been deleted, and this phone has been '
+                  'cleared.',
+            DeletionOutcome.phoneNotCleared =>
+              'Your account has been deleted and you are logged out. This '
+                  "phone could not clear everything - clear Almanac's "
+                  "storage in your phone's settings to finish.",
+          }),
         ),
       );
       return;
     }
+    final failure = result.failure ?? AuthFailure.unknown;
     setState(() {
       _busy = false;
       _failure = failure;

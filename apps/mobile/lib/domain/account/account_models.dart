@@ -137,3 +137,17 @@ class ExportFile {
   @override
   String toString() => 'ExportFile(${format.name}, $bytes bytes)';
 }
+
+/// How an account deletion ended, once the server has accepted it.
+///
+/// There is no "failed" here: a deletion the server refused is an
+/// [AuthException] and nothing was deleted. Once the server has deleted the
+/// account, that is final, and what is left to say is whether this phone
+/// managed to clear everything it kept.
+enum DeletionOutcome {
+  complete,
+
+  /// The account is gone, and local access has ended, but some part of the
+  /// phone's copy could not be cleared.
+  phoneNotCleared,
+}

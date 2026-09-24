@@ -58,7 +58,22 @@ class ApiAuthService implements AuthService {
   /// quietly sign the farmer in again.
   int _epoch = 0;
 
+  /// The access token of a session ended by [endSessionLocally]. Held in
+  /// memory so that even if the phone failed to write the cleared record,
+  /// [restore] never hands that session out again for the rest of this run.
+  String? _endedToken;
+
   ApiAuthService(this._dio, this._storage, {this.now = DateTime.now});
+
+  /// Which session this is: changes whenever a session is granted, ended or
+  /// dropped, and not when one is merely refreshed.
+  ///
+  /// An operation that must act for one account — sending that account's
+  /// pending edits, saving that account's export — captures this when it
+  /// starts and passes it to [authorized], which refuses to send once it has
+  /// moved. Without it, a request queued by one farmer goes out under the next
+  /// farmer's session.
+  int get generation => _epoch;
 
   /// A client for [baseUrl] with this service's defaults.
   ///
@@ -191,7 +206,11 @@ class ApiAuthService implements AuthService {
     final record = await _read();
 
     final session = _sessionIn(record);
-    if (session != null && session.isValidAt(now())) return SignedIn(session);
+    if (session != null &&
+        session.isValidAt(now()) &&
+        session.token != _endedToken) {
+      return SignedIn(session);
+    }
 
     final pending = _pendingIn(record);
     if (pending != null) return AwaitingVerification(pending);
@@ -239,9 +258,15 @@ class ApiAuthService implements AuthService {
   /// Ends the session on this phone without telling the server — for after
   /// account deletion, when there is no longer a server-side session to
   /// revoke. Also stops any refresh in flight from writing one back.
+  ///
+  /// The session is blocked in memory first, so local access ends even if the
+  /// write that forgets it fails — the failure is still thrown, for the caller
+  /// to report, but nothing on this run can use that session again.
   Future<void> endSessionLocally() async {
-    await _write(await _read(), session: null, pending: null);
-    _epoch++; // After the write — see [signOut].
+    final record = await _read();
+    _endedToken = _sessionIn(record)?.token;
+    _epoch++;
+    await _write(record, session: null, pending: null);
   }
 
   /// Forgets the half-finished signup on this phone.
@@ -267,14 +292,27 @@ class ApiAuthService implements AuthService {
   /// A `401 invalid_credentials` — a wrong password re-entered to confirm
   /// account deletion — is an answer about the password, not the session, so
   /// it is handed back rather than treated as a lapsed token.
+  ///
+  /// With [generation], the request is refused — before it is sent, and again
+  /// before any retry — unless the session is still the one that value was
+  /// read from. See [generation].
   Future<Response<Object?>> authorized(
     String method,
     String path, {
     Object? data,
     Map<String, Object?>? query,
     ResponseType? responseType,
+    int? generation,
   }) async {
+    void stillSame() {
+      if (generation != null && generation != _epoch) {
+        throw const AuthException(AuthFailure.invalidSession);
+      }
+    }
+
+    stillSame();
     final standing = await refreshSession();
+    stillSame();
     if (standing is! SignedIn) {
       throw const AuthException(AuthFailure.invalidSession);
     }
@@ -291,6 +329,7 @@ class ApiAuthService implements AuthService {
     if (!_sessionRejected(response)) return response;
 
     session = await _refresh(session);
+    stillSame();
     response = await _send(
       method,
       path,

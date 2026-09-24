@@ -72,16 +72,26 @@ class AccountViewModel extends AsyncNotifier<AccountSnapshot?> {
         if (ref.mounted) state = AsyncData(next);
       });
 
-  /// Permanently deletes the account and wipes the phone. On success the
-  /// farmer is signed out and this view model rebuilds to null.
+  /// Permanently deletes the account and wipes the phone.
   ///
-  /// [password] goes straight to the service and nowhere else.
-  Future<AuthFailure?> deleteAccount({required String password}) =>
-      _attempt(() async {
-        await _service.deleteAccount(password: password);
-        ref.invalidate(externalProcessingConsentProvider);
-        await ref.read(authViewModelProvider.notifier).recheck();
-      });
+  /// A failure means nothing was deleted. A [DeletionOutcome] means the
+  /// account is gone and the farmer is signed out; it says whether the phone
+  /// was cleared completely. [password] goes to the service and nowhere else.
+  Future<({AuthFailure? failure, DeletionOutcome? outcome})> deleteAccount({
+    required String password,
+  }) async {
+    try {
+      final outcome = await _service.deleteAccount(password: password);
+      ref.invalidate(externalProcessingConsentProvider);
+      await ref.read(authViewModelProvider.notifier).recheck();
+      return (failure: null, outcome: outcome);
+    } on AuthException catch (e) {
+      await _handle(e.failure);
+      return (failure: e.failure, outcome: null);
+    } on Object {
+      return (failure: AuthFailure.unknown, outcome: null);
+    }
+  }
 
   Future<AuthFailure?> _attempt(Future<void> Function() action) async {
     try {

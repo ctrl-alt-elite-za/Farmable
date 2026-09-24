@@ -101,6 +101,11 @@ class FakeAuthApi implements HttpClientAdapter {
   /// else's (`403`) or gone (`404 not_found`).
   (int, String)? accountOverride;
 
+  /// Holds the response to a request for a path until completed — the
+  /// request is recorded as sent, and its answer arrives when the test says.
+  /// How a test lets a farmer log out, or another log in, mid-request.
+  final Map<String, Completer<void>> hold = {};
+
   final List<SeenRequest> requests = [];
 
   final _accounts = <String, _Account>{};
@@ -163,6 +168,19 @@ class FakeAuthApi implements HttpClientAdapter {
     final forced = forcedStatus;
     if (forced != null) return ResponseBody.fromString('', forced);
 
+    // Answered now, delivered when released: the server has done the work
+    // by the time the phone hears about it.
+    final response = await _answer(options, body, auth);
+    final held = hold[options.path];
+    if (held != null) await held.future;
+    return response;
+  }
+
+  Future<ResponseBody> _answer(
+    RequestOptions options,
+    Map<String, Object?> body,
+    String? auth,
+  ) async {
     return switch ((options.method, options.path)) {
       ('POST', '/auth/signup') => _signup(body),
       ('POST', '/auth/verify/phone') => _verify(body, phone: true),
@@ -356,6 +374,14 @@ class FakeAuthApi implements HttpClientAdapter {
     'name': account.farmName,
     'preferred_language': account.language,
   };
+
+  /// The farm name the server holds for [email]'s account.
+  String? farmNameOf(String email) =>
+      _accounts.values.firstWhere((a) => a.email == email).farmName;
+
+  /// The first name the server holds for [email]'s account.
+  String firstNameOf(String email) =>
+      _accounts.values.firstWhere((a) => a.email == email).firstName;
 
   /// Takes every account's farm away, so `/account/farm` answers 404.
   void removeFarm() {
