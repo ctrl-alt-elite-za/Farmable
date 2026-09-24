@@ -19,6 +19,30 @@ No real decision result may be generated until this file has merged independentl
 on `main`. Any change after that merge is a dated protocol amendment and requires
 results under both the registered and amended rules.
 
+### Amendment 1 — 24 September 2026: frozen 2025 deployment snapshot
+
+Original registered protocol SHA-256:
+`a090d4e9d517b2b8c0d9d5009b5b9c5c9a827386e178f6e265052270923ea99d`.
+
+The first real-input execution of the registered runner stopped before writing any
+result files. Its 96-row deployment snapshot attempted to select a model at each
+2025 planting month, although the registered market series ends in December 2024.
+For later planting months, the LightGBM challenger can win validation but cannot
+construct its required recent lags. No decision scores or incomplete outputs were
+inspected before this amendment.
+
+For the **deployment snapshot only**, use the historical-range P10/P50/P90 of the
+harvest target's calendar month for all eight crops and all twelve 2025 planting
+months. Its information cutoff is 1 January 2025, so every snapshot estimate uses
+only the registered 2008–2024 observations, already converted to constant 2025
+rand. Record `historical_range` as the method for each row. Do not fill missing
+2025 lags, incorporate the incomplete Q1 2025 report, or change the historical
+decision simulation, its per-origin method selection, scoring, or ledgers.
+
+The original runner produced no complete result to report under the unamended
+snapshot rule. The eventual result package must disclose this failed attempt and
+distinguish these frozen deployment estimates from the decision backtest forecasts.
+
 ## Scope and coverage
 
 - Audit grid: every first-of-month origin from January 2012 through December 2024
