@@ -247,4 +247,21 @@ void main() {
     expect(find.byType(SelfTestScreen), findsOneWidget);
     expect(find.text('Device self-test'), findsOneWidget);
   });
+
+  testWidgets('is reachable from the Profile tab, so a phone build that '
+      'opens on Home can get to it', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp.router(
+          theme: almanacLightTheme(),
+          routerConfig: buildRouter(initialLocation: '/profile'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Device self-test'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SelfTestScreen), findsOneWidget);
+  });
 }
