@@ -4,9 +4,11 @@ The Self-test screen in `apps/mobile` runs the checks that only work on a real p
 and posts the result here, so an agent can read from the server what a person saw on
 a device (issue #4).
 
-**The mobile client is implemented** in `apps/mobile/src/selftest/upload.ts`.
-**The server side is not implemented on this branch** - see "Why the server side is
-not here" below.
+**The Flutter client builds this report** (`SelfTestReport.toJson` in
+`apps/mobile/lib/domain/device/self_test.dart`) and keeps it on the phone.
+**It does not upload yet: the server side is not implemented** — that is backend
+issue #11. When #11 lands, the upload is a POST of that JSON; nothing about the
+report needs to change.
 
 ## POST /devices/self-test
 
@@ -33,7 +35,7 @@ No authentication. The request carries no credential; the report is the whole bo
 | --------------------------------------------------------- | --------------------------------------- |
 | `platform`                                                | `"ios"` or `"android"`                  |
 | `app_version`, `build_sha`, `device_model`, `started_at`  | string (`started_at` is ISO-8601 UTC)   |
-| `detector_ms`                                             | number, milliseconds                    |
+| `detector_ms`                                             | number, milliseconds; `null` if the detector did not run |
 | `camera_preview`, `lidar_depth`, `ar_plane`, `mic_record` | `"pass"`, `"fail"` or `"unsupported"`   |
 | `notes`                                                   | array of strings, one per non-pass item |
 | `overall`                                                 | `"pass"` or `"fail"`                    |

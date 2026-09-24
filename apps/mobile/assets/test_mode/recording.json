@@ -1,0 +1,207 @@
+{
+  "width": 480,
+  "height": 360,
+  "frame_interval_ms": 250,
+  "frames": [
+    {
+      "frame": "assets/test_mode/frame_00.jpg",
+      "detections": [
+        {
+          "label": "Plant",
+          "confidence": 0.91,
+          "box": {
+            "left": 0.08333333333333333,
+            "top": 0.4722222222222222,
+            "right": 0.3958333333333333,
+            "bottom": 0.8888888888888888
+          }
+        },
+        {
+          "label": "Container",
+          "confidence": 0.78,
+          "box": {
+            "left": 0.625,
+            "top": 0.5277777777777778,
+            "right": 0.8333333333333334,
+            "bottom": 0.8333333333333334
+          }
+        }
+      ]
+    },
+    {
+      "frame": "assets/test_mode/frame_01.jpg",
+      "detections": [
+        {
+          "label": "Plant",
+          "confidence": 0.9,
+          "box": {
+            "left": 0.12916666666666668,
+            "top": 0.4722222222222222,
+            "right": 0.44166666666666665,
+            "bottom": 0.8888888888888888
+          }
+        },
+        {
+          "label": "Container",
+          "confidence": 0.78,
+          "box": {
+            "left": 0.625,
+            "top": 0.5222222222222223,
+            "right": 0.8333333333333334,
+            "bottom": 0.8277777777777777
+          }
+        }
+      ]
+    },
+    {
+      "frame": "assets/test_mode/frame_02.jpg",
+      "detections": [
+        {
+          "label": "Plant",
+          "confidence": 0.89,
+          "box": {
+            "left": 0.175,
+            "top": 0.4722222222222222,
+            "right": 0.4875,
+            "bottom": 0.8888888888888888
+          }
+        },
+        {
+          "label": "Container",
+          "confidence": 0.78,
+          "box": {
+            "left": 0.625,
+            "top": 0.5166666666666667,
+            "right": 0.8333333333333334,
+            "bottom": 0.8222222222222222
+          }
+        }
+      ]
+    },
+    {
+      "frame": "assets/test_mode/frame_03.jpg",
+      "detections": [
+        {
+          "label": "Plant",
+          "confidence": 0.88,
+          "box": {
+            "left": 0.22083333333333333,
+            "top": 0.4722222222222222,
+            "right": 0.5333333333333333,
+            "bottom": 0.8888888888888888
+          }
+        },
+        {
+          "label": "Container",
+          "confidence": 0.78,
+          "box": {
+            "left": 0.625,
+            "top": 0.5111111111111111,
+            "right": 0.8333333333333334,
+            "bottom": 0.8166666666666667
+          }
+        }
+      ]
+    },
+    {
+      "frame": "assets/test_mode/frame_04.jpg",
+      "detections": [
+        {
+          "label": "Plant",
+          "confidence": 0.87,
+          "box": {
+            "left": 0.26666666666666666,
+            "top": 0.4722222222222222,
+            "right": 0.5791666666666667,
+            "bottom": 0.8888888888888888
+          }
+        },
+        {
+          "label": "Container",
+          "confidence": 0.78,
+          "box": {
+            "left": 0.625,
+            "top": 0.5055555555555555,
+            "right": 0.8333333333333334,
+            "bottom": 0.8111111111111111
+          }
+        }
+      ]
+    },
+    {
+      "frame": "assets/test_mode/frame_05.jpg",
+      "detections": [
+        {
+          "label": "Plant",
+          "confidence": 0.86,
+          "box": {
+            "left": 0.3125,
+            "top": 0.4722222222222222,
+            "right": 0.625,
+            "bottom": 0.8888888888888888
+          }
+        },
+        {
+          "label": "Container",
+          "confidence": 0.78,
+          "box": {
+            "left": 0.625,
+            "top": 0.5,
+            "right": 0.8333333333333334,
+            "bottom": 0.8055555555555556
+          }
+        }
+      ]
+    },
+    {
+      "frame": "assets/test_mode/frame_06.jpg",
+      "detections": [
+        {
+          "label": "Plant",
+          "confidence": 0.85,
+          "box": {
+            "left": 0.35833333333333334,
+            "top": 0.4722222222222222,
+            "right": 0.6708333333333333,
+            "bottom": 0.8888888888888888
+          }
+        },
+        {
+          "label": "Container",
+          "confidence": 0.78,
+          "box": {
+            "left": 0.625,
+            "top": 0.49444444444444446,
+            "right": 0.8333333333333334,
+            "bottom": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "frame": "assets/test_mode/frame_07.jpg",
+      "detections": [
+        {
+          "label": "Plant",
+          "confidence": 0.84,
+          "box": {
+            "left": 0.4041666666666667,
+            "top": 0.4722222222222222,
+            "right": 0.7166666666666667,
+            "bottom": 0.8888888888888888
+          }
+        },
+        {
+          "label": "Container",
+          "confidence": 0.78,
+          "box": {
+            "left": 0.625,
+            "top": 0.4888888888888889,
+            "right": 0.8333333333333334,
+            "bottom": 0.7944444444444444
+          }
+        }
+      ]
+    }
+  ]
+}
