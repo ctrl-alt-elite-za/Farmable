@@ -281,13 +281,13 @@ class PhotoJobs:
                 # but the worker still owns the in-memory published object.
                 if attempt is None:
                     return True
-                cleanup_due = db_now(session) - timedelta(hours=1, seconds=1)
                 upload.state = "failed"
                 upload.error_code = "scope_unavailable"
-                attempt.terminal_at = cleanup_due
-                attempt.form_expires_at = cleanup_due
+                # Best-effort cleanup cannot prevent a late POST using an
+                # issued form. Keep the real form/lease deadlines and schedule
+                # a final pass after the normal safety window.
+                attempt.terminal_at = db_now(session)
                 attempt.lease_token = None
-                attempt.lease_expires_at = None
                 attempt.cleanup_token = None
                 attempt.cleanup_expires_at = None
                 attempt.cleaned_at = None

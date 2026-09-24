@@ -83,6 +83,11 @@ system. Plantings carry an optional `crop_type_code`; when set it must name a
 row in the `crop_types` catalogue (otherwise `422 unknown_crop_type`) and the
 server computes `harvest_from`/`harvest_to` from `crop_calendars` and
 `planted_on`. Existing clients that only send free-text `crop` are unaffected.
+An exact catalogue crop name cannot be paired with a different code
+(`422 crop_type_conflict`); custom free-text labels remain supported. Changing
+the crop to an unknown free-text value without a code clears the previous
+catalogue binding and harvest window. Date-only edits keep an unchanged custom
+label's existing binding. Missing validated calendars produce null harvest dates.
 `planted_on` is rejected with `422 planted_on_out_of_range` outside two years
 of today in either direction. `kind` and the crop/harvest fields live in
 companion tables (`section_kinds`, `planting_crops`) keyed to the section/
@@ -97,6 +102,13 @@ transaction as the section, and each cascaded tombstone publishes its own
 of the cascade, not only the section's own deletion. Deleting an
 already-deleted section (a new mutation, not a replay) is a no-op that leaves
 the cascaded records untouched and publishes no further cascade.
+
+Photo uploads become unavailable immediately, but storage removal is asynchronous.
+Deletion requeues every attempt, including previously cleaned attempts. The
+janitor waits at least its existing one-hour safety window from deletion and
+respects actual signed-form and worker-lease expiry before its final cleanup.
+An already-issued form cannot be revoked by changing a database timestamp;
+late uploads and publications must remain covered by the durable cleanup intent.
 
 ## Mutation and synchronization contract
 

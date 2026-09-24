@@ -74,17 +74,18 @@ def _validate_planted_on(session: Session, planted_on: date | None) -> None:
 
 def _resolve_crop_identity(session: Session, crop: str, crop_type_code: str | None) -> str | None:
     """Validate the optional catalogue identity without rewriting legacy text."""
+    catalogue = session.get(CropType, crop.strip().casefold())
     if crop_type_code is not None:
         code = crop_type_code.strip().casefold()
         if session.get(CropType, code) is None:
             raise ApiError(422, "unknown_crop_type")
+        if catalogue is not None and catalogue.code != code:
+            raise ApiError(422, "crop_type_conflict")
         return code
 
     # ``crop`` predates the catalogue and remains free text.  Infer a code only
     # when it happens to be an exact catalogue code; otherwise keep the legacy
     # planting valid without inventing a catalogue identity.
-    legacy_code = crop.strip().casefold()
-    catalogue = session.get(CropType, legacy_code)
     return catalogue.code if catalogue is not None else None
 
 
@@ -194,9 +195,10 @@ class SyncRecordRepository:
         """Full-replace the companion crop_type_code/harvest window (#11)."""
         existing = self.session.get(PlantingCrop, planting_id)
         if crop_type_code is None:
-            if existing is None:
-                return
-            crop_type_code = existing.crop_type_code
+            if existing is not None:
+                self.session.delete(existing)
+                self.session.flush()
+            return
         harvest_from, harvest_to = _resolve_crop_window(self.session, crop_type_code, planted_on)
         if existing is None:
             self.session.add(
@@ -255,6 +257,15 @@ class SyncRecordRepository:
             if crop_type_code is not None and values.get("planted_on") != record.planted_on:
                 _validate_planted_on(self.session, values.get("planted_on"))
             crop_type_code = _resolve_crop_identity(self.session, values["crop"], crop_type_code)
+            if (
+                crop_type_code is None
+                and values["crop"].strip().casefold() == record.crop.strip().casefold()
+            ):
+                # Old clients omit catalogue fields when editing a custom
+                # label. Preserve its binding only while the crop is unchanged.
+                existing_crop = self.session.get(PlantingCrop, record.id)
+                if existing_crop is not None:
+                    crop_type_code = existing_crop.crop_type_code
         if kind.resource == "plans":
             preserve(self.session, record)
         for name, value in values.items():
@@ -320,9 +331,12 @@ class SyncRecordRepository:
         if section_kind is not None:
             self.session.delete(section_kind)
         # Photo uploads are durable storage intents rather than generic sync
-        # records.  Invalidate every attempt and make cleanup immediately
-        # claimable, including attempts previously marked cleaned and claims
-        # currently held by a worker.  The upload state must not remain
+        # records. Invalidate every attempt and requeue cleanup, including
+        # attempts previously marked cleaned and claims held by a worker.
+        # Issued forms and in-flight storage writes cannot be revoked by
+        # changing database timestamps: preserve their deadlines and restart
+        # the janitor's safety window before its final pass.
+        # The upload state must not remain
         # ``ready`` or the janitor would intentionally preserve the clean key.
         uploads = list(
             self.session.scalars(
@@ -335,7 +349,6 @@ class SyncRecordRepository:
                 .with_for_update()
             )
         )
-        cleanup_due = now - timedelta(hours=1, seconds=1)
         for upload in uploads:
             upload.state = "failed"
             upload.error_code = "scope_unavailable"
@@ -347,10 +360,8 @@ class SyncRecordRepository:
                 )
             )
             for attempt in attempts:
-                attempt.terminal_at = cleanup_due
-                attempt.form_expires_at = cleanup_due
+                attempt.terminal_at = now
                 attempt.lease_token = None
-                attempt.lease_expires_at = None
                 attempt.cleanup_token = None
                 attempt.cleanup_expires_at = None
                 attempt.cleaned_at = None
