@@ -264,4 +264,21 @@ void main() {
 
     expect(find.byType(SelfTestScreen), findsOneWidget);
   });
+
+  testWidgets('the map fetches nothing until asked, and credits '
+      'OpenStreetMap when shown', (tester) async {
+    final log = HardwareCalls();
+    await _pump(tester, healthyPhone(log));
+    await _runToEnd(tester);
+
+    // Tiles would disclose roughly where the phone is. Not until asked.
+    expect(find.byKey(const Key('self-test-map')), findsNothing);
+    expect(find.textContaining('roughly where this phone is'), findsOneWidget);
+
+    await tester.tap(find.text('Show on a map'));
+    await tester.pump();
+
+    expect(find.byKey(const Key('self-test-map')), findsOneWidget);
+    expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
+  });
 }

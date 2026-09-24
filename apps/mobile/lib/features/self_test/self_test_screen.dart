@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/config.dart';
 import '../../app/theme/app_theme.dart';
@@ -386,23 +387,68 @@ class OutcomePill extends StatelessWidget {
   }
 }
 
-/// The fix on a map — proof the map tiles load as well as the GPS answers.
-/// With no network the tiles stay blank and the pin still shows.
-class _FixMap extends StatelessWidget {
+/// The fix, and — only if the person asks — the fix on a map.
+///
+/// Map tiles come from OpenStreetMap's servers, and the tiles a map asks for
+/// say roughly where the phone is. So nothing is fetched until the person
+/// taps "Show on a map", after the screen has said exactly that; until then
+/// the self-test sends nothing anywhere, as its intro promises. Once shown,
+/// the map carries OpenStreetMap's attribution, which its licence requires.
+class _FixMap extends StatefulWidget {
   final LocationFix fix;
 
   const _FixMap({required this.fix});
 
   @override
+  State<_FixMap> createState() => _FixMapState();
+}
+
+class _FixMapState extends State<_FixMap> {
+  var _shown = false;
+
+  static final _copyright = Uri.parse(
+    'https://www.openstreetmap.org/copyright',
+  );
+
+  @override
   Widget build(BuildContext context) {
-    final point = LatLng(fix.latitude, fix.longitude);
+    final text = Theme.of(context).textTheme;
+    final c = context.semantic;
+
+    if (!_shown) {
+      return Padding(
+        padding: const EdgeInsets.only(top: AlmanacDimens.sp3),
+        child: AlmanacCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Showing the map loads map pictures from OpenStreetMap, '
+                'which lets their servers see roughly where this phone is. '
+                'Nothing else is sent.',
+                style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
+              ),
+              const SizedBox(height: AlmanacDimens.sp3),
+              AppSecondaryButton(
+                label: 'Show on a map',
+                icon: LucideIcons.map,
+                onPressed: () => setState(() => _shown = true),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final point = LatLng(widget.fix.latitude, widget.fix.longitude);
     return Padding(
       padding: const EdgeInsets.only(top: AlmanacDimens.sp3),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AlmanacDimens.rXl),
         child: SizedBox(
-          height: 180,
+          height: 200,
           child: FlutterMap(
+            key: const Key('self-test-map'),
             options: MapOptions(
               initialCenter: point,
               initialZoom: 16,
@@ -413,19 +459,51 @@ class _FixMap extends StatelessWidget {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                // Identifies the app to OpenStreetMap, as its tile usage
+                // policy asks. One fix, fetched once, on request.
                 userAgentPackageName: 'za.co.almanac.app',
               ),
               MarkerLayer(
                 markers: [
                   Marker(
                     point: point,
-                    child: Icon(
-                      LucideIcons.mapPin,
-                      color: context.semantic.primary,
-                      size: 32,
-                    ),
+                    child: Icon(LucideIcons.mapPin, color: c.primary, size: 32),
                   ),
                 ],
+              ),
+              // Not flutter_map's SimpleAttributionWidget: that is a single
+              // row that overflows rather than wraps on a narrow phone or at
+              // a large text size. This wraps, and stays tappable.
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Semantics(
+                  link: true,
+                  child: GestureDetector(
+                    onTap: () => launchUrl(
+                      _copyright,
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    child: Container(
+                      margin: const EdgeInsets.all(AlmanacDimens.sp2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AlmanacDimens.sp2,
+                        vertical: AlmanacDimens.sp1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: c.surface.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(AlmanacDimens.rSm),
+                      ),
+                      child: Text(
+                        '© OpenStreetMap contributors',
+                        maxLines: 2,
+                        style: text.labelSmall?.copyWith(
+                          color: c.onSurface,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

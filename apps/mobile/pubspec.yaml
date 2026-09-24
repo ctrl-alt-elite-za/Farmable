@@ -57,6 +57,7 @@ dependencies:
   geolocator: 14.0.3 # location fixes
   flutter_map: 8.3.2 # maps with no API key or secret (OpenStreetMap tiles)
   latlong2: 0.10.1 # flutter_map's coordinate type
+  url_launcher: 6.3.2 # opens the OpenStreetMap attribution link
   # On-device inference. Bundles its detector model, so it works offline with
   # no download, and takes custom TFLite models through LocalModel later.
   # Needs iOS 15.5 — see the deployment target in ios/.

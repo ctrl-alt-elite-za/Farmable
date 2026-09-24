@@ -98,7 +98,9 @@ The app needs **iOS 15.5 or later** (Google ML Kit's minimum) and **Android 7.0
      straight back. Note whether you heard yourself.
    - **Detector timing** — runs ML Kit on a bundled sample picture: one cold run,
      then three warm runs; the median warm run is `detector_ms`.
-   - **Location** — one GPS fix, shown on a map (the map tiles need a network).
+   - **Location** — one GPS fix. **Show on a map** is optional: it loads map
+     tiles from OpenStreetMap, which lets their servers see roughly where the
+     phone is, so the screen asks first. Nothing is fetched unless you tap it.
 5. Every row ends in **Pass**, **Fail** (with the reason) or **Not supported on
    this phone**. Not supported is a correct answer: Android and non-Pro iPhones
    have no LiDAR, so their depth row reads Not supported, and that does not fail
