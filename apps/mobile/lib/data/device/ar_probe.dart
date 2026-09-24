@@ -68,6 +68,11 @@ abstract interface class ArProbe {
   /// surface (and, where there is a depth source, a depth frame) has been
   /// seen.
   Future<ArProbeFacts> run(Duration timeout);
+
+  /// Ends a running session early and releases the camera — the screen was
+  /// left, the app went to the background, or [run] timed out. A no-op when
+  /// nothing is running.
+  Future<void> cancel();
 }
 
 class NativeArProbe implements ArProbe {
@@ -81,6 +86,15 @@ class NativeArProbe implements ArProbe {
       'timeoutMs': timeout.inMilliseconds,
     });
     return ArProbeFacts.fromMap(facts ?? const {});
+  }
+
+  @override
+  Future<void> cancel() async {
+    try {
+      await channel.invokeMethod<void>('arCancel');
+    } on MissingPluginException {
+      // Nothing to cancel on a platform with no probe.
+    }
   }
 }
 

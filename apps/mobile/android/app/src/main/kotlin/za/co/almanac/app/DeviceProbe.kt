@@ -45,6 +45,7 @@ class DeviceProbe(private val context: Context, messenger: BinaryMessenger) :
 
     private val main = Handler(Looper.getMainLooper())
     private val busy = AtomicBoolean(false)
+    private val cancelled = AtomicBoolean(false)
 
     init {
         MethodChannel(messenger, CHANNEL).setMethodCallHandler(this)
@@ -58,6 +59,7 @@ class DeviceProbe(private val context: Context, messenger: BinaryMessenger) :
                     result.success(mapOf("arAvailable" to true, "error" to "A check is already running."))
                     return
                 }
+                cancelled.set(false)
                 // ARCore's update loop blocks; keep it off the platform thread.
                 Thread({
                     val facts = try {
@@ -72,6 +74,12 @@ class DeviceProbe(private val context: Context, messenger: BinaryMessenger) :
                     }
                     main.post { result.success(facts) }
                 }, "almanac-ar-probe").start()
+            }
+            // The self-test was left, or timed out: end the session now so it
+            // stops holding the camera. The loop checks this every frame.
+            "arCancel" -> {
+                cancelled.set(true)
+                result.success(null)
             }
             else -> result.notImplemented()
         }
@@ -129,7 +137,7 @@ class DeviceProbe(private val context: Context, messenger: BinaryMessenger) :
             var depthFrames = 0
             var trackingFrames = 0
             val until = SystemClock.elapsedRealtime() + timeoutMs
-            while (SystemClock.elapsedRealtime() < until) {
+            while (SystemClock.elapsedRealtime() < until && !cancelled.get()) {
                 val frame = session.update()
                 if (frame.camera.trackingState == TrackingState.TRACKING) trackingFrames++
                 planes = session.getAllTrackables(Plane::class.java).count {

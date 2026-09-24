@@ -36,13 +36,39 @@ class SelfTestScreen extends StatefulWidget {
   State<SelfTestScreen> createState() => _SelfTestScreenState();
 }
 
-class _SelfTestScreenState extends State<SelfTestScreen> {
+class _SelfTestScreenState extends State<SelfTestScreen>
+    with WidgetsBindingObserver {
   late final SelfTestController _controller = SelfTestController(
     widget.devices ?? SelfTestDevices.onDevice(),
   );
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Leaving the app mid-test stops it. The OS takes the camera and the
+  /// microphone from a backgrounded app anyway, and a test that carried on
+  /// would record, prompt or report on things the person never saw.
+  ///
+  /// Only hidden/paused, not inactive: a permission prompt makes the app
+  /// inactive, and the test is waiting on exactly that prompt.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _controller.cancel(
+        'Stopped because Almanac was left mid-test. Run it again to finish.',
+      );
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // Leaving the screen stops the run too; see SelfTestController.dispose.
     _controller.dispose();
     super.dispose();
   }
@@ -115,6 +141,17 @@ class _SelfTestScreenState extends State<SelfTestScreen> {
                     onPressed: ctl.isRunning ? null : ctl.run,
                   ),
                 ),
+                if (ctl.stoppedReason case final reason?) ...[
+                  const SizedBox(height: AlmanacDimens.sp3),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      reason,
+                      key: const Key('self-test-stopped'),
+                      style: text.bodyMedium,
+                    ),
+                  ),
+                ],
                 _LivePanel(controller: ctl),
                 const SizedBox(height: AlmanacDimens.sp3),
                 for (final item in SelfTestItem.values)

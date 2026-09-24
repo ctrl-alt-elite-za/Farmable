@@ -58,6 +58,11 @@ final class DeviceProbePlugin: NSObject, FlutterPlugin, ARSessionDelegate {
       let args = call.arguments as? [String: Any]
       let timeoutMs = (args?["timeoutMs"] as? NSNumber)?.intValue ?? 20000
       start(timeoutMs: timeoutMs, result: result)
+    case "arCancel":
+      // The self-test was left, or timed out: end the session now so it stops
+      // holding the camera. Answers the pending probe with what it saw so far.
+      finish()
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }

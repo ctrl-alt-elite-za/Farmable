@@ -27,10 +27,16 @@ class FakeCamera implements CameraFrameSource {
   final HardwareCalls log;
   final CameraUnavailable? refuse;
   final bool sendFrames;
+  final bool hangOnOpen;
   final _frames = StreamController<CameraFrame>.broadcast();
   Timer? _timer;
 
-  FakeCamera(this.log, {this.refuse, this.sendFrames = true});
+  FakeCamera(
+    this.log, {
+    this.refuse,
+    this.sendFrames = true,
+    this.hangOnOpen = false,
+  });
 
   @override
   bool get isRecorded => false;
@@ -42,6 +48,7 @@ class FakeCamera implements CameraFrameSource {
   Future<void> open() async {
     log.add('camera.open');
     if (refuse != null) throw refuse!;
+    if (hangOnOpen) return Completer<void>().future;
     if (!sendFrames) return;
     var i = 0;
     _timer = Timer.periodic(const Duration(milliseconds: 33), (_) {
@@ -64,15 +71,20 @@ class FakeAr implements ArProbe {
   final HardwareCalls log;
   final ArProbeFacts? facts;
   final Object? error;
+  final bool hang;
 
-  FakeAr(this.log, {this.facts, this.error});
+  FakeAr(this.log, {this.facts, this.error, this.hang = false});
 
   @override
   Future<ArProbeFacts> run(Duration timeout) async {
     log.add('ar.run');
     if (error != null) throw error!;
+    if (hang) return Completer<ArProbeFacts>().future;
     return facts!;
   }
+
+  @override
+  Future<void> cancel() async => log.add('ar.cancel');
 }
 
 class FakeAudio implements AudioLoopback {
@@ -82,12 +94,17 @@ class FakeAudio implements AudioLoopback {
   final bool hangOnRecord;
   final Object? error;
 
+  /// When set, recording finishes only when the test completes this —
+  /// including after the check has timed out.
+  final Completer<void>? releaseRecording;
+
   FakeAudio(
     this.log, {
     this.permission = true,
     this.peak = -20,
     this.hangOnRecord = false,
     this.error,
+    this.releaseRecording,
   });
 
   @override
@@ -101,7 +118,11 @@ class FakeAudio implements AudioLoopback {
   Future<RecordingTake> record(Duration length) async {
     log.add('mic.record');
     if (hangOnRecord) return Completer<RecordingTake>().future;
-    await Future<void>.delayed(length);
+    if (releaseRecording != null) {
+      await releaseRecording!.future;
+    } else {
+      await Future<void>.delayed(length);
+    }
     return RecordingTake(
       path: '/tmp/take.m4a',
       length: length,
