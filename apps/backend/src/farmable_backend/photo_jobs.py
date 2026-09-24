@@ -144,7 +144,11 @@ class PhotoJobs:
             if not self.owns(upload, attempt, token, now):
                 raise ApiError(409, "lease_lost")
             if not self.active(upload, farm, section):
-                upload.state, upload.error_code = "failed", "scope_unavailable"
+                # Let the worker requeue cleanup while it still has the
+                # in-memory published object.  Returning normally here would
+                # skip that cleanup when the scope became inactive without
+                # the cascade clearing this lease first.
+                raise ApiError(409, "scope_unavailable")
             else:
                 if not attempt.source_generation or not attempt.clean_sha256:
                     raise ApiError(409, "descriptor_missing")

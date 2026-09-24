@@ -471,6 +471,19 @@ def test_inflight_publication_after_section_delete_is_cleaned(records):
     assert (upload_id, attempt.id, False) in records.storage.cleaned
 
 
+def test_publication_after_independent_scope_inactivation_is_cleaned(records):
+    _payload, _view, upload, attempt = queue(records)
+    worker = PhotoWorker(records.sessions, lambda: records.storage)
+    claimed = worker.jobs.claim(upload.id)
+    with records.sessions.begin() as session:
+        session.get(Section, records.ids.section).deleted_at = datetime.now(UTC)
+    try:
+        worker.process(*claimed)
+    finally:
+        worker.executor.shutdown()
+    assert (upload.id, attempt.id, False) in records.storage.cleaned
+
+
 def test_non_lease_finish_error_still_cleans_when_scope_is_inactive(records, monkeypatch):
     _payload, _view, upload, attempt = queue(records)
     worker = PhotoWorker(records.sessions, lambda: records.storage)
