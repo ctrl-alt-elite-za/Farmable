@@ -126,6 +126,8 @@ class _NavItem extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
+      // `nav-profile` and so on — what the Maestro flows tap.
+      identifier: 'nav-${destination.name}',
       label: destination.label,
       child: InkWell(
         onTap: onTap,

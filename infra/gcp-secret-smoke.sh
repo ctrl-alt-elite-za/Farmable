@@ -28,4 +28,19 @@ for name in DATABASE_URL GEMINI_API_KEY; do
     exit 1
   fi
 done
+
+# The rollout wires provider credentials only when a secret holds an enabled version,
+# so these are absent rather than required. Absent is fine; present as a literal is not
+# -- that would mean a key was pasted into a workflow argument instead of Secret
+# Manager, which is exactly what the no-plaintext rule exists to prevent.
+for name in TWILIO_AUTH_TOKEN TURNSTILE_SECRET AZURE_SPEECH_KEY CROP_HEALTH_API_KEY \
+  MAPS_SERVER_API_KEY TWILIO_ACCOUNT_SID TWILIO_VERIFY_SERVICE_SID TURNSTILE_HOSTNAME \
+  AZURE_SPEECH_RESOURCE AZURE_SPEECH_REGION GEMINI_MODEL; do
+  if jq -e --arg name "$name" '
+    any(.. | objects; .name == $name and has("value"))
+  ' <<<"$service_json" >/dev/null; then
+    echo "$name is set as a literal value; it must be a Secret Manager reference" >&2
+    exit 1
+  fi
+done
 echo "Cloud Run Secret Manager references are configured"

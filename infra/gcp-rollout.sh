@@ -50,6 +50,14 @@ else
 fi
 cleanup_revision=""
 
+# Cloud Run only accepts --no-traffic when the service already exists. A new
+# service must receive its first revision's default traffic during creation;
+# the explicit promotion below still makes the final routing decision.
+deploy_traffic_args=()
+if [[ "$service_existed" == true ]]; then
+  deploy_traffic_args+=(--no-traffic)
+fi
+
 rollback() {
   status=$?
   trap - ERR
@@ -86,13 +94,79 @@ rollback() {
 }
 trap rollback ERR
 
+# Provider credentials are read by the backend, not the mobile app, so every key the
+# app needs must reach this container from Secret Manager.
+#
+# Only wire a secret that actually holds an ENABLED version. Referencing a secret with
+# no version makes the Cloud Run container fail to start outright, whereas a provider
+# key that is simply absent is a degraded integration: ServiceSettings leaves the field
+# None and that one adapter reports the provider unavailable. So skipping beats
+# referencing, and the team can add keys incrementally instead of needing all of them
+# before the first deploy.
+INTEGRATIONS_MODE="${INTEGRATIONS_MODE:-live}"
+# Terraform names every secret "${name_prefix}-<id>", so the prefix is recoverable from
+# the database secret rather than needing a separate repository variable to drift.
+SECRET_PREFIX="${SECRET_PREFIX:-${DATABASE_SECRET%-database-url}}"
+
+# ENV_VAR:secret-id-suffix. DATABASE_URL and GEMINI_API_KEY are wired unconditionally
+# from their own variables; the demo cannot run without the first and does not run
+# without the second. The rest are optional.
+optional_secrets=(
+  "GEMINI_MODEL:gemini-model"
+  "TWILIO_ACCOUNT_SID:twilio-account-sid"
+  "TWILIO_VERIFY_SERVICE_SID:twilio-verify-service-sid"
+  "TWILIO_AUTH_TOKEN:twilio-auth-token"
+  "TURNSTILE_SECRET:turnstile-secret"
+  "TURNSTILE_HOSTNAME:turnstile-hostname"
+  "AZURE_SPEECH_KEY:azure-speech-key"
+  "AZURE_SPEECH_RESOURCE:azure-speech-resource"
+  "AZURE_SPEECH_REGION:azure-speech-region"
+  "CROP_HEALTH_API_KEY:crop-health-api-key"
+  "MAPS_SERVER_API_KEY:maps-server-api-key"
+)
+
+# One listing call decides existence for every candidate. Probing each secret
+# individually cannot tell NOT_FOUND from a transient 503, and reading a transient
+# failure as "absent" would quietly deploy a service with no provider keys at all.
+if ! available="$(gcloud secrets list --project="$GCP_PROJECT" \
+  --format='value(name.basename())')"; then
+  echo "Could not list Secret Manager secrets; refusing to deploy" >&2
+  exit 1
+fi
+
+secret_args="DATABASE_URL=${DATABASE_SECRET}:latest,GEMINI_API_KEY=${GEMINI_SECRET}:latest"
+wired=()
+skipped=()
+for entry in "${optional_secrets[@]}"; do
+  env_name="${entry%%:*}"
+  secret_id="${SECRET_PREFIX}-${entry#*:}"
+  if ! grep -qxF "$secret_id" <<<"$available"; then
+    skipped+=("$env_name")
+    continue
+  fi
+  # The secret exists, so a failing version query is a real error, not absence. Left
+  # unguarded on purpose: the ERR trap turns it into a fail-closed deploy.
+  versions="$(gcloud secrets versions list "$secret_id" --project="$GCP_PROJECT" \
+    --filter='state:ENABLED' --limit=1 --format='value(name)')"
+  if [[ -n "$versions" ]]; then
+    secret_args+=",${env_name}=${secret_id}:latest"
+    wired+=("$env_name")
+  else
+    skipped+=("$env_name")
+  fi
+done
+# Names only, never values: this log is world-readable to anyone with repository access.
+echo "Integrations mode: ${INTEGRATIONS_MODE}"
+echo "Provider secrets wired: ${wired[*]:-none}"
+echo "Provider secrets skipped, no enabled version: ${skipped[*]:-none}"
+
 gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --project="$GCP_PROJECT" --region="$GCP_REGION" \
-  --image="$IMAGE" --platform=managed --no-traffic --tag="sha-${COMMIT_SHA}" \
+  --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="sha-${COMMIT_SHA}" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
-  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=disabled,FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \
-  --set-secrets="DATABASE_URL=${DATABASE_SECRET}:latest,GEMINI_API_KEY=${GEMINI_SECRET}:latest" \
+  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \
+  --set-secrets="$secret_args" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null
 

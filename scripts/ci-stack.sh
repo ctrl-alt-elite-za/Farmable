@@ -64,6 +64,13 @@ elif [ "$mode" = mobile ]; then
   bash scripts/await-device.sh
   # Prove connectivity, then stop ONLY this invocation's API for offline proof.
   maestro test e2e/mobile/online_launch.yaml
+  # Real sign-up and login against this stack's API. INTEGRATIONS_MODE=fake
+  # gives a deterministic OTP provider (111111 phone, 222222 email), so the
+  # flows prove the client end to end without any SMS or mail leaving CI.
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/signup.yaml
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/login.yaml
   "${compose[@]}" stop api
   bash scripts/await-device.sh
   maestro test e2e/mobile/offline_launch.yaml

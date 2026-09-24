@@ -34,6 +34,12 @@ const buildSha = String.fromEnvironment('BUILD_SHA', defaultValue: 'unknown');
 
 /// Where the app opens. `/home` for every build anyone will ever install.
 ///
+/// **The default is a product decision, not a tidying-up.** The seeded demo
+/// farm has no user attached to it, `e2e/mobile/*.yaml` assert that a freshly
+/// installed app reaches Home with no taps, and Home and Zone Detail are
+/// required to work without a session. Putting onboarding in front of a cold
+/// launch breaks all three at once.
+///
 /// Overridden only to photograph or drive a screen that sits several taps
 /// down, so a capture is a build flag rather than a sequence of blind
 /// coordinates on an emulator two sessions are sharing:
@@ -41,11 +47,19 @@ const buildSha = String.fromEnvironment('BUILD_SHA', defaultValue: 'unknown');
 ///   flutter build apk --debug \
 ///     --dart-define=INITIAL_ROUTE=/farm/zone/`section-id`/plant
 ///
+/// The launch journey — brand intro, onboarding, auth choice — is reached the
+/// same way, with `--dart-define=INITIAL_ROUTE=/splash`.
+///
 /// Safe because it can only reach routes the router already serves, and every
 /// screen reads its own data by id — arriving here cold is the same code path
 /// as arriving by tap, which `router.dart` calls a property of the
-/// architecture. An unknown path falls through to the router's own "nothing
-/// here" screen.
+/// architecture. Every auth route is deep-linkable for the same reason. An
+/// unknown path falls through to the router's own "nothing here" screen.
+///
+/// **One name on purpose.** This branch and the recommendations branch each
+/// added a setting for this under a different name, and git merged both in
+/// without reporting a conflict — two build flags doing one job, either of
+/// which could have been the one nobody wired up.
 const initialRoute = String.fromEnvironment(
   'INITIAL_ROUTE',
   defaultValue: '/home',
