@@ -23,12 +23,11 @@ git merge-base origin/resolve-issue/9-complete-backend-identity HEAD
 git diff --stat origin/resolve-issue/9-complete-backend-identity...HEAD
 ```
 
-The first command prints the common ancestor: the parent branch can advance
-after this documentation branch is created, so its latest tip need not be an
-ancestor of HEAD. The second should show only the contract artifact (and any
-deliberately related documentation change). Check the parent's current review
-and CI separately; this documentation diff does not prove the latest parent
-fixes are already included in this branch.
+The first command prints the common ancestor: the parent branch can advance,
+so its latest tip need not be an ancestor of HEAD. The second shows this PR's
+application changes and related documentation. Check the parent's current
+review and CI separately; the guide is not evidence that later parent fixes
+are already included in this branch.
 
 ## Authentication and tenant isolation
 
@@ -151,20 +150,24 @@ active-record lists.
 
 ## Delivered scope
 
-This PR delivers every issue #11 acceptance criterion: the generic
+This PR implements the issue #11 runtime behavior: the generic
 owner/farm-scoped records, strict DTOs, optimistic versions, mutation replay,
 tombstones, and change-feed behavior described above, plus the crop
 catalogue/harvest-window, animal-section, planting-date-bound, and
 cascading-delete behavior described in this guide. Individual animals (#13),
-mapping (#15), the dashboard (#12), and custom crops remain out of scope, as
-the issue states.
+mapping (#15), the dashboard (#12), and a custom crop catalogue remain out of
+scope. Legacy free-text crop labels are retained for compatibility; they do
+not establish a validated catalogue identity or a harvest estimate.
 
-The crop catalogue (`crop_types`/`crop_calendars`, migration `0016`) seeds a
-small, invented, illustrative set of crops (cabbage, spinach, tomato, potato,
-onion, carrot) with plausible harvest-day ranges, in the same spirit as
-`farmable_backend.planning.demo_data`'s sample scenario — not researched
-agronomic data. Extending the catalogue is a data change to that migration,
-not an API or contract change.
+The crop catalogue (`crop_types`/`crop_calendars`, migration `0025`) seeds crop
+identities (cabbage, spinach, tomato, potato, onion and carrot), **not harvest
+durations**. Invented calendars are deliberately excluded from production.
+Until validated calendars are supplied, harvest dates remain null. Tests
+cover calculation from an explicitly supplied calendar and the unavailable
+case; they do not validate agronomic data. Load future validated data through
+an additive migration or an approved import, never by rewriting an applied
+migration. Do not treat this guide or passing code tests as evidence that
+production harvest estimates are already populated.
 
 ## Acceptance-to-evidence map
 
