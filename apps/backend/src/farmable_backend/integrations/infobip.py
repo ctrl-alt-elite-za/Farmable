@@ -1,4 +1,5 @@
 import re
+from dataclasses import replace
 from uuid import uuid4
 
 import httpx
@@ -15,25 +16,41 @@ def _normalized_destination(value: str) -> str:
 
 def _validated_sms_result(result: ServiceResult, destination: str) -> ServiceResult:
     if not result.ok:
+        # Dispatch may have succeeded even if its acknowledgement was unreadable
+        # or a gateway returned a server error. Preserve the challenge on retry.
+        if result.error == "invalid_response" or (
+            result.status is not None and 500 <= result.status < 600
+        ):
+            return replace(result, ambiguous=True)
         return result
+    invalid = ServiceResult(
+        result.service, False, error="invalid_response", status=result.status, ambiguous=True
+    )
     messages = (result.data or {}).get("messages")
     if not isinstance(messages, list) or len(messages) != 1:
-        return ServiceResult(result.service, False, error="invalid_response", status=result.status)
+        return invalid
     message = messages[0]
     if not isinstance(message, dict):
-        return ServiceResult(result.service, False, error="invalid_response", status=result.status)
+        return invalid
+    # SMS v3 calls this field `destination`; older responses use `to`.
+    recipient = message.get("destination", message.get("to"))
     status = message.get("status")
     message_id = message.get("messageId")
     if (
-        not isinstance(message.get("to"), str)
-        or _normalized_destination(message["to"]) != _normalized_destination(destination)
+        not isinstance(recipient, str)
+        or _normalized_destination(recipient) != _normalized_destination(destination)
         or not isinstance(message_id, str)
         or not message_id
         or not isinstance(status, dict)
-        or status.get("name") not in _ACCEPTED_SMS_STATUSES
     ):
-        return ServiceResult(result.service, False, error="invalid_response", status=result.status)
-    return result
+        return invalid
+    name = status.get("name")
+    if isinstance(name, str):
+        if name in _ACCEPTED_SMS_STATUSES:
+            return result
+        if name.startswith("REJECTED_"):
+            return replace(invalid, ambiguous=False)
+    return invalid
 
 
 class Infobip(Adapter):

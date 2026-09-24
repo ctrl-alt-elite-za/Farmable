@@ -12,6 +12,7 @@ import smtplib
 import ssl
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
@@ -58,8 +59,15 @@ class GmailSmtpEmailSender:
             )
         else:
             connection = smtplib.SMTP(self._host, self._port, timeout=CONNECT_TIMEOUT_SECONDS)
-            connection.starttls(context=context)
-        connection.login(self._user, self._password)
+        try:
+            if self._tls_mode != "ssl":
+                connection.starttls(context=context)
+            connection.login(self._user, self._password)
+        except BaseException:
+            # The caller cannot close a connection that _connect never returned.
+            with suppress(smtplib.SMTPException, OSError):
+                connection.close()
+            raise
         return connection
 
     def send(self, to: str, subject: str, html: str, text: str) -> bool:
@@ -115,6 +123,11 @@ class GmailSmtpEmailSender:
                             logger.warning("SMTP cleanup failed after accepted delivery")
                         else:
                             cleanup_failed = True
+                    finally:
+                        # QUIT can fail before smtplib closes the socket. Cleanup
+                        # must never change the outcome of an accepted delivery.
+                        with suppress(smtplib.SMTPException, OSError):
+                            connection.close()
             if accepted:
                 return True
             if cleanup_failed:

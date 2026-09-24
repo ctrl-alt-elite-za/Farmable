@@ -70,6 +70,41 @@ def test_auth_failure_never_retries(monkeypatch):
     assert smtp_cls.call_count == 1
 
 
+@pytest.mark.parametrize("tls_mode", ["starttls", "ssl"])
+def test_login_failure_closes_connection_without_retry(monkeypatch, tls_mode):
+    connection = MagicMock()
+    connection.login.side_effect = smtplib.SMTPAuthenticationError(535, b"bad creds")
+    # A cleanup failure must not hide the permanent authentication failure.
+    connection.close.side_effect = OSError("close failed")
+    smtp_cls = MagicMock(return_value=connection)
+    monkeypatch.setattr(smtplib, "SMTP_SSL" if tls_mode == "ssl" else "SMTP", smtp_cls)
+
+    sender = GmailSmtpEmailSender(make_settings(smtp_tls_mode=tls_mode), sleep=lambda _: None)
+    assert sender.send("farmer@example.test", "Subject", "<p>hi</p>", "hi") is False
+    smtp_cls.assert_called_once()
+    connection.close.assert_called_once()
+    connection.sendmail.assert_not_called()
+
+
+def test_starttls_failure_closes_each_connection_before_retry(monkeypatch):
+    connections = [MagicMock() for _ in range(MAX_ATTEMPTS)]
+    for connection in connections:
+        connection.starttls.side_effect = OSError("TLS setup failed")
+    smtp_cls = MagicMock(side_effect=connections)
+    monkeypatch.setattr(smtplib, "SMTP", smtp_cls)
+
+    def before_retry(_):
+        connections[smtp_cls.call_count - 1].close.assert_called_once()
+
+    sender = GmailSmtpEmailSender(make_settings(), sleep=before_retry)
+    assert sender.send("farmer@example.test", "Subject", "<p>hi</p>", "hi") is False
+    assert smtp_cls.call_count == MAX_ATTEMPTS
+    for connection in connections:
+        connection.close.assert_called_once()
+        connection.login.assert_not_called()
+        connection.sendmail.assert_not_called()
+
+
 def test_permanent_smtp_error_never_retries(monkeypatch):
     error = smtplib.SMTPResponseException(550, b"mailbox unavailable")
     smtp_cls = MagicMock(side_effect=error)
@@ -126,6 +161,7 @@ def test_cleanup_failure_after_send_does_not_repeat_accepted_message(monkeypatch
     sender = GmailSmtpEmailSender(make_settings(), sleep=lambda _: None)
     assert sender.send("farmer@example.test", "Subject", "<p>hi</p>", "hi") is True
     connection.sendmail.assert_called_once()
+    connection.close.assert_called_once()
 
 
 def test_submission_failure_is_ambiguous_and_not_retried(monkeypatch):
