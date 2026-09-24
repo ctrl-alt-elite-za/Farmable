@@ -1738,6 +1738,7 @@ export interface components {
      * PlantingCreate
      * @example {
      *       "crop": "cabbage",
+     *       "crop_type_code": "cabbage",
      *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
      *       "planted_on": "2026-08-01",
@@ -1747,6 +1748,8 @@ export interface components {
     PlantingCreate: {
       /** Crop */
       crop: string;
+      /** Crop Type Code */
+      crop_type_code?: string | null;
       /**
        * Id
        * Format: uuid
@@ -1774,6 +1777,7 @@ export interface components {
      * PlantingUpdate
      * @example {
      *       "crop": "tomato",
+     *       "crop_type_code": "tomato",
      *       "expected_version": 1,
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
      *       "planted_on": "2026-08-02"
@@ -1782,6 +1786,8 @@ export interface components {
     PlantingUpdate: {
       /** Crop */
       crop: string;
+      /** Crop Type Code */
+      crop_type_code?: string | null;
       /** Expected Version */
       expected_version: number;
       /**
@@ -1806,11 +1812,17 @@ export interface components {
       created_at: string;
       /** Crop */
       crop: string;
+      /** Crop Type Code */
+      crop_type_code: string | null;
       /**
        * Farm Id
        * Format: uuid
        */
       farm_id: string;
+      /** Harvest From */
+      harvest_from: string | null;
+      /** Harvest To */
+      harvest_to: string | null;
       /**
        * Id
        * Format: uuid
@@ -2134,6 +2146,7 @@ export interface components {
      * @example {
      *       "area_m2": "1200.00",
      *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
+     *       "kind": "crop",
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
      *       "name": "North block"
      *     }
@@ -2150,6 +2163,12 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /**
+       * Kind
+       * @default crop
+       * @enum {string}
+       */
+      kind: 'crop' | 'animal';
       /**
        * Mutation Id
        * Format: uuid
@@ -2176,6 +2195,7 @@ export interface components {
      * @example {
      *       "area_m2": "1250.00",
      *       "expected_version": 1,
+     *       "kind": "crop",
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
      *       "name": "North block"
      *     }
@@ -2189,6 +2209,12 @@ export interface components {
       } | null;
       /** Expected Version */
       expected_version: number;
+      /**
+       * Kind
+       * @default crop
+       * @enum {string}
+       */
+      kind: 'crop' | 'animal';
       /**
        * Mutation Id
        * Format: uuid
@@ -2220,6 +2246,11 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'crop' | 'animal';
       /** Name */
       name: string;
       /**

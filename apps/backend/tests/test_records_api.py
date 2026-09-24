@@ -16,6 +16,8 @@ from farmable_backend.models import (
     AuthIdentity,
     AuthSession,
     Base,
+    CropCalendar,
+    CropType,
     Farm,
     Media,
     Observation,
@@ -75,6 +77,20 @@ def seed(sessions):
         foreign_section = Section(owner_id=other.id, farm_id=foreign.id, name="Private")
         second_section = Section(owner_id=owner.id, farm_id=second.id, name="Second")
         session.add_all([section, foreign_section, second_section])
+        session.flush()
+        # Same invented, illustrative figures as migrations/versions/0016 (#11).
+        session.add_all(
+            [
+                CropType(code="cabbage", name="Cabbage"),
+                CropType(code="spinach", name="Spinach"),
+            ]
+        )
+        session.add_all(
+            [
+                CropCalendar(crop_type_code="cabbage", harvest_days_min=90, harvest_days_max=110),
+                CropCalendar(crop_type_code="spinach", harvest_days_min=35, harvest_days_max=50),
+            ]
+        )
         session.flush()
         return SimpleNamespace(
             owner=owner.id,

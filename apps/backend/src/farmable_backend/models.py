@@ -26,12 +26,13 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from farmable_backend.photo_policy import MAX_CLAIMS
 
 # Spinach is sold by bunch or kilogram, so only these crops get a per-plant formula (#16).
 WEIGHED_CROPS = ("cabbage", "tomato")
+SECTION_KINDS = ("crop", "animal")
 SYNC_STATES = ("pending", "synced", "conflict")
 TASK_STATUSES = ("pending", "in_progress", "done", "cancelled")
 FINANCIAL_TYPES = ("expense", "income")
@@ -355,6 +356,34 @@ class Section(Base):
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Migration 0003 is pinned to this table's original columns by
+    # test_farm_schema.py, so kind = crop|animal (#11) lives in a companion
+    # table (migration 0011's farm_locations pattern), not a new column here.
+    kind_row: Mapped["SectionKind | None"] = relationship(
+        primaryjoin="Section.id == foreign(SectionKind.section_id)",
+        uselist=False,
+        lazy="joined",
+        viewonly=True,
+    )
+
+    @property
+    def kind(self) -> str:
+        return self.kind_row.kind if self.kind_row is not None else "crop"
+
+
+class SectionKind(Base):
+    """Section.kind (#11); a companion table so migration 0003 stays pinned."""
+
+    __tablename__ = "section_kinds"
+    __table_args__ = (
+        CheckConstraint(column("kind").in_(SECTION_KINDS), name="ck_section_kinds_kind"),
+    )
+
+    section_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("sections.id", ondelete="CASCADE"), primary_key=True
+    )
+    kind: Mapped[str] = mapped_column(Text, default="crop", server_default="crop")
+
 
 class Planting(Base):
     __tablename__ = "plantings"
@@ -388,6 +417,83 @@ class Planting(Base):
     version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Migration 0003 is pinned to this table's original columns by
+    # test_farm_schema.py, so the catalogue-restricted crop and its computed
+    # harvest window (#11) live in a companion table, not new columns here.
+    crop_row: Mapped["PlantingCrop | None"] = relationship(
+        primaryjoin="Planting.id == foreign(PlantingCrop.planting_id)",
+        uselist=False,
+        lazy="joined",
+        viewonly=True,
+    )
+
+    @property
+    def crop_type_code(self) -> str | None:
+        return self.crop_row.crop_type_code if self.crop_row is not None else None
+
+    @property
+    def harvest_from(self) -> date | None:
+        return self.crop_row.harvest_from if self.crop_row is not None else None
+
+    @property
+    def harvest_to(self) -> date | None:
+        return self.crop_row.harvest_to if self.crop_row is not None else None
+
+
+class CropType(Base):
+    """The catalogue #11 restricts planting.crop_type_code to."""
+
+    __tablename__ = "crop_types"
+
+    code: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str] = mapped_column(Text)
+
+
+class CropCalendar(Base):
+    """Days-from-planting harvest window per catalogue crop (#11).
+
+    Values are invented, illustrative demonstration figures, like
+    planning/demo_data.py's harvest_days_min/max -- not researched agronomic
+    data.
+    """
+
+    __tablename__ = "crop_calendars"
+    __table_args__ = (
+        CheckConstraint(
+            column("harvest_days_min") > 0, name="ck_crop_calendars_harvest_days_min_positive"
+        ),
+        CheckConstraint(
+            column("harvest_days_max") >= column("harvest_days_min"),
+            name="ck_crop_calendars_harvest_days_order",
+        ),
+    )
+
+    crop_type_code: Mapped[str] = mapped_column(
+        Text, ForeignKey("crop_types.code", ondelete="CASCADE"), primary_key=True
+    )
+    harvest_days_min: Mapped[int] = mapped_column(BigInteger)
+    harvest_days_max: Mapped[int] = mapped_column(BigInteger)
+
+
+class PlantingCrop(Base):
+    """Planting.crop_type_code/harvest_from/harvest_to (#11), kept out of the
+    migration-0003-pinned plantings table (see Planting.crop_row).
+    """
+
+    __tablename__ = "planting_crops"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("crop_type_code",), ("crop_types.code",), name="fk_planting_crops_crop_type"
+        ),
+    )
+
+    planting_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("plantings.id", ondelete="CASCADE"), primary_key=True
+    )
+    crop_type_code: Mapped[str] = mapped_column(Text)
+    harvest_from: Mapped[date | None] = mapped_column(Date)
+    harvest_to: Mapped[date | None] = mapped_column(Date)
 
 
 class Media(Base):

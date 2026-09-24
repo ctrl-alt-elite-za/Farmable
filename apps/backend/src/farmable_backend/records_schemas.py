@@ -81,8 +81,12 @@ class FarmView(RecordView):
     name: str
 
 
+Kind = Literal["crop", "animal"]
+
+
 class SectionView(FarmView):
     farm_id: UUID
+    kind: Kind
     boundary: dict[str, Any] | None
     area_m2: Decimal | None
 
@@ -166,24 +170,34 @@ class RecordDelete(StrictModel):
 
 class SectionCreate(StrictModel):
     model_config = examples(
-        mutation_id=EXAMPLE_MUTATION, id=EXAMPLE_RECORD, name="North block", area_m2="1200.00"
+        mutation_id=EXAMPLE_MUTATION,
+        id=EXAMPLE_RECORD,
+        name="North block",
+        kind="crop",
+        area_m2="1200.00",
     )
 
     mutation_id: UUID
     id: UUID
     name: Short
+    kind: Kind = "crop"
     boundary: dict[str, Any] | None = None
     area_m2: Area | None = None
 
 
 class SectionUpdate(StrictModel):
     model_config = examples(
-        mutation_id=EXAMPLE_MUTATION, expected_version=1, name="North block", area_m2="1250.00"
+        mutation_id=EXAMPLE_MUTATION,
+        expected_version=1,
+        name="North block",
+        kind="crop",
+        area_m2="1250.00",
     )
 
     mutation_id: UUID
     expected_version: Version
     name: Short
+    kind: Kind = "crop"
     boundary: dict[str, Any] | None = None
     area_m2: Area | None = None
 
@@ -194,6 +208,7 @@ class PlantingCreate(StrictModel):
         id=EXAMPLE_RECORD,
         section_id=EXAMPLE_SECTION,
         crop="cabbage",
+        crop_type_code="cabbage",
         planted_on="2026-08-01",
     )
 
@@ -201,18 +216,26 @@ class PlantingCreate(StrictModel):
     id: UUID
     section_id: UUID
     crop: Short
+    # Optional and additive: a catalogue-restricted crop identity (#11) that
+    # existing clients sending only free-text `crop` need not provide.
+    crop_type_code: OptionalShort | None = None
     planted_on: DateValue | None = None
     is_current: StrictBool = True
 
 
 class PlantingUpdate(StrictModel):
     model_config = examples(
-        mutation_id=EXAMPLE_MUTATION, expected_version=1, crop="tomato", planted_on="2026-08-02"
+        mutation_id=EXAMPLE_MUTATION,
+        expected_version=1,
+        crop="tomato",
+        crop_type_code="tomato",
+        planted_on="2026-08-02",
     )
 
     mutation_id: UUID
     expected_version: Version
     crop: Short
+    crop_type_code: OptionalShort | None = None
     planted_on: DateValue | None = None
     is_current: StrictBool = True
 
@@ -371,6 +394,9 @@ class PlantingView(RecordView):
     farm_id: UUID
     section_id: UUID
     crop: str
+    crop_type_code: str | None
+    harvest_from: DateValue | None
+    harvest_to: DateValue | None
     planted_on: DateValue | None
     is_current: bool
 

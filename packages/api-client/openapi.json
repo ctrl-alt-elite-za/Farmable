@@ -1793,6 +1793,7 @@
         "examples": [
           {
             "crop": "cabbage",
+            "crop_type_code": "cabbage",
             "id": "3f1d4b2a-0000-4000-8000-000000000002",
             "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
             "planted_on": "2026-08-01",
@@ -1806,6 +1807,18 @@
             "pattern": "\\S",
             "title": "Crop",
             "type": "string"
+          },
+          "crop_type_code": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crop Type Code"
           },
           "id": {
             "format": "uuid",
@@ -1849,6 +1862,7 @@
         "examples": [
           {
             "crop": "tomato",
+            "crop_type_code": "tomato",
             "expected_version": 1,
             "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
             "planted_on": "2026-08-02"
@@ -1861,6 +1875,18 @@
             "pattern": "\\S",
             "title": "Crop",
             "type": "string"
+          },
+          "crop_type_code": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crop Type Code"
           },
           "expected_version": {
             "minimum": 1.0,
@@ -1906,10 +1932,45 @@
             "title": "Crop",
             "type": "string"
           },
+          "crop_type_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crop Type Code"
+          },
           "farm_id": {
             "format": "uuid",
             "title": "Farm Id",
             "type": "string"
+          },
+          "harvest_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Harvest From"
+          },
+          "harvest_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Harvest To"
           },
           "id": {
             "format": "uuid",
@@ -1961,6 +2022,9 @@
           "farm_id",
           "section_id",
           "crop",
+          "crop_type_code",
+          "harvest_from",
+          "harvest_to",
           "planted_on",
           "is_current"
         ],
@@ -2471,6 +2535,7 @@
           {
             "area_m2": "1200.00",
             "id": "3f1d4b2a-0000-4000-8000-000000000002",
+            "kind": "crop",
             "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
             "name": "North block"
           }
@@ -2507,6 +2572,12 @@
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "default": "crop",
+            "enum": ["crop", "animal"],
+            "title": "Kind",
             "type": "string"
           },
           "mutation_id": {
@@ -2599,6 +2670,7 @@
           {
             "area_m2": "1250.00",
             "expected_version": 1,
+            "kind": "crop",
             "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
             "name": "North block"
           }
@@ -2636,6 +2708,12 @@
             "minimum": 1.0,
             "title": "Expected Version",
             "type": "integer"
+          },
+          "kind": {
+            "default": "crop",
+            "enum": ["crop", "animal"],
+            "title": "Kind",
+            "type": "string"
           },
           "mutation_id": {
             "format": "uuid",
@@ -2696,6 +2774,11 @@
             "title": "Id",
             "type": "string"
           },
+          "kind": {
+            "enum": ["crop", "animal"],
+            "title": "Kind",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -2723,6 +2806,7 @@
           "updated_at",
           "name",
           "farm_id",
+          "kind",
           "boundary",
           "area_m2"
         ],

@@ -1,18 +1,20 @@
 # Issue #11 farm-records REST and sync contract guide
 
-This guide documents the delivered generic farm-records and synchronization
-behavior for issue #11. The implementation is already present in the PR #72
-stack through the merged farm-records work. This document makes that subset
-explicit and records how to verify it without replaying the implementation
-commits. It is not, by itself, evidence that every issue-level acceptance
-criterion is complete.
+This guide documents the delivered farm-records and synchronization behavior
+for issue #11: the generic contract inherited from the PR #72 stack, plus this
+PR's own application changes closing the remaining acceptance gaps (crop
+catalogue validation, crop-calendar harvest windows, animal sections, planting
+date bounds, and cascading section deletion). It records how to verify all of
+it without replaying the implementation commits.
 
 ## Stack relationship
 
-PR #72 is the parent stack. The farm-record implementation was merged earlier
-by PR #59 and is an ancestor of PR #72's head. This documentation PR therefore
-contains only the contract guide; it must not copy the records routes,
-repositories, or generated client files again.
+PR #72 is the parent stack. The generic farm-record implementation was merged
+earlier by PR #59 and is an ancestor of PR #72's head. This PR adds the
+remaining issue #11 application behavior (crop catalogue, harvest windows,
+animal sections, planting date bounds, cascading section delete) on top of
+that generic contract, plus this guide; it does not copy the generic records
+routes or repositories again.
 
 Useful checks when reviewing the stack:
 
@@ -72,6 +74,27 @@ retries safe.
 current planting, current plan, latest health status, observations, tasks, and
 financial totals. Boundaries remain optional so mapping can add them later.
 
+Sections carry `kind` (`crop` or `animal`, default `crop`); pens share the
+same routes, mapping, and carousel as crop sections rather than a second
+system. Plantings carry an optional `crop_type_code`; when set it must name a
+row in the `crop_types` catalogue (otherwise `422 unknown_crop_type`) and the
+server computes `harvest_from`/`harvest_to` from `crop_calendars` and
+`planted_on`. Existing clients that only send free-text `crop` are unaffected.
+`planted_on` is rejected with `422 planted_on_out_of_range` outside two years
+of today in either direction. `kind` and the crop/harvest fields live in
+companion tables (`section_kinds`, `planting_crops`) keyed to the section/
+planting id, not new columns on `sections`/`plantings`: migration `0003` is
+pinned to those tables' original columns by `test_farm_schema.py`, so new
+attributes follow migration `0011`'s `farm_locations` pattern instead.
+
+Deleting a section cascades: every planting, observation, task, financial
+record, plan, and media row attached to it is tombstoned in the same
+transaction as the section, and each cascaded tombstone publishes its own
+`SyncChange` row under the section's own `mutation_id` so other devices learn
+of the cascade, not only the section's own deletion. Deleting an
+already-deleted section (a new mutation, not a replay) is a no-op that leaves
+the cascaded records untouched and publishes no further cascade.
+
 ## Mutation and synchronization contract
 
 Every create, update, and delete carries a client-generated UUID
@@ -111,37 +134,41 @@ uses `since=2`; it will return a newly-created cursor `3` when one exists.
 Apply delete entries even though deleted records are absent from ordinary
 active-record lists.
 
-## Delivered subset and outstanding issue requirements
+## Delivered scope
 
-The current stack provides the generic owner/farm-scoped records, strict DTOs,
-optimistic versions, mutation replay, tombstones, and change-feed behavior
-described above. The following issue-level requirements are not established by
-this guide or by the generic contract tests and remain outstanding before
-claiming issue #11 complete:
+This PR delivers every issue #11 acceptance criterion: the generic
+owner/farm-scoped records, strict DTOs, optimistic versions, mutation replay,
+tombstones, and change-feed behavior described above, plus the crop
+catalogue/harvest-window, animal-section, planting-date-bound, and
+cascading-delete behavior described in this guide. Individual animals (#13),
+mapping (#15), the dashboard (#12), and custom crops remain out of scope, as
+the issue states.
 
-- crop choices must be restricted to the `crop_types` catalogue;
-- planting dates must produce the required `crop_calendar` harvest window;
-- animal sections (`kind=animal`) must be accepted where required; and
-- deleting a section must cascade cleanup/tombstones to its attached records
-  and stored media.
-
-These gaps should be implemented and covered by dedicated acceptance tests in
-the appropriate application PR. This PR documents the existing subset only.
+The crop catalogue (`crop_types`/`crop_calendars`, migration `0016`) seeds a
+small, invented, illustrative set of crops (cabbage, spinach, tomato, potato,
+onion, carrot) with plausible harvest-day ranges, in the same spirit as
+`farmable_backend.planning.demo_data`'s sample scenario — not researched
+agronomic data. Extending the catalogue is a data change to that migration,
+not an API or contract change.
 
 ## Acceptance-to-evidence map
 
-| Issue requirement                                               | Evidence                                                                                                   |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| New farm has no visible records                                 | `test_authenticated_crud_round_trip` and owner-scoped list tests in `test_sync_api.py`                     |
-| Planting records are returned in section detail                 | `test_section_detail_exposes_the_flutter_summary`                                                          |
-| Same mutation is idempotent                                     | `test_replaying_a_mutation_creates_one_logical_record`, plus update/delete replay tests                    |
-| Unknown or malformed input is rejected                          | strict DTO and bounded-body tests in `test_sync_api.py`                                                    |
-| Foreign farm IDs are hidden                                     | `test_writes_to_a_foreign_farm_are_not_found`, `test_records_cannot_be_reached_through_another_owned_farm` |
-| Optimistic deletion is safe offline                             | stale-delete and deleted-record version tests                                                              |
-| Sync has no gaps or duplicates                                  | `test_change_polling_resumes_from_a_cursor_without_gaps_or_duplicates`                                     |
-| Crop catalogue/calendar, animal sections, and cascading cleanup | Outstanding; generic contract tests do not establish these issue-specific requirements.                    |
-| Generated client matches the API                                | `make client-check`                                                                                        |
-| Raw SQL guardrail remains clean                                 | `make check-no-raw-sql`                                                                                    |
+| Issue requirement                                   | Evidence                                                                                                         |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| New farm has no visible sections                    | `test_new_account_has_no_sections`                                                                               |
+| Planting harvest window from crop_calendar          | `test_crop_harvest_window_from_calendar`                                                                         |
+| Unknown crop_type_code is rejected                  | `test_unknown_crop_rejected`                                                                                     |
+| Planting date bounded to two years of today         | `test_planted_on_out_of_range_rejected`                                                                          |
+| Animal sections (`kind=animal`) are accepted        | `test_section_kind_defaults_to_crop_and_accepts_animal`                                                          |
+| Deleting a section cascades to its attached records | `test_delete_section_cascades` (idempotent: repeats the delete under a second mutation)                          |
+| Same mutation is idempotent                         | `test_replaying_a_mutation_creates_one_logical_record`, plus update/delete replay tests                          |
+| Unknown or malformed input is rejected              | strict DTO and bounded-body tests in `test_sync_api.py`                                                          |
+| Foreign farm IDs are hidden                         | `test_writes_to_a_foreign_farm_are_not_found`, `test_records_cannot_be_reached_through_another_owned_farm`       |
+| Optimistic deletion is safe offline                 | stale-delete and deleted-record version tests                                                                    |
+| Sync has no gaps or duplicates                      | `test_change_polling_resumes_from_a_cursor_without_gaps_or_duplicates`                                           |
+| Migration is additive and matches the ORM           | `test_crop_catalogue_migration_is_additive_and_matches_models`, `test_farm_schema.py`, `test_photo_migration.py` |
+| Generated client matches the API                    | `make client-check`                                                                                              |
+| Raw SQL guardrail remains clean                     | `make check-no-raw-sql`                                                                                          |
 
 The named issue examples use the repository's farm-scoped production routes;
 they are not a second unscoped API surface.
@@ -151,7 +178,7 @@ they are not a second unscoped API surface.
 Run the focused contract suite first:
 
 ```sh
-uv run pytest apps/backend/tests/test_sync_api.py apps/backend/tests/test_farm_records.py -q
+uv run pytest apps/backend/tests/test_sync_api.py apps/backend/tests/test_farm_records.py apps/backend/tests/test_crop_catalogue_migration.py apps/backend/tests/test_farm_schema.py -q
 ```
 
 Then verify the changed backend scope and generated contract:

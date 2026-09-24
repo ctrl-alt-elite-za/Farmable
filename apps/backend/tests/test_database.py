@@ -44,6 +44,10 @@ def test_only_owned_application_tables_are_registered():
         "forecast_state",
         "weather_jobs",
         "weather_risk_climatology",
+        "section_kinds",
+        "crop_types",
+        "crop_calendars",
+        "planting_crops",
     }
 
 

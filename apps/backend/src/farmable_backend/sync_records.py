@@ -1,6 +1,7 @@
 """Generic owner-scoped record mutations over the shared sync ledger (#11)."""
 
 from dataclasses import dataclass
+from datetime import date, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -10,19 +11,26 @@ from sqlalchemy.orm import Session
 
 from farmable_backend.farm_records import _fingerprint
 from farmable_backend.models import (
+    CropCalendar,
     Farm,
     FarmTask,
     FinancialRecord,
     Media,
     Observation,
     Planting,
+    PlantingCrop,
     SavedPlan,
     Section,
+    SectionKind,
     SyncChange,
     SyncMutation,
 )
 from farmable_backend.record_access import ApiError, db_now, section_scope
 from farmable_backend.weather_jobs import enqueue_weather
+
+# Security criterion (#11): reject planting dates further than two years from
+# today in either direction.
+PLANTING_DATE_WINDOW = timedelta(days=730)
 
 
 @dataclass(frozen=True)
@@ -47,6 +55,34 @@ KINDS: dict[str, RecordKind] = {
 }
 
 SECTION_REQUIRED = frozenset(kind.resource for kind in KINDS.values() if kind.section == "required")
+
+# Every record kind that can be attached to a section, for cascade delete.
+SECTION_ATTACHED = tuple(kind for kind in KINDS.values() if kind.section != "none")
+
+
+def _validate_planted_on(session: Session, planted_on: date | None) -> None:
+    if planted_on is None:
+        return
+    today = db_now(session).date()
+    if not today - PLANTING_DATE_WINDOW <= planted_on <= today + PLANTING_DATE_WINDOW:
+        raise ApiError(422, "planted_on_out_of_range")
+
+
+def _resolve_crop_window(
+    session: Session, crop_type_code: str | None, planted_on: date | None
+) -> tuple[str | None, date | None, date | None]:
+    if crop_type_code is None:
+        return None, None, None
+    calendar = session.get(CropCalendar, crop_type_code)
+    if calendar is None:
+        raise ApiError(422, "unknown_crop_type")
+    if planted_on is None:
+        return crop_type_code, None, None
+    return (
+        crop_type_code,
+        planted_on + timedelta(days=calendar.harvest_days_min),
+        planted_on + timedelta(days=calendar.harvest_days_max),
+    )
 
 
 class SyncRecordRepository:
@@ -109,6 +145,12 @@ class SyncRecordRepository:
         section_id = values.get("section_id")
         if kind.section == "required" or (kind.section == "optional" and section_id is not None):
             section_scope(self.session, self.owner_id, self.farm_id, section_id)
+        section_kind = values.pop("kind", None) if kind.resource == "sections" else None
+        crop_type_code = (
+            values.pop("crop_type_code", None) if kind.resource == "plantings" else None
+        )
+        if kind.resource == "plantings":
+            _validate_planted_on(self.session, values.get("planted_on"))
         record = kind.model(
             id=record_id,
             farm_id=self.farm_id,
@@ -118,7 +160,40 @@ class SyncRecordRepository:
         )
         self.session.add(record)
         self.session.flush((record,))
+        if kind.resource == "sections":
+            self.session.add(SectionKind(section_id=record.id, kind=section_kind or "crop"))
+            self.session.flush()
+        if kind.resource == "plantings":
+            self._set_planting_crop(record.id, crop_type_code, values.get("planted_on"))
         return record
+
+    def _set_planting_crop(
+        self, planting_id: UUID, crop_type_code: str | None, planted_on: date | None
+    ) -> None:
+        """Full-replace the companion crop_type_code/harvest window (#11)."""
+        existing = self.session.get(PlantingCrop, planting_id)
+        code, harvest_from, harvest_to = _resolve_crop_window(
+            self.session, crop_type_code, planted_on
+        )
+        if code is None:
+            if existing is not None:
+                self.session.delete(existing)
+                self.session.flush()
+            return
+        if existing is None:
+            self.session.add(
+                PlantingCrop(
+                    planting_id=planting_id,
+                    crop_type_code=code,
+                    harvest_from=harvest_from,
+                    harvest_to=harvest_to,
+                )
+            )
+        else:
+            existing.crop_type_code = code
+            existing.harvest_from = harvest_from
+            existing.harvest_to = harvest_to
+        self.session.flush()
 
     def _write(
         self,
@@ -152,12 +227,59 @@ class SyncRecordRepository:
         section_id = values.get("section_id")
         if section_id is not None:
             section_scope(self.session, self.owner_id, self.farm_id, section_id)
+        section_kind = values.pop("kind", None) if kind.resource == "sections" else None
+        crop_type_code = (
+            values.pop("crop_type_code", None) if kind.resource == "plantings" else None
+        )
+        if kind.resource == "plantings":
+            _validate_planted_on(self.session, values.get("planted_on"))
         for name, value in values.items():
             setattr(record, name, value)
         record.version += 1
         record.sync_state = "synced"
         self.session.flush((record,))
+        if kind.resource == "sections":
+            section_kind_row = self.session.get(SectionKind, record.id)
+            if section_kind_row is None:
+                self.session.add(SectionKind(section_id=record.id, kind=section_kind or "crop"))
+            else:
+                section_kind_row.kind = section_kind or "crop"
+            self.session.flush()
+        if kind.resource == "plantings":
+            self._set_planting_crop(record.id, crop_type_code, values.get("planted_on"))
         return record
+
+    def _cascade_delete_section(self, mutation: SyncMutation, section_id: UUID) -> None:
+        now = db_now(self.session)
+        for child in SECTION_ATTACHED:
+            rows = list(
+                self.session.scalars(
+                    select(child.model)
+                    .where(
+                        child.model.owner_id == self.owner_id,
+                        child.model.farm_id == self.farm_id,
+                        child.model.section_id == section_id,
+                        child.model.deleted_at.is_(None),
+                    )
+                    .with_for_update()
+                )
+            )
+            for row in rows:
+                row.deleted_at = now
+                row.version += 1
+                row.sync_state = "synced"
+                self.session.add(
+                    SyncChange(
+                        farm_id=self.farm_id,
+                        owner_id=self.owner_id,
+                        mutation_id=mutation.id,
+                        record_type=child.record_type,
+                        record_id=row.id,
+                        operation="delete",
+                        version=row.version,
+                    )
+                )
+        self.session.flush()
 
     def apply(self, *, resource: str, operation: str, record_id: UUID | None, payload: Any) -> Any:
         """Return the replayed record, or write one record and one change row."""
@@ -191,6 +313,12 @@ class SyncRecordRepository:
             record_id=target,
             request_fingerprint=fingerprint,
         )
+        cascade = (
+            resource == "sections"
+            and operation == "delete"
+            and (before := self._load(kind, target)) is not None
+            and before.deleted_at is None
+        )
         try:
             with self.session.begin_nested():
                 self.session.add(mutation)
@@ -198,6 +326,12 @@ class SyncRecordRepository:
                 record = self._write(kind, operation, target, values, expected_version)
                 if resource == "sections" and operation != "delete":
                     enqueue_weather(self.session, record.boundary)
+                if cascade:
+                    # Reliability criterion (#11): deleting a section removes
+                    # every record attached to it, published to the change
+                    # feed under this same mutation so other devices learn
+                    # of the cascade too, not only the section tombstone.
+                    self._cascade_delete_section(mutation, target)
                 self.session.add(
                     SyncChange(
                         farm_id=self.farm_id,
