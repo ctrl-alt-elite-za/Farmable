@@ -11,7 +11,13 @@ name: Recorded crop pan keeps warning boxes tappable
 - scrollUntilVisible:
     element: 'Cabbage Field\..*'
     direction: DOWN
-- tapOn: 'Cabbage Field\..*'
+- tapOn:
+    text: 'Cabbage Field\..*'
+    # The carousel card extends under the persistent assistant button. Maestro
+    # taps the centre of a matched element by default, which opens that
+    # button instead of the card on the emulator. Keep the selector semantic,
+    # but tap the card's visible upper area.
+    point: '50%,20%'
 - tapOn:
     id: 'zone-scan'
 - assertVisible: '.*Test replay.*synthetic crop boxes.*'
