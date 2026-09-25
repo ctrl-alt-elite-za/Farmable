@@ -100,6 +100,10 @@ class SyncController {
 
   AuthUser? _user;
   int? _generation;
+
+  /// The account most recently asked for, set the moment the standing
+  /// changes rather than when [_apply] gets to it.
+  String? _wanted;
   FarmScope? _scope;
   SyncRunner? _runner;
   SyncOutbox? _outbox;
@@ -110,15 +114,28 @@ class SyncController {
   /// The account whose runner is open, if any. For tests and diagnostics.
   String? get runningFor => _runner == null ? null : _scope?.ownerId;
 
+  /// Completes once every transition asked for so far has finished.
+  Future<void> get idle => _tail;
+
   Future<void> start() async {
     _online = await network.current();
     _networkSub = network.changes.listen(setOnline);
   }
 
   /// The farmer's standing changed: signed in, out, or as someone else.
-  Future<void> standing(AuthStanding? standing) => _serial(
-    () => _apply(standing is SignedIn ? standing.session.user : null),
-  );
+  ///
+  /// The previous account's farm leaves the screen now, not once the queued
+  /// transition reaches it: stopping a runner waits for any send in flight,
+  /// and the farm on screen must never outlast the session it belongs to.
+  Future<void> standing(AuthStanding? standing) {
+    final user = standing is SignedIn ? standing.session.user : null;
+    _wanted = user?.id;
+    final shown = _scope;
+    if (shown != null && shown.isAccount && shown.ownerId != user?.id) {
+      _setScope(FarmScope.demo);
+    }
+    return _serial(() => _apply(user));
+  }
 
   void setOnline(bool online) {
     if (online == _online) return;
@@ -174,7 +191,9 @@ class SyncController {
       }
     }
     // Signed out, or switched, while the farm was being fetched.
-    if (auth.generation != generation || _disposed) return;
+    if (auth.generation != generation || _wanted != user.id || _disposed) {
+      return;
+    }
     if (scope == null) {
       // No farm known yet: the phone keeps showing the demo, and nothing is
       // queued under this account until the next attempt finds one.

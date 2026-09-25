@@ -66,8 +66,9 @@ Duration retryDelay(int attempt, double random) => Duration(
           .round(),
 );
 
-/// No transport is installed by the demo app. Connectivity alone is not proof
-/// that a record was synced. Credentials and lifecycle are explicit inputs.
+/// The app installs `ApiSyncTransport` through `SyncController`, for signed-in
+/// accounts only. Connectivity alone is not proof that a record was synced.
+/// Credentials and lifecycle are explicit inputs.
 class SyncRunner {
   SyncRunner._(
     this.outbox, {

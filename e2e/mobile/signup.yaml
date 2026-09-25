@@ -98,9 +98,10 @@ name: A farmer creates an account and verifies phone, then email
 - tapOn:
     id: 'verification-code'
 - inputText: '222222'
-# Both proved: a session, and Home.
+# Both proved: a session, and Home — the account's own farm from the API
+# (GET /farms), greeted by the account's name, not the signed-out demo farm.
 - extendedWaitUntil:
-    visible: '.*Hello, Sipho.*'
+    visible: '.*Hello, Thandi.*'
     timeout: 30000
 - tapOn:
     id: 'nav-profile'

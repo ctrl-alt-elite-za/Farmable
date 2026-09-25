@@ -18,6 +18,7 @@ import 'package:almanac/data/local/seed.dart';
 import 'package:almanac/domain/farm_records.dart' as rec;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 /// A fixed Sunday, matching the design's "Sunday, 20 September". Pinned so
@@ -98,6 +99,10 @@ Future<FarmHarness> pumpFarmApp(
   /// back on. Nothing else here is substituted — the screens, the repository
   /// and the storage stay real.
   Set<FailingStream> failing = const {},
+
+  /// Anything else a test substitutes — a camera, a photo folder. Appended
+  /// after the harness's own, so it wins.
+  List<Override> overrides = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = surface;
@@ -130,6 +135,7 @@ Future<FarmHarness> pumpFarmApp(
         observationsProvider.overrideWith(
           (ref, id) => _storageIsDown<List<rec.Observation>>(),
         ),
+      ...overrides,
     ],
   );
 

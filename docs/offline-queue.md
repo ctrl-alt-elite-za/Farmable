@@ -6,11 +6,10 @@ replacement, new runtime dependency or second local database is introduced.
 
 ## Scope
 
-This is the local queue foundation, not completion of #17. No live transport,
-authentication, connectivity subscription, camera UI or reconciliation is
-installed by the demo. Being online never marks demo records as synced.
-Live two-device sync, Android kill/relaunch and physical-device photo capture
-still need end-to-end verification when those integrations exist.
+This began as the local queue foundation. The live transport, lifecycle and
+photo capture now exist — see [Live sync](#live-sync-17) below. Being online
+never marks a record synced: only a matching server acknowledgement does.
+The demo farm is never sent at all.
 
 In `apps/mobile/lib/data/local/`:
 
@@ -112,3 +111,62 @@ disposable backend: `uv run python scripts/test_mobile_contract.py`.
 migration. `sync_runner_test.dart` covers readiness, retries, auth pause,
 conflicts, deadlines, cancellation and late acknowledgements. Fake-transport
 tests are not evidence of cloud uploads or physical-device performance.
+
+## Live sync (#17)
+
+In `apps/mobile/lib/data/sync/`:
+
+- `api_sync_transport.dart` — the `SyncTransport` over dio and the logged-in
+  session (`ApiAuthService.authorized`, bound to the session generation the
+  runner opened under). Observations: `ObservationCreate`, `ObservationUpdate`
+  and `RecordDelete`, with `expected_version` = the outbox row's version − 1.
+  Photos: reserve → multipart POST of the form fields plus the file to the
+  signed form (never with the bearer token) → complete → bounded status polls
+  (1, 2, 4, 8, 15 s) → `ready`. An expired or refused form is renewed by an
+  exact replay of the reservation, which returns the same upload and media
+  identity. A retryable failure waits for the farmer's "Try again", which
+  permits exactly one `/retry` naming that attempt.
+- `account_workspace.dart` — `GET /farms` names the account's farm; it and the
+  account's sections (`GET /farms/{id}/sections`) are stored locally under the
+  signed-in user's id.
+- `sync_controller.dart` — opens the runner for the signed-in account's farm,
+  feeds it connectivity (`connectivity_plus`), foreground state and the
+  session, and awaits `stop()` on logout or account switch.
+
+### Demo farm vs. real accounts
+
+Separation is by ownership. Every local row carries `owner_id`; the demo
+seed's is a constant (`DemoSeed.ownerId`) the workspace refuses as an account
+id. The runner's outbox is scoped to *(signed-in user id, farm id from
+`GET /farms`)*, so it can never claim a demo row or another account's row, and
+the screens (`LocalFarmRepository(ownerId: …)`) read only the active scope.
+Signed out, the phone shows the demo; signed in, the account's farm. A record
+written while signed out stays in the demo farm and is never re-owned.
+
+On logout the previous account's farm leaves the screen immediately, its
+runner is stopped (awaiting any send in flight), and its queued rows and
+photos stay on the phone — unsent and unshown — until that account signs in
+again. Photo files live under `photos/{owner}/{farm}/`, and `OfflinePhotos`
+refuses any other scope.
+
+### Records, states and files
+
+- Observation tiles show queued · sending · sent · not sent yet (with "Try
+  again") · changed on another phone (no blind retry). Each has a stable
+  accessibility id `record-delivery-<state>` for E2E flows.
+- The observation form can attach one photo (the back camera; the bundled
+  test picture in `TEST_MODE` builds, labelled as such). Ids are minted when
+  the form opens, so a repeated Save is the same observation and photo.
+- The phone's copy of a photo is deleted only after the server reports it
+  `ready` and the acknowledgement has committed (`releaseUploaded`).
+- Schema v4 adds `upload_id`, `failed_attempt_id`, `recover_attempt_id` and
+  `purged_at` to `local_photos`.
+
+### Not yet synced
+
+Only observations and photos are sent. Sections, plantings, tasks, financial
+records and saved plans remain queued with null payloads, as before. The
+change feed (`GET /farms/{id}/changes`) is not pulled; sections are re-read on
+sign-in, reconnect and return to the foreground. `e2e/mobile/upload_offline_resume.yaml`
+needs a stack with photo storage, which `scripts/ci-stack.sh` does not
+configure (see the flow's header).

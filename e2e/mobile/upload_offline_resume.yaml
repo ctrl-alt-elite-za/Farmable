@@ -1,0 +1,73 @@
+# Issue #17: a photo captured with no signal reaches the server exactly once
+# after the signal comes back.
+#
+# Signs up (signup.yaml), gives the new account's farm a section through the
+# real API (scripts/seed_section.js), then — in airplane mode — writes an
+# observation with a photo. With the signal back, the app reserves the upload,
+# sends the file to the signed form, completes it and polls until the server
+# reports it ready, then creates the observation. scripts/check_upload.js then
+# asks the API itself: one media record, one observation carrying it.
+#
+# PREREQUISITE, NOT YET MET IN CI: the stack must have photo storage. The API
+# only uploads to Google Cloud Storage (PHOTO_BUCKET + PHOTO_SIGNER_EMAIL);
+# scripts/ci-stack.sh configures neither, so every reservation there answers
+# 503 photo_storage_disabled and this flow would wait for "sent" forever. It is
+# deliberately not wired into ci-stack.sh until the backend (#11) can upload
+# to a disposable store in CI.
+#
+#   API_URL=http://127.0.0.1:8000 maestro test e2e/mobile/upload_offline_resume.yaml
+#
+# The photo is the bundled test-mode picture (the CI build is TEST_MODE), and
+# the form says "Photo added (test photo)" so recorded input is never passed
+# off as a live capture.
+appId: za.co.almanac.app
+name: A photo captured offline reaches the server exactly once after the signal returns
+env:
+  # Maestro's scripts run on the host, where the stack publishes the API.
+  API_URL: http://127.0.0.1:8000
+---
+- evalScript: ${output.suffix = String(Date.now()).slice(-7)}
+- runFlow: signup.yaml
+- runScript:
+    file: scripts/seed_section.js
+    env:
+      EMAIL: farmer${output.suffix}@example.com
+      PASSWORD: three blind field mice
+      SECTION: Offline test beds
+# The app reads the account's sections when it opens.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Offline test beds.*'
+    timeout: 60000
+- tapOn: '.*Offline test beds.*'
+- scrollUntilVisible:
+    element: 'Write one down'
+# From here until the photo is saved, the phone has no signal at all.
+- setAirplaneMode: enabled
+- tapOn: 'Write one down'
+- tapOn: 'Leaf yellowing'
+- inputText: 'Aphids'
+- hideKeyboard
+- tapOn: 'Yellow leaves on the south side'
+- inputText: 'Under the leaves, north corner'
+- hideKeyboard
+- tapOn: 'Add a photo'
+- extendedWaitUntil:
+    visible: '.*Photo added.*'
+    timeout: 10000
+- tapOn: 'Save'
+- scrollUntilVisible:
+    element:
+      id: 'record-delivery-queued'
+# Signal back: nothing is tapped, the queue resumes on its own.
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    visible:
+      id: 'record-delivery-sent'
+    timeout: 180000
+- runScript:
+    file: scripts/check_upload.js
+    env:
+      EMAIL: farmer${output.suffix}@example.com
+      PASSWORD: three blind field mice
