@@ -117,7 +117,8 @@ generated sentence, and version comparison without changing version 1. Its
 is `ml/notebooks/seven_default_backtest.ipynb`. Repeat with a fresh output root
 and compare bytes before committing the amended results. Validate the separate
 price artifact with `uv run python ml/forecast/validate_tomato_price.py
-ml/forecast/results/<run_id>/tomato_price_forecasts.json`.
+ml/forecast/price_only_results/<run_id>/tomato_price_forecasts.json`. The
+price-only folder is separate from backend-importable `ml/forecast/results/`.
 
 `ml/backtest/run_retrospective.py` implements the registered scenario. It verifies
 the protocol history gate before reading workbooks, checks each workbook's bytes,

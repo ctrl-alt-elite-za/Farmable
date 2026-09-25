@@ -78,7 +78,7 @@ def run(repo: Path, workbooks: Path, output: Path, main_ref: str = "origin/main"
         inputs[source["filename"]] = source["sha256"]
     provenance = identity(repo, amendment_commit, inputs)
     run_id = hashlib.sha256(canonical_json(provenance)).hexdigest()
-    forecast_dir = output / "forecast/results" / run_id
+    forecast_dir = output / "forecast/price_only_results" / run_id
     decision_dir = output / "backtest/results" / run_id
     if forecast_dir.exists() or decision_dir.exists():
         raise ValueError("run output already exists; use a separate output root for verification")

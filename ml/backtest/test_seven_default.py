@@ -85,9 +85,8 @@ def test_amended_runner_is_reproducible_and_excludes_tomato_economics(
         row["default"] != Crop.TOMATOES.value and row["recommended"] != Crop.TOMATOES.value
         for row in ledger.to_pylist()
     )
-    tomato = json.loads(
-        (first / "forecast/results" / run_id / "tomato_price_forecasts.json").read_bytes()
-    )
+    price_artifact = first / "forecast/price_only_results" / run_id / "tomato_price_forecasts.json"
+    tomato = json.loads(price_artifact.read_bytes())
     assert len(tomato["rows"]) == 12
     assert {"cost", "yield", "profit", "harvest_offset"}.isdisjoint(tomato["rows"][0])
     sentence = (first / "backtest/results" / run_id / "slide_sentence.txt").read_text()
