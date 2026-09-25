@@ -95,6 +95,23 @@ and `#4` add code.
 - Copy `.env.example` to `.env` and fill in real values locally; `.env` is
   never read in CI or committed anywhere.
 
+## Cloud and billing
+
+The demo backend runs on Google Cloud project `almanac-staging-za`, paid for from
+a limited credit. **Read [`infra/CLOUD_RULES.md`](infra/CLOUD_RULES.md) before
+touching anything in `infra/`, the deploy workflows, or the cloud itself.** The
+rules that matter most:
+
+- **Ask the human before any command that creates, changes or deletes** a cloud
+  resource, IAM binding, secret, billing setting or repository setting.
+  Read-only `list`/`describe` commands are fine.
+- **Never** run `terraform apply`/`destroy`, deploy by hand, resize anything,
+  create a service-account key, enable a new API, or upgrade the billing
+  account.
+- **Never put a secret value** in code, GitHub variables, chat or a prompt, and
+  never add a placeholder secret. It crashes the backend on startup.
+- **A permission error means stop and ask.** Don't look for another way round it.
+
 ## Definition of Done
 
 - Each issue's **acceptance criteria** (in its GitHub issue body) are the
