@@ -50,10 +50,14 @@ class CropFrameProcessor {
     final now = clock();
     if (capturedAt < Duration.zero ||
         capturedAt > now ||
-        (_lastCapture != null && capturedAt <= _lastCapture!)) {
+        (_lastCapture != null && capturedAt < _lastCapture!)) {
       throw ArgumentError(
         'Capture timestamps must increase on the pipeline clock',
       );
+    }
+    if (capturedAt == _lastCapture) {
+      droppedFrames++;
+      return null;
     }
     _lastCapture = capturedAt;
     final id = _seen++;

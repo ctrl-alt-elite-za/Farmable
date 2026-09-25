@@ -25,7 +25,8 @@ The replay exercises:
   one-to-one tracking, smoothing and time-based track expiry. The original raw
   prompt label is preserved. Low confidence never implies disease.
 - Admission of every second frame with one operation in flight, no waiting
-  queue, stale-result rejection and cancellation. The core also supports every
+  queue, duplicate-timestamp dropping, stale-result rejection and cancellation.
+  Backwards, negative and future capture times remain invalid. The core supports every
   third frame. This Dart scheduling contract does not itself move inference to
   a background thread; the future native adapter must do that.
 - Neutral crop outlines and orange warning outlines, text/semantic warning
@@ -63,11 +64,14 @@ Additional tests cover brief misses, expiry, NMS, unknown models, modified
 artifacts, overload, late results, cleanup, live/demo gating, large text,
 portrait/landscape layouts and both themes.
 
-`e2e/mobile/scan_pan.yaml` drives a test build launched with
-`TEST_MODE=true` and `INITIAL_ROUTE=/health/camera`. It checks a tappable warning
-box while panning and absence of a hold-still prompt. This flow still needs to
-be run on a Maestro-equipped mobile test setup; widget tests do not substitute
-for it.
+`e2e/mobile/scan_pan.yaml` uses the standard `TEST_MODE=true` CI build, starting
+at Home, opening Cabbage Field and tapping the existing "Scan this section"
+action. No `INITIAL_ROUTE` override is needed. It checks a tappable warning box
+while panning and absence of a hold-still prompt. `scripts/ci-stack.sh mobile`
+runs it after login and a fresh device-readiness check, before stopping the API
+for the offline flow. A failed replay fails the job and still cleans up its
+owned stack. Widget tests do not substitute for the Maestro run; consult the
+`e2e-mobile` result for execution evidence on each commit.
 
 ## Remaining issue #18 acceptance
 

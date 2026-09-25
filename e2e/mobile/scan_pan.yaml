@@ -1,10 +1,18 @@
-# Build with TEST_MODE=true and INITIAL_ROUTE=/health/camera.
+# Use the standard TEST_MODE=true CI build; enter through the existing UI.
 # This exercises the labelled synthetic replay, not detector accuracy or speed.
 appId: za.co.almanac.app
 name: Recorded crop pan keeps warning boxes tappable
 ---
 - launchApp:
     clearState: true
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+- scrollUntilVisible:
+    element: 'Cabbage Field\..*'
+    direction: DOWN
+- tapOn: 'Cabbage Field\..*'
+- tapOn: 'Scan this section'
 - assertVisible: '.*Test replay.*synthetic crop boxes.*'
 - scrollUntilVisible:
     element:

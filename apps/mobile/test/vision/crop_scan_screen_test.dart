@@ -128,13 +128,21 @@ void main() {
     }
   });
 
-  testWidgets('the existing scan destination reaches the gated screen', (
+  testWidgets('Home and the existing section action reach the gated scan', (
     tester,
   ) async {
-    final harness = await pumpFarmApp(tester, location: '/health/camera');
+    final semantics = tester.ensureSemantics();
+    final harness = await pumpFarmApp(tester);
+    final section = find.bySemanticsLabel(RegExp(r'^Cabbage Field\.'));
+    await revealOnPage(tester, section);
+    await tester.tap(section);
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Scan this section'));
+    await tester.pumpAndSettle();
     expect(find.text('Crop scan'), findsOneWidget);
     expect(find.text('Live scanning is not ready yet'), findsOneWidget);
     expect(find.text('Nothing here'), findsNothing);
+    semantics.dispose();
     await tester.pumpWidget(const SizedBox());
     await harness.dispose();
   });
