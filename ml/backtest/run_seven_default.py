@@ -36,6 +36,7 @@ from run_retrospective import digest, exact, load_workbooks, write_ledger  # noq
 
 def identity(repo: Path, amendment_commit: str, inputs: dict[str, str]) -> dict[str, Any]:
     """Capture every code/configuration input that can change the amended run."""
+    old_dir = repo / "ml/backtest/results" / VERSION_ONE_RUN_ID
     paths = [
         repo / "ml/backtest/PROTOCOL.md",
         repo / "uv.lock",
@@ -44,6 +45,14 @@ def identity(repo: Path, amendment_commit: str, inputs: dict[str, str]) -> dict[
         repo / "ml/backtest/run_retrospective.py",
         repo / "ml/backtest/run_seven_default.py",
         repo / "scripts/audit_issue20_market_workbooks.py",
+        *(
+            old_dir / name
+            for name in (
+                "decision_backtest.json",
+                "decision_backtest.md",
+                "slide_sentence.txt",
+            )
+        ),
         *sorted((repo / "apps/ml-service/src/farmable_ml").glob("*.py")),
     ]
     return {
