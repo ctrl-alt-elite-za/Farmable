@@ -11,6 +11,8 @@
 /// one chip, and how old each check is is stated either way.
 library;
 
+import 'dart:math' show max;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -101,7 +103,7 @@ class HealthOverview {
           reason: s.latestObservation,
           ageDays: s.latestObservation == null
               ? null
-              : daysBetween(s.latestObservation!.createdAt, today),
+              : max(0, daysBetween(s.latestObservation!.createdAt, today)),
         ),
     ];
     rows.sort((a, b) {

@@ -259,7 +259,7 @@ class AttentionRow extends StatelessWidget {
                   children: [
                     _LinkButton(
                       icon: LucideIcons.notebookPen,
-                      label: 'See the note',
+                      label: 'Edit or remove',
                       onPressed: onOpenNote,
                     ),
                     _LinkButton(

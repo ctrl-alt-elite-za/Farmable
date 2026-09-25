@@ -71,6 +71,8 @@ elif [ "$mode" = mobile ]; then
   maestro test e2e/mobile/signup.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/login.yaml
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/scan_pan.yaml
   "${compose[@]}" stop api
   bash scripts/await-device.sh
   maestro test e2e/mobile/offline_launch.yaml

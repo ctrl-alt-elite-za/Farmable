@@ -23,6 +23,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/harness.dart';
 
 void main() {
+  testWidgets('attention count includes unplanted sections in its total', (
+    tester,
+  ) async {
+    await _pumpHealth(
+      tester,
+      _farm([
+        _section('Cabbage', health: 'needs_attention'),
+        _section('Bare plot', health: 'needs_attention', planted: false),
+      ]),
+    );
+    expect(find.text('2 of 2 sections need a look.'), findsOneWidget);
+  });
+
+  testWidgets('future observations never display a negative age', (
+    tester,
+  ) async {
+    await _pumpHealth(
+      tester,
+      _farm([_section('Cabbage', health: 'on_track', daysAgo: -1)]),
+    );
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.textContaining('-1 days ago'), findsNothing);
+  });
+
   group('mixed health, from the seeded farm', () {
     testWidgets('lists every section worst first, with the reason', (
       tester,
@@ -53,10 +77,7 @@ void main() {
       expect(find.text('3 days ago'), findsOneWidget);
       expect(find.text('Nothing growing yet'), findsOneWidget);
       expect(find.text('Not planted'), findsOneWidget);
-      expect(
-        find.text('1 of 3 planted sections needs a look.'),
-        findsOneWidget,
-      );
+      expect(find.text('1 of 4 sections needs a look.'), findsOneWidget);
       expectNoFailureLanguage(tester);
     });
 
@@ -115,13 +136,13 @@ void main() {
       );
     });
 
-    testWidgets('"See the note" acts on the observation behind the state', (
+    testWidgets('"Edit or remove" acts on the observation behind the state', (
       tester,
     ) async {
       await pumpFarmApp(tester, location: '/health');
 
-      await revealOnPage(tester, find.text('See the note'));
-      await tester.tap(find.text('See the note'));
+      await revealOnPage(tester, find.text('Edit or remove'));
+      await tester.tap(find.text('Edit or remove'));
       await tester.pumpAndSettle();
       expect(find.text('Leaf curl'), findsOneWidget);
 
@@ -216,7 +237,7 @@ void main() {
         'Alpha Bed',
         'Echo Bed',
       ]);
-      expect(find.text('2 of 4 planted sections need a look.'), findsOneWidget);
+      expect(find.text('2 of 5 sections need a look.'), findsOneWidget);
     });
 
     testWidgets('no observations yet reads as a start, not a gap', (

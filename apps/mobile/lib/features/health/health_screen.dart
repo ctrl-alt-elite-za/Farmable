@@ -260,10 +260,10 @@ class _SummaryCard extends StatelessWidget {
           'you see — it shows here.';
     }
     final n = view.needingALook.length;
-    final of = view.plantedCount;
+    final of = view.sections.length;
     if (n == 0) return 'Every checked section is on track.';
     return n == 1
-        ? '1 of $of planted sections needs a look.'
-        : '$n of $of planted sections need a look.';
+        ? '1 of $of sections needs a look.'
+        : '$n of $of sections need a look.';
   }
 }

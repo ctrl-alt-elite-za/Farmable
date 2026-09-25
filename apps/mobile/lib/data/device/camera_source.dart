@@ -174,11 +174,13 @@ class Detection {
   final String label;
   final double confidence;
   final Rect box;
+  final bool checkSuggested;
 
   const Detection({
     required this.label,
     required this.confidence,
     required this.box,
+    this.checkSuggested = false,
   });
 }
 
@@ -234,6 +236,7 @@ class RecordedSession {
     return Detection(
       label: d['label']! as String,
       confidence: (d['confidence']! as num).toDouble(),
+      checkSuggested: d['check_suggested'] as bool? ?? false,
       box: Rect.fromLTRB(
         n('left') * w,
         n('top') * h,
@@ -254,6 +257,7 @@ class RecordedSession {
 /// Recorded frames, looped, for test mode.
 class RecordedCameraSource implements CameraFrameSource {
   final AssetBundle? bundle;
+  final String asset;
   RecordedSession? _session;
   Timer? _timer;
   final _frames = StreamController<CameraFrame>.broadcast();
@@ -261,7 +265,10 @@ class RecordedCameraSource implements CameraFrameSource {
   /// The frame on screen now. The preview listens to this.
   final current = ValueNotifier<int>(0);
 
-  RecordedCameraSource({this.bundle});
+  RecordedCameraSource({
+    this.bundle,
+    this.asset = RecordedSession.defaultAsset,
+  });
 
   @override
   bool get isRecorded => true;
@@ -279,7 +286,8 @@ class RecordedCameraSource implements CameraFrameSource {
 
   @override
   Future<void> open() async {
-    final session = await RecordedSession.load(bundle ?? rootBundle);
+    final session = await RecordedSession.load(bundle ?? rootBundle, asset);
+    if (_frames.isClosed) return;
     if (session.frames.isEmpty) {
       throw const CameraUnavailable('The test-mode recording has no frames.');
     }

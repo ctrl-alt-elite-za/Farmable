@@ -1,0 +1,1168 @@
+{
+  "as_of": "2026-09-23T00:00:00+00:00",
+  "assumptions": [
+    "Current-vintage Johannesburg history has unresolved publication/revision uncertainty.",
+    "The next-month observation cutoff is analytical, not a publisher release-date claim.",
+    "Current-vintage CPI and the full 2025 mean enter retrospective prediction and scoring.",
+    "Planting calendars, harvest offsets and guideline yields are provisional frozen assumptions.",
+    "VAT bases are mixed or unknown; source-displayed treatment has not been harmonized.",
+    "Western Cape production costs are applied to Johannesburg market prices.",
+    "Post-2024 spinach prices are missing; the Q1 2025 candidate source is not spliced in.",
+    "Missing realized prices for late harvests remain explicit skips, not zero gains.",
+    "Working-capital interest and fixed costs are excluded from the listed gross margins.",
+    "Snapshot planting months refer to 2025; history ends in December 2024.",
+    "Deployment snapshot uses frozen pre-2025 historical ranges under Amendment 1.",
+    "As-of denotes the registered scenario date, not source publication availability.",
+    "Prices are gross market prices; decision margins also deduct crop marketing rates.",
+    "All planting months are exported; calendar eligibility remains a separate constraint."
+  ],
+  "currency": "ZAR",
+  "data_kind": "retrospective",
+  "price_basis_year": 2025,
+  "rows": [
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "3.6139",
+      "p50": "3.9410",
+      "p90": "5.2537",
+      "plant_month": 1,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.1879",
+      "p50": "4.6459",
+      "p90": "5.9510",
+      "plant_month": 2,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.3376",
+      "p50": "5.6491",
+      "p90": "8.2436",
+      "plant_month": 3,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.7262",
+      "p50": "7.2243",
+      "p90": "10.1365",
+      "plant_month": 4,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "5.5253",
+      "p50": "7.1603",
+      "p90": "9.8560",
+      "plant_month": 5,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "3.9134",
+      "p50": "4.5939",
+      "p90": "6.7708",
+      "plant_month": 6,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "3.0533",
+      "p50": "4.2858",
+      "p90": "5.7352",
+      "plant_month": 7,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "2.4834",
+      "p50": "3.1402",
+      "p90": "4.0273",
+      "plant_month": 8,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "2.6358",
+      "p50": "3.4753",
+      "p90": "5.7637",
+      "plant_month": 9,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "3.4391",
+      "p50": "3.7433",
+      "p90": "5.2223",
+      "plant_month": 10,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "3.1538",
+      "p50": "3.8182",
+      "p90": "4.7264",
+      "plant_month": 11,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "60756.8700",
+      "crop": "butternut",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "3.2952",
+      "p50": "3.7089",
+      "p90": "5.0719",
+      "plant_month": 12,
+      "yield_kg_per_ha": "22500.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.8863",
+      "p50": "4.2351",
+      "p90": "6.3689",
+      "plant_month": 1,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.9291",
+      "p50": "3.7958",
+      "p90": "4.8164",
+      "plant_month": 2,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.5478",
+      "p50": "3.3430",
+      "p90": "4.4364",
+      "plant_month": 3,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.5022",
+      "p50": "3.2561",
+      "p90": "4.8757",
+      "plant_month": 4,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.2393",
+      "p50": "3.2756",
+      "p90": "4.6790",
+      "plant_month": 5,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.0463",
+      "p50": "2.8955",
+      "p90": "3.5038",
+      "plant_month": 6,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.3990",
+      "p50": "3.2212",
+      "p90": "4.2038",
+      "plant_month": 7,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.3484",
+      "p50": "3.2950",
+      "p90": "4.8618",
+      "plant_month": 8,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.0135",
+      "p50": "3.0571",
+      "p90": "4.7150",
+      "plant_month": 9,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.0258",
+      "p50": "3.5674",
+      "p90": "5.5920",
+      "plant_month": 10,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.6966",
+      "p50": "4.0999",
+      "p90": "6.1368",
+      "plant_month": 11,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "115183.8500",
+      "crop": "cabbage",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "3.1575",
+      "p50": "4.4593",
+      "p90": "6.4393",
+      "plant_month": 12,
+      "yield_kg_per_ha": "75000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "4.8702",
+      "p50": "6.4537",
+      "p90": "7.6313",
+      "plant_month": 1,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "3.7545",
+      "p50": "4.4474",
+      "p90": "5.4280",
+      "plant_month": 2,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "3.2836",
+      "p50": "3.8485",
+      "p90": "4.9453",
+      "plant_month": 3,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "3.0239",
+      "p50": "4.0069",
+      "p90": "5.1312",
+      "plant_month": 4,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "2.9587",
+      "p50": "4.0760",
+      "p90": "5.2853",
+      "plant_month": 5,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "3.0698",
+      "p50": "4.1758",
+      "p90": "6.1159",
+      "plant_month": 6,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "3.4608",
+      "p50": "4.2375",
+      "p90": "4.9894",
+      "plant_month": 7,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "4.8613",
+      "p50": "5.5902",
+      "p90": "6.8765",
+      "plant_month": 8,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "3.6309",
+      "p50": "4.7687",
+      "p90": "6.6265",
+      "plant_month": 9,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "4.0898",
+      "p50": "5.1786",
+      "p90": "7.5014",
+      "plant_month": 10,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "5.2755",
+      "p50": "6.5944",
+      "p90": "9.3459",
+      "plant_month": 11,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "68312.9400",
+      "crop": "carrots",
+      "growing_months": 4,
+      "method": "historical_range",
+      "p10": "5.7103",
+      "p50": "7.7044",
+      "p90": "10.0952",
+      "plant_month": 12,
+      "yield_kg_per_ha": "50000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "9.4936",
+      "p50": "12.8808",
+      "p90": "18.2096",
+      "plant_month": 1,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "7.9880",
+      "p50": "10.2037",
+      "p90": "14.4866",
+      "plant_month": 2,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "12.0450",
+      "p50": "14.2668",
+      "p90": "16.5064",
+      "plant_month": 3,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "11.2821",
+      "p50": "17.3049",
+      "p90": "23.3572",
+      "plant_month": 4,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "11.6384",
+      "p50": "17.7969",
+      "p90": "25.0514",
+      "plant_month": 5,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "11.3757",
+      "p50": "15.6820",
+      "p90": "23.1211",
+      "plant_month": 6,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "10.9204",
+      "p50": "13.8889",
+      "p90": "17.3372",
+      "plant_month": 7,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "9.8974",
+      "p50": "12.0667",
+      "p90": "17.7164",
+      "plant_month": 8,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "11.5301",
+      "p50": "13.9568",
+      "p90": "22.1011",
+      "plant_month": 9,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "9.6398",
+      "p50": "12.2365",
+      "p90": "18.1688",
+      "plant_month": 10,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "9.9278",
+      "p50": "15.1565",
+      "p90": "18.7871",
+      "plant_month": 11,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "136357.0300",
+      "crop": "green_beans",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "11.0590",
+      "p50": "14.4980",
+      "p90": "22.3595",
+      "plant_month": 12,
+      "yield_kg_per_ha": "10000.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "3.4264",
+      "p50": "4.8111",
+      "p90": "7.3895",
+      "plant_month": 1,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "3.0484",
+      "p50": "4.1121",
+      "p90": "6.3357",
+      "plant_month": 2,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "2.8587",
+      "p50": "4.7530",
+      "p90": "6.5906",
+      "plant_month": 3,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "3.2264",
+      "p50": "4.1282",
+      "p90": "5.5435",
+      "plant_month": 4,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "3.6664",
+      "p50": "4.4510",
+      "p90": "6.3954",
+      "plant_month": 5,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "3.7461",
+      "p50": "4.8113",
+      "p90": "7.6706",
+      "plant_month": 6,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "3.6152",
+      "p50": "4.4944",
+      "p90": "6.7920",
+      "plant_month": 7,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "4.3162",
+      "p50": "5.6013",
+      "p90": "7.6540",
+      "plant_month": 8,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "4.5483",
+      "p50": "6.2800",
+      "p90": "8.9631",
+      "plant_month": 9,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "5.2103",
+      "p50": "6.4619",
+      "p90": "8.9442",
+      "plant_month": 10,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "5.0689",
+      "p50": "6.2026",
+      "p90": "9.6328",
+      "plant_month": 11,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "108783.4100",
+      "crop": "onions",
+      "growing_months": 7,
+      "method": "historical_range",
+      "p10": "4.3707",
+      "p50": "6.0835",
+      "p90": "8.2405",
+      "plant_month": 12,
+      "yield_kg_per_ha": "42500.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "3.9697",
+      "p50": "5.1476",
+      "p90": "6.7655",
+      "plant_month": 1,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "3.9970",
+      "p50": "5.2961",
+      "p90": "6.6248",
+      "plant_month": 2,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "3.8369",
+      "p50": "5.5676",
+      "p90": "7.8082",
+      "plant_month": 3,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.2475",
+      "p50": "6.3338",
+      "p90": "10.5986",
+      "plant_month": 4,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.2775",
+      "p50": "6.9556",
+      "p90": "9.0077",
+      "plant_month": 5,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.8294",
+      "p50": "6.0230",
+      "p90": "7.5395",
+      "plant_month": 6,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "5.3294",
+      "p50": "6.4831",
+      "p90": "7.2727",
+      "plant_month": 7,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.2580",
+      "p50": "5.8057",
+      "p90": "7.8001",
+      "plant_month": 8,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.3454",
+      "p50": "5.1971",
+      "p90": "7.3055",
+      "plant_month": 9,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.2240",
+      "p50": "5.0030",
+      "p90": "5.9118",
+      "plant_month": 10,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.4382",
+      "p50": "5.1202",
+      "p90": "6.2432",
+      "plant_month": 11,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "181097.8600",
+      "crop": "potatoes",
+      "growing_months": 5,
+      "method": "historical_range",
+      "p10": "4.2732",
+      "p50": "5.0621",
+      "p90": "6.4078",
+      "plant_month": 12,
+      "yield_kg_per_ha": "45000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "3.9386",
+      "p50": "7.3980",
+      "p90": "11.5614",
+      "plant_month": 1,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "3.6807",
+      "p50": "6.8383",
+      "p90": "9.4728",
+      "plant_month": 2,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "4.1635",
+      "p50": "6.4248",
+      "p90": "9.8060",
+      "plant_month": 3,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "4.8604",
+      "p50": "7.1326",
+      "p90": "11.0729",
+      "plant_month": 4,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "4.3258",
+      "p50": "5.6976",
+      "p90": "9.5913",
+      "plant_month": 5,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.8628",
+      "p50": "4.1196",
+      "p90": "6.7175",
+      "plant_month": 6,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.0447",
+      "p50": "2.9966",
+      "p90": "6.4890",
+      "plant_month": 7,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.1714",
+      "p50": "3.4964",
+      "p90": "7.8653",
+      "plant_month": 8,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "2.8033",
+      "p50": "4.4195",
+      "p90": "8.5580",
+      "plant_month": 9,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "3.7059",
+      "p50": "6.8397",
+      "p90": "10.4152",
+      "plant_month": 10,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "4.8388",
+      "p50": "8.9430",
+      "p90": "14.5491",
+      "plant_month": 11,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "167412.6600",
+      "crop": "spinach",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "4.7716",
+      "p50": "9.4204",
+      "p90": "12.3877",
+      "plant_month": 12,
+      "yield_kg_per_ha": "20000.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "7.8462",
+      "p50": "10.7651",
+      "p90": "17.0715",
+      "plant_month": 1,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "7.0821",
+      "p50": "9.4153",
+      "p90": "12.1874",
+      "plant_month": 2,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "6.7965",
+      "p50": "8.4934",
+      "p90": "12.2171",
+      "plant_month": 3,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "6.4384",
+      "p50": "8.5201",
+      "p90": "11.2600",
+      "plant_month": 4,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "5.6412",
+      "p50": "6.9518",
+      "p90": "11.0231",
+      "plant_month": 5,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "7.7336",
+      "p50": "8.8806",
+      "p90": "10.7019",
+      "plant_month": 6,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "7.6398",
+      "p50": "9.6432",
+      "p90": "11.5452",
+      "plant_month": 7,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "6.3063",
+      "p50": "8.6500",
+      "p90": "10.9435",
+      "plant_month": 8,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "7.3233",
+      "p50": "10.0970",
+      "p90": "12.8426",
+      "plant_month": 9,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "6.5704",
+      "p50": "9.2381",
+      "p90": "12.5961",
+      "plant_month": 10,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "7.8864",
+      "p50": "9.6363",
+      "p90": "11.9908",
+      "plant_month": 11,
+      "yield_kg_per_ha": "62500.0000"
+    },
+    {
+      "cost_per_ha": "168968.2000",
+      "crop": "tomatoes",
+      "growing_months": 3,
+      "method": "historical_range",
+      "p10": "7.8748",
+      "p50": "9.8584",
+      "p90": "14.0570",
+      "plant_month": 12,
+      "yield_kg_per_ha": "62500.0000"
+    }
+  ],
+  "run_id": "c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f",
+  "schema_version": 1,
+  "sources": [
+    {
+      "name": "budget_source_audit.json",
+      "sha256": "105501be5296caa2b41acd1fa2d3c00df5911cbe5cc76610bd8504182abf6258"
+    },
+    {
+      "name": "calendar_source_audit.json",
+      "sha256": "84f3e74a029490da32f7911f92e005d754555ea2539defa79cc02485effdd4b2"
+    },
+    {
+      "name": "cpi_za_monthly.csv",
+      "sha256": "7a02be81e4e719bf86da93a95e6ddea4d93e607fa2fc306d95e234c4b384bbce"
+    },
+    {
+      "name": "market_workbook_audit.json",
+      "sha256": "0dc4a4e596bcd05614a6012104eebaf8d836bda06581d40a883977874023afb2"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2008-ms-excel.xls",
+      "sha256": "e811a155aa457fbecd5d7e76dc6a5edfd19908b4272b2e525e6512f124f438f0"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2009-ms-excel.xls",
+      "sha256": "5ac5d44fda3244454ca1082359c13ca708bde7785f173d259b68b13a4a605f3b"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2010-ms-excel.xls",
+      "sha256": "ff6ce2e0943a018b0f7448d1f57ee1a92bfec84bc161b382fbb6e6631e2e20e5"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2011-ms-excel.xls",
+      "sha256": "9a5448b48781de24ed21951cb4219663566b739033ad77efa289af81d675ace4"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2012-ms-excel.xls",
+      "sha256": "92814310dd2a140042c262d93659953c050b9c070881ccdcbb297371d711c5ff"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2013.xlsx",
+      "sha256": "84b842196d7e43eab0da025957ceaa288154e718c79cf13ecd2c8465159f8334"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2014.xlsx",
+      "sha256": "a66e4ab76bba14d21f867c10bd75f43763e842dc1046d8f49d46952da96c67ac"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2015-ms-excel.xls",
+      "sha256": "3fc3912a8d0c73c6e20022a9b01d3108a013413adcf67c2a754db5d344f8a0cd"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2016-ms-excel.xls",
+      "sha256": "06718acbf883fab6f0cb27f312457cc0607781fc4f1586517e4c2519cf8f01ab"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2017-ms-excel.xls",
+      "sha256": "8892faebec9a96b66a06691ba73e5317a1af2218ff274441ea966101c29a176e"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2018-ms-excel-final-for-the-web.xls",
+      "sha256": "39c61010120392ad97bdc818e517b87b33b86ed2fab0f1f9639e1edc27157b84"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2019.xls",
+      "sha256": "26e3ce6749f04db4f7ed8d4356c3c0faee8ffba54f6fb59e10d7f1f5d615bf36"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2020.xlsx",
+      "sha256": "fcfadd459775233adb5ae647b8efd360446c147842d147948e63a5be411a0609"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2021.xlsx",
+      "sha256": "e102f77a1ea0b7e180471a7a1a492c8cf38a4e5a0a042f26cfb8339c54df2fbf"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2022.xlsx",
+      "sha256": "119d89c2882b3a2971a4de23741fdbe6b0cb35e4360bb66541188cafa91d7e99"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2023.xlsx",
+      "sha256": "2e4f4e0a2d534452da0c5b95e7be2daefdf6d033fb9e607a7faca4bb92db97bd"
+    },
+    {
+      "name": "statistics-on-fresh-produce-markets-2024.xlsx",
+      "sha256": "3a1d8fd63fb1b9876b4b72c7056e0677b02a59262f012fc2c7d26d8689645b26"
+    }
+  ]
+}
