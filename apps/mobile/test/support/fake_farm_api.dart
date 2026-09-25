@@ -14,6 +14,12 @@
 ///   `ready`, which alone carries `cloud_media_id`. An exact replay of the
 ///   reservation renews an expired form on the *same* upload.
 ///
+/// * every record body is checked against its DTO in `openapi.json` — a
+///   field the contract does not declare, or one it requires and did not
+///   get, is 422, and the reason is kept in [schemaErrors];
+/// * each accepted mutation appends one entry to the change feed, which
+///   `GET /farms/{farm_id}/changes` serves forward from `since`.
+///
 /// It also stands in for object storage — see [storage] — so the multipart
 /// upload is exercised through dio for real.
 library;
@@ -24,6 +30,8 @@ import 'dart:typed_data';
 
 import 'package:almanac/domain/auth/auth_models.dart';
 import 'package:dio/dio.dart';
+
+import 'openapi_schema.dart';
 
 /// One call as the server saw it, with the account the session belonged to.
 class FarmCall {
@@ -75,6 +83,27 @@ class FakeFarmApi {
   final observations = <String, Map<String, Object?>>{};
   final media = <String, Map<String, Object?>>{};
   final uploads = <String, _Upload>{};
+
+  /// Plantings, tasks, financials and plans, by resource then id. Sections
+  /// keep their own map, [sections].
+  final records = <String, Map<String, Map<String, Object?>>>{
+    'plantings': {},
+    'tasks': {},
+    'financials': {},
+    'plans': {},
+  };
+
+  /// Tombstoned ids of the generic records and sections.
+  final deleted = <String>{};
+
+  /// The change feed: `cursor`, `record_type`, `record_id`, `operation`,
+  /// `version`, `created_at`, and the farm it belongs to.
+  final changes = <Map<String, Object?>>[];
+
+  /// Every contract violation a request body was refused for.
+  final schemaErrors = <String>[];
+
+  Map<String, String> _query = const {};
   final storageWrites = <String>[];
   final _mutations = <String, (String, int, Object?)>{};
   final _forms = <String, DateTime>{};
@@ -114,7 +143,31 @@ class FakeFarmApi {
       'created_at': _stamp(),
       'updated_at': _stamp(),
     };
+    _change(farmId, 'section', id, 'create', 1);
     return id;
+  }
+
+  void _change(
+    String farmId,
+    String type,
+    String id,
+    String operation,
+    int version,
+  ) => changes.add({
+    'cursor': changes.length + 1,
+    'record_type': type,
+    'record_id': id,
+    'operation': operation,
+    'version': version,
+    'created_at': _stamp(),
+    'farm_id': farmId,
+  });
+
+  /// True when [body] is a valid [schema]; otherwise records why.
+  bool _conforms(String schema, Map<String, Object?> body) {
+    final errors = OpenApi.contract.errors(schema, body);
+    schemaErrors.addAll(errors);
+    return errors.isEmpty;
   }
 
   Iterable<FarmCall> callsTo(String suffix, {String? method}) => calls.where(
@@ -182,6 +235,7 @@ class FakeFarmApi {
   ) {
     final uri = Uri.parse(rawPath);
     final path = uri.path;
+    _query = uri.queryParameters;
     calls.add(FarmCall(method, path, body, userId));
     final refused = refuse.remove(path);
     if (refused != null) {
@@ -267,6 +321,19 @@ class FakeFarmApi {
         body,
         delete: true,
       ),
+      ('GET', ['observations', final id]) => _observation(farmId, id),
+      ('GET', ['changes']) => _changes(farmId),
+      ('GET', [final resource, final id])
+          when _resources.containsKey(resource) =>
+        _read(farmId, resource, id),
+      ('POST', [final resource]) when _resources.containsKey(resource) =>
+        _create(farmId, userId, resource, body),
+      ('PUT', [final resource, final id])
+          when _resources.containsKey(resource) =>
+        _write(farmId, userId, resource, id, body, delete: false),
+      ('POST', [final resource, final id, 'delete'])
+          when _resources.containsKey(resource) =>
+        _write(farmId, userId, resource, id, body, delete: true),
       ('POST', ['photo-uploads']) => _reserve(farmId, userId, body),
       ('POST', ['photo-uploads', final id, 'complete']) => _complete(
         farmId,
@@ -342,6 +409,9 @@ class FakeFarmApi {
     )) {
       return (422, _err('validation_error'));
     }
+    if (!_conforms('ObservationCreate', body)) {
+      return (422, _err('validation_error'));
+    }
     final replay = _replay(body);
     if (replay != null) return replay;
     final id = body['observation_id']! as String;
@@ -370,6 +440,7 @@ class FakeFarmApi {
       'updated_at': _stamp(),
     };
     observations[id] = record;
+    _change(farmId, 'observation', id, 'create', 1);
     return _remember(body, (
       200,
       {
@@ -400,6 +471,9 @@ class FakeFarmApi {
     )) {
       return (422, _err('validation_error'));
     }
+    if (!_conforms(delete ? 'RecordDelete' : 'ObservationUpdate', body)) {
+      return (422, _err('validation_error'));
+    }
     final replay = _replay(body);
     if (replay != null) return replay;
     final record = observations[id];
@@ -418,6 +492,13 @@ class FakeFarmApi {
       }
     }
     record['version'] = (record['version']! as int) + 1;
+    _change(
+      farmId,
+      'observation',
+      id,
+      delete ? 'delete' : 'update',
+      record['version']! as int,
+    );
     return _remember(body, (
       200,
       {
@@ -429,6 +510,218 @@ class FakeFarmApi {
         'record': record,
       },
     ));
+  }
+
+  (int, Object?) _observation(String farmId, String id) {
+    final record = observations[id];
+    if (record == null ||
+        record['farm_id'] != farmId ||
+        record['deleted'] == true ||
+        deleted.contains(record['section_id'])) {
+      return (404, _err('not_found'));
+    }
+    return (200, <String, Object?>{...record}..remove('deleted'));
+  }
+
+  // --------------------------------------------------- generic records
+
+  /// Resource → (DTO stem, feed record type, section rule).
+  static const _resources = {
+    'sections': ('Section', 'section', 'none'),
+    'plantings': ('Planting', 'planting', 'required'),
+    'tasks': ('Task', 'task', 'required'),
+    'financials': ('Financial', 'financial', 'optional'),
+    'plans': ('Plan', 'plan', 'required'),
+  };
+
+  /// Server defaults for the optional fields of each create DTO.
+  static const _defaults = {
+    'sections': {'area_m2': null, 'boundary': null},
+    'plantings': {'planted_on': null, 'is_current': true},
+    'tasks': {
+      'description': null,
+      'status': 'pending',
+      'expected_cost_cents': null,
+    },
+    'financials': {'section_id': null, 'note': null},
+    'plans': {'status': 'saved'},
+  };
+
+  Map<String, Map<String, Object?>> _table(String resource) =>
+      resource == 'sections' ? sections : records[resource]!;
+
+  bool _liveSection(String farmId, Object? id) {
+    final section = sections[id];
+    return section != null &&
+        section['farm_id'] == farmId &&
+        !deleted.contains(id);
+  }
+
+  /// `uq_plantings_current_section`: one live current planting per section.
+  bool _secondCurrent(String id, Object? section) =>
+      records['plantings']!.values.any(
+        (p) =>
+            p['id'] != id &&
+            p['section_id'] == section &&
+            p['is_current'] == true &&
+            !deleted.contains(p['id']),
+      );
+
+  Map<String, Object?> _ack(
+    Map<String, Object?> body,
+    String userId,
+    String farmId,
+    Map<String, Object?> record,
+  ) => {
+    'mutation_id': body['mutation_id'],
+    'entity_id': record['id'],
+    'owner_id': userId,
+    'farm_id': farmId,
+    'version': record['version'],
+    'record': <String, Object?>{...record},
+  };
+
+  (int, Object?) _create(
+    String farmId,
+    String userId,
+    String resource,
+    Map<String, Object?> body,
+  ) {
+    final (stem, type, sectionRule) = _resources[resource]!;
+    if (!_conforms('${stem}Create', body)) {
+      return (422, _err('validation_error'));
+    }
+    final replay = _replay(body);
+    if (replay != null) return replay;
+    final id = body['id']! as String;
+    final store = _table(resource);
+    if (store.containsKey(id)) return (409, _err('record_exists'));
+    final section = body['section_id'];
+    if ((sectionRule == 'required' ||
+            (sectionRule == 'optional' && section != null)) &&
+        !_liveSection(farmId, section)) {
+      return (404, _err('not_found'));
+    }
+    final record = <String, Object?>{
+      'id': id,
+      'owner_id': userId,
+      'farm_id': farmId,
+      ..._defaults[resource]!,
+      for (final e in body.entries)
+        if (e.key != 'mutation_id' && e.key != 'id') e.key: e.value,
+      'version': 1,
+      'created_at': _stamp(),
+      'updated_at': _stamp(),
+    };
+    if (record['area_m2'] case final num area) {
+      record['area_m2'] = area.toStringAsFixed(2);
+    }
+    if (resource == 'plantings' &&
+        record['is_current'] == true &&
+        _secondCurrent(id, section)) {
+      return (409, _err('record_conflict'));
+    }
+    store[id] = record;
+    _change(farmId, type, id, 'create', 1);
+    return _remember(body, (200, _ack(body, userId, farmId, record)));
+  }
+
+  (int, Object?) _write(
+    String farmId,
+    String userId,
+    String resource,
+    String id,
+    Map<String, Object?> body, {
+    required bool delete,
+  }) {
+    final (stem, type, _) = _resources[resource]!;
+    if (!_conforms(delete ? 'RecordDelete' : '${stem}Update', body)) {
+      return (422, _err('validation_error'));
+    }
+    final replay = _replay(body);
+    if (replay != null) return replay;
+    final record = _table(resource)[id];
+    if (record == null || record['farm_id'] != farmId) {
+      return (404, _err('not_found'));
+    }
+    if (delete) {
+      if (record['version'] != body['expected_version']) {
+        return (409, _err('revision_conflict'));
+      }
+      if (!deleted.contains(id)) {
+        deleted.add(id);
+        record['version'] = (record['version']! as int) + 1;
+        _change(farmId, type, id, 'delete', record['version']! as int);
+      }
+      return _remember(body, (200, _ack(body, userId, farmId, record)));
+    }
+    if (deleted.contains(id)) return (409, _err('record_deleted'));
+    if (record['version'] != body['expected_version']) {
+      return (409, _err('revision_conflict'));
+    }
+    if (resource == 'plantings' &&
+        body['is_current'] != false &&
+        _secondCurrent(id, record['section_id'])) {
+      return (409, _err('record_conflict'));
+    }
+    for (final e in body.entries) {
+      if (e.key == 'mutation_id' || e.key == 'expected_version') continue;
+      record[e.key] = e.value;
+    }
+    if (record['area_m2'] case final num area) {
+      record['area_m2'] = area.toStringAsFixed(2);
+    }
+    record['version'] = (record['version']! as int) + 1;
+    record['updated_at'] = _stamp();
+    _change(farmId, type, id, 'update', record['version']! as int);
+    return _remember(body, (200, _ack(body, userId, farmId, record)));
+  }
+
+  (int, Object?) _read(String farmId, String resource, String id) {
+    final record = _table(resource)[id];
+    if (record == null ||
+        record['farm_id'] != farmId ||
+        deleted.contains(id) ||
+        (resource != 'sections' &&
+            record['section_id'] != null &&
+            deleted.contains(record['section_id']))) {
+      return (404, _err('not_found'));
+    }
+    if (resource != 'sections') return (200, <String, Object?>{...record});
+    // `SectionDetail`.
+    return (
+      200,
+      {
+        'section': <String, Object?>{...record},
+        'current_planting': null,
+        'current_plan': null,
+        'latest_health_status': null,
+        'observations': const <Object?>[],
+        'tasks': const <Object?>[],
+        'financials': {'income_cents': 0, 'expense_cents': 0, 'net_cents': 0},
+      },
+    );
+  }
+
+  /// `ChangePage`: entries after `since`, oldest first, at most `limit`.
+  (int, Object?) _changes(String farmId) {
+    final since = int.tryParse(_query['since'] ?? '0') ?? 0;
+    final limit = int.tryParse(_query['limit'] ?? '100') ?? 100;
+    final rows = changes
+        .where((c) => c['farm_id'] == farmId && (c['cursor']! as int) > since)
+        .take(limit + 1)
+        .toList();
+    final items = [
+      for (final c in rows.take(limit))
+        <String, Object?>{...c}..remove('farm_id'),
+    ];
+    return (
+      200,
+      {
+        'items': items,
+        'next_cursor': rows.length > limit ? items.last['cursor'] : null,
+      },
+    );
   }
 
   // ------------------------------------------------------------- photos

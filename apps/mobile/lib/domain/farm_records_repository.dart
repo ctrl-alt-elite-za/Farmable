@@ -64,6 +64,11 @@ abstract interface class FarmRecordsRepository {
   /// photo's — due again. The farmer's "try again"; never called on a timer.
   Future<void> retryObservationSync(String observationId);
 
+  /// Makes every failed send behind this task — or, for a section, behind
+  /// the section, its current planting and its approved plan — due again.
+  /// The farmer's "try again"; never called on a timer.
+  Future<void> retryRecordSync(String recordId);
+
   Future<FarmTask> createTask({
     required String sectionId,
     required String title,

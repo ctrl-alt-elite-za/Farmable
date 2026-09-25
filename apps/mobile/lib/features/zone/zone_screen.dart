@@ -80,6 +80,17 @@ class _Zone extends StatelessWidget {
             children: [
               const SizedBox(height: AlmanacDimens.sp4),
               ZoneDescription(description: section.section.description),
+              // The section itself — with its planting and plan — on its way
+              // to the server. A new account's first section has to arrive
+              // before anything recorded in it can.
+              if (section.section.delivery case final delivery?) ...[
+                RecordDeliveryRow(
+                  delivery: delivery,
+                  onRetry: () => actions.retryRecordSync(section.id),
+                  retryKey: ValueKey('retry-${section.id}'),
+                ),
+                const SizedBox(height: AlmanacDimens.sp3),
+              ],
 
               // Empty ground is the one thing on this screen a farmer can act
               // on immediately, so it leads — above the metrics, which for an
@@ -107,6 +118,7 @@ class _Zone extends StatelessWidget {
               ZoneTimeline(
                 entries: view.timeline,
                 today: view.today,
+                onRetry: (entry) => actions.retryRecordSync(entry.task.id),
                 onTap: (entry) => showTimelineActions(
                   context: context,
                   entry: entry,
