@@ -119,6 +119,9 @@ and compare bytes before committing the amended results. Validate the separate
 price artifact with `uv run python ml/forecast/validate_tomato_price.py
 ml/forecast/price_only_results/<run_id>/tomato_price_forecasts.json`. The
 price-only folder is separate from backend-importable `ml/forecast/results/`.
+Validate the complete amended run with `uv run python
+ml/backtest/validate_seven_default.py <run_id>`; this checks the ledger,
+derived report and sentence, price artifact and manifest hashes.
 
 `ml/backtest/run_retrospective.py` implements the registered scenario. It verifies
 the protocol history gate before reading workbooks, checks each workbook's bytes,

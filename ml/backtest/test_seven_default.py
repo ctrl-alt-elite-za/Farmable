@@ -16,11 +16,13 @@ from farmable_ml.retrospective import RetrospectiveSimulation
 from farmable_ml.scenario import MARKET
 from farmable_ml.seven_default import (
     DECISION_ASSUMPTIONS,
+    SCENARIO_ID,
     tomato_price_forecasts,
     validate_tomato_price_rows,
 )
 from test_experiment import simple_models, synthetic_records  # noqa: F401
 from test_retrospective_simulation import cpi, prices
+from validate_seven_default import validate as validate_result
 
 
 def test_gate_precedes_real_data_access(tmp_path, monkeypatch):
@@ -78,7 +80,7 @@ def test_amended_runner_is_reproducible_and_excludes_tomato_economics(
 ):
     records = tuple(row for row in synthetic_records() if row.observation_month.year >= 2008)
     monkeypatch.setattr(runner, "check_amendment_two_merged", lambda **kwargs: "fixture")
-    monkeypatch.setattr(runner, "identity", lambda *args: {"synthetic_test": True})
+    monkeypatch.setattr(runner, "identity", lambda *args: {"scenario": SCENARIO_ID})
     monkeypatch.setattr(runner, "load_workbooks", lambda *args: records)
     monkeypatch.setattr(
         runner,
@@ -114,3 +116,8 @@ def test_amended_runner_is_reproducible_and_excludes_tomato_economics(
     assert "Version 1: eight defaults" in comparison
     assert "Amendment 2: seven defaults" in comparison
     assert "improved model skill" in comparison
+    validate_result(first, run_id)
+    report_path = first / "backtest/results" / run_id / "slide_sentence.txt"
+    report_path.write_text("tampered\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="artifact hashes"):
+        validate_result(first, run_id)
