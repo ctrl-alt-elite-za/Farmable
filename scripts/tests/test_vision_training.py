@@ -1,5 +1,6 @@
 """Training contract regressions; no private data, SDK downloads or real training."""
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -53,6 +54,9 @@ def training_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNames
         ),
         encoding="utf-8",
     )
+    (dataset / "sessions.csv").write_text(
+        "image,session_id,crop\nfixture.jpg,train-session,cabbage\n", encoding="utf-8"
+    )
     calls: list[tuple[str, dict[str, object], dict[str, object]]] = []
     constructors = Mock()
 
@@ -75,6 +79,12 @@ def training_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNames
                 ],
             )
             return SimpleNamespace(results_dict={}, box=box)
+
+        def export(self, **options: object) -> str:
+            assert options == {"format": "tflite"}
+            artifact = tmp_path / "trained.tflite"
+            artifact.write_bytes(b"trained-artifact")
+            return str(artifact)
 
     monkeypatch.setitem(sys.modules, "ultralytics", SimpleNamespace(YOLO=FakeYOLO))
     # The dataset validators have their own fixture tests. Here we isolate the
@@ -160,6 +170,24 @@ def test_training_uses_one_absolute_audited_snapshot_for_training_and_test(
     assert report["test_sessions"] == ["test-session"]
     assert report["classes"]["crop_head_or_fruit"]["precision"] is None
     assert report["classes"]["check_suggested"]["precision"] == 0.9
+    assert (
+        report["provenance"]["manifest_sha256"]
+        == hashlib.sha256((training_run.dataset / "sessions.csv").read_bytes()).hexdigest()
+    )
+    assert report["provenance"]["artifact"] is None
+
+
+def test_training_export_records_tflite_hash(
+    training_run: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sys, "argv", [*sys.argv, "--export"])
+    assert train.main() == 0
+    report = json.loads((training_run.report_dir / "v1.json").read_text(encoding="utf-8"))
+    assert (
+        report["provenance"]["artifact"]["sha256"]
+        == hashlib.sha256(b"trained-artifact").hexdigest()
+    )
+    assert report["provenance"]["artifact"]["bytes"] == len(b"trained-artifact")
 
 
 @pytest.mark.parametrize(

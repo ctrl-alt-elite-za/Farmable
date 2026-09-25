@@ -207,6 +207,7 @@ class FakeAuthApi implements HttpClientAdapter {
       ('POST', '/auth/login') => _login(body),
       ('POST', '/auth/refresh') => await _refresh(body),
       ('POST', '/auth/logout') => _logout(auth),
+      ('POST', '/auth/revoke-all') => _revokeAll(auth),
       (_, final String p) when p.startsWith('/farms') && farms != null =>
         await _farms(options.method, p, body, auth),
       (_, final String p) when p.startsWith('/account') => _account(
@@ -301,6 +302,15 @@ class FakeAuthApi implements HttpClientAdapter {
     final session = _live(authorization);
     if (session == null) return _error(401, 'invalid_session');
     session.revoked = true;
+    return _empty(204);
+  }
+
+  ResponseBody _revokeAll(String? authorization) {
+    final session = _live(authorization);
+    if (session == null) return _error(401, 'invalid_session');
+    for (final other in _byAccess.values) {
+      if (other.userId == session.userId) other.revoked = true;
+    }
     return _empty(204);
   }
 

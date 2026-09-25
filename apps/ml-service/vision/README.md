@@ -35,6 +35,12 @@ the session split before training:
 python apps/ml-service/vision/check_split.py --train data/v1/train/images --test data/v1/test/images --manifest data/v1/image_sessions.csv
 ```
 
+The split check requires at least 300 images with nonempty YOLO labels for
+each crop, at least one labelled image for each annotation class, and disjoint
+train/test filming sessions. It rejects annotations whose bounding boxes leave
+the image. Use `--min-images-per-crop` only for fixture checks; production
+training keeps the 300-image gate.
+
 `train.py` uses a fixed seed and requires a separately managed, pinned
 Ultralytics/TFLite training environment (for example Colab). It writes a
 versioned report and can export TFLite; provide the actual train/test image
@@ -52,13 +58,20 @@ and downloads are not supported by this audited training entry point.
 Training and evaluation use the same absolute-path snapshot saved as
 `runs/<version>.data.yaml` (gitignored); the source YAML is not modified.
 Reports map metrics through actual class IDs and retain null metrics for
-classes absent from the test split.
+classes absent from the test split. The report also records the image manifest
+and audited YAML SHA-256 values, training input size, source model name, and,
+when `--export` is used, the TFLite artifact path, byte size, and SHA-256.
 
 Record real cabbage and tomato measurements in `weights/cabbage.csv` and
 `weights/tomato.csv` with `diameter_cm,weight_g,date`, then run
 `python apps/ml-service/vision/eval_weights.py apps/ml-service/vision/weights/cabbage.csv apps/ml-service/vision/weights/tomato.csv`.
+Include `sample_id` when collection records have stable IDs; the evaluator
+rejects missing or repeated IDs in that column.
 Spinach is sold by bunch or kilogram and has no per-plant formula. Do not add
 synthetic measurements to satisfy the minimum sample count.
+The formula report includes the source CSV SHA-256, fixed split seed, exact
+holdout counts, and measured diameter bounds. Use the range only within those
+bounds; a passing report still requires review and versioned registration.
 
 After migration and artifact upload, register the model and verify it from the
 backend environment with `python -m app.scripts.detector_model_exists <version>`.
