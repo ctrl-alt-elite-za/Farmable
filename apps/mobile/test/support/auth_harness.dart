@@ -151,6 +151,7 @@ Future<AuthHarness> pumpAuthApp(
       ),
       sessionStorageProvider.overrideWithValue(record),
       accountStorageProvider.overrideWithValue(accountRecord),
+      assistantStorageProvider.overrideWithValue(InMemorySessionStorage()),
       exportStoreProvider.overrideWithValue(exports),
       // No real folders: the harness never touches the filesystem.
       deviceDirectoriesProvider.overrideWithValue(const []),

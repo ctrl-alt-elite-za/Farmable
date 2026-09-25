@@ -1,0 +1,1127 @@
+/// The assistant conversation: who it is for, whether it may run, and each
+/// turn from question to a visible ending.
+///
+/// ## Every turn ends where the farmer can see it
+///
+/// A turn's reply is [ReplyStatus.writing] only while events are arriving.
+/// It leaves that state by exactly one of: the server's terminal event; the
+/// durable snapshot, read when the stream is cut short; or the watchdog in
+/// [AssistantTiming], which gives up on a silent stream, reads the snapshot a
+/// bounded number of times, and then says the answer was lost. There is no
+/// path that leaves a spinner running.
+///
+/// ## Nothing is saved without a Confirm tap
+///
+/// The model can only *preview* a plan (its tools are read-only). A preview
+/// becomes a [PlanDecision]; the farmer chooses a candidate, reviews it, and
+/// taps Confirm, and only [confirm] — reachable only from that review — calls
+/// the server's `planning/confirm`. Typing "yes" is just another message.
+library;
+
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/providers.dart';
+import '../../core/utils/ids.dart';
+import '../../data/assistant/api_assistant_service.dart';
+import '../../data/assistant/conversation_store.dart';
+import '../../data/auth/api_auth_service.dart';
+import '../../domain/assistant/assistant_api.dart';
+import '../../domain/assistant/assistant_models.dart';
+import '../../domain/assistant/crop_choices.dart';
+import '../../domain/auth/auth_models.dart';
+import '../auth/auth_view_model.dart';
+
+// ---------------------------------------------------------------- providers
+
+/// Makes an [AssistantApi] bound to whoever is signed in right now, or null
+/// when this build has no server to talk to (demo and unconfigured builds).
+final assistantApiFactoryProvider = Provider<AssistantApi? Function()>((ref) {
+  final auth = ref.watch(authServiceProvider);
+  return () => auth is ApiAuthService ? ApiAssistantService(auth) : null;
+});
+
+final assistantConversationStoreProvider = Provider<AssistantConversationStore>(
+  (ref) => AssistantConversationStore(ref.watch(assistantStorageProvider)),
+);
+
+/// How long the app waits before deciding a turn has gone quiet.
+///
+/// The server gives a turn 60 seconds overall and 10 to its first words per
+/// model call, so [overall] sits past that deadline rather than racing it.
+class AssistantTiming {
+  /// No event for this long and the stream is treated as cut.
+  final Duration idle;
+
+  /// However busy the stream, a turn is not waited on longer than this.
+  final Duration overall;
+
+  /// Snapshot reads after the stream is cut, and the gap between them.
+  final int snapshotAttempts;
+  final Duration snapshotGap;
+
+  /// Opening calls: farms, conversation, consent, history.
+  final Duration request;
+
+  const AssistantTiming({
+    this.idle = const Duration(seconds: 30),
+    this.overall = const Duration(seconds: 90),
+    this.snapshotAttempts = 3,
+    this.snapshotGap = const Duration(seconds: 2),
+    this.request = const Duration(seconds: 20),
+  });
+}
+
+final assistantTimingProvider = Provider<AssistantTiming>(
+  (ref) => const AssistantTiming(),
+);
+
+final assistantControllerProvider =
+    NotifierProvider<AssistantController, AssistantChatState>(
+      AssistantController.new,
+    );
+
+// -------------------------------------------------------------------- state
+
+enum AssistantStage {
+  /// Checking who is signed in, their farm and the conversation.
+  starting,
+
+  /// This build has no Farmable server (demo or unconfigured).
+  notConnected,
+
+  signedOut,
+
+  /// No signal, or the server did not answer.
+  offline,
+
+  /// The server answered: the assistant is off or out of capacity.
+  notAvailable,
+
+  /// The farmer has not allowed outside services in Profile → Privacy.
+  outsideServicesOff,
+
+  /// The account has no farm on the server.
+  noFarm,
+
+  /// More than one server farm: the farmer picks which one to talk about.
+  chooseFarm,
+
+  /// The conversation needs the farmer's explicit permission first.
+  needsConsent,
+
+  /// The farmer said no, or withdrew permission. Nothing is sent.
+  declined,
+
+  ready,
+}
+
+enum ReplyStatus { writing, done, stopped, failed, lost }
+
+sealed class ChatEntry {
+  final String turnId;
+  const ChatEntry(this.turnId);
+}
+
+class FarmerLine extends ChatEntry {
+  final String text;
+
+  /// Past the 30-day retention: the server has erased the words.
+  final bool erased;
+
+  const FarmerLine(super.turnId, this.text, {this.erased = false});
+}
+
+class ReplyEntry extends ChatEntry {
+  /// The question, kept so a failed turn can be sent again as the same turn.
+  final String message;
+  final String text;
+  final List<ToolResult> tools;
+  final ReplyStatus status;
+
+  /// Why it did not finish — for choosing words, never shown raw.
+  final AssistantProblem? problem;
+  final String? code;
+  final bool erased;
+
+  const ReplyEntry(
+    super.turnId, {
+    required this.message,
+    this.text = '',
+    this.tools = const [],
+    this.status = ReplyStatus.writing,
+    this.problem,
+    this.code,
+    this.erased = false,
+  });
+
+  ReplyEntry copyWith({
+    String? text,
+    List<ToolResult>? tools,
+    ReplyStatus? status,
+    AssistantProblem? problem,
+    String? code,
+  }) => ReplyEntry(
+    turnId,
+    message: message,
+    text: text ?? this.text,
+    tools: tools ?? this.tools,
+    status: status ?? this.status,
+    problem: problem ?? this.problem,
+    code: code ?? this.code,
+    erased: erased,
+  );
+}
+
+enum DecisionStage {
+  /// Candidates shown; the farmer may pick one.
+  choosing,
+
+  /// One picked; the confirm step is showing. Nothing sent yet.
+  reviewing,
+
+  /// Confirm tapped; waiting for the server.
+  saving,
+
+  saved,
+
+  /// The server says the numbers changed since this preview.
+  stale,
+
+  /// Fetching a fresh preview after [stale].
+  refreshing,
+
+  /// The saved plan changed underneath this one.
+  changed,
+}
+
+/// The farmer's decision about one plan preview.
+class PlanDecision {
+  final PlanPreview preview;
+  final String? candidateId;
+  final DecisionStage stage;
+
+  /// Minted once per decision. `expected_version: 0` makes it a new plan.
+  final String planId;
+
+  /// Minted when a candidate goes to review, and kept for every retry of that
+  /// exact confirmation — the server's replay protection depends on it.
+  final String? mutationId;
+
+  final ConfirmedPlan? saved;
+  final PlanRevision? revision;
+
+  /// Why the last attempt did not land, when it did not.
+  final AssistantProblem? problem;
+
+  const PlanDecision({
+    required this.preview,
+    required this.planId,
+    this.candidateId,
+    this.stage = DecisionStage.choosing,
+    this.mutationId,
+    this.saved,
+    this.revision,
+    this.problem,
+  });
+
+  PlanCandidate? get candidate {
+    for (final c in preview.candidates) {
+      if (c.id == candidateId) return c;
+    }
+    return null;
+  }
+
+  PlanDecision copyWith({
+    PlanPreview? preview,
+    String? Function()? candidateId,
+    DecisionStage? stage,
+    String? Function()? mutationId,
+    ConfirmedPlan? saved,
+    PlanRevision? revision,
+    AssistantProblem? Function()? problem,
+  }) => PlanDecision(
+    preview: preview ?? this.preview,
+    planId: planId,
+    candidateId: candidateId != null ? candidateId() : this.candidateId,
+    stage: stage ?? this.stage,
+    mutationId: mutationId != null ? mutationId() : this.mutationId,
+    saved: saved ?? this.saved,
+    revision: revision ?? this.revision,
+    problem: problem != null ? problem() : this.problem,
+  );
+}
+
+class AssistantChatState {
+  final AssistantStage stage;
+  final AssistantConsent? consent;
+  final List<ServerFarm> farms;
+  final List<ChatEntry> entries;
+
+  /// Keyed by the preview's original snapshot hash, which also keys its card.
+  final Map<String, PlanDecision> decisions;
+
+  /// A near-miss crop word in the message waiting to be sent.
+  final CropQuestion? cropQuestion;
+  final String? pendingMessage;
+
+  /// A consent change is on its way to the server.
+  final bool consentBusy;
+
+  /// The farmer withdrew permission (as opposed to never giving it).
+  final bool withdrawn;
+
+  /// A consent call did not reach the server; the farmer can try again.
+  final AssistantProblem? consentProblem;
+
+  const AssistantChatState({
+    this.stage = AssistantStage.starting,
+    this.consent,
+    this.farms = const [],
+    this.entries = const [],
+    this.decisions = const {},
+    this.cropQuestion,
+    this.pendingMessage,
+    this.consentBusy = false,
+    this.withdrawn = false,
+    this.consentProblem,
+  });
+
+  bool get writing =>
+      entries.any((e) => e is ReplyEntry && e.status == ReplyStatus.writing);
+
+  AssistantChatState copyWith({
+    AssistantStage? stage,
+    AssistantConsent? consent,
+    List<ServerFarm>? farms,
+    List<ChatEntry>? entries,
+    Map<String, PlanDecision>? decisions,
+    CropQuestion? Function()? cropQuestion,
+    String? Function()? pendingMessage,
+    bool? consentBusy,
+    bool? withdrawn,
+    AssistantProblem? Function()? consentProblem,
+  }) => AssistantChatState(
+    stage: stage ?? this.stage,
+    consent: consent ?? this.consent,
+    farms: farms ?? this.farms,
+    entries: entries ?? this.entries,
+    decisions: decisions ?? this.decisions,
+    cropQuestion: cropQuestion != null ? cropQuestion() : this.cropQuestion,
+    pendingMessage: pendingMessage != null
+        ? pendingMessage()
+        : this.pendingMessage,
+    consentBusy: consentBusy ?? this.consentBusy,
+    withdrawn: withdrawn ?? this.withdrawn,
+    consentProblem: consentProblem != null
+        ? consentProblem()
+        : this.consentProblem,
+  );
+}
+
+// --------------------------------------------------------------- controller
+
+class AssistantController extends Notifier<AssistantChatState> {
+  AssistantApi? _api;
+  String? _userId;
+  String? _farmId;
+  String? _conversationId;
+  Future<void>? _opening;
+
+  /// Bumped on every reset, so a late answer for an earlier account or
+  /// conversation is dropped instead of written into this one.
+  int _epoch = 0;
+
+  _Run? _run;
+
+  AssistantTiming get _timing => ref.read(assistantTimingProvider);
+
+  @override
+  AssistantChatState build() {
+    // Another account, or nobody: nothing of this conversation may remain.
+    ref.listen(authViewModelProvider, (previous, next) {
+      final standing = next.value;
+      final id = standing is SignedIn ? standing.session.user.id : null;
+      if (_userId != null && id != _userId) _reset();
+    });
+    ref.onDispose(() => _run?.cancel());
+    return const AssistantChatState();
+  }
+
+  String? get farmId => _farmId;
+
+  /// Called when the sheet opens. Cheap when the conversation is already
+  /// open for this account; otherwise works out where the farmer stands.
+  Future<void> open() =>
+      _opening ??= _open().whenComplete(() => _opening = null);
+
+  Future<void> _open() async {
+    final api = ref.read(assistantApiFactoryProvider)();
+    if (api == null) {
+      state = const AssistantChatState(stage: AssistantStage.notConnected);
+      return;
+    }
+
+    final AuthStanding standing;
+    try {
+      standing = await ref.read(authViewModelProvider.future);
+    } on Object {
+      state = const AssistantChatState(stage: AssistantStage.signedOut);
+      return;
+    }
+    if (standing is! SignedIn) {
+      _reset();
+      state = const AssistantChatState(stage: AssistantStage.signedOut);
+      return;
+    }
+
+    final userId = standing.session.user.id;
+    if (userId != _userId) _reset();
+    const settled = {
+      AssistantStage.ready,
+      AssistantStage.needsConsent,
+      AssistantStage.declined,
+      AssistantStage.chooseFarm,
+    };
+    if (_api != null && settled.contains(state.stage)) return;
+
+    _userId = userId;
+    _api = api;
+    final epoch = _epoch;
+
+    bool allowed;
+    try {
+      allowed = await ref.read(externalProcessingConsentProvider.future);
+    } on Object {
+      allowed = false;
+    }
+    if (epoch != _epoch) return;
+    if (!allowed) {
+      state = state.copyWith(stage: AssistantStage.outsideServicesOff);
+      return;
+    }
+
+    state = state.copyWith(stage: AssistantStage.starting);
+    try {
+      final farms = await api.farms().timeout(_timing.request);
+      if (epoch != _epoch) return;
+      if (farms.isEmpty) {
+        state = state.copyWith(stage: AssistantStage.noFarm);
+      } else if (farms.length > 1) {
+        state = state.copyWith(stage: AssistantStage.chooseFarm, farms: farms);
+      } else {
+        await _startConversation(farms.single, epoch);
+      }
+    } on Object catch (e) {
+      if (epoch == _epoch) _openFailed(e);
+    }
+  }
+
+  /// The farmer picked which server farm to talk about.
+  Future<void> chooseFarm(ServerFarm farm) async {
+    if (state.stage != AssistantStage.chooseFarm) return;
+    final epoch = _epoch;
+    state = state.copyWith(stage: AssistantStage.starting);
+    try {
+      await _startConversation(farm, epoch);
+    } on Object catch (e) {
+      if (epoch == _epoch) _openFailed(e);
+    }
+  }
+
+  Future<void> _startConversation(ServerFarm farm, int epoch) async {
+    final api = _api!;
+    final store = ref.read(assistantConversationStoreProvider);
+    final remembered = await store.conversationFor(
+      userId: _userId!,
+      farmId: farm.id,
+    );
+    var conversationId = remembered ?? newUuid();
+    try {
+      await api
+          .openConversation(conversationId: conversationId, farmId: farm.id)
+          .timeout(_timing.request);
+    } on AssistantException catch (e) {
+      // A remembered conversation the server no longer knows — deleted with
+      // an account, say. Start a new one rather than failing.
+      if (remembered == null ||
+          (e.problem != AssistantProblem.notFound &&
+              e.problem != AssistantProblem.rejected)) {
+        rethrow;
+      }
+      conversationId = newUuid();
+      await api
+          .openConversation(conversationId: conversationId, farmId: farm.id)
+          .timeout(_timing.request);
+    }
+    if (epoch != _epoch) return;
+    _farmId = farm.id;
+    _conversationId = conversationId;
+    await store.remember(
+      userId: _userId!,
+      farmId: farm.id,
+      conversationId: conversationId,
+    );
+
+    final consent = await api.consent(conversationId).timeout(_timing.request);
+    if (epoch != _epoch) return;
+
+    var entries = const <ChatEntry>[];
+    var decisions = const <String, PlanDecision>{};
+    try {
+      final turns = await api.history(conversationId).timeout(_timing.request);
+      entries = [for (final t in turns) ..._entriesFor(t)];
+      decisions = {
+        for (final t in turns)
+          for (final tool in t.tools)
+            if (tool is PlanPreviewResult)
+              tool.preview.snapshotHash: PlanDecision(
+                preview: tool.preview,
+                planId: newUuid(),
+              ),
+      };
+    } on Object {
+      // Earlier turns are a convenience. Their absence does not stop today's.
+    }
+    if (epoch != _epoch) return;
+
+    state = state.copyWith(
+      stage: consent.granted
+          ? AssistantStage.ready
+          : _declined
+          ? AssistantStage.declined
+          : AssistantStage.needsConsent,
+      consent: consent,
+      entries: entries,
+      decisions: decisions,
+    );
+    for (final t in entries.whereType<ReplyEntry>()) {
+      if (t.status == ReplyStatus.writing) {
+        unawaited(_settleFromSnapshot(t.turnId, AssistantProblem.offline));
+      }
+    }
+  }
+
+  /// Said no this run. Not sent anywhere: "no" is the absence of a grant.
+  bool _declined = false;
+
+  void _openFailed(Object e) {
+    final problem = e is AssistantException
+        ? e.problem
+        : AssistantProblem.offline;
+    state = state.copyWith(
+      stage: switch (problem) {
+        AssistantProblem.signedOut => AssistantStage.signedOut,
+        AssistantProblem.offline => AssistantStage.offline,
+        AssistantProblem.noFarm ||
+        AssistantProblem.notFound => AssistantStage.noFarm,
+        _ => AssistantStage.notAvailable,
+      },
+    );
+  }
+
+  /// Starts again from nothing: another account, or a sign-out.
+  void _reset() {
+    _epoch++;
+    final run = _run;
+    run?.cancel();
+    if (run != null && !(run.finished?.isCompleted ?? true)) {
+      run.finished!.complete();
+    }
+    _run = null;
+    _api = null;
+    _userId = null;
+    _farmId = null;
+    _conversationId = null;
+    _declined = false;
+    state = const AssistantChatState();
+  }
+
+  /// Checks again after an offline or not-available answer.
+  Future<void> retryOpen() async {
+    _api = null;
+    state = state.copyWith(stage: AssistantStage.starting);
+    await open();
+  }
+
+  // ------------------------------------------------------------------ consent
+
+  /// The farmer's Allow tap. Sends back exactly the notice and model shown.
+  Future<void> allow() async {
+    final shown = state.consent;
+    final id = _conversationId;
+    if (shown == null || id == null || state.consentBusy) return;
+    final epoch = _epoch;
+    state = state.copyWith(consentBusy: true, consentProblem: () => null);
+    try {
+      final granted = await _api!
+          .grantConsent(id, shown)
+          .timeout(_timing.request);
+      if (epoch != _epoch) return;
+      _declined = false;
+      state = state.copyWith(
+        consent: granted,
+        consentBusy: false,
+        withdrawn: false,
+        stage: granted.granted
+            ? AssistantStage.ready
+            : AssistantStage.needsConsent,
+      );
+    } on Object catch (e) {
+      if (epoch != _epoch) return;
+      await _consentFailed(e, id, epoch);
+    }
+  }
+
+  Future<void> _consentFailed(Object e, String id, int epoch) async {
+    final problem = e is AssistantException
+        ? e.problem
+        : AssistantProblem.offline;
+    if (problem == AssistantProblem.signedOut) {
+      state = state.copyWith(
+        consentBusy: false,
+        stage: AssistantStage.signedOut,
+      );
+      return;
+    }
+    // A changed notice or model: show the current one and ask again.
+    AssistantConsent? current;
+    if (problem == AssistantProblem.consentRequired) {
+      try {
+        current = await _api!.consent(id).timeout(_timing.request);
+      } on Object {
+        current = null;
+      }
+    }
+    if (epoch != _epoch) return;
+    state = state.copyWith(
+      consent: current,
+      consentBusy: false,
+      consentProblem: () => problem,
+    );
+  }
+
+  /// The farmer's Not now. Nothing is sent to the server or the model.
+  void decline() {
+    if (state.stage != AssistantStage.needsConsent) return;
+    _declined = true;
+    state = state.copyWith(stage: AssistantStage.declined, withdrawn: false);
+  }
+
+  /// From the declined state, back to the question.
+  void askAgain() {
+    if (state.stage != AssistantStage.declined) return;
+    _declined = false;
+    state = state.copyWith(stage: AssistantStage.needsConsent);
+  }
+
+  /// Withdraws permission. The server also stops any answer being written.
+  Future<void> withdraw() async {
+    final id = _conversationId;
+    if (id == null || state.consentBusy) return;
+    final epoch = _epoch;
+    state = state.copyWith(consentBusy: true, consentProblem: () => null);
+    try {
+      final after = await _api!.withdrawConsent(id).timeout(_timing.request);
+      if (epoch != _epoch) return;
+      _declined = true;
+      state = state.copyWith(
+        consent: after,
+        consentBusy: false,
+        withdrawn: true,
+        stage: AssistantStage.declined,
+      );
+    } on Object catch (e) {
+      if (epoch != _epoch) return;
+      await _consentFailed(e, id, epoch);
+    }
+  }
+
+  // -------------------------------------------------------------------- turns
+
+  /// Sends [raw], unless a crop name in it needs asking about first.
+  Future<void> send(String raw) async {
+    final message = raw.trim();
+    if (message.isEmpty || message.length > 4000) return;
+    if (state.stage != AssistantStage.ready || state.writing) return;
+    final question = cropQuestionFor(message);
+    if (question != null) {
+      state = state.copyWith(
+        cropQuestion: () => question,
+        pendingMessage: () => message,
+      );
+      return;
+    }
+    await _start(newUuid(), message);
+  }
+
+  /// The farmer's answer to the crop question: a crop, or null for "keep
+  /// what I typed".
+  Future<void> answerCrop(ServerCrop? crop) async {
+    final question = state.cropQuestion;
+    final pending = state.pendingMessage;
+    if (question == null || pending == null) return;
+    state = state.copyWith(
+      cropQuestion: () => null,
+      pendingMessage: () => null,
+    );
+    if (crop == null) {
+      await _start(newUuid(), pending);
+    } else {
+      await send(resolveCropQuestion(pending, question, crop));
+    }
+  }
+
+  /// Drops the crop question and hands the message back for editing.
+  String? editPending() {
+    final pending = state.pendingMessage;
+    state = state.copyWith(
+      cropQuestion: () => null,
+      pendingMessage: () => null,
+    );
+    return pending;
+  }
+
+  /// Sends a turn that did not finish again, as the *same* turn. The server
+  /// never generates an admitted turn twice: it replays what it saved, or
+  /// admits the turn if it never arrived.
+  Future<void> retry(String turnId) async {
+    if (state.stage != AssistantStage.ready || state.writing) return;
+    final entry = state.entries.whereType<ReplyEntry>().where(
+      (e) => e.turnId == turnId,
+    );
+    if (entry.isEmpty) return;
+    await _start(turnId, entry.first.message, again: true);
+  }
+
+  /// The farmer's Stop tap.
+  Future<void> stop() async {
+    final run = _run;
+    if (run == null) return;
+    run.cancel();
+    try {
+      final snapshot = await _api!
+          .interrupt(_conversationId!, run.turnId)
+          .timeout(_timing.request);
+      if (run.epoch != _epoch) return;
+      _applySnapshot(snapshot);
+      _end(run.turnId, TurnInterrupted(snapshot.error));
+    } on Object {
+      if (run.epoch != _epoch) return;
+      // The server may not have heard; closing the stream interrupts the turn
+      // there too. Either way it ends here, visibly.
+      _end(run.turnId, const TurnInterrupted('stopped_by_farmer'));
+    }
+  }
+
+  Future<void> _start(String turnId, String message, {bool again = false}) {
+    final api = _api!;
+    final conversation = _conversationId!;
+    final reply = ReplyEntry(turnId, message: message);
+    state = state.copyWith(
+      entries: again
+          ? [
+              for (final e in state.entries)
+                if (e is ReplyEntry && e.turnId == turnId) reply else e,
+            ]
+          : [...state.entries, FarmerLine(turnId, message), reply],
+    );
+
+    final run = _Run(turnId, _epoch);
+    _run = run;
+    final finished = Completer<void>();
+    run.finished = finished;
+
+    void watchdog() {
+      if (run.closed) return;
+      run.cancel();
+      unawaited(_settleFromSnapshot(turnId, AssistantProblem.offline));
+    }
+
+    run.overall = Timer(_timing.overall, watchdog);
+    run.idle = Timer(_timing.idle, watchdog);
+    run.subscription = api
+        .sendTurn(
+          conversationId: conversation,
+          turnId: turnId,
+          message: message,
+        )
+        .listen(
+          (event) {
+            if (run.closed || run.epoch != _epoch) return;
+            run.idle?.cancel();
+            run.idle = Timer(_timing.idle, watchdog);
+            _onEvent(run, event);
+          },
+          onError: (Object e) {
+            if (run.closed || run.epoch != _epoch) return;
+            run.cancel();
+            _onStreamError(turnId, e);
+          },
+          onDone: () {
+            if (run.closed || run.epoch != _epoch) return;
+            run.cancel();
+            // Ended with no terminal event: the snapshot says how it ended.
+            unawaited(_settleFromSnapshot(turnId, AssistantProblem.offline));
+          },
+          cancelOnError: true,
+        );
+    return finished.future;
+  }
+
+  void _onEvent(_Run run, TurnEvent event) {
+    switch (event) {
+      case TurnAccepted(:final snapshot):
+        if (snapshot != null) _applySnapshot(snapshot);
+      case TurnText(:final text):
+        _updateReply(run.turnId, (r) => r.copyWith(text: r.text + text));
+      case TurnTool(:final result):
+        _updateReply(
+          run.turnId,
+          (r) => r.copyWith(tools: [...r.tools, result]),
+        );
+        _noteTool(result);
+      case TurnFailed(code: 'turn_in_progress'):
+        // A replay of a turn still being written. Its snapshot will finish.
+        run.cancel();
+        unawaited(_settleFromSnapshot(run.turnId, AssistantProblem.busy));
+      case TurnEnded():
+        run.cancel();
+        _end(run.turnId, event);
+    }
+  }
+
+  void _onStreamError(String turnId, Object e) {
+    final problem = e is AssistantException
+        ? e.problem
+        : AssistantProblem.offline;
+    switch (problem) {
+      case AssistantProblem.offline || AssistantProblem.unknown:
+        // It may or may not have reached the server. Ask.
+        unawaited(_settleFromSnapshot(turnId, problem));
+      case AssistantProblem.consentRequired:
+        _end(
+          turnId,
+          TurnFailed(e is AssistantException ? e.code : null),
+          problem: problem,
+        );
+        state = state.copyWith(stage: AssistantStage.needsConsent);
+      case AssistantProblem.signedOut:
+        _end(turnId, const TurnFailed('invalid_session'), problem: problem);
+        state = state.copyWith(stage: AssistantStage.signedOut);
+      default:
+        _end(
+          turnId,
+          TurnFailed(e is AssistantException ? e.code : null),
+          problem: problem,
+        );
+    }
+  }
+
+  /// Reads the durable snapshot a bounded number of times, then ends the
+  /// turn whatever it found.
+  Future<void> _settleFromSnapshot(
+    String turnId,
+    AssistantProblem fallback,
+  ) async {
+    final epoch = _epoch;
+    final api = _api;
+    final conversation = _conversationId;
+    if (api == null || conversation == null) return;
+    for (var attempt = 0; attempt < _timing.snapshotAttempts; attempt++) {
+      if (attempt > 0) await Future<void>.delayed(_timing.snapshotGap);
+      if (epoch != _epoch) return;
+      try {
+        final snapshot = await api
+            .turn(conversation, turnId)
+            .timeout(_timing.request);
+        if (epoch != _epoch) return;
+        final ended = snapshot.ended;
+        if (ended != null) {
+          _applySnapshot(snapshot);
+          _end(turnId, ended);
+          return;
+        }
+      } on AssistantException catch (e) {
+        if (epoch != _epoch) return;
+        if (e.problem == AssistantProblem.notFound) {
+          // Never admitted: the question did not reach the assistant.
+          _end(turnId, TurnFailed(e.code), problem: fallback);
+          return;
+        }
+        if (e.problem == AssistantProblem.signedOut) {
+          _end(turnId, const TurnFailed('invalid_session'), problem: e.problem);
+          state = state.copyWith(stage: AssistantStage.signedOut);
+          return;
+        }
+      } on Object {
+        // No answer this time; the loop is bounded.
+      }
+    }
+    if (epoch != _epoch) return;
+    _end(turnId, null, problem: fallback);
+  }
+
+  void _applySnapshot(TurnSnapshot snapshot) {
+    _updateReply(
+      snapshot.id,
+      (r) => r.copyWith(text: snapshot.reply, tools: snapshot.tools),
+    );
+    for (final tool in snapshot.tools) {
+      _noteTool(tool);
+    }
+  }
+
+  void _noteTool(ToolResult tool) {
+    if (tool is! PlanPreviewResult) return;
+    final hash = tool.preview.snapshotHash;
+    if (state.decisions.containsKey(hash)) return;
+    state = state.copyWith(
+      decisions: {
+        ...state.decisions,
+        hash: PlanDecision(preview: tool.preview, planId: newUuid()),
+      },
+    );
+  }
+
+  /// Ends [turnId]'s reply. [ended] null means the snapshot never settled it.
+  void _end(String turnId, TurnEnded? ended, {AssistantProblem? problem}) {
+    final run = _run;
+    if (run != null && run.turnId == turnId) {
+      run.cancel();
+      _run = null;
+      if (!(run.finished?.isCompleted ?? true)) run.finished!.complete();
+    }
+    _updateReply(turnId, (r) {
+      if (r.status != ReplyStatus.writing) return r;
+      return switch (ended) {
+        TurnDone() => r.copyWith(status: ReplyStatus.done),
+        TurnInterrupted(:final code) => r.copyWith(
+          status: ReplyStatus.stopped,
+          code: code,
+          problem: problem ?? _problemForCode(code),
+        ),
+        TurnFailed(:final code) => r.copyWith(
+          status: ReplyStatus.failed,
+          code: code,
+          problem: problem ?? _problemForCode(code),
+        ),
+        null => r.copyWith(status: ReplyStatus.lost, problem: problem),
+      };
+    });
+  }
+
+  AssistantProblem? _problemForCode(String? code) =>
+      code == null ? null : problemFor(0, code);
+
+  void _updateReply(String turnId, ReplyEntry Function(ReplyEntry) change) {
+    state = state.copyWith(
+      entries: [
+        for (final e in state.entries)
+          if (e is ReplyEntry && e.turnId == turnId) change(e) else e,
+      ],
+    );
+  }
+
+  List<ChatEntry> _entriesFor(TurnSnapshot t) {
+    final erased = t.contentDeletedAt != null;
+    final ended = t.ended;
+    return [
+      FarmerLine(t.id, t.message, erased: erased),
+      ReplyEntry(
+        t.id,
+        message: t.message,
+        text: t.reply,
+        tools: t.tools,
+        erased: erased,
+        status: switch (ended) {
+          null => ReplyStatus.writing,
+          TurnDone() => ReplyStatus.done,
+          TurnInterrupted() => ReplyStatus.stopped,
+          TurnFailed() => ReplyStatus.failed,
+        },
+        code: t.error,
+        problem: _problemForCode(t.error),
+      ),
+    ];
+  }
+
+  // ------------------------------------------------------------------ plans
+
+  void selectCandidate(String key, String candidateId) {
+    final d = state.decisions[key];
+    if (d == null) return;
+    const open = {
+      DecisionStage.choosing,
+      DecisionStage.reviewing,
+      DecisionStage.changed,
+    };
+    if (!open.contains(d.stage)) return;
+    if (!d.preview.candidates.any((c) => c.id == candidateId)) return;
+    _setDecision(
+      key,
+      d.copyWith(
+        candidateId: () => candidateId,
+        stage: DecisionStage.choosing,
+        // Different content is a different request to the server.
+        mutationId: d.candidateId == candidateId ? null : () => null,
+        problem: () => null,
+      ),
+    );
+  }
+
+  /// Shows the confirm step for the chosen candidate. Sends nothing.
+  void review(String key) {
+    final d = state.decisions[key];
+    if (d == null || d.candidate == null) return;
+    if (d.stage != DecisionStage.choosing) return;
+    _setDecision(
+      key,
+      d.copyWith(
+        stage: DecisionStage.reviewing,
+        mutationId: () => d.mutationId ?? newUuid(),
+      ),
+    );
+  }
+
+  void cancelReview(String key) {
+    final d = state.decisions[key];
+    if (d == null || d.stage != DecisionStage.reviewing) return;
+    _setDecision(key, d.copyWith(stage: DecisionStage.choosing));
+  }
+
+  /// The farmer's Confirm tap — the one path to `planning/confirm`.
+  Future<void> confirm(String key) async {
+    final d = state.decisions[key];
+    final farm = _farmId;
+    final api = _api;
+    final candidate = d?.candidate;
+    if (d == null || farm == null || api == null || candidate == null) return;
+    if (d.stage != DecisionStage.reviewing || d.mutationId == null) return;
+    final epoch = _epoch;
+    _setDecision(
+      key,
+      d.copyWith(stage: DecisionStage.saving, problem: () => null),
+    );
+    try {
+      final saved = await api
+          .confirm(
+            farmId: farm,
+            preview: d.preview,
+            candidateId: candidate.id,
+            planId: d.planId,
+            mutationId: d.mutationId!,
+          )
+          .timeout(_timing.request);
+      if (epoch != _epoch) return;
+      _setDecision(
+        key,
+        state.decisions[key]!.copyWith(
+          stage: DecisionStage.saved,
+          saved: saved,
+        ),
+      );
+      try {
+        final history = await api
+            .planHistory(farm, saved.id)
+            .timeout(_timing.request);
+        if (epoch != _epoch) return;
+        final mine = history.where((r) => r.version == saved.version);
+        if (mine.isNotEmpty) {
+          _setDecision(
+            key,
+            state.decisions[key]!.copyWith(revision: mine.first),
+          );
+        }
+      } on Object {
+        // The plan is saved; its history line is extra.
+      }
+    } on Object catch (e) {
+      if (epoch != _epoch) return;
+      final problem = e is AssistantException
+          ? e.problem
+          : AssistantProblem.offline;
+      final current = state.decisions[key]!;
+      _setDecision(
+        key,
+        current.copyWith(
+          stage: switch (problem) {
+            AssistantProblem.planStale => DecisionStage.stale,
+            AssistantProblem.planChanged => DecisionStage.changed,
+            // Back to the confirm step, same mutation id: tapping Confirm
+            // again is a retry the server can recognise.
+            _ => DecisionStage.reviewing,
+          },
+          problem: () => problem,
+        ),
+      );
+      if (problem == AssistantProblem.signedOut) {
+        state = state.copyWith(stage: AssistantStage.signedOut);
+      }
+    }
+  }
+
+  /// After a stale answer: a fresh preview of the same request. Read-only.
+  Future<void> refresh(String key) async {
+    final d = state.decisions[key];
+    final farm = _farmId;
+    final api = _api;
+    if (d == null || farm == null || api == null) return;
+    if (d.stage != DecisionStage.stale) return;
+    final epoch = _epoch;
+    _setDecision(key, d.copyWith(stage: DecisionStage.refreshing));
+    try {
+      final fresh = await api
+          .preview(farm, d.preview.request)
+          .timeout(_timing.request);
+      if (epoch != _epoch) return;
+      _setDecision(
+        key,
+        state.decisions[key]!.copyWith(
+          preview: fresh,
+          stage: DecisionStage.choosing,
+          candidateId: () => null,
+          mutationId: () => null,
+          problem: () => null,
+        ),
+      );
+    } on Object catch (e) {
+      if (epoch != _epoch) return;
+      _setDecision(
+        key,
+        state.decisions[key]!.copyWith(
+          stage: DecisionStage.stale,
+          problem: () =>
+              e is AssistantException ? e.problem : AssistantProblem.offline,
+        ),
+      );
+    }
+  }
+
+  void _setDecision(String key, PlanDecision decision) {
+    state = state.copyWith(decisions: {...state.decisions, key: decision});
+  }
+}
+
+/// One turn in flight: its stream and its two clocks.
+class _Run {
+  final String turnId;
+  final int epoch;
+  StreamSubscription<TurnEvent>? subscription;
+  Timer? idle;
+  Timer? overall;
+  Completer<void>? finished;
+  bool closed = false;
+
+  _Run(this.turnId, this.epoch);
+
+  /// Stops listening. Closing the stream also tells the server to stop.
+  void cancel() {
+    if (closed) return;
+    closed = true;
+    idle?.cancel();
+    overall?.cancel();
+    unawaited(subscription?.cancel());
+  }
+}
