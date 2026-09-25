@@ -170,4 +170,73 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets(
+    'a timeline step and the section itself say where they are, and a '
+    'stopped send of either can be tried again',
+    (tester) async {
+      final db = AlmanacDatabase.memory();
+      addTearDown(db.close);
+      await DemoSeed(db, now: () => pinnedToday).ensureSeeded();
+      final repo = LocalFarmRepository(
+        db,
+        now: () => pinnedToday,
+        ownerId: DemoSeed.ownerId,
+      );
+      final task = await repo.createTask(
+        sectionId: DemoSeed.cabbageFieldId,
+        title: 'Check the drip line',
+        dueDate: pinnedToday.add(const Duration(days: 3)),
+      );
+      final section = await repo.section(DemoSeed.cabbageFieldId);
+      await repo.updateSection(
+        mutationId: '5e5e5e5e-0000-4000-8000-000000000001',
+        sectionId: section.id,
+        expectedRevision: section.revision,
+        name: section.name,
+        areaM2: section.areaM2.raw,
+      );
+      await pumpFarmApp(tester, location: _cabbage, storage: db);
+      await revealOnPage(tester, find.text('Check the drip line'));
+
+      Finder within(String text, Finder inner) => find.descendant(
+        of: find
+            .ancestor(of: find.text(text), matching: find.byType(InkWell))
+            .first,
+        matching: inner,
+      );
+      expect(within('Check the drip line', chip('queued')), findsOneWidget);
+
+      await setDelivery(db, task.id, 'failed');
+      await tester.pumpAndSettle();
+      await revealOnPage(tester, find.byKey(ValueKey('retry-${task.id}')));
+      expect(within('Check the drip line', chip('failed')), findsOneWidget);
+      await tester.tap(find.byKey(ValueKey('retry-${task.id}')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('retry-${task.id}')), findsNothing);
+      final taskRow = (await db.select(db.syncMutations).get()).singleWhere(
+        (r) => r.recordId == task.id,
+      );
+      expect(taskRow.deliveryState, 'pending');
+
+      await setDelivery(db, section.id, 'failed');
+      await tester.pumpAndSettle();
+      final retrySection = find.byKey(ValueKey('retry-${section.id}'));
+      await revealOnPage(tester, retrySection);
+      expectNoFailureLanguage(tester);
+      await tester.tap(retrySection);
+      await tester.pumpAndSettle();
+      expect(retrySection, findsNothing);
+      final sectionRow = (await db.select(db.syncMutations).get()).singleWhere(
+        (r) => r.recordId == section.id,
+      );
+      expect(sectionRow.deliveryState, 'pending');
+      expect(sectionRow.budgetCount, 0);
+
+      await setDelivery(db, section.id, 'synced');
+      await setDelivery(db, task.id, 'synced');
+      await tester.pumpAndSettle();
+      expect(chip('sent'), findsNWidgets(2));
+    },
+  );
 }

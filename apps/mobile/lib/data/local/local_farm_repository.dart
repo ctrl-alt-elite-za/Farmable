@@ -64,6 +64,8 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     db.financialRecords,
     db.sectionProjections,
     db.sectionDetails,
+    db.savedPlans,
+    db.syncMutations,
   ], _loadFarm);
 
   @override
@@ -75,6 +77,8 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     db.financialRecords,
     db.sectionProjections,
     db.sectionDetails,
+    db.savedPlans,
+    db.syncMutations,
   ], () => _loadSection(sectionId));
 
   @override
@@ -88,7 +92,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
 
   @override
   Stream<List<rec.FarmTask>> watchTimeline(String sectionId) =>
-      _watch([db.farmTasks], () => _timeline(sectionId));
+      _watch([db.farmTasks, db.syncMutations], () => _timeline(sectionId));
 
   @override
   Stream<int> watchPendingChanges() => _watch([
@@ -181,9 +185,20 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
             .getSingleOrNull();
 
     final spent = await _spent(row.id);
+    final plan =
+        await (db.select(db.savedPlans)..where(
+              (t) =>
+                  t.sectionId.equals(row.id) &
+                  t.status.equals('approved') &
+                  t.deletedAt.isNull(),
+            ))
+            .get();
+    final delivery = await _delivery({
+      row.id: [row.id, ?planting?.id, for (final p in plan) p.id],
+    });
 
     return rec.SectionSummary(
-      section: _toSection(row, detail),
+      section: _toSection(row, detail, delivery: delivery[row.id]),
       planting: planting == null ? null : _toPlanting(planting),
       projection: projection == null ? null : _toProjection(projection),
       latestObservation: latest == null ? null : _toObservation(latest),
@@ -224,7 +239,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
                 ),
               ]))
             .get();
-    final delivery = await _delivery(rows);
+    final delivery = await _delivery({
+      for (final r in rows) r.id: [r.id, ?r.localMediaId],
+    });
     return [
       for (final row in rows) _toObservation(row, delivery: delivery[row.id]),
     ];
@@ -247,7 +264,10 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
               )
               ..orderBy([(t) => OrderingTerm(expression: t.dueDate)]))
             .get();
-    return rows.map(_toTask).toList();
+    final delivery = await _delivery({
+      for (final r in rows) r.id: [r.id],
+    });
+    return [for (final r in rows) _toTask(r, delivery: delivery[r.id])];
   }
 
   Future<List<rec.FarmTask>> _upcoming() async {
@@ -412,6 +432,48 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
       ownerId: row.ownerId,
       farmId: row.farmId,
     ).retryRecord(row.id);
+  }
+
+  @override
+  Future<void> retryRecordSync(String recordId) async {
+    final section =
+        await (db.select(db.sections)
+              ..where((t) => t.id.equals(recordId) & _mine(t.ownerId)))
+            .getSingleOrNull();
+    final task = section != null
+        ? null
+        : await (db.select(db.farmTasks)
+                ..where((t) => t.id.equals(recordId) & _mine(t.ownerId)))
+              .getSingleOrNull();
+    final (owner, farm) = section != null
+        ? (section.ownerId, section.farmId)
+        : task != null
+        ? (task.ownerId, task.farmId)
+        : (null, null);
+    if (owner == null || farm == null) return;
+    final outbox = SyncOutbox(db, ownerId: owner, farmId: farm);
+    // A section's delivery stands for its planting and plan too, so its
+    // "try again" covers them.
+    final ids = [
+      recordId,
+      if (section != null) ...[
+        for (final p
+            in await (db.select(db.plantings)..where(
+                  (t) => t.sectionId.equals(recordId) & t.deletedAt.isNull(),
+                ))
+                .get())
+          p.id,
+        for (final p
+            in await (db.select(db.savedPlans)..where(
+                  (t) => t.sectionId.equals(recordId) & t.deletedAt.isNull(),
+                ))
+                .get())
+          p.id,
+      ],
+    ];
+    for (final id in ids) {
+      await outbox.retryRecord(id);
+    }
   }
 
   @override
@@ -582,25 +644,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required String recordType,
     required String recordId,
     required DateTime at,
-  }) async {
-    if (recordType == 'observation') {
-      await enqueueObservation(db, recordId, operation, at);
-      return;
-    }
-    await db
-        .into(db.syncMutations)
-        .insert(
-          SyncMutationsCompanion.insert(
-            mutationId: newUuid(),
-            farmId: farmId,
-            ownerId: ownerId,
-            operation: operation,
-            recordType: recordType,
-            recordId: recordId,
-            createdAt: at,
-          ),
-        );
-  }
+  }) => enqueueRecord(db, recordType, recordId, operation, at);
 
   // ------------------------------------------------------------- plumbing
 
@@ -713,7 +757,11 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     syncState: rec.SyncState.parse(r.syncState),
   );
 
-  rec.FarmSection _toSection(Section r, SectionDetail? d) => rec.FarmSection(
+  rec.FarmSection _toSection(
+    Section r,
+    SectionDetail? d, {
+    rec.RecordDelivery? delivery,
+  }) => rec.FarmSection(
     id: r.id,
     farmId: r.farmId,
     name: r.name,
@@ -724,6 +772,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     waterNote: d?.waterNote,
     soilNote: d?.soilNote,
     marketNote: d?.marketNote,
+    delivery: delivery,
   );
 
   rec.Planting _toPlanting(Planting r) => rec.Planting(
@@ -753,31 +802,39 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     delivery: delivery,
   );
 
-  /// Each observation's delivery, from its own outbox rows and those of the
-  /// photo it carries. The worst state wins: a record is only "sent" once
-  /// everything behind it is.
+  /// Each shown record's delivery, from the outbox rows of every record it
+  /// stands for — an observation and its photo; a section, its current
+  /// planting and its approved plan. The worst state wins: a record is only
+  /// "sent" once everything behind it is.
+  ///
+  /// A change the server overruled (`superseded`, see `ChangePuller`) keeps
+  /// the record reading "Changed on another phone" until the farmer's next
+  /// change to it.
   Future<Map<String, rec.RecordDelivery>> _delivery(
-    List<Observation> rows,
+    Map<String, List<String>> shown,
   ) async {
-    if (rows.isEmpty) return const {};
-    final ids = {
-      for (final r in rows) ...[r.id, ?r.localMediaId],
-    };
-    final mutations = await (db.select(
-      db.syncMutations,
-    )..where((t) => t.recordId.isIn(ids))).get();
+    final ids = {for (final group in shown.values) ...group};
+    if (ids.isEmpty) return const {};
+    final mutations =
+        await (db.select(db.syncMutations)
+              ..where((t) => t.recordId.isIn(ids))
+              ..orderBy([(t) => OrderingTerm.asc(t.rowId)]))
+            .get();
     final byRecord = <String, List<SyncMutation>>{};
     for (final m in mutations) {
       (byRecord[m.recordId] ??= []).add(m);
     }
     final result = <String, rec.RecordDelivery>{};
-    for (final r in rows) {
-      final own = [...?byRecord[r.id], ...?byRecord[r.localMediaId]];
+    for (final MapEntry(key: id, value: group) in shown.entries) {
+      final own = [for (final r in group) ...?byRecord[r]];
       if (own.isEmpty) continue;
       final states = {for (final m in own) m.deliveryState};
-      result[r.id] = states.contains('failed')
+      final overruled = group.any(
+        (r) => byRecord[r]?.last.deliveryState == 'superseded',
+      );
+      result[id] = states.contains('failed')
           ? rec.RecordDelivery.failed
-          : states.contains('conflict')
+          : states.contains('conflict') || overruled
           ? rec.RecordDelivery.conflict
           : states.contains('syncing')
           ? rec.RecordDelivery.sending
@@ -788,18 +845,20 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     return result;
   }
 
-  rec.FarmTask _toTask(FarmTask r) => rec.FarmTask(
-    id: r.id,
-    sectionId: r.sectionId,
-    title: r.title,
-    description: r.description,
-    dueDate: r.dueDate,
-    status: rec.TaskStatus.parse(r.status),
-    expectedCost: r.expectedCostCents == null
-        ? null
-        : Cents(r.expectedCostCents!),
-    syncState: rec.SyncState.parse(r.syncState),
-  );
+  rec.FarmTask _toTask(FarmTask r, {rec.RecordDelivery? delivery}) =>
+      rec.FarmTask(
+        id: r.id,
+        sectionId: r.sectionId,
+        title: r.title,
+        description: r.description,
+        dueDate: r.dueDate,
+        status: rec.TaskStatus.parse(r.status),
+        expectedCost: r.expectedCostCents == null
+            ? null
+            : Cents(r.expectedCostCents!),
+        syncState: rec.SyncState.parse(r.syncState),
+        delivery: delivery,
+      );
 
   rec.SectionProjection _toProjection(SectionProjection r) =>
       rec.SectionProjection(
@@ -867,6 +926,10 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required String name,
     required String areaM2,
   }) async {
+    final replayed = await _mutation(mutationId);
+    if (replayed != null) {
+      return _toDemoSection(await _requireSection(replayed.recordId));
+    }
     final farmRow = await _farmRow();
     if (farmRow == null) throw const SessionExpired('No farm on this phone');
     final at = now();
@@ -907,6 +970,9 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required String name,
     required String areaM2,
   }) async {
+    if (await _mutation(mutationId) != null) {
+      return _toDemoSection(await _requireSection(sectionId));
+    }
     final existing = await _requireSection(sectionId);
     // The server refuses a blind write and so does this, for the same reason:
     // silently clobbering an edit made on another device is worse than making
@@ -944,6 +1010,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     String sectionId, {
     required String mutationId,
   }) async {
+    if (await _mutation(mutationId) != null) return;
     final existing = await _requireSection(sectionId);
     final at = now();
     await db.transaction(() async {
@@ -1267,17 +1334,20 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required String recordType,
     required String recordId,
     required DateTime at,
-  }) => db
-      .into(db.syncMutations)
-      .insertOnConflictUpdate(
-        SyncMutationsCompanion.insert(
-          mutationId: mutationId,
-          farmId: farmId,
-          ownerId: ownerId,
-          operation: operation,
-          recordType: recordType,
-          recordId: recordId,
-          createdAt: at,
-        ),
-      );
+  }) => enqueueRecord(
+    db,
+    recordType,
+    recordId,
+    operation,
+    at,
+    mutationId: mutationId,
+  );
+
+  /// The record a caller-supplied mutation id already produced, if any. A
+  /// caller retrying a section write with the same id gets the first result
+  /// back rather than a second section — and the outbox never holds two
+  /// different bodies under one id, which the server would refuse.
+  Future<SyncMutation?> _mutation(String mutationId) => (db.select(
+    db.syncMutations,
+  )..where((t) => t.mutationId.equals(mutationId))).getSingleOrNull();
 }

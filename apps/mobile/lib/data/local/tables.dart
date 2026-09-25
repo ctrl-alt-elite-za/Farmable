@@ -251,6 +251,18 @@ class SyncMutations extends Table {
   Set<Column<Object>> get primaryKey => {mutationId};
 }
 
+/// LOCAL-ONLY. How far this phone has read one farm's change feed
+/// (`GET /farms/{farm_id}/changes`), per account. The feed is resumed from
+/// here, so a pull after a restart asks only for what it has not seen.
+class SyncCursors extends Table {
+  TextColumn get ownerId => text()();
+  TextColumn get farmId => text()();
+  IntColumn get cursor => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {ownerId, farmId};
+}
+
 /// Single-row table recording that the demo seed has run.
 ///
 /// Seeding keys off this rather than off "are there any sections?", so a
