@@ -203,6 +203,39 @@ class ObservationTile extends StatelessWidget {
   }
 }
 
+/// A record's delivery chip, and — only once sending has stopped — the
+/// farmer's "Try again". Used under sections and timeline steps; an
+/// observation tile lays the two out itself.
+class RecordDeliveryRow extends StatelessWidget {
+  final RecordDelivery delivery;
+  final VoidCallback? onRetry;
+  final Key? retryKey;
+
+  const RecordDeliveryRow({
+    super.key,
+    required this.delivery,
+    this.onRetry,
+    this.retryKey,
+  });
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: AlmanacDimens.sp2,
+    runSpacing: AlmanacDimens.sp1,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      DeliveryChip(delivery: delivery),
+      if (delivery == RecordDelivery.failed && onRetry != null)
+        TextButton.icon(
+          key: retryKey,
+          onPressed: onRetry,
+          icon: const Icon(LucideIcons.rotateCw, size: 16),
+          label: const Text('Try again'),
+        ),
+    ],
+  );
+}
+
 /// Where one record is on its way to the server.
 ///
 /// Each state carries a stable accessibility identifier —

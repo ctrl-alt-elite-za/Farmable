@@ -24,6 +24,7 @@ import '../local/sync_outbox.dart';
 import '../local/sync_runner.dart';
 import 'account_workspace.dart';
 import 'api_sync_transport.dart';
+import 'change_pull.dart';
 
 /// Whether the phone reports any network. Not proof the API is reachable —
 /// the runner still treats every failed send as a failed send — only a reason
@@ -110,6 +111,8 @@ class SyncController {
   OfflinePhotos? _photos;
   StreamSubscription<List<SyncMutation>>? _outboxSub;
   bool _releasing = false;
+  Future<void>? _pulling;
+  bool _pullAgain = false;
 
   /// The account whose runner is open, if any. For tests and diagnostics.
   String? get runningFor => _runner == null ? null : _scope?.ownerId;
@@ -229,9 +232,51 @@ class SyncController {
     _runner = runner;
     // Every acknowledgement lands in the outbox, so its changes are where a
     // photo the server now holds gets its phone copy released.
-    _outboxSub = outbox.watch().listen((_) => unawaited(_release()));
+    //
+    // A conflict there means another phone changed a record first; pulling
+    // is what settles it, so a conflict asks for a pull straight away.
+    _outboxSub = outbox.watch().listen((rows) {
+      unawaited(_release());
+      if (rows.any((r) => r.deliveryState == 'conflict')) unawaited(pull());
+    });
     _conditions();
     unawaited(_release());
+    unawaited(pull());
+  }
+
+  /// Brings in what other phones changed on this account's farm. One pull at
+  /// a time; a request while one runs makes it go round once more. Never
+  /// throws: a failed pull is retried the next time the phone comes back.
+  Future<void> pull() {
+    final running = _pulling;
+    if (running != null) {
+      _pullAgain = true;
+      return running;
+    }
+    final outbox = _outbox, generation = _generation;
+    if (outbox == null || generation == null || !_online || !_foreground) {
+      return Future.value();
+    }
+    Future<void> run() async {
+      try {
+        do {
+          _pullAgain = false;
+          await ChangePuller(
+            db,
+            _request(generation),
+            outbox: outbox,
+            now: now,
+            onError: onError,
+          ).pull();
+        } while (_pullAgain && identical(_outbox, outbox) && _online);
+      } on Object {
+        onError?.call('change_pull_failed');
+      } finally {
+        _pulling = null;
+      }
+    }
+
+    return _pulling = run();
   }
 
   Future<void> _close() async {
@@ -241,6 +286,10 @@ class SyncController {
     _outboxSub = null;
     _outbox = null;
     _photos = null;
+    // A pull runs under the previous session's generation, which the auth
+    // service refuses once that session ends; it is still let finish before
+    // the next account's work opens.
+    await _pulling;
     // Awaited: the previous account's send must settle before anything of
     // the next account's is opened on the same database.
     await runner?.stop();
@@ -268,6 +317,7 @@ class SyncController {
     } on Object {
       onError?.call('farm_refresh_failed');
     }
+    unawaited(pull());
   });
 
   Future<void> _release() async {

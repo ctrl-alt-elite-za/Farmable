@@ -30,6 +30,7 @@ part 'database.g.dart';
     SyncMutations,
     SeedState,
     LocalPhotos,
+    SyncCursors,
   ],
 )
 class AlmanacDatabase extends _$AlmanacDatabase {
@@ -45,7 +46,7 @@ class AlmanacDatabase extends _$AlmanacDatabase {
   AlmanacDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -87,6 +88,11 @@ class AlmanacDatabase extends _$AlmanacDatabase {
           await m.addColumn(localPhotos, localPhotos.failedAttemptId);
           await m.addColumn(localPhotos, localPhotos.recoverAttemptId);
           await m.addColumn(localPhotos, localPhotos.purgedAt);
+        }
+        // v5 remembers how far the change feed has been read, so edits from
+        // another phone are pulled without re-reading the farm's history.
+        if (from < 5) {
+          await m.createTable(syncCursors);
         }
         // Drift normally updates this after onUpgrade. Include it in our
         // transaction so a process kill cannot leave new columns tagged old.

@@ -164,7 +164,7 @@ class _DashboardState extends ConsumerState<_Dashboard> {
           _Gutter(
             child: HealthSummaryCard(
               farm: farm,
-              onReview: () => context.go('/insights'),
+              onReview: () => context.push('/health'),
             ),
           ),
 
