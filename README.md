@@ -76,15 +76,15 @@ Twilio SMS is unchanged (see the same doc).
 
 **Required environment variables** (see `.env.example`):
 
-| Variable             | Meaning                                                        |
-| -------------------- | -------------------------------------------------------------- |
-| `SMTP_HOST`          | `smtp.gmail.com`                                               |
-| `SMTP_PORT`          | `587` (STARTTLS, default) or `465` (SSL)                       |
-| `SMTP_TLS_MODE`      | `starttls` or `ssl`, matching the port                         |
-| `SMTP_USER`          | The Gmail address that sends, e.g. `noreply.almanac@gmail.com` |
-| `SMTP_PASSWORD`      | The 16-character App Password, never the account password      |
-| `EMAIL_FROM_NAME`    | Display name shown to recipients, e.g. `Almanac`               |
-| `EMAIL_FROM_ADDRESS` | Sender address shown to recipients                             |
+| Variable              | Meaning                                                        |
+| --------------------- | -------------------------------------------------------------- |
+| `SMTP_HOST`           | `smtp.gmail.com`                                               |
+| `SMTP_PORT`           | `587` (STARTTLS, default) or `465` (SSL)                       |
+| `SMTP_TLS_MODE`       | `starttls` or `ssl`, matching the port                         |
+| `SMTP_USER`           | The Gmail address that sends, e.g. `noreply.almanac@gmail.com` |
+| `SMTP_PASSWORD`       | The 16-character App Password, never the account password      |
+| `EMAIL_FROM_NAME`     | Display name shown to recipients, e.g. `Almanac`               |
+| `EMAIL_FROM_ADDRESS`  | Sender address shown to recipients                             |
 | `EXPORT_TOKEN_SECRET` | Required stable secret for export download links               |
 
 `EXPORT_TOKEN_SECRET` is always required; the backend refuses to boot when it

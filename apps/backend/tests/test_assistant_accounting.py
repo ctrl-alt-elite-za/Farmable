@@ -211,7 +211,8 @@ def test_cancel_and_account_deletion_preserve_only_content_free_receipt(assistan
             "fixture password"
         )
     AccountService(
-        assistant.sessions, export_token_secret="unit-export-token-secret"  # noqa: S106
+        assistant.sessions,
+        export_token_secret="unit-export-token-secret",  # noqa: S106
     ).delete_account(assistant.alice.auth, "fixture password")
     accounting.finish_call(assistant.sessions, receipt, usage(), "fixture-version", complete=True)
     with assistant.sessions() as session:
