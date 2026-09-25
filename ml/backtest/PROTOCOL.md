@@ -64,7 +64,9 @@ evaluation may run until this amendment is independently merged on `main`.
   carrots, green beans, onions, potatoes and spinach. Tomatoes are excluded from
   both roles because no reviewed tomato production budget matches the fresh-
   market price series. The exclusion and reason must appear in the result JSON,
-  table and sentence. Beetroot and pumpkins retain their version 1 exclusions.
+  table and sentence. Because this amendment was registered after the version 1
+  result was observed, that timing must also appear in the result JSON, table
+  and sentence. Beetroot and pumpkins retain their version 1 exclusions.
 - The audit grid is January 2012–December 2024 for each of these seven defaults:
   1,092 unique default/month keys. Preserve explicit out-of-season, missing-
   forecast and missing-realized-price skips. Do not retroactively select a
@@ -91,7 +93,9 @@ evaluation may run until this amendment is independently merged on `main`.
   statistic, write `INSUFFICIENT EVIDENCE` and its reason instead of a headline.
   Otherwise generate the version 1 retrospective sentence with “7 starting
   crops” and the explicit clause “Tomatoes excluded: no compatible reviewed
-  fresh-market production budget.” All numbers come from the amended JSON.
+  fresh-market production budget.” Both forms of the sentence end with the
+  clause “Amendment 2 was registered after the version 1 result was observed.”
+  All numbers come from the amended JSON.
 - Give the amended run a distinct scenario ID and content-derived run ID. Record
   this amendment's merged mainline commit, all input/code hashes and the version
   1 run ID in its manifest. Write new decision ledger, JSON report, Markdown table
