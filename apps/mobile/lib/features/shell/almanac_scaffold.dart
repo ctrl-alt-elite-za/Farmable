@@ -33,23 +33,29 @@ class AlmanacScaffold extends StatelessWidget {
     body: body,
     bottomNavigationBar: SafeArea(
       top: false,
-      child: SizedBox(
-        // The island's own 64 plus its 16 of bottom inset, and enough above it
-        // for the assistant button's top half and its word to ride proud.
-        height: 112,
-        child: Stack(
-          alignment: Alignment.bottomCenter,
-          clipBehavior: Clip.none,
-          children: [
-            BottomNavIsland(
-              current: destination,
-              onSelect: (d) {
-                if (d == destination) return;
-                context.go(d.route);
-              },
-            ),
-            AIActionButton(onPressed: () => showAssistantSheet(context)),
-          ],
+      // The island and the assistant's word sit in fixed heights, so their
+      // labels stop growing at 150%. Past that "Farm" and "Speak" were cut
+      // off at the bottom — every screen, at the system's larger text sizes.
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.5,
+        child: SizedBox(
+          // The island's own 64 plus its 16 of bottom inset, and enough above it
+          // for the assistant button's top half and its word to ride proud.
+          height: 112,
+          child: Stack(
+            alignment: Alignment.bottomCenter,
+            clipBehavior: Clip.none,
+            children: [
+              BottomNavIsland(
+                current: destination,
+                onSelect: (d) {
+                  if (d == destination) return;
+                  context.go(d.route);
+                },
+              ),
+              AIActionButton(onPressed: () => showAssistantSheet(context)),
+            ],
+          ),
         ),
       ),
     ),
