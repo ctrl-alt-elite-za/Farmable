@@ -12,6 +12,7 @@ from check_protocol_first import ProtocolGateError
 from farmable_ml.data import Crop
 from farmable_ml.forecast import shift_month
 from farmable_ml.reports import Bootstrap, build_report
+from farmable_ml.retrospective import RetrospectiveSimulation
 from farmable_ml.scenario import MARKET
 from farmable_ml.seven_default import (
     DECISION_ASSUMPTIONS,
@@ -19,6 +20,7 @@ from farmable_ml.seven_default import (
     validate_tomato_price_rows,
 )
 from test_experiment import simple_models, synthetic_records  # noqa: F401
+from test_retrospective_simulation import cpi, prices
 
 
 def test_gate_precedes_real_data_access(tmp_path, monkeypatch):
@@ -50,6 +52,23 @@ def test_tomato_price_only_forecasts_ignore_post_cutoff_prices():
     assert all("yield" not in field and "cost" not in field for field in rows[0])
     with pytest.raises(ValueError, match="incorrect columns"):
         validate_tomato_price_rows([dict(row, profit=0) for row in rows])
+
+
+def test_seven_default_choice_is_unaffected_by_future_price_mutation(simple_models):  # noqa: F811
+    origin = date(2018, 9, 1)
+    records = prices()
+    changed = tuple(
+        replace(row, price_rand_per_kg=Decimal("9999")) if row.observation_month >= origin else row
+        for row in records
+    )
+    original = RetrospectiveSimulation(
+        records, cpi(), market="synthetic", assumptions=DECISION_ASSUMPTIONS
+    ).freeze((origin,))
+    mutated = RetrospectiveSimulation(
+        changed, cpi(), market="synthetic", assumptions=DECISION_ASSUMPTIONS
+    ).freeze((origin,))
+    assert original == mutated
+    assert original[0].recommended != Crop.TOMATOES
 
 
 def test_amended_runner_is_reproducible_and_excludes_tomato_economics(
