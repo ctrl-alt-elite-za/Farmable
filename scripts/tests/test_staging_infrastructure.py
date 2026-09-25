@@ -849,6 +849,17 @@ def _provider_secret_gcloud(log: Path, sha: str, *, secrets: str, versions: str)
     `secrets list` and `secrets versions list` are matched separately: "secrets list"
     is not a substring of "secrets versions list", so the two cannot be confused.
     """
+    required_export_resource = "farmable-staging-export-token-secret"
+    secrets = "\n".join(filter(None, (required_export_resource, secrets)))
+    versions = "\n".join(
+        filter(
+            None,
+            (
+                "projects/1/secrets/farmable-staging-export-token-secret/versions/1",
+                versions,
+            ),
+        )
+    )
     service_json = (
         '{"status":{"traffic":[{"tag":"sha-' + sha + '",'
         '"url":"https://sha-' + sha[:8] + '---farmable.run.app",'
