@@ -15,6 +15,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../data/auth/api_auth_service.dart';
 import '../../domain/auth/auth_models.dart';
 import '../../domain/auth/auth_service.dart';
 import '../../domain/auth/contact_details.dart';
@@ -181,6 +182,38 @@ class AuthViewModel extends AsyncNotifier<AuthStanding> {
     await ref.read(accountServiceProvider).forget();
     state = const AsyncData(SignedOut());
   });
+
+  /// Ends access here before asking the server to revoke the other devices.
+  /// The server result is reported after the local standing has changed, so a
+  /// missing signal never leaves this phone signed in.
+  Future<AuthFailure?> signOutEverywhere() async {
+    final current = state.value;
+    if (current is! SignedIn) return AuthFailure.invalidSession;
+    final service = _service;
+    if (service is! ApiAuthService) return signOut();
+
+    AuthFailure? localFailure;
+    try {
+      await service.endSessionLocally();
+    } on AuthException catch (e) {
+      localFailure = e.failure;
+    }
+    try {
+      await ref.read(accountServiceProvider).forget();
+    } on Object {
+      localFailure ??= AuthFailure.storageUnavailable;
+    }
+    state = const AsyncData(SignedOut());
+
+    try {
+      await service.revokeAllWithToken(current.session.token);
+    } on AuthException catch (e) {
+      return e.failure;
+    } on Object {
+      return AuthFailure.unknown;
+    }
+    return localFailure;
+  }
 
   /// Abandons a half-finished signup, so the verify screen can offer a way
   /// out that is not "reinstall the app".
