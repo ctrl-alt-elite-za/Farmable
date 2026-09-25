@@ -12,6 +12,8 @@ import '../../core/ui/layout.dart';
 import '../home/widgets/health_summary_card.dart' show HealthGauge;
 import '../shell/almanac_scaffold.dart';
 import '../shell/bottom_nav_island.dart';
+import '../zone/widgets/record_sheets.dart' show showObservationActions;
+import '../zone/zone_view_model.dart' show zoneActionsProvider;
 import 'health_view_model.dart';
 import 'widgets/health_rows.dart';
 
@@ -71,14 +73,24 @@ class HealthScreen extends ConsumerWidget {
   }
 }
 
-class _Overview extends StatelessWidget {
+class _Overview extends ConsumerWidget {
   final HealthOverview view;
 
   const _Overview({required this.view});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     void open(SectionHealth s) => context.push('/farm/zone/${s.id}');
+
+    // The observation itself, in the same Edit · Delete sheet Zone Detail
+    // opens when one is tapped there — so the farmer can correct or withdraw
+    // the note that put the section in this state without hunting for it.
+    void openNote(SectionHealth s) => showObservationActions(
+      context: context,
+      observation: s.reason!,
+      actions: ref.read(zoneActionsProvider(s.id)),
+      today: view.today,
+    );
     final attention = view.needingALook;
 
     return SafeArea(
@@ -116,6 +128,7 @@ class _Overview extends StatelessWidget {
                       health: s,
                       last: s == view.sections.last,
                       onTap: () => open(s),
+                      onOpenNote: s.reason == null ? null : () => openNote(s),
                     ),
                 ],
               ),
@@ -135,6 +148,7 @@ class _Overview extends StatelessWidget {
                       today: view.today,
                       last: s == attention.last,
                       onOpen: () => open(s),
+                      onOpenNote: () => openNote(s),
                     ),
                 ],
               ),

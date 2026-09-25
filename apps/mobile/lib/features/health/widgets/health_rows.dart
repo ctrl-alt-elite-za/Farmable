@@ -16,16 +16,22 @@ import '../health_view_model.dart';
 /// The reason is the observation's own words, because "Needs attention" on
 /// its own tells the farmer that something is wrong but not what to go and
 /// look at.
+///
+/// Two ways in: the row opens the section, and the reason — its own tap
+/// target — opens the observation it was read from. Null [onOpenNote] when
+/// nothing has been written down, so there is no note to open.
 class SectionHealthRow extends StatelessWidget {
   final SectionHealth health;
   final bool last;
   final VoidCallback onTap;
+  final VoidCallback? onOpenNote;
 
   const SectionHealthRow({
     super.key,
     required this.health,
     required this.last,
     required this.onTap,
+    this.onOpenNote,
   });
 
   @override
@@ -75,37 +81,43 @@ class SectionHealthRow extends StatelessWidget {
                   children: [
                     Text(health.name, style: text.bodyMedium),
                     const SizedBox(height: 2),
-                    Text(
-                      sub,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.labelSmall?.copyWith(
-                        color: c.onSurfaceVariant,
-                      ),
-                    ),
-                    if (age != null) ...[
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Icon(
-                            health.stale
-                                ? LucideIcons.history
-                                : LucideIcons.clock,
-                            size: 13,
+                    _Reason(
+                      onTap: onOpenNote,
+                      label: 'Open the note on ${health.name}',
+                      children: [
+                        Text(
+                          sub,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.labelSmall?.copyWith(
                             color: c.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              age,
-                              style: text.labelSmall?.copyWith(
+                        ),
+                        if (age != null) ...[
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                health.stale
+                                    ? LucideIcons.history
+                                    : LucideIcons.clock,
+                                size: 13,
                                 color: c.onSurfaceVariant,
                               ),
-                            ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  age,
+                                  style: text.labelSmall?.copyWith(
+                                    color: c.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -136,12 +148,52 @@ class SectionHealthRow extends StatelessWidget {
   }
 }
 
-/// A section that needs attention, with the whole observation and a way in.
+/// The reason under a section's name. Tappable, with a 48px target, when
+/// there is a note behind it; plain text when there is not.
+class _Reason extends StatelessWidget {
+  final VoidCallback? onTap;
+  final String label;
+  final List<Widget> children;
+
+  const _Reason({
+    required this.onTap,
+    required this.label,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final column = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
+    if (onTap == null) return column;
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AlmanacDimens.rXs),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AlmanacDimens.touchMin,
+            minWidth: double.infinity,
+          ),
+          child: column,
+        ),
+      ),
+    );
+  }
+}
+
+/// A section that needs attention, with the whole observation and two ways
+/// in: the note itself, and the section.
 class AttentionRow extends StatelessWidget {
   final SectionHealth health;
   final DateTime today;
   final bool last;
   final VoidCallback onOpen;
+  final VoidCallback onOpenNote;
 
   const AttentionRow({
     super.key,
@@ -149,6 +201,7 @@ class AttentionRow extends StatelessWidget {
     required this.today,
     required this.last,
     required this.onOpen,
+    required this.onOpenNote,
   });
 
   @override
@@ -199,17 +252,22 @@ class AttentionRow extends StatelessWidget {
                   style: text.labelSmall?.copyWith(color: c.onSurfaceVariant),
                 ),
                 const SizedBox(height: AlmanacDimens.sp2),
-                // A real control with a 48px target, not a bare link.
-                TextButton.icon(
-                  onPressed: onOpen,
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, AlmanacDimens.touchMin),
-                    padding: EdgeInsets.zero,
-                    foregroundColor: c.primary,
-                    textStyle: text.labelMedium,
-                  ),
-                  icon: const Icon(LucideIcons.arrowRight, size: 18),
-                  label: Text('Open ${health.name}'),
+                // Real controls with 48px targets, not bare links. A Wrap, so
+                // at large text the second drops below the first.
+                Wrap(
+                  spacing: AlmanacDimens.sp4,
+                  children: [
+                    _LinkButton(
+                      icon: LucideIcons.notebookPen,
+                      label: 'See the note',
+                      onPressed: onOpenNote,
+                    ),
+                    _LinkButton(
+                      icon: LucideIcons.arrowRight,
+                      label: 'Open ${health.name}',
+                      onPressed: onOpen,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -218,6 +276,31 @@ class AttentionRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _LinkButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _LinkButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) => TextButton.icon(
+    onPressed: onPressed,
+    style: TextButton.styleFrom(
+      minimumSize: const Size(0, AlmanacDimens.touchMin),
+      padding: EdgeInsets.zero,
+      foregroundColor: context.semantic.primary,
+      textStyle: Theme.of(context).textTheme.labelMedium,
+    ),
+    icon: Icon(icon, size: 18),
+    label: Text(label),
+  );
 }
 
 /// Crop scans (#18, #19) are not on the phone yet.

@@ -84,6 +84,77 @@ void main() {
       expect(find.text('Tomato Section'), findsWidgets);
     });
 
+    // Tomato Section holds two observations: "Leaf curl" (the latest, needs
+    // attention) and an older "Routine check" (on track). The link has to
+    // open the one the state was read from, not merely one from the section.
+    testWidgets('tapping the reason opens that exact observation', (
+      tester,
+    ) async {
+      await pumpFarmApp(tester, location: '/health');
+
+      await tester.tap(
+        find.bySemanticsLabel(RegExp('^Open the note on Tomato Section')),
+      );
+      await tester.pumpAndSettle();
+
+      // The observation's own sheet, over the overview — not Zone Detail.
+      expect(find.text('Leaf curl'), findsOneWidget);
+      expect(find.text('Routine check'), findsNothing);
+      expect(find.byType(ZoneScreen), findsNothing);
+
+      // And Edit opens that record's own words.
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      expect(find.text('Change this observation'), findsOneWidget);
+      expect(
+        find.widgetWithText(
+          TextField,
+          'Curling and purple veins on the lower leaves of the middle rows.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('"See the note" acts on the observation behind the state', (
+      tester,
+    ) async {
+      await pumpFarmApp(tester, location: '/health');
+
+      await revealOnPage(tester, find.text('See the note'));
+      await tester.tap(find.text('See the note'));
+      await tester.pumpAndSettle();
+      expect(find.text('Leaf curl'), findsOneWidget);
+
+      // Deleting it withdraws exactly that record: Tomato Section falls back
+      // to the older on-track check, and nothing needs a look any more.
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete').last);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(HealthScreen), findsOneWidget);
+      expect(find.text('Needs a look'), findsNothing);
+      await revealOnPage(
+        tester,
+        find.text('Staking finished. Plants holding well after the wind.'),
+      );
+    });
+
+    testWidgets('a section with nothing written down has no note to open', (
+      tester,
+    ) async {
+      await pumpFarmApp(tester, location: '/health');
+
+      expect(
+        find.bySemanticsLabel(RegExp('^Open the note on North Plot')),
+        findsNothing,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp('^Open the note on Tomato Section')),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('Home\'s "Review health" opens the overview', (tester) async {
       await pumpFarmApp(tester);
 
