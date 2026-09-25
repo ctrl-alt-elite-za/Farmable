@@ -32,6 +32,15 @@ CAVEATS = [
 ]
 STRICT_SCENARIO = "strict_historical"
 RETROSPECTIVE_SCENARIO = "retrospective_fixed_2025"
+SEVEN_DEFAULT_SCENARIO = "retrospective_fixed_2025_seven_defaults"
+SEVEN_DEFAULTS = tuple(crop for crop in Crop if crop != Crop.TOMATOES)
+SEVEN_HISTORICAL_KEYS = frozenset(
+    (month, crop) for month in HISTORICAL_MONTHS for crop in SEVEN_DEFAULTS
+)
+TOMATO_EXCLUSION = (
+    "No compatible reviewed fresh-market tomato production budget; the published "
+    "version 1 result paired a processing budget with fresh-market prices."
+)
 RETROSPECTIVE_CAVEATS = [
     "Current-vintage Johannesburg history has unresolved publication/revision uncertainty.",
     "The next-month observation cutoff is analytical, not a publisher release-date claim.",
@@ -51,13 +60,13 @@ def _information_status(
     information_cutoff_verified: bool,
     observation_cutoff_verified: bool,
 ) -> str:
-    if scenario not in {STRICT_SCENARIO, RETROSPECTIVE_SCENARIO}:
+    if scenario not in {STRICT_SCENARIO, RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO}:
         raise ValueError("report requires an explicit supported scenario")
     if data_kind == "synthetic":
         if information_cutoff_verified or observation_cutoff_verified:
             raise ValueError("synthetic fixtures cannot claim verified historical information")
         return "synthetic_not_applicable"
-    if scenario == RETROSPECTIVE_SCENARIO:
+    if scenario in {RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO}:
         if information_cutoff_verified:
             raise ValueError("retrospective scenario cannot claim strict historical availability")
         if not observation_cutoff_verified:
@@ -173,12 +182,18 @@ def build_report(
     ):
         raise ValueError("input_hashes must contain lowercase SHA-256 digests")
     ordered = tuple(sorted(rows, key=lambda row: (row.origin, row.default)))
+    if scenario == SEVEN_DEFAULT_SCENARIO and any(
+        row.default == Crop.TOMATOES or row.recommended == Crop.TOMATOES for row in ordered
+    ):
+        raise ValueError("tomatoes cannot enter seven-default decision economics")
     if len({(row.origin, row.default) for row in ordered}) != len(ordered):
         raise ValueError("duplicate default/planting-month decisions")
     keys = {(row.origin, row.default) for row in ordered}
+    defaults = SEVEN_DEFAULTS if scenario == SEVEN_DEFAULT_SCENARIO else tuple(Crop)
+    expected_keys = SEVEN_HISTORICAL_KEYS if scenario == SEVEN_DEFAULT_SCENARIO else HISTORICAL_KEYS
     if data_kind == "historical":
-        unexpected = keys - HISTORICAL_KEYS
-        missing = HISTORICAL_KEYS - keys
+        unexpected = keys - expected_keys
+        missing = expected_keys - keys
         if unexpected or missing:
             raise ValueError(
                 "insufficient historical coverage: expected every default/planting-month "
@@ -192,11 +207,11 @@ def build_report(
         "end_month": months[-1].strftime("%Y-%m") if months else None,
         "observed_months": len(months),
         "decision_keys": len(keys),
-        "complete_historical_grid": keys == HISTORICAL_KEYS,
+        "complete_historical_grid": keys == expected_keys,
     }
     report = {
         crop.value: metrics(tuple(row for row in ordered if row.default == crop), config)
-        for crop in Crop
+        for crop in defaults
     }
     report["pooled"] = metrics(ordered, config)
     return {
@@ -209,8 +224,26 @@ def build_report(
         "price_basis_year": 2025,
         "unit": "ZAR/ha/month",
         "input_hashes": dict(sorted(input_hashes.items())),
-        "excluded": dict(EXCLUDED),
-        "caveats": CAVEATS + (RETROSPECTIVE_CAVEATS if scenario == RETROSPECTIVE_SCENARIO else []),
+        "excluded": dict(EXCLUDED)
+        | ({Crop.TOMATOES.value: TOMATO_EXCLUSION} if scenario == SEVEN_DEFAULT_SCENARIO else {}),
+        "caveats": (
+            [c for c in CAVEATS if "Tomatoes use" not in c]
+            if scenario == SEVEN_DEFAULT_SCENARIO
+            else CAVEATS
+        )
+        + (
+            RETROSPECTIVE_CAVEATS
+            if scenario in {RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO}
+            else []
+        )
+        + (
+            [
+                "Tomatoes are excluded from production and switching calculations; "
+                "a separate price-only forecast is available."
+            ]
+            if scenario == SEVEN_DEFAULT_SCENARIO
+            else []
+        ),
         "bootstrap": asdict(config),
         "results": report,
     }
@@ -232,7 +265,7 @@ def render_table(report: dict[str, Any]) -> str:
         "Scenario: "
         + (
             "retrospective fixed-2025-input simulation (not historical publication evidence)."
-            if report["scenario"] == RETROSPECTIVE_SCENARIO
+            if report["scenario"] in {RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO}
             else "strict historical information availability."
         ),
         f"Ledger coverage: {period} (bounds; synthetic months may be sparse).",
@@ -243,7 +276,8 @@ def render_table(report: dict[str, Any]) -> str:
         "Median gain % | P10 R | Worst loss R | Median CI90 R |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
-    for name in [crop.value for crop in Crop] + ["pooled"]:
+    defaults = SEVEN_DEFAULTS if report["scenario"] == SEVEN_DEFAULT_SCENARIO else tuple(Crop)
+    for name in [crop.value for crop in defaults] + ["pooled"]:
         item = report["results"][name]
         interval = item["median_gain_ci90"]
         ci = "n/a" if interval is None else f"[{display(interval[0])}, {display(interval[1])}]"
@@ -264,6 +298,11 @@ def render_table(report: dict[str, Any]) -> str:
             "",
             "Undefined values and their reasons are recorded in decision_backtest.json.",
             "",
+            *(
+                [f"Tomatoes excluded: {TOMATO_EXCLUSION}", ""]
+                if report["scenario"] == SEVEN_DEFAULT_SCENARIO
+                else []
+            ),
             *[f"- {item}" for item in report["caveats"]],
             "",
         ]
@@ -278,27 +317,33 @@ def _report_period(report: dict[str, Any]) -> str:
     if not coverage or kind not in {"synthetic", "historical"} or coverage["data_kind"] != kind:
         raise ValueError("report requires validated ledger coverage and matching data kind")
     scenario = report.get("scenario")
-    if scenario not in {STRICT_SCENARIO, RETROSPECTIVE_SCENARIO}:
+    if scenario not in {STRICT_SCENARIO, RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO}:
         raise ValueError("report requires an explicit supported scenario")
     expected_status = (
         "synthetic_not_applicable"
         if kind == "synthetic"
         else "verified_observation_cutoff_only"
-        if scenario == RETROSPECTIVE_SCENARIO
+        if scenario in {RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO}
         else "verified_strictly_before_planting"
     )
     if report.get("information_policy", {}).get("status") != expected_status:
         raise ValueError("report policy has inconsistent information-cutoff evidence")
-    if scenario == RETROSPECTIVE_SCENARIO and not all(
-        caveat in report.get("caveats", []) for caveat in CAVEATS + RETROSPECTIVE_CAVEATS
+    required_caveats = (
+        [c for c in CAVEATS if "Tomatoes use" not in c]
+        if scenario == SEVEN_DEFAULT_SCENARIO
+        else CAVEATS
+    ) + RETROSPECTIVE_CAVEATS
+    if scenario in {RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO} and not all(
+        caveat in report.get("caveats", []) for caveat in required_caveats
     ):
         raise ValueError("retrospective report is missing required caveats")
+    expected_keys = SEVEN_HISTORICAL_KEYS if scenario == SEVEN_DEFAULT_SCENARIO else HISTORICAL_KEYS
     if kind == "historical" and (
         not coverage["complete_historical_grid"]
         or coverage["start_month"] != HISTORICAL_MONTHS[0].strftime("%Y-%m")
         or coverage["end_month"] != HISTORICAL_MONTHS[-1].strftime("%Y-%m")
         or coverage["observed_months"] != len(HISTORICAL_MONTHS)
-        or coverage["decision_keys"] != len(HISTORICAL_KEYS)
+        or coverage["decision_keys"] != len(expected_keys)
     ):
         raise ValueError("insufficient historical coverage or information-cutoff evidence")
     if coverage["start_month"] is None:
@@ -309,17 +354,25 @@ def _report_period(report: dict[str, Any]) -> str:
 def render_sentence(report: dict[str, Any]) -> str:
     period = _report_period(report)
     pooled = report["results"]["pooled"]
-    rates = [report["results"][crop.value]["switch_win_rate"] for crop in Crop]
+    defaults = SEVEN_DEFAULTS if report["scenario"] == SEVEN_DEFAULT_SCENARIO else tuple(Crop)
+    rates = [report["results"][crop.value]["switch_win_rate"] for crop in defaults]
     prefix = (
         "SYNTHETIC TEST FIXTURE — NOT A REAL RESULT.\n"
         if report["data_kind"] == "synthetic"
         else ""
     )
     if pooled["median_gain_rand"] is None or any(rate is None for rate in rates):
-        return prefix + (
-            "INSUFFICIENT EVIDENCE: switch statistics are undefined for one or more defaults.\n"
+        reason = "switch statistics are undefined for one or more defaults."
+        if report["scenario"] == SEVEN_DEFAULT_SCENARIO:
+            reason += " Tomatoes excluded: no compatible reviewed fresh-market production budget."
+        return prefix + f"INSUFFICIENT EVIDENCE: {reason}\n"
+    if report["scenario"] in {RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO}:
+        count = len(defaults)
+        exclusion = (
+            " Tomatoes excluded: no compatible reviewed fresh-market production budget."
+            if report["scenario"] == SEVEN_DEFAULT_SCENARIO
+            else ""
         )
-    if report["scenario"] == RETROSPECTIVE_SCENARIO:
         return (
             prefix + "In a retrospective fixed-2025-input simulation of "
             f"{pooled['decisions']} scorable planting decisions ({period}), "
@@ -328,10 +381,10 @@ def render_sentence(report: dict[str, Any]) -> str:
             f"{display(pooled['switch_win_rate'], percent=True)}% of the time, with a median "
             f"increase of R {display(pooled['median_gain_rand'])} per hectare per month "
             f"(ranging from {display(min(rates), percent=True)}% to "
-            f"{display(max(rates), percent=True)}% across the 8 starting crops). "
+            f"{display(max(rates), percent=True)}% across the {count} starting crops). "
             "Uses current-vintage Joburg Market history, fixed Western Cape production "
             "assumptions and retrospective inflation adjustment; it does not show what "
-            "information was published at the historical planting date.\n"
+            f"information was published at the historical planting date.{exclusion}\n"
         )
     return (
         prefix + f"In a historical simulation of {pooled['decisions']} planting decisions "

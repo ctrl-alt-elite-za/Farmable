@@ -25,3 +25,17 @@ def test_colab_notebook_is_clean_and_uses_registered_runner():
     assert "--python" in code
     assert code.count("--no-sync") == 3
     assert not any(token in code.lower() for token in ("password=", "api_key", "access_token"))
+
+
+def test_seven_default_notebook_uses_amended_runner_without_credentials():
+    path = ROOT / "ml/notebooks/seven_default_backtest.ipynb"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    code = "\n".join(
+        "".join(cell["source"]) for cell in document["cells"] if cell["cell_type"] == "code"
+    )
+    assert "run_seven_default.py" in code
+    assert "FARMABLE_REVISION" in code
+    assert "--workbooks" in code
+    assert all(cell.get("execution_count") is None for cell in document["cells"])
+    assert all(cell.get("outputs", []) == [] for cell in document["cells"])
+    assert not any(token in code.lower() for token in ("password=", "api_key", "access_token"))

@@ -102,6 +102,23 @@ fixed 2025 budgets with future CPI cannot silently become the recommendation rul
 
 ### Retrospective runner
 
+Protocol Amendment 2 has a separate seven-default runner. After the amendment
+has merged independently on `main`, run it with the same audited workbook
+directory:
+
+```bash
+uv run --with xlrd==2.0.2 --with openpyxl==3.1.5 python ml/backtest/run_seven_default.py --workbooks /path/to/workbooks
+```
+
+The runner refuses real inputs until the merged amendment matches the working
+protocol. It writes a new 1,092-key decision ledger, seven-default report,
+generated sentence, and version comparison without changing version 1. Its
+12-row tomato artifact contains prices only. The credential-free Colab workflow
+is `ml/notebooks/seven_default_backtest.ipynb`. Repeat with a fresh output root
+and compare bytes before committing the amended results. Validate the separate
+price artifact with `uv run python ml/forecast/validate_tomato_price.py
+ml/forecast/results/<run_id>/tomato_price_forecasts.json`.
+
 `ml/backtest/run_retrospective.py` implements the registered scenario. It verifies
 the protocol history gate before reading workbooks, checks each workbook's bytes,
 hash, sheet and cell audit, and never connects to a database. Supply the original
