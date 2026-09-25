@@ -29,6 +29,8 @@ import '../features/auth/sign_up_screen.dart';
 import '../features/auth/verify_screen.dart';
 import '../features/health/health_screen.dart';
 import '../features/crop_scan/crop_scan_screen.dart';
+import '../features/farm/farm_map_screen.dart';
+import '../features/farm/farm_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
 import '../features/recommendations/recommendation_detail_screen.dart';
@@ -90,25 +92,15 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
 
     GoRoute(
       path: '/farm',
-      builder: (_, _) => const NotBuiltYetScreen(
-        destination: NavDestination.farm,
-        title: 'Farm',
-        body:
-            'The map and the full list of sections live here. For now, open '
-            'a section from the carousel on Home.',
+      // Sections mode by default — what Home's "See all" promises — and map
+      // mode at `/farm?view=map`.
+      builder: (_, state) => FarmScreen(
+        initialMode: state.uri.queryParameters['view'] == 'map'
+            ? FarmTabMode.map
+            : FarmTabMode.sections,
       ),
       routes: [
-        GoRoute(
-          path: 'map',
-          builder: (_, _) => const NotBuiltYetScreen(
-            destination: NavDestination.farm,
-            title: 'Farm map',
-            body:
-                'Walking your boundaries with the camera is being built. '
-                'Your sections and their areas are already saved on this '
-                'phone.',
-          ),
-        ),
+        GoRoute(path: 'map', builder: (_, _) => const FarmMapScreen()),
         GoRoute(
           path: 'zone/:zoneId',
           builder: (context, state) =>

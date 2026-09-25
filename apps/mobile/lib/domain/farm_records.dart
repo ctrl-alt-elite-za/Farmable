@@ -371,6 +371,9 @@ class SectionSummary {
   /// not a warning: "2 changes waiting".
   final int pendingChanges;
 
+  /// The walked boundary as stored — GeoJSON text, null if never walked.
+  final String? boundary;
+
   const SectionSummary({
     required this.section,
     required this.planting,
@@ -379,6 +382,7 @@ class SectionSummary {
     required this.nextTask,
     required this.spentSoFar,
     required this.pendingChanges,
+    this.boundary,
   });
 
   String get id => section.id;
