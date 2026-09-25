@@ -25,8 +25,13 @@ Future<void> nameAccountFarmLocally(
   String name,
 ) async {
   if (!scope.isAccount) return;
+  // Only when it differs: a write that changes nothing would still wake
+  // everything watching the farm, including the keeper that calls this.
   await (db.update(db.farms)..where(
-        (t) => t.id.equals(scope.farmId) & t.ownerId.equals(scope.ownerId),
+        (t) =>
+            t.id.equals(scope.farmId) &
+            t.ownerId.equals(scope.ownerId) &
+            t.name.equals(name).not(),
       ))
       .write(FarmsCompanion(name: Value(name)));
 }

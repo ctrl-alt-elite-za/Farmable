@@ -10,6 +10,8 @@
 /// authentication runs against the local demo, as a phone with no signal.
 library;
 
+import 'dart:io';
+
 import 'package:almanac/app/app.dart';
 import 'package:almanac/app/providers.dart';
 import 'package:almanac/data/auth/demo_auth_service.dart';
@@ -36,23 +38,31 @@ class _Offline implements HealthService {
   Future<Reachability> check() async => Reachability.offline;
 }
 
-/// A phone that will not answer at all.
-class _BrokenStorage implements SessionStorage {
-  @override
-  Future<Map<String, Object?>?> read() => throw StateError('unreadable');
+/// The launch file, in memory.
+class _MemoryLaunchFile implements LaunchFile {
+  String? contents;
 
   @override
-  Future<void> write(Map<String, Object?> value) =>
-      throw StateError('unwritable');
+  Future<String?> read() async => contents;
 
   @override
-  Future<void> clear() async {}
+  Future<void> write(String contents) async => this.contents = contents;
+}
+
+/// A file that is there and will not be read — nor written.
+class _UnreadableLaunchFile implements LaunchFile {
+  @override
+  Future<String?> read() => throw const FileSystemException('unreadable');
+
+  @override
+  Future<void> write(String contents) =>
+      throw const FileSystemException('unwritable');
 }
 
 /// One phone: what survives from one launch to the next.
 class _Phone {
   final db = AlmanacDatabase.memory();
-  final launch = InMemorySessionStorage();
+  final launch = _MemoryLaunchFile();
   final session = InMemorySessionStorage();
   final account = InMemorySessionStorage();
 }
@@ -61,7 +71,7 @@ class _Phone {
 Future<ProviderContainer> _launch(
   WidgetTester tester,
   _Phone phone, {
-  SessionStorage? launchStorage,
+  LaunchFile? launchFile,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = phoneSize;
@@ -74,7 +84,7 @@ Future<ProviderContainer> _launch(
       healthServiceProvider.overrideWithValue(_Offline()),
       permissionServiceProvider.overrideWithValue(FakePermissionService()),
       launchRecordProvider.overrideWithValue(
-        LaunchRecord(launchStorage ?? phone.launch, now: () => pinnedToday),
+        LaunchRecord(launchFile ?? phone.launch, now: () => pinnedToday),
       ),
       sessionStorageProvider.overrideWithValue(phone.session),
       accountStorageProvider.overrideWithValue(phone.account),
@@ -172,7 +182,23 @@ void main() {
   testWidgets('a launch record that cannot be read opens Home, not the intro', (
     tester,
   ) async {
-    await _launch(tester, phone, launchStorage: _BrokenStorage());
+    await _launch(tester, phone, launchFile: _UnreadableLaunchFile());
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(find.byType(OnboardingScreen), findsNothing);
+
+    // And again: a record that cannot be written either never turns into an
+    // intro on every launch.
+    await _launch(tester, phone, launchFile: _UnreadableLaunchFile());
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeScreen), findsOneWidget);
+  });
+
+  testWidgets('a garbled launch record opens Home, not the intro', (
+    tester,
+  ) async {
+    phone.launch.contents = '{"intro_seen_at": 2026-09-';
+    await _launch(tester, phone);
     await tester.pumpAndSettle();
     expect(find.byType(HomeScreen), findsOneWidget);
     expect(find.byType(OnboardingScreen), findsNothing);
@@ -211,5 +237,45 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget);
     expect(find.byType(OnboardingScreen), findsNothing);
     expect(await LaunchRecord(phone.launch).introSeen(), isTrue);
+  });
+
+  group('the launch file on disk', () {
+    late Directory dir;
+    late LaunchRecord record;
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('almanac-launch-');
+      record = LaunchRecord(DeviceLaunchFile(directory: () async => dir));
+    });
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    File file() => File('${dir.path}/${DeviceLaunchFile.fileName}');
+
+    test('no file is a fresh install; marking it is remembered', () async {
+      expect(await record.introSeen(), isFalse);
+      await record.markIntroSeen();
+      expect(file().existsSync(), isTrue);
+      expect(await record.introSeen(), isTrue);
+    });
+
+    test('a garbled file reads as seen, not as a fresh install', () async {
+      file().writeAsStringSync('{"intro_seen_at": 2026-');
+      expect(await record.introSeen(), isTrue);
+    });
+
+    test('a file that cannot be read reads as seen', () async {
+      // A directory where the file should be: there, and not readable as one.
+      Directory(file().path).createSync();
+      expect(await record.introSeen(), isTrue);
+    });
+
+    test('a folder that cannot be found reads as seen', () async {
+      final gone = LaunchRecord(
+        DeviceLaunchFile(
+          directory: () async => throw const FileSystemException(),
+        ),
+      );
+      expect(await gone.introSeen(), isTrue);
+    });
   });
 }

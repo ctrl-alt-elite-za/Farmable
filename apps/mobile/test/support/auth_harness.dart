@@ -34,6 +34,7 @@ import 'package:almanac/features/account/export_screen.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/auth/widgets/auth_scaffold.dart';
 import 'package:almanac/features/permissions/permission_controls.dart';
+import 'package:almanac/features/setup/farm_name_keeper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -240,6 +241,7 @@ Future<AuthHarness> pumpAuthApp(
           builder: (context, ref, child) {
             keepSessionFresh(ref);
             keepFarmSynced(ref);
+            keepFarmNameSent(ref);
             return child!;
           },
           child: MaterialApp.router(

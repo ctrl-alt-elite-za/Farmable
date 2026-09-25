@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/auth_view_model.dart';
+import '../features/setup/farm_name_keeper.dart';
 import '../features/setup/setup_providers.dart';
 import 'providers.dart';
 import 'router.dart';
@@ -50,6 +51,7 @@ class _AlmanacAppState extends ConsumerState<AlmanacApp> {
     ref.watch(seedProvider);
     keepSessionFresh(ref);
     keepFarmSynced(ref);
+    keepFarmNameSent(ref);
     _lifecycle;
 
     return MaterialApp.router(
