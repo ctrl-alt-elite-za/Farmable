@@ -164,3 +164,14 @@ several crops lack yield ranges or explicit durations, onions lack a planting
 window, butternut's class-level yield unit is unsafe, and regional/cultivar choices
 remain. Historical release dates and redistribution permission are also unknown.
 No calendar row is imported from the PDFs.
+
+### Land Bank market-tomato budget candidate
+
+The Land Bank [2025/26 vegetable enterprise budget](https://landbank.co.za/Media-Centre/Publications/2026/Vegetable%20Enterprise%20Budget%202025%20print.pdf)
+was downloaded on 25 September 2026 and inspected at the original-file level.
+Its 4,637,725 bytes have SHA-256
+`50a329bd452770b8dc02d0f8e1b69ab7ab95d921c7982cf47e3b93b13a5820c7`.
+See `LANDBANK_TOMATO_REVIEW.md` for the tomato fields, arithmetic and blockers.
+The PDF is not redistributed, and its copyright notice requires permission for
+copying or reprinting. It is a candidate for a future registered evaluation, not
+an input to the completed version 1 result.
