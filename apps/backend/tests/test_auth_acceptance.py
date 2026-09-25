@@ -582,3 +582,79 @@ def test_turnstile_down_refuses(settings):
         assert session.scalar(select(AuthIdentity)) is None
         assert session.scalar(select(User)) is None
         assert session.scalar(select(Farm)) is None
+
+
+def test_idempotency_fingerprint_never_runs_on_the_event_loop(settings, monkeypatch):
+    import asyncio
+
+    import farmable_backend.main as main_module
+
+    real = main_module.idempotency_fingerprint
+    calls = []
+
+    def off_loop_only(payload, *, key):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            calls.append(sorted(payload))
+            return real(payload, key=key)
+        raise AssertionError("idempotency fingerprint ran on the event loop")
+
+    monkeypatch.setattr(main_module, "idempotency_fingerprint", off_loop_only)
+    app, _, _, _ = _app(settings)
+    with TestClient(app) as client:
+        signup = _signup_request(client)
+        assert signup.status_code == 200
+        assert _resend_request(client, signup.json()["user_id"]).status_code == 204
+    # Claim and store for each route, all computed in the thread pool.
+    assert sum("password" in fields for fields in calls) == 2
+    assert calls.count(["channel", "user_id"]) == 2
+
+
+def test_fingerprint_uses_scrypt_only_for_credential_bodies(monkeypatch):
+    import hashlib
+
+    real_scrypt = hashlib.scrypt
+    scrypt_calls = []
+
+    def counting_scrypt(*args, **kwargs):
+        scrypt_calls.append(1)
+        return real_scrypt(*args, **kwargs)
+
+    monkeypatch.setattr(hashlib, "scrypt", counting_scrypt)
+    key = _idempotency_key("fingerprint-cost")
+    resend = {"user_id": str(uuid4()), "channel": "phone"}
+    assert fingerprint(resend, key=key) == fingerprint(dict(reversed(resend.items())), key=key)
+    assert fingerprint(resend, key=key) != fingerprint(resend, key=f"{key}-other")
+    assert fingerprint({"format": "json"}, key=key) != fingerprint({"format": "zip"}, key=key)
+    assert scrypt_calls == []
+
+    signup = {name: value for name, value in _signup_body().items() if name != "turnstile_token"}
+    assert PASSWORD not in fingerprint(signup, key=key)
+    assert fingerprint({"change": {"new_password": PASSWORD}}, key=key)
+    assert len(scrypt_calls) == 2
+
+
+def test_login_and_signup_limits_see_the_forwarded_caller(settings, monkeypatch):
+    app, auth, _, _ = _app(settings.model_copy(update={"trusted_proxy_hops": 1}))
+    seen = []
+
+    def record_login(identifier, password, *, ip):
+        seen.append(("login", ip))
+        raise AuthError("invalid_credentials", 401)
+
+    signup = auth.signup
+
+    def record_signup(*args, ip, **kwargs):
+        seen.append(("signup", ip))
+        return signup(*args, ip=ip, **kwargs)
+
+    monkeypatch.setattr(auth, "login", record_login)
+    monkeypatch.setattr(auth, "signup", record_signup)
+    spoofed = {"X-Forwarded-For": "6.6.6.6, 203.0.113.9"}
+    login = {"identifier": "a@example.com", "password": PASSWORD, "turnstile_token": "t"}
+    with TestClient(app) as client:
+        client.post("/auth/login", json=login, headers=spoofed)
+        key = _idempotency_key("forwarded-signup")
+        client.post("/auth/signup", json=_signup_body(), headers=spoofed | {"Idempotency-Key": key})
+    assert seen == [("login", "203.0.113.9"), ("signup", "203.0.113.9")]

@@ -125,7 +125,19 @@ optional_secrets=(
   "AZURE_SPEECH_REGION:azure-speech-region"
   "CROP_HEALTH_API_KEY:crop-health-api-key"
   "MAPS_SERVER_API_KEY:maps-server-api-key"
+  "INFOBIP_BASE_URL:infobip-base-url"
+  "INFOBIP_API_KEY:infobip-api-key"
+  "INFOBIP_SMS_SENDER:infobip-sms-sender"
+  "SMTP_HOST:smtp-host"
+  "SMTP_USER:smtp-user"
+  "SMTP_PASSWORD:smtp-password"
+  "EMAIL_FROM_NAME:email-from-name"
+  "EMAIL_FROM_ADDRESS:email-from-address"
 )
+# Live mode delivers sign-up codes through these; without them sign-up cannot
+# complete (and a live backend refuses to boot without its SMTP settings).
+otp_delivery_secrets=(INFOBIP_BASE_URL INFOBIP_API_KEY INFOBIP_SMS_SENDER SMTP_HOST SMTP_USER
+  SMTP_PASSWORD EMAIL_FROM_NAME EMAIL_FROM_ADDRESS)
 
 # One listing call decides existence for every candidate. Probing each secret
 # individually cannot tell NOT_FOUND from a transient 503, and reading a transient
@@ -169,13 +181,22 @@ done
 echo "Integrations mode: ${INTEGRATIONS_MODE}"
 echo "Provider secrets wired: ${wired[*]:-none}"
 echo "Provider secrets skipped, no enabled version: ${skipped[*]:-none}"
+if [[ "$INTEGRATIONS_MODE" == live ]]; then
+  missing_otp=()
+  for env_name in "${otp_delivery_secrets[@]}"; do
+    [[ " ${wired[*]:-} " == *" ${env_name} "* ]] || missing_otp+=("$env_name")
+  done
+  if [[ ${#missing_otp[@]} -gt 0 ]]; then
+    echo "::warning::Live sign-up OTP delivery is not configured; missing: ${missing_otp[*]}"
+  fi
+fi
 
 gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --project="$GCP_PROJECT" --region="$GCP_REGION" \
   --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="sha-${COMMIT_SHA}" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
-  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \
+  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE,TRUSTED_PROXY_HOPS=1" \
   --set-secrets="$secret_args" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null

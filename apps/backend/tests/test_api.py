@@ -3,9 +3,10 @@ import logging
 from uuid import UUID, uuid4
 
 import pytest
+from farmable_backend.account_api import client_ip as account_client_ip
 from farmable_backend.logging import JsonFormatter, request_id
 from farmable_backend.main import create_app
-from farmable_backend.middleware import RateLimiter
+from farmable_backend.middleware import RateLimiter, client_address
 from farmable_backend.schemas import StrictModel
 from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
@@ -69,6 +70,69 @@ def test_rate_limit_is_per_ip_and_bounded():
     now[0] += 60
     assert limiter.retry_after("c") is None
     assert len(limiter.hits) == 1
+
+
+def _scope(peer: str, *forwarded: str) -> dict:
+    headers = [(b"x-forwarded-for", value.encode()) for value in forwarded]
+    return {"type": "http", "client": (peer, 1234), "headers": headers}
+
+
+def test_client_address_ignores_forwarded_for_without_a_trusted_proxy():
+    scope = _scope("198.51.100.7", "203.0.113.9")
+    assert client_address(scope) == "198.51.100.7"
+    assert client_address(scope, 0) == "198.51.100.7"
+
+
+@pytest.mark.parametrize(
+    ("forwarded", "hops", "expected"),
+    [
+        # The trusted proxy appends the caller; client-supplied entries sit left of it.
+        (("203.0.113.9",), 1, "203.0.113.9"),
+        (("6.6.6.6, 203.0.113.9",), 1, "203.0.113.9"),
+        (("6.6.6.6", "203.0.113.9"), 1, "203.0.113.9"),
+        (("6.6.6.6,203.0.113.9, 192.0.2.1",), 2, "203.0.113.9"),
+        (("2001:db8::1",), 1, "2001:db8::1"),
+        # Missing or malformed trusted entries fall back to the shared peer bucket.
+        ((), 1, "169.254.1.1"),
+        (("203.0.113.9",), 2, "169.254.1.1"),
+        (("6.6.6.6, not-an-ip",), 1, "169.254.1.1"),
+        (("6.6.6.6, ",), 1, "169.254.1.1"),
+    ],
+)
+def test_client_address_trusts_only_proxy_appended_entries(forwarded, hops, expected):
+    assert client_address(_scope("169.254.1.1", *forwarded), hops) == expected
+
+
+def test_trusted_proxy_gives_each_caller_its_own_bucket_and_ignores_spoofing(settings):
+    now = [100.0]
+    app = create_app(
+        settings.model_copy(update={"trusted_proxy_hops": 1}),
+        readiness=lambda: {},
+        limiter=RateLimiter(clock=lambda: now[0]),
+    )
+    with TestClient(app) as client:
+        for index in range(120):
+            # A fresh spoofed left-hand entry each time must not reset the bucket.
+            spoofed = f"10.0.0.{index % 250}, 203.0.113.9"
+            response = client.get("/health/live", headers={"X-Forwarded-For": spoofed})
+            assert response.status_code == 200
+        blocked = client.get("/health/live", headers={"X-Forwarded-For": "1.2.3.4, 203.0.113.9"})
+        assert blocked.status_code == 429
+        # Another caller behind the same front-end proxy is unaffected.
+        other = client.get("/health/live", headers={"X-Forwarded-For": "203.0.113.10"})
+        assert other.status_code == 200
+
+
+def test_account_routes_use_the_middleware_resolved_client():
+    request = Request(
+        {
+            "type": "http",
+            "client": ("169.254.1.1", 1234),
+            "headers": [(b"x-forwarded-for", b"6.6.6.6")],
+            "state": {"client_ip": "203.0.113.9"},
+        }
+    )
+    assert account_client_ip(request) == "203.0.113.9"
 
 
 class TestPayload(StrictModel):

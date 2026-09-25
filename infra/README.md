@@ -117,6 +117,25 @@ keys can be added later followed by a redeploy:
 `azure-speech-region`, `crop-health-api-key`, `maps-server-api-key` — each prefixed
 `farmable-staging-`.
 
+**Required for sign-up in live mode** — `INTEGRATIONS_MODE=live` (the default) sends
+sign-up codes by SMS through Infobip and by email through Gmail SMTP:
+`infobip-base-url`, `infobip-api-key`, `infobip-sms-sender`, `smtp-host`, `smtp-user`,
+`smtp-password`, `email-from-name`, `email-from-address`. They are wired the same way as
+the optional keys, but a live backend refuses to boot without the SMTP values, and
+sign-up cannot send codes without the Infobip ones. The rollout emits a
+`Live sign-up OTP delivery is not configured` warning naming any that are missing.
+Set `INTEGRATIONS_MODE=disabled` to deploy without them.
+
+The migration and forecast-import jobs receive only `DATABASE_URL` (and the forecast
+GitHub token); they never sign export links, so they are not given
+`EXPORT_TOKEN_SECRET`.
+
+The rollout sets `TRUSTED_PROXY_HOPS=1`. Cloud Run's front end appends the caller's
+address to `X-Forwarded-For`, and per-client abuse limits (sign-up, login, the global
+request limit) use only that last entry; anything a client puts before it is ignored.
+Uvicorn keeps `--no-proxy-headers`. Placing a load balancer in front of the service
+adds entries to the header, so re-verify the hop count before doing so.
+
 Do **not** add placeholder values. The backend refuses to boot if
 `EXPORT_TOKEN_SECRET` is missing or blank, and several fields are pattern-validated
 (`TWILIO_ACCOUNT_SID` must match `^AC[0-9a-fA-F]{32}$`), and a value that fails

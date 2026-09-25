@@ -32,7 +32,7 @@ from farmable_backend.auth import (
     SessionTokens,
 )
 from farmable_backend.auth_challenge import router as auth_challenge_router
-from farmable_backend.config import Settings
+from farmable_backend.config import ProxySettings, Settings
 from farmable_backend.database import Database
 from farmable_backend.diagnosis_api import router as diagnosis_router
 from farmable_backend.forecast_api import router as forecast_router
@@ -54,7 +54,12 @@ from farmable_backend.integrations.email.gmail_smtp import GmailSmtpEmailSender
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
-from farmable_backend.middleware import RateLimiter, SafeDefaultsMiddleware, error_response
+from farmable_backend.middleware import (
+    RateLimiter,
+    SafeDefaultsMiddleware,
+    client_address,
+    error_response,
+)
 from farmable_backend.planning.api import router as planning_router
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import RecordBodyLimit, RecordRuntime
@@ -196,7 +201,11 @@ def create_app(
     app.state.sha = settings.commit_sha if settings else os.getenv("COMMIT_SHA", "unknown")
     app.state.auth_executor = auth_executor
     app.add_middleware(RecordBodyLimit)
-    app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
+    app.add_middleware(
+        SafeDefaultsMiddleware,
+        limiter=limiter or RateLimiter(),
+        trusted_proxy_hops=(settings or ProxySettings()).trusted_proxy_hops,
+    )
     app.include_router(records_router)
     app.include_router(account_router)
     app.include_router(auth_challenge_router)
@@ -273,8 +282,8 @@ def create_app(
         return service
 
     def client_ip(request: Request) -> str:
-        # Single API process; no trusted forwarding headers (see RateLimiter).
-        return request.client.host if request.client else "unknown"
+        # Resolved once by SafeDefaultsMiddleware from its trusted proxy hops.
+        return getattr(request.state, "client_ip", None) or client_address(request.scope)
 
     async def idempotent_replay(
         request: Request, route: str, body: dict, *, scope: str
@@ -286,7 +295,8 @@ def create_app(
         sessions = getattr(auth(request), "sessions", None)
         if not key or sessions is None or not hasattr(sessions, "begin"):
             return None
-        fp = idempotency_fingerprint(body, key=key)
+        # The fingerprint can run scrypt; never block the event loop with it.
+        fp = await run_in_threadpool(idempotency_fingerprint, body, key=key)
         try:
             return await run_in_threadpool(
                 idempotency_replay,
@@ -312,6 +322,7 @@ def create_app(
         if sessions is None or not hasattr(sessions, "begin"):
             return "", None
         key = await require_idempotency_key(request)
+        fp = await run_in_threadpool(idempotency_fingerprint, body, key=key)
         try:
             result = await run_in_threadpool(
                 idempotency_claim,
@@ -319,7 +330,7 @@ def create_app(
                 route=route,
                 scope=scope,
                 key=key,
-                request_fingerprint=idempotency_fingerprint(body, key=key),
+                request_fingerprint=fp,
             )
         except IdempotencyConflict:
             raise AuthError("idempotency_key_conflict", 409) from None
@@ -341,7 +352,7 @@ def create_app(
         sessions = getattr(auth(request), "sessions", None)
         if not key or sessions is None or not hasattr(sessions, "begin"):
             return
-        fp = idempotency_fingerprint(body, key=key)
+        fp = await run_in_threadpool(idempotency_fingerprint, body, key=key)
         await run_in_threadpool(
             idempotency_store,
             sessions,

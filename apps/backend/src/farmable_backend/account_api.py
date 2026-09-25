@@ -28,6 +28,7 @@ from farmable_backend.account_schemas import (
 )
 from farmable_backend.auth import Channel
 from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
+from farmable_backend.middleware import client_address
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import token
 from farmable_backend.schemas import ErrorResponse
@@ -75,8 +76,8 @@ def runtime(request: Request) -> AccountRuntime:
 
 
 def client_ip(request: Request) -> str:
-    # Single API process; no trusted forwarding headers.
-    return request.client.host if request.client else "unknown"
+    # Resolved once by SafeDefaultsMiddleware from its trusted proxy hops.
+    return getattr(request.state, "client_ip", None) or client_address(request.scope)
 
 
 @router.post("/auth/logout", status_code=204, operation_id="authLogout")
@@ -139,8 +140,13 @@ async def write_profile(request: Request, response: Response, payload: ProfileUp
     if key is not None and not 16 <= len(key) <= 200:
         raise ApiError(400, "idempotency_key_required")
     scope = ""
+    request_fingerprint = None
     if key is not None:
         scope = str(await worker.call(worker.service.owner_id, token(request)))
+        # The fingerprint can run scrypt; keep it on the bounded account executor.
+        request_fingerprint = await worker.call(
+            partial(idempotency_fingerprint, payload.model_dump(mode="json"), key=key)
+        )
     return await worker.call(
         partial(
             worker.service.update_profile,
@@ -149,11 +155,7 @@ async def write_profile(request: Request, response: Response, payload: ProfileUp
             ip=client_ip(request),
             idempotency_key=key,
             idempotency_scope=scope,
-            request_fingerprint=(
-                idempotency_fingerprint(payload.model_dump(mode="json"), key=key)
-                if key is not None
-                else None
-            ),
+            request_fingerprint=request_fingerprint,
         )
     )
 
@@ -232,7 +234,7 @@ async def create_export_job(
     scope = ""
     if key:
         scope = str(await worker.call(worker.service.owner_id, token(request)))
-        request_fingerprint = idempotency_fingerprint(body, key=key)
+        request_fingerprint = await worker.call(partial(idempotency_fingerprint, body, key=key))
     else:
         request_fingerprint = None
     job_id, download_token = await worker.call(
