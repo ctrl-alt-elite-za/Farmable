@@ -137,7 +137,8 @@ void main() {
     await revealOnPage(tester, section);
     await tester.tap(section);
     await tester.pumpAndSettle();
-    await tester.tap(find.bySemanticsLabel('Scan this section'));
+    expect(find.bySemanticsIdentifier('zone-scan'), findsOneWidget);
+    await tester.tap(find.bySemanticsIdentifier('zone-scan'));
     await tester.pumpAndSettle();
     expect(find.text('Crop scan'), findsOneWidget);
     expect(find.text('Live scanning is not ready yet'), findsOneWidget);

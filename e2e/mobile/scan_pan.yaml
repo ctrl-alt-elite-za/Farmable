@@ -12,7 +12,8 @@ name: Recorded crop pan keeps warning boxes tappable
     element: 'Cabbage Field\..*'
     direction: DOWN
 - tapOn: 'Cabbage Field\..*'
-- tapOn: 'Scan this section'
+- tapOn:
+    id: 'zone-scan'
 - assertVisible: '.*Test replay.*synthetic crop boxes.*'
 - scrollUntilVisible:
     element:

@@ -61,11 +61,14 @@ class ZoneHero extends StatelessWidget {
                     onPressed: onBack,
                   ),
                   const Spacer(),
-                  IconOnlyButton(
-                    icon: LucideIcons.camera,
-                    semanticLabel: 'Scan this section',
-                    onImagery: true,
-                    onPressed: onScan,
+                  Semantics(
+                    identifier: 'zone-scan',
+                    child: IconOnlyButton(
+                      icon: LucideIcons.camera,
+                      semanticLabel: 'Scan this section',
+                      onImagery: true,
+                      onPressed: onScan,
+                    ),
                   ),
                   const SizedBox(width: AlmanacDimens.sp2),
                   IconOnlyButton(
