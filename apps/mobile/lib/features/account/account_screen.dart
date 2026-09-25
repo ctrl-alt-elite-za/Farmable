@@ -39,6 +39,7 @@ class AccountScreen extends ConsumerWidget {
       destination: NavDestination.profile,
       body: SafeArea(
         child: ListView(
+          key: ValueKey(standing.runtimeType),
           padding: const EdgeInsets.fromLTRB(
             AlmanacDimens.gutter,
             0,
@@ -178,12 +179,6 @@ class _SignedInState extends ConsumerState<_SignedIn> {
           onTap: () => context.go('/profile/privacy'),
         ),
         ProfileRow(
-          icon: LucideIcons.lockKeyhole,
-          title: 'Security',
-          subtitle: 'Where you are signed in',
-          onTap: () => context.go('/profile/security'),
-        ),
-        ProfileRow(
           icon: LucideIcons.download,
           title: 'Download your data',
           subtitle: 'A copy of everything on your account',
@@ -199,6 +194,12 @@ class _SignedInState extends ConsumerState<_SignedIn> {
         Text(
           'Logging out keeps your farm on this phone.',
           style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
+        ),
+        ProfileRow(
+          icon: LucideIcons.lockKeyhole,
+          title: 'Security',
+          subtitle: 'Where you are signed in',
+          onTap: () => context.go('/profile/security'),
         ),
         const SizedBox(height: AlmanacDimens.sp6),
         ProfileRow(
