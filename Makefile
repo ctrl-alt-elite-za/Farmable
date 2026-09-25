@@ -80,7 +80,7 @@ typecheck:
 	pnpm -r --if-present run typecheck
 
 test:
-	node --test scripts/tests/turnstile-page.test.mjs
+	@if command -v node >/dev/null 2>&1; then node --test scripts/tests/turnstile-page.test.mjs; else echo "node not found; skipping Turnstile page tests"; fi
 	@if [ -n "$(SCRIPT_TEST_FILES)" ]; then uv run pytest scripts/tests -q; fi
 	@if [ -n "$(PY_TEST_FILES)" ]; then uv run pytest apps/backend; else echo "no backend tests yet, skipping pytest"; fi
 	@if [ -n "$(ML_SERVICE_TEST_FILES)" ]; then uv run pytest apps/ml-service; else echo "no ML service tests yet, skipping pytest"; fi

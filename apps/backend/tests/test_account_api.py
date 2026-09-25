@@ -22,6 +22,7 @@ from farmable_backend.auth import (
     SessionTokens,
 )
 from farmable_backend.integrations.settings import ServiceSettings
+from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
 from farmable_backend.main import create_app
 from farmable_backend.models import (
     ACCOUNT_LANGUAGES,
@@ -93,7 +94,9 @@ def accounts(settings):
     )
     app.state.auth = auth
     provider = MagicMock(wraps=DeterministicFakeOtpProvider())
-    account_service = AccountService(sessions, provider)
+    account_service = AccountService(
+        sessions, provider, export_token_secret="unit-export-token-secret"
+    )
     account_service.set_consent(_headers(alice)["Authorization"], "data_export", "1", True)
     account_service.set_consent(_headers(bob)["Authorization"], "data_export", "1", True)
     app.state.account = AccountRuntime(account_service)
@@ -464,6 +467,35 @@ def test_failed_combined_contact_delivery_does_not_repeat_first_success(accounts
     assert len(deliveries) == 2
 
 
+def test_export_job_replay_survives_a_new_service_instance(accounts):
+    alice = _headers(accounts.alice)
+    key = "export-service-restart-key"
+    fingerprint = idempotency_fingerprint({"format": "json"}, key=key)
+    first_service = AccountService(
+        accounts.sessions, accounts.provider, export_token_secret="stable-export-secret"
+    )
+    first_id, first_token = first_service.create_export_job(
+        alice["Authorization"],
+        "json",
+        idempotency_key=key,
+        idempotency_scope="",
+        request_fingerprint=fingerprint,
+    )
+    restarted_service = AccountService(
+        accounts.sessions, accounts.provider, export_token_secret="stable-export-secret"
+    )
+    replay_id, replay_token = restarted_service.create_export_job(
+        alice["Authorization"],
+        "json",
+        idempotency_key=key,
+        idempotency_scope="",
+        request_fingerprint=fingerprint,
+    )
+    assert (replay_id, replay_token) == (first_id, first_token)
+    artifact, media_type = restarted_service.download_export_job(replay_id, replay_token)
+    assert artifact and media_type == "application/json"
+
+
 def test_phone_change_requires_confirmation_before_it_applies(accounts):
     alice = _headers(accounts.alice)
     patched = accounts.client.patch(
@@ -479,6 +511,28 @@ def test_phone_change_requires_confirmation_before_it_applies(accounts):
     )
     assert confirmed.status_code == 200
     assert confirmed.json()["phone"] == "+27821234567"
+
+
+def test_contact_change_to_current_value_cancels_pending_change(accounts):
+    alice = _headers(accounts.alice)
+    requested = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "cancel-email"),
+        json={"email": "sipho.cancel@example.com"},
+    )
+    assert requested.status_code == 200
+    cancelled = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "cancel-email-current"),
+        json={"email": "sipho@example.com"},
+    )
+    assert cancelled.status_code == 200
+    assert cancelled.json()["pending_email"] is None
+    old_code = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "222222"}
+    )
+    assert old_code.status_code == 400
+    assert old_code.json()["error"]["code"] == "no_pending_change"
 
 
 def test_contact_change_wrong_code_is_rejected_and_does_not_apply(accounts):
@@ -519,7 +573,11 @@ def test_contact_change_attempts_commit_and_lock_out_after_restart(accounts):
             )
         )
         assert challenge.attempts == 5
-    restarted = AccountService(accounts.sessions, accounts.provider)
+    restarted = AccountService(
+        accounts.sessions,
+        accounts.provider,
+        export_token_secret="unit-export-token-secret",
+    )
     with pytest.raises(ApiError, match="invalid_verification"):
         restarted.confirm_contact_change(alice["Authorization"], Channel.EMAIL, "222222")
     assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (

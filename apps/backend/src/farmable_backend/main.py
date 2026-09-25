@@ -150,11 +150,7 @@ def create_app(
                     AccountService(
                         database.sessions,
                         provider,
-                        export_token_secret=(
-                            config.export_token_secret.get_secret_value()
-                            if config.export_token_secret is not None
-                            else None
-                        ),
+                        export_token_secret=config.export_token_secret.get_secret_value(),
                     )
                 )
                 app.state.assistant = AssistantRuntime(

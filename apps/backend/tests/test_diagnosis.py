@@ -308,7 +308,7 @@ def test_untrusted_provider_payloads_are_rejected(change):
 def test_account_export_includes_diagnosis(records):
     body, path, _ = setup(records)
     records.client.post(path, json=body)
-    account = AccountService(records.sessions)
+    account = AccountService(records.sessions, export_token_secret="unit-export-token-secret")
     account.set_consent(records.ids.authorization, "data_export", "1", True)
     document = account.export_document(records.ids.authorization)
     assert document["crop_diagnoses"][0]["id"] == body["id"]
@@ -334,7 +334,9 @@ def test_account_erasure_deletes_diagnoses_and_fences_inflight_result(records):
         session.get(AuthIdentity, records.ids.owner).password_hash = PASSWORD_HASHER.hash(
             "fixture-pass"
         )
-    AccountService(records.sessions).delete_account(records.ids.authorization, "fixture-pass")
+    AccountService(records.sessions, export_token_secret="unit-export-token-secret").delete_account(
+        records.ids.authorization, "fixture-pass"
+    )
     with records.sessions() as session:
         assert session.get(CropDiagnosis, row.id) is None
     assert not store.finish(

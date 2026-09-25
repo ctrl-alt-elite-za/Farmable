@@ -93,6 +93,15 @@ def test_credentials_required_from_environment(url):
         Settings(database_url=SecretStr(url))
 
 
+@pytest.mark.parametrize("secret", [None, SecretStr(""), SecretStr("   ")])
+def test_export_token_secret_is_required(secret):
+    with pytest.raises(ValidationError):
+        Settings(
+            database_url=SecretStr("postgresql+psycopg://unit:unit@localhost/unit"),
+            export_token_secret=secret,
+        )
+
+
 def test_database_failure_is_safe(settings):
     database = Database(settings)
     database.sessions = MagicMock(side_effect=RuntimeError("credential"))

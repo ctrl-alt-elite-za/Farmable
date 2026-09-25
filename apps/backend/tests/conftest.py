@@ -9,4 +9,5 @@ def settings() -> Settings:
     return Settings(
         database_url=SecretStr("postgresql+psycopg://unit:unit@localhost/unit"),
         commit_sha="test-sha",
+        export_token_secret=SecretStr("unit-export-token-secret"),
     )

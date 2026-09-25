@@ -144,6 +144,7 @@ non-secret resource identifiers:
 | `GCP_MEDIA_BUCKET`               | `almanac-staging-za-farmable-staging-media`                                   |
 | `GCP_DATABASE_SECRET`            | `farmable-staging-database-url`                                               |
 | `GCP_GEMINI_SECRET`              | `farmable-staging-gemini-api-key`                                             |
+| `GCP_EXPORT_SECRET`              | `farmable-staging-export-token-secret`                                        |
 
 Optional overrides: `INTEGRATIONS_MODE` (defaults to `live`) and `GCP_SECRET_PREFIX`
 (defaults to the prefix implied by `GCP_DATABASE_SECRET`).

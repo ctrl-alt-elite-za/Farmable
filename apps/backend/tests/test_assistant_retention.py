@@ -90,7 +90,7 @@ def test_expired_history_export_and_provider_context_hidden_without_cleanup(assi
     assert response.status_code == 200
     history = assistant.store.history(assistant.alice.auth, assistant.conversation)
     assert [turn.id for turn in history.turns] == [recent]
-    account = AccountService(assistant.sessions)
+    account = AccountService(assistant.sessions, export_token_secret="unit-export-token-secret")
     account.set_consent(assistant.alice.auth, "data_export", "1", True)
     exported = account.export_document(assistant.alice.auth)
     assert [turn["id"] for turn in exported["assistant_turns"]] == [str(recent)]

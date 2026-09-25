@@ -11,7 +11,6 @@ import hashlib
 import hmac
 import io
 import json
-import secrets
 import zipfile
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -170,10 +169,9 @@ class AccountService:
     ):
         self.sessions = sessions
         self.provider = provider or DisabledOtpProvider()
-        # Production supplies a stable dedicated secret through Settings. The
-        # generated fallback keeps isolated/test services usable without ever
-        # deriving bearer credentials from the database URL.
-        self._export_token_secret = export_token_secret or secrets.token_urlsafe(32)
+        if not export_token_secret or not export_token_secret.strip():
+            raise ValueError("EXPORT_TOKEN_SECRET must be configured")
+        self._export_token_secret = export_token_secret
 
     def owner_id(self, authorization: str | None) -> UUID:
         with self.sessions.begin() as session:
@@ -404,6 +402,21 @@ class AccountService:
                 raise ApiError(401, "invalid_session")
             current = identity.email if channel is Channel.EMAIL else identity.phone
             if normalized == current:
+                pending_row = session.get(PendingContactChange, owner)
+                if pending_row is not None:
+                    if channel is Channel.EMAIL:
+                        pending_row.pending_email = None
+                    else:
+                        pending_row.pending_phone = None
+                    session.execute(
+                        update(VerificationChallenge)
+                        .where(
+                            VerificationChallenge.user_id == owner,
+                            VerificationChallenge.channel == channel.value,
+                            VerificationChallenge.consumed_at.is_(None),
+                        )
+                        .values(consumed_at=datetime.now(UTC))
+                    )
                 return  # No-op: already the caller's own verified value.
             column = AuthIdentity.email if channel is Channel.EMAIL else AuthIdentity.phone
             collision = session.scalar(
