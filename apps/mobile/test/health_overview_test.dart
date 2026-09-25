@@ -53,7 +53,10 @@ void main() {
       expect(find.text('3 days ago'), findsOneWidget);
       expect(find.text('Nothing growing yet'), findsOneWidget);
       expect(find.text('Not planted'), findsOneWidget);
-      expect(find.text('1 of 3 planted sections needs a look.'), findsOneWidget);
+      expect(
+        find.text('1 of 3 planted sections needs a look.'),
+        findsOneWidget,
+      );
       expectNoFailureLanguage(tester);
     });
 
@@ -92,7 +95,11 @@ void main() {
     });
 
     testWidgets('renders in dark mode', (tester) async {
-      await pumpFarmApp(tester, location: '/health', brightness: Brightness.dark);
+      await pumpFarmApp(
+        tester,
+        location: '/health',
+        brightness: Brightness.dark,
+      );
 
       expect(find.text('Tomato Section'), findsOneWidget);
       expectNoFailureLanguage(tester);
@@ -178,14 +185,8 @@ void main() {
 
       expect(find.text('Offline'), findsOneWidget);
       expect(find.text('Last checked 12 days ago'), findsOneWidget);
-      expect(
-        find.text('20 days ago · may have changed since'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('12 days ago · may have changed since'),
-        findsOneWidget,
-      );
+      expect(find.text('20 days ago · may have changed since'), findsOneWidget);
+      expect(find.text('12 days ago · may have changed since'), findsOneWidget);
       expectNoFailureLanguage(tester);
     });
 

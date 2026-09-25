@@ -179,15 +179,12 @@ class _Header extends StatelessWidget {
             children: [
               Text('Farm health', style: text.headlineMedium),
               const SizedBox(height: 2),
-              Text(
-                switch (age) {
-                  null => 'Nothing checked yet',
-                  0 => 'Last checked today',
-                  1 => 'Last checked yesterday',
-                  final d => 'Last checked $d days ago',
-                },
-                style: text.labelSmall?.copyWith(color: c.onSurfaceVariant),
-              ),
+              Text(switch (age) {
+                null => 'Nothing checked yet',
+                0 => 'Last checked today',
+                1 => 'Last checked yesterday',
+                final d => 'Last checked $d days ago',
+              }, style: text.labelSmall?.copyWith(color: c.onSurfaceVariant)),
             ],
           ),
         ),
