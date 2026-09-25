@@ -96,7 +96,7 @@ def accounts(settings):
     app.state.auth = auth
     provider = MagicMock(wraps=DeterministicFakeOtpProvider())
     account_service = AccountService(
-        sessions, provider, export_token_secret="unit-export-token-secret"
+        sessions, provider, export_token_secret="unit-export-token-secret"  # noqa: S106
     )
     account_service.set_consent(_headers(alice)["Authorization"], "data_export", "1", True)
     account_service.set_consent(_headers(bob)["Authorization"], "data_export", "1", True)
@@ -475,7 +475,7 @@ def test_export_job_replay_survives_a_new_service_instance(accounts):
     key = "export-service-restart-key"
     fingerprint = idempotency_fingerprint({"format": "json"}, key=key)
     first_service = AccountService(
-        accounts.sessions, accounts.provider, export_token_secret="stable-export-secret"
+        accounts.sessions, accounts.provider, export_token_secret="stable-export-secret"  # noqa: S106
     )
     first_id, first_token = first_service.create_export_job(
         alice["Authorization"],
@@ -485,7 +485,7 @@ def test_export_job_replay_survives_a_new_service_instance(accounts):
         request_fingerprint=fingerprint,
     )
     restarted_service = AccountService(
-        accounts.sessions, accounts.provider, export_token_secret="stable-export-secret"
+        accounts.sessions, accounts.provider, export_token_secret="stable-export-secret"  # noqa: S106
     )
     replay_id, replay_token = restarted_service.create_export_job(
         alice["Authorization"],
@@ -609,7 +609,7 @@ def test_contact_change_attempts_commit_and_lock_out_after_restart(accounts):
     restarted = AccountService(
         accounts.sessions,
         accounts.provider,
-        export_token_secret="unit-export-token-secret",
+        export_token_secret="unit-export-token-secret",  # noqa: S106
     )
     with pytest.raises(ApiError, match="invalid_verification"):
         restarted.confirm_contact_change(alice["Authorization"], Channel.EMAIL, "222222")

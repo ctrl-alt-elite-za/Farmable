@@ -298,7 +298,7 @@ def test_account_erasure_fences_a_waiting_plan_edit():
         with ThreadPoolExecutor(max_workers=2) as pool:
             deleting = pool.submit(
                 AccountService(
-                    sessions, export_token_secret="integration-export-token-secret"
+                    sessions, export_token_secret="integration-export-token-secret"  # noqa: S106
                 ).delete_account,
                 owner.auth,
                 "fixture password",

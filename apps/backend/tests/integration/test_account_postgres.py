@@ -55,7 +55,7 @@ def test_account_deletion_is_scoped_to_the_confirming_owner(engine):
     suffix = uuid4().hex
     sessions = sessionmaker(engine, expire_on_commit=False)
     auth = AuthService(sessions, DeterministicFakeOtpProvider())
-    account = AccountService(sessions, export_token_secret="integration-export-token-secret")
+    account = AccountService(sessions, export_token_secret="integration-export-token-secret")  # noqa: S106
     first = _register(auth, suffix, 0)
     second = _register(auth, suffix, 1)
     owners = [first.user.id, second.user.id]
@@ -124,7 +124,7 @@ def test_concurrent_first_language_writes_insert_exactly_one_profile(engine):
     suffix = uuid4().hex
     sessions = sessionmaker(engine, expire_on_commit=False)
     auth = AuthService(sessions, DeterministicFakeOtpProvider())
-    account = AccountService(sessions, export_token_secret="integration-export-token-secret")
+    account = AccountService(sessions, export_token_secret="integration-export-token-secret")  # noqa: S106
     tokens = _register(auth, suffix, 0)
     owners = [tokens.user.id]
     languages = ("zu", "xh")
@@ -163,7 +163,7 @@ def test_export_and_revoke_all_stay_owner_scoped(engine):
     suffix = uuid4().hex
     sessions = sessionmaker(engine, expire_on_commit=False)
     auth = AuthService(sessions, DeterministicFakeOtpProvider())
-    account = AccountService(sessions, export_token_secret="integration-export-token-secret")
+    account = AccountService(sessions, export_token_secret="integration-export-token-secret")  # noqa: S106
     first = _register(auth, suffix, 0)
     second = _register(auth, suffix, 1)
     owners = [first.user.id, second.user.id]

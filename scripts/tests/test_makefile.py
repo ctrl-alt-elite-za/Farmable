@@ -24,7 +24,7 @@ def test_make_test_skips_node_when_node_is_absent(tmp_path: Path):
     # Keep only the stubs: make is invoked by absolute path and the recipe's
     # shell is absolute, so this guarantees that node cannot be discovered.
     env = {**os.environ, "PATH": str(bin_dir)}
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 - executable and arguments are fixed above.
         [make, "test"],
         cwd=Path(__file__).parents[2],
         env=env,
