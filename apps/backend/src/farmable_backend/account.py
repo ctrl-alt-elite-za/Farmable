@@ -552,7 +552,24 @@ class AccountService:
                 raise ApiError(409, "idempotency_in_progress", 1) from None
             if replayed is not None:
                 _status, body = replayed
-                return UUID(body["id"]), self._export_token(UUID(body["id"]))
+                replayed_id = UUID(body["id"])
+                with self.sessions.begin() as session:
+                    job = session.scalar(
+                        select(ExportJob)
+                        .where(ExportJob.id == replayed_id, ExportJob.owner_id == owner)
+                        .with_for_update()
+                    )
+                    if (
+                        job is None
+                        or job.status != "ready"
+                        or job.downloaded_at is not None
+                        or job.artifact is None
+                        or job.download_token_hash is None
+                        or job.expires_at is None
+                        or _as_utc(job.expires_at) < datetime.now(UTC)
+                    ):
+                        raise ApiError(404, "export_not_found")
+                return replayed_id, self._export_token(replayed_id)
         try:
             try:
                 rate_limit_check(

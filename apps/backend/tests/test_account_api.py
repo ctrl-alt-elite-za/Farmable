@@ -10,8 +10,8 @@ from typing import get_args
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
-import pytest
 import farmable_backend.account as account_module
+import pytest
 from farmable_backend.account import AccountService
 from farmable_backend.account_api import AccountRuntime
 from farmable_backend.account_schemas import Language
@@ -22,8 +22,8 @@ from farmable_backend.auth import (
     DeterministicFakeOtpProvider,
     SessionTokens,
 )
-from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
+from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
 from farmable_backend.models import (
     ACCOUNT_LANGUAGES,
@@ -529,7 +529,11 @@ def test_contact_confirmation_marks_new_values_verified_and_exports_them(account
         identity = session.get(AuthIdentity, accounts.alice.user.id)
         identity.email_verified = False
         identity.phone_verified = False
-    monkeypatch.setattr(account_module, "authenticate", lambda _session, _authorization: accounts.alice.user.id)
+    monkeypatch.setattr(
+        account_module,
+        "authenticate",
+        lambda _session, _authorization: accounts.alice.user.id,
+    )
     service = accounts.app.state.account.service
     service.confirm_contact_change(alice["Authorization"], Channel.EMAIL, "222222")
     service.confirm_contact_change(alice["Authorization"], Channel.PHONE, "111111")
@@ -988,6 +992,23 @@ def test_expired_export_job_cleanup_clears_artifact_and_blocks_download(accounts
 
     # Idempotent / retry-safe: running the sweep again finds nothing more.
     assert accounts.app.state.account.service.cleanup_expired_export_jobs() == 0
+
+
+def test_expired_export_job_idempotent_replay_is_rejected(accounts):
+    alice = _headers(accounts.alice, "expired-export-replay")
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert created.status_code == 201
+    job_id = created.json()["id"]
+    from farmable_backend.models import ExportJob
+
+    with accounts.sessions.begin() as session:
+        job = session.get(ExportJob, UUID(job_id))
+        job.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    assert accounts.app.state.account.service.cleanup_expired_export_jobs() == 1
+
+    replay = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert replay.status_code == 404
+    assert replay.json()["error"]["code"] == "export_not_found"
 
 
 def test_logout_revokes_only_the_current_session(accounts):
