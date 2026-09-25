@@ -47,7 +47,6 @@ jobs:
           GCP_CLOUD_SQL_CONNECTION: ${{ vars.GCP_CLOUD_SQL_CONNECTION }}
           GCP_MEDIA_BUCKET: ${{ vars.GCP_MEDIA_BUCKET }}
           GCP_DATABASE_SECRET: ${{ vars.GCP_DATABASE_SECRET }}
-          GCP_EXPORT_TOKEN_SECRET: ${{ vars.GCP_EXPORT_TOKEN_SECRET }}
           GCP_GEMINI_SECRET: ${{ vars.GCP_GEMINI_SECRET }}
         run: bash infra/gcp-required-config.sh
 
@@ -87,13 +86,12 @@ jobs:
           SQL_CONNECTION: ${{ steps.config.outputs.sql_connection }}
           RUNTIME_ACCOUNT: ${{ steps.config.outputs.runtime_account }}
           DATABASE_SECRET: ${{ steps.config.outputs.database_secret }}
-          EXPORT_SECRET: ${{ steps.config.outputs.export_token_secret }}
         run: |
           set -Eeuo pipefail
           gcloud run jobs deploy "$MIGRATION_JOB" \
             --project="$PROJECT" --region="$GCP_REGION" \
             --image="$IMAGE" --service-account="$RUNTIME_ACCOUNT" \
-            --set-secrets="DATABASE_URL=${DATABASE_SECRET}:latest,EXPORT_TOKEN_SECRET=${EXPORT_SECRET}:latest" \
+            --set-secrets="DATABASE_URL=${DATABASE_SECRET}:latest" \
             --set-env-vars="ENVIRONMENT=staging,COMMIT_SHA=${{ github.sha }}" \
             --set-cloudsql-instances="$SQL_CONNECTION" \
             --command=/app/cloudrun-migrate.sh \
@@ -107,7 +105,6 @@ jobs:
           ARTIFACT_REPOSITORY: ${{ steps.config.outputs.repository }}
           CLOUD_SQL_CONNECTION: ${{ steps.config.outputs.sql_connection }}
           DATABASE_SECRET: ${{ steps.config.outputs.database_secret }}
-          EXPORT_SECRET: ${{ steps.config.outputs.export_token_secret }}
           FORECAST_IMPORT_ACCOUNT: ${{ vars.GCP_FORECAST_IMPORT_ACCOUNT }}
           FORECAST_GITHUB_TOKEN_SECRET: ${{ vars.GCP_FORECAST_GITHUB_TOKEN_SECRET }}
           FORECAST_DATA_MODE: ${{ vars.FORECAST_DATA_MODE || 'disabled' }}
@@ -121,7 +118,7 @@ jobs:
           CLOUD_SQL_CONNECTION: ${{ steps.config.outputs.sql_connection }}
           RUNTIME_SERVICE_ACCOUNT: ${{ steps.config.outputs.runtime_account }}
           DATABASE_SECRET: ${{ steps.config.outputs.database_secret }}
-          EXPORT_SECRET: ${{ steps.config.outputs.export_token_secret }}
+          EXPORT_SECRET: ${{ steps.config.outputs.export_secret }}
           GEMINI_SECRET: ${{ steps.config.outputs.gemini_secret }}
           GCS_BUCKET: ${{ steps.config.outputs.media_bucket }}
           COMMIT_SHA: ${{ github.sha }}

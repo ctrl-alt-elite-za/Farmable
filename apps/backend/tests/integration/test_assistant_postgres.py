@@ -297,7 +297,12 @@ def test_account_erasure_fences_a_waiting_plan_edit():
     try:
         with ThreadPoolExecutor(max_workers=2) as pool:
             deleting = pool.submit(
-                AccountService(sessions).delete_account, owner.auth, "fixture password"
+                AccountService(
+                    sessions,
+                    export_token_secret="integration-export-token-secret",  # noqa: S106
+                ).delete_account,
+                owner.auth,
+                "fixture password",
             )
             try:
                 assert erasure_locked.wait(10), "erasure did not lock farm"

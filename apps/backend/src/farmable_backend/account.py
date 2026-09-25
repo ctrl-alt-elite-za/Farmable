@@ -11,7 +11,6 @@ import hashlib
 import hmac
 import io
 import json
-import secrets
 import zipfile
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -37,6 +36,7 @@ from farmable_backend.auth import (
     Channel,
     DisabledOtpProvider,
     OtpProvider,
+    check_email_limits,
     check_sms_limits,
 )
 from farmable_backend.auth import AuthError as _AuthError
@@ -170,10 +170,9 @@ class AccountService:
     ):
         self.sessions = sessions
         self.provider = provider or DisabledOtpProvider()
-        # Production supplies a stable dedicated secret through Settings. The
-        # generated fallback keeps isolated/test services usable without ever
-        # deriving bearer credentials from the database URL.
-        self._export_token_secret = export_token_secret or secrets.token_urlsafe(32)
+        if not export_token_secret or not export_token_secret.strip():
+            raise ValueError("EXPORT_TOKEN_SECRET must be configured")
+        self._export_token_secret = export_token_secret
 
     def owner_id(self, authorization: str | None) -> UUID:
         with self.sessions.begin() as session:
@@ -367,9 +366,11 @@ class AccountService:
                     with session.begin_nested():
                         if channel is Channel.EMAIL:
                             identity.email = pending
+                            identity.email_verified = True
                             pending_row.pending_email = None
                         else:
                             identity.phone = pending
+                            identity.phone_verified = True
                             pending_row.pending_phone = None
                         session.flush()
                 except IntegrityError:
@@ -404,6 +405,21 @@ class AccountService:
                 raise ApiError(401, "invalid_session")
             current = identity.email if channel is Channel.EMAIL else identity.phone
             if normalized == current:
+                pending_row = session.get(PendingContactChange, owner)
+                if pending_row is not None:
+                    if channel is Channel.EMAIL:
+                        pending_row.pending_email = None
+                    else:
+                        pending_row.pending_phone = None
+                    session.execute(
+                        update(VerificationChallenge)
+                        .where(
+                            VerificationChallenge.user_id == owner,
+                            VerificationChallenge.channel == channel.value,
+                            VerificationChallenge.consumed_at.is_(None),
+                        )
+                        .values(consumed_at=datetime.now(UTC))
+                    )
                 return  # No-op: already the caller's own verified value.
             column = AuthIdentity.email if channel is Channel.EMAIL else AuthIdentity.phone
             collision = session.scalar(
@@ -418,6 +434,11 @@ class AccountService:
                         check_sms_limits(self.sessions, ip=ip, phone=normalized)
                     except _AuthError as exc:
                         raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
+                else:
+                    try:
+                        check_email_limits(self.sessions, ip=ip, email=normalized)
+                    except _AuthError as exc:
+                        raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
                 try:
                     self.provider.notify_existing_account(channel, normalized)
                 except _AuthError:
@@ -429,6 +450,10 @@ class AccountService:
                 session.add(pending_row)
             if channel is Channel.EMAIL:
                 pending_row.pending_email = normalized
+                try:
+                    check_email_limits(self.sessions, ip=ip, email=normalized)
+                except _AuthError as exc:
+                    raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
             else:
                 pending_row.pending_phone = normalized
                 try:
@@ -527,7 +552,24 @@ class AccountService:
                 raise ApiError(409, "idempotency_in_progress", 1) from None
             if replayed is not None:
                 _status, body = replayed
-                return UUID(body["id"]), self._export_token(UUID(body["id"]))
+                replayed_id = UUID(body["id"])
+                with self.sessions.begin() as session:
+                    job = session.scalar(
+                        select(ExportJob)
+                        .where(ExportJob.id == replayed_id, ExportJob.owner_id == owner)
+                        .with_for_update()
+                    )
+                    if (
+                        job is None
+                        or job.status != "ready"
+                        or job.downloaded_at is not None
+                        or job.artifact is None
+                        or job.download_token_hash is None
+                        or job.expires_at is None
+                        or _as_utc(job.expires_at) < datetime.now(UTC)
+                    ):
+                        raise ApiError(404, "export_not_found")
+                return replayed_id, self._export_token(replayed_id)
         try:
             try:
                 rate_limit_check(

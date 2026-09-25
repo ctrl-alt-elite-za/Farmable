@@ -18,7 +18,7 @@ required=(
   GCP_CLOUD_SQL_CONNECTION
   GCP_MEDIA_BUCKET
   GCP_DATABASE_SECRET
-  GCP_EXPORT_TOKEN_SECRET
+  GCP_EXPORT_SECRET
   GCP_GEMINI_SECRET
 )
 
@@ -45,7 +45,7 @@ fi
   printf 'media_bucket=%s\n' "$GCP_MEDIA_BUCKET"
   printf 'runtime_account=%s\n' "$GCP_RUNTIME_SERVICE_ACCOUNT"
   printf 'database_secret=%s\n' "$GCP_DATABASE_SECRET"
-  printf 'export_token_secret=%s\n' "$GCP_EXPORT_TOKEN_SECRET"
+  printf 'export_secret=%s\n' "$GCP_EXPORT_SECRET"
   printf 'gemini_secret=%s\n' "$GCP_GEMINI_SECRET"
 } >>"$GITHUB_OUTPUT"
 

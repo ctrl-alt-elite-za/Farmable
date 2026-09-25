@@ -264,6 +264,7 @@ class FakeAuthApi implements HttpClientAdapter {
         'next_step': 'phone',
       });
     }
+
     final password = body['password'] as String? ?? '';
     final phone = body['phone'] as String? ?? '';
     if (password.length < 15 ||

@@ -5,7 +5,7 @@ x-backend: &backend
     target: runtime
   environment: &backend-env
     DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL using the database hostname and percent-encoded credentials}
-    EXPORT_TOKEN_SECRET: ${EXPORT_TOKEN_SECRET:?Set EXPORT_TOKEN_SECRET to a stable random value}
+    EXPORT_TOKEN_SECRET: ${EXPORT_TOKEN_SECRET:?Set EXPORT_TOKEN_SECRET to a stable high-entropy secret}
     COMMIT_SHA: ${COMMIT_SHA:-unknown}
     LOG_LEVEL: ${LOG_LEVEL:-info}
     ENVIRONMENT: ${ENVIRONMENT:-production}

@@ -8,6 +8,8 @@ docker info >/dev/null || { echo "Start Docker Desktop/the Docker engine first" 
 export POSTGRES_USER=farmable_test POSTGRES_DB=farmable_test
 POSTGRES_PASSWORD="$(uv run python -c 'import secrets; print(secrets.token_hex(24))')"
 export POSTGRES_PASSWORD
+EXPORT_TOKEN_SECRET="$(uv run python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export EXPORT_TOKEN_SECRET
 DATABASE_URL="$(uv run python -c 'import os; from sqlalchemy import URL; print(URL.create("postgresql+psycopg", username=os.environ["POSTGRES_USER"], password=os.environ["POSTGRES_PASSWORD"], host="database", port=5432, database=os.environ["POSTGRES_DB"]).render_as_string(hide_password=False))')"
 export DATABASE_URL
 export EXPORT_TOKEN_SECRET="ci-export-token-secret-32-bytes"

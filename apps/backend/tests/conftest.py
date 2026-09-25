@@ -14,6 +14,6 @@ def settings() -> Settings:
     # Fake credentials; unit tests inject dependency status and never connect.
     return Settings(
         database_url=SecretStr("postgresql+psycopg://unit:unit@localhost/unit"),
-        export_token_secret=SecretStr("test-export-token-secret-32-bytes"),
         commit_sha="test-sha",
+        export_token_secret=SecretStr("unit-export-token-secret"),
     )

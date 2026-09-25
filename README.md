@@ -76,19 +76,21 @@ Twilio SMS is unchanged (see the same doc).
 
 **Required environment variables** (see `.env.example`):
 
-| Variable             | Meaning                                                        |
-| -------------------- | -------------------------------------------------------------- |
-| `SMTP_HOST`          | `smtp.gmail.com`                                               |
-| `SMTP_PORT`          | `587` (STARTTLS, default) or `465` (SSL)                       |
-| `SMTP_TLS_MODE`      | `starttls` or `ssl`, matching the port                         |
-| `SMTP_USER`          | The Gmail address that sends, e.g. `noreply.almanac@gmail.com` |
-| `SMTP_PASSWORD`      | The 16-character App Password, never the account password      |
-| `EMAIL_FROM_NAME`    | Display name shown to recipients, e.g. `Almanac`               |
-| `EMAIL_FROM_ADDRESS` | Sender address shown to recipients                             |
+| Variable              | Meaning                                                        |
+| --------------------- | -------------------------------------------------------------- |
+| `SMTP_HOST`           | `smtp.gmail.com`                                               |
+| `SMTP_PORT`           | `587` (STARTTLS, default) or `465` (SSL)                       |
+| `SMTP_TLS_MODE`       | `starttls` or `ssl`, matching the port                         |
+| `SMTP_USER`           | The Gmail address that sends, e.g. `noreply.almanac@gmail.com` |
+| `SMTP_PASSWORD`       | The 16-character App Password, never the account password      |
+| `EMAIL_FROM_NAME`     | Display name shown to recipients, e.g. `Almanac`               |
+| `EMAIL_FROM_ADDRESS`  | Sender address shown to recipients                             |
+| `EXPORT_TOKEN_SECRET` | Required stable secret for export download links               |
 
-All are required when `INTEGRATIONS_MODE=live`; `GmailSmtpEmailSender` raises
-immediately at construction if any are missing, rather than failing on the
-first send. Outbound port 25 is blocked on Google Cloud (Cloud Run/Compute
+`EXPORT_TOKEN_SECRET` is always required; the backend refuses to boot when it
+is missing or blank. All SMTP variables are required when `INTEGRATIONS_MODE=live`;
+`GmailSmtpEmailSender` raises immediately at construction if any are missing,
+rather than failing on the first send. Outbound port 25 is blocked on Google Cloud (Cloud Run/Compute
 Engine/App Engine); 587 and 465 both work, which is why 587/STARTTLS is the
 default.
 

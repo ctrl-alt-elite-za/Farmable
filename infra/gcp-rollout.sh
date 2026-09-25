@@ -136,7 +136,15 @@ if ! available="$(gcloud secrets list --project="$GCP_PROJECT" \
   exit 1
 fi
 
-secret_args="DATABASE_URL=${DATABASE_SECRET}:latest,EXPORT_TOKEN_SECRET=${EXPORT_SECRET}:latest,GEMINI_API_KEY=${GEMINI_SECRET}:latest"
+export_secret_id="$EXPORT_SECRET"
+if ! grep -qxF "$export_secret_id" <<<"$available"; then
+  echo "Required export-token secret is missing: $export_secret_id" >&2
+  exit 1
+fi
+export_secret_version="$(gcloud secrets versions list "$export_secret_id" --project="$GCP_PROJECT" \
+  --filter='state:ENABLED' --limit=1 --format='value(name)')"
+[[ -n "$export_secret_version" ]] || { echo "Required export-token secret has no enabled version" >&2; exit 1; }
+secret_args="DATABASE_URL=${DATABASE_SECRET}:latest,GEMINI_API_KEY=${GEMINI_SECRET}:latest,EXPORT_TOKEN_SECRET=${export_secret_id}:latest"
 wired=()
 skipped=()
 for entry in "${optional_secrets[@]}"; do

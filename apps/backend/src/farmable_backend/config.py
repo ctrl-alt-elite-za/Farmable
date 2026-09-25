@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     @field_validator("export_token_secret")
     @classmethod
-    def export_secret_is_real(cls, value: SecretStr) -> SecretStr:
+    def export_secret_required(cls, value: SecretStr) -> SecretStr:
         secret = value.get_secret_value().strip()
         if not secret or secret.startswith("replace-with-"):
             raise ValueError("EXPORT_TOKEN_SECRET must be a non-placeholder secret")

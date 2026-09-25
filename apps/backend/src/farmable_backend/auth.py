@@ -109,6 +109,34 @@ def check_sms_limits(sessions: sessionmaker[Session], *, ip: str, phone: str) ->
     )
 
 
+def check_email_limits(sessions: sessionmaker[Session], *, ip: str, email: str) -> None:
+    """Admit one email OTP across IP, destination and global budgets."""
+    _rate_limit(
+        sessions,
+        scope="email_ip",
+        subject=ip,
+        window_seconds=3600,
+        limit=10,
+        code="email_ip_rate_limited",
+    )
+    _rate_limit(
+        sessions,
+        scope="email_address",
+        subject=email,
+        window_seconds=600,
+        limit=3,
+        code="email_address_rate_limited",
+    )
+    _rate_limit(
+        sessions,
+        scope="email_daily",
+        subject="global",
+        window_seconds=86400,
+        limit=50,
+        code="daily_email_cap",
+    )
+
+
 class AuthError(Exception):
     def __init__(
         self,
