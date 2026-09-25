@@ -365,9 +365,11 @@ class AccountService:
                     with session.begin_nested():
                         if channel is Channel.EMAIL:
                             identity.email = pending
+                            identity.email_verified = True
                             pending_row.pending_email = None
                         else:
                             identity.phone = pending
+                            identity.phone_verified = True
                             pending_row.pending_phone = None
                         session.flush()
                 except IntegrityError:

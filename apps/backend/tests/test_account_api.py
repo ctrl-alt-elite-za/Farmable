@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import pytest
+import farmable_backend.account as account_module
 from farmable_backend.account import AccountService
 from farmable_backend.account_api import AccountRuntime
 from farmable_backend.account_schemas import Language
@@ -364,6 +365,9 @@ def test_email_change_requires_confirmation_before_it_applies(accounts):
     assert confirmed.status_code == 200
     assert confirmed.json()["email"] == "sipho.new@example.com"
     assert confirmed.json()["pending_email"] is None
+    assert confirmed.json()["email_verified"] is True
+    exported = accounts.app.state.account.service.export_document(alice["Authorization"])
+    assert exported["account"]["email_verified"] is True
     assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (
         "sipho.new@example.com"
     )
@@ -511,6 +515,32 @@ def test_phone_change_requires_confirmation_before_it_applies(accounts):
     )
     assert confirmed.status_code == 200
     assert confirmed.json()["phone"] == "+27821234567"
+    assert confirmed.json()["phone_verified"] is True
+
+
+def test_contact_confirmation_marks_new_values_verified_and_exports_them(accounts, monkeypatch):
+    alice = _headers(accounts.alice)
+    requested = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "verified-both"),
+        json={"email": "sipho.verified@example.com", "phone": "+27829876543"},
+    )
+    assert requested.status_code == 200
+    with accounts.sessions.begin() as session:
+        identity = session.get(AuthIdentity, accounts.alice.user.id)
+        identity.email_verified = False
+        identity.phone_verified = False
+    monkeypatch.setattr(account_module, "authenticate", lambda _session, _authorization: accounts.alice.user.id)
+    service = accounts.app.state.account.service
+    service.confirm_contact_change(alice["Authorization"], Channel.EMAIL, "222222")
+    service.confirm_contact_change(alice["Authorization"], Channel.PHONE, "111111")
+    with accounts.sessions.begin() as session:
+        profile = service._profile(session, service._identity(session, accounts.alice.user.id))
+    assert profile.email_verified is True
+    assert profile.phone_verified is True
+    exported = service.export_document(alice["Authorization"])
+    assert exported["account"]["email_verified"] is True
+    assert exported["account"]["phone_verified"] is True
 
 
 def test_contact_change_to_current_value_cancels_pending_change(accounts):
