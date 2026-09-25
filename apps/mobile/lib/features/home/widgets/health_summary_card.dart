@@ -39,7 +39,7 @@ class HealthSummaryCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _Gauge(score: score, state: farm.health),
+              HealthGauge(score: score, state: farm.health),
               const SizedBox(width: AlmanacDimens.sp4),
               Expanded(
                 child: Column(
@@ -95,11 +95,11 @@ class HealthSummaryCard extends StatelessWidget {
 ///
 /// With nothing scored the ring is an empty track and the number is a dash —
 /// not a zero. A farm nobody has looked at is not a farm scoring zero.
-class _Gauge extends StatelessWidget {
+class HealthGauge extends StatelessWidget {
   final int? score;
   final HealthState state;
 
-  const _Gauge({required this.score, required this.state});
+  const HealthGauge({super.key, required this.score, required this.state});
 
   @override
   Widget build(BuildContext context) {
