@@ -141,7 +141,12 @@ void main() {
       );
     final dio = server.dio();
     // Photos go to "storage" through the same fake.
-    auth = ApiAuthService(dio, InMemorySessionStorage(), now: () => at);
+    auth = ApiAuthService(
+      dio,
+      InMemorySessionStorage(),
+      requestVerification: (_) async => 'fixture-token',
+      now: () => at,
+    );
     network = FixedNetwork(true);
     scopes = [];
     controller = SyncController(
