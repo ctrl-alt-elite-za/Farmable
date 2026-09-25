@@ -128,6 +128,7 @@ class _Zone extends StatelessWidget {
                 today: view.today,
                 onAdd: () =>
                     showObservationEditor(context: context, actions: actions),
+                onRetry: (observation) => actions.retrySync(observation.id),
                 onTap: (observation) => showObservationActions(
                   context: context,
                   observation: observation,

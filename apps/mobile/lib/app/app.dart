@@ -19,6 +19,24 @@ class _AlmanacAppState extends ConsumerState<AlmanacApp> {
   // which shows up as a back button that sometimes does nothing.
   late final _router = buildRouter();
 
+  // The sync queue only sends while the app is in front. `inactive` counts
+  // as in front: it is a permission dialog or the notification shade, and
+  // cancelling a photo upload for one of those would waste the farmer's data.
+  late final _lifecycle = AppLifecycleListener(
+    onStateChange: (state) => ref
+        .read(syncControllerProvider)
+        ?.setForeground(
+          state == AppLifecycleState.resumed ||
+              state == AppLifecycleState.inactive,
+        ),
+  );
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     // Planted here rather than on Home, because the app does not always open
@@ -29,6 +47,8 @@ class _AlmanacAppState extends ConsumerState<AlmanacApp> {
     // subscribe to storage and render whatever is on disk, including nothing.
     ref.watch(seedProvider);
     keepSessionFresh(ref);
+    keepFarmSynced(ref);
+    _lifecycle;
 
     return MaterialApp.router(
       title: 'Almanac',

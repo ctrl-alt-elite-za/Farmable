@@ -13,6 +13,8 @@
 /// time.
 library;
 
+import 'dart:io';
+
 import 'package:almanac/app/providers.dart';
 import 'package:almanac/app/router.dart';
 import 'package:almanac/app/theme/app_theme.dart';
@@ -22,16 +24,21 @@ import 'package:almanac/data/auth/demo_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
 import 'package:almanac/data/health_service.dart';
 import 'package:almanac/data/local/database.dart';
+import 'package:almanac/data/local/offline_photos.dart';
 import 'package:almanac/data/local/seed.dart';
+import 'package:almanac/data/sync/sync_controller.dart';
 import 'package:almanac/domain/account/account_models.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
+import 'package:almanac/domain/device/device_permissions.dart';
 import 'package:almanac/features/account/export_screen.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/auth/widgets/auth_scaffold.dart';
+import 'package:almanac/features/permissions/permission_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'device_fakes.dart';
 import 'fake_auth_api.dart';
 import 'harness.dart' show pinnedToday, phoneSize;
 
@@ -56,6 +63,28 @@ class _FixedHealth implements HealthService {
 
   @override
   Future<Reachability> check() async => result;
+}
+
+class _FixedNetwork implements NetworkStatus {
+  final bool online;
+
+  const _FixedNetwork(this.online);
+
+  @override
+  Future<bool> current() async => online;
+
+  @override
+  Stream<bool> get changes => const Stream.empty();
+}
+
+/// Photos for a harness that never takes one. Startup cleanup is skipped:
+/// it lists a real folder, which the widget test clock cannot wait on.
+class _NoDiskPhotos extends OfflinePhotos {
+  _NoDiskPhotos({required super.ownerId, required super.farmId})
+    : super(Directory('${Directory.systemTemp.path}/almanac-harness-photos'));
+
+  @override
+  Future<void> recover(DateTime now) async {}
 }
 
 class AuthHarness {
@@ -129,6 +158,10 @@ Future<AuthHarness> pumpAuthApp(
   /// see the same answer the provider does.
   FakeAuthApi? api,
   DateTime Function()? now,
+
+  /// The phone's permission answers. Defaults to nothing asked yet, and
+  /// never the real plugin, which a widget test has no phone for.
+  PermissionService? permissions,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = surface;
@@ -143,6 +176,9 @@ Future<AuthHarness> pumpAuthApp(
 
   final container = ProviderContainer(
     overrides: [
+      permissionServiceProvider.overrideWithValue(
+        permissions ?? FakePermissionService(),
+      ),
       databaseProvider.overrideWithValue(db),
       clockProvider.overrideWithValue(now ?? () => pinnedToday),
       if (!seed) seedProvider.overrideWith((ref) async {}),
@@ -156,6 +192,14 @@ Future<AuthHarness> pumpAuthApp(
       deviceDirectoriesProvider.overrideWithValue(const []),
       shareFileProvider.overrideWithValue((file) async => shared.add(file)),
       demoAuthProvider.overrideWithValue(api == null),
+      // The sync queue runs here exactly as on a phone, minus the two things
+      // a test has no plugin for: the network is whatever [online] says, and
+      // photos go to a folder nothing creates unless a photo is taken.
+      networkStatusProvider.overrideWithValue(_FixedNetwork(online)),
+      photoStoreProvider.overrideWithValue(
+        ({required ownerId, required farmId}) async =>
+            _NoDiskPhotos(ownerId: ownerId, farmId: farmId),
+      ),
       if (api != null)
         authServiceProvider.overrideWith(
           (ref) => ApiAuthService(
@@ -196,6 +240,7 @@ Future<AuthHarness> pumpAuthApp(
         child: Consumer(
           builder: (context, ref, child) {
             keepSessionFresh(ref);
+            keepFarmSynced(ref);
             return child!;
           },
           child: MaterialApp.router(

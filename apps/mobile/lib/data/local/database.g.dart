@@ -7705,6 +7705,50 @@ class $LocalPhotosTable extends LocalPhotos
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _uploadIdMeta = const VerificationMeta(
+    'uploadId',
+  );
+  @override
+  late final GeneratedColumn<String> uploadId = GeneratedColumn<String>(
+    'upload_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _failedAttemptIdMeta = const VerificationMeta(
+    'failedAttemptId',
+  );
+  @override
+  late final GeneratedColumn<String> failedAttemptId = GeneratedColumn<String>(
+    'failed_attempt_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _recoverAttemptIdMeta = const VerificationMeta(
+    'recoverAttemptId',
+  );
+  @override
+  late final GeneratedColumn<String> recoverAttemptId = GeneratedColumn<String>(
+    'recover_attempt_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _purgedAtMeta = const VerificationMeta(
+    'purgedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> purgedAt = GeneratedColumn<DateTime>(
+    'purged_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -7714,6 +7758,10 @@ class $LocalPhotosTable extends LocalPhotos
     contentType,
     byteLength,
     cloudId,
+    uploadId,
+    failedAttemptId,
+    recoverAttemptId,
+    purgedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7784,6 +7832,36 @@ class $LocalPhotosTable extends LocalPhotos
         cloudId.isAcceptableOrUnknown(data['cloud_id']!, _cloudIdMeta),
       );
     }
+    if (data.containsKey('upload_id')) {
+      context.handle(
+        _uploadIdMeta,
+        uploadId.isAcceptableOrUnknown(data['upload_id']!, _uploadIdMeta),
+      );
+    }
+    if (data.containsKey('failed_attempt_id')) {
+      context.handle(
+        _failedAttemptIdMeta,
+        failedAttemptId.isAcceptableOrUnknown(
+          data['failed_attempt_id']!,
+          _failedAttemptIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recover_attempt_id')) {
+      context.handle(
+        _recoverAttemptIdMeta,
+        recoverAttemptId.isAcceptableOrUnknown(
+          data['recover_attempt_id']!,
+          _recoverAttemptIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('purged_at')) {
+      context.handle(
+        _purgedAtMeta,
+        purgedAt.isAcceptableOrUnknown(data['purged_at']!, _purgedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -7821,6 +7899,22 @@ class $LocalPhotosTable extends LocalPhotos
         DriftSqlType.string,
         data['${effectivePrefix}cloud_id'],
       ),
+      uploadId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}upload_id'],
+      ),
+      failedAttemptId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}failed_attempt_id'],
+      ),
+      recoverAttemptId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recover_attempt_id'],
+      ),
+      purgedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}purged_at'],
+      ),
     );
   }
 
@@ -7838,6 +7932,24 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
   final String contentType;
   final int byteLength;
   final String? cloudId;
+
+  /// The server's `upload_id`, kept once a reservation answers so a restart
+  /// polls the same upload. Replaying the reservation with the same mutation
+  /// and media ids returns this same upload anyway; it is bookkeeping, never
+  /// a second identity.
+  final String? uploadId;
+
+  /// The last `attempt_id` the server reported as failed *and* retryable.
+  final String? failedAttemptId;
+
+  /// Set only by the farmer's explicit "try again". The transport asks the
+  /// server to retry only while this names the attempt the server still
+  /// reports as failed, so recovery is never looped automatically.
+  final String? recoverAttemptId;
+
+  /// When the phone's copy was removed, after the server confirmed a ready,
+  /// cleaned copy of its own. Null while the phone's copy is the only one.
+  final DateTime? purgedAt;
   const LocalPhoto({
     required this.id,
     required this.ownerId,
@@ -7846,6 +7958,10 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
     required this.contentType,
     required this.byteLength,
     this.cloudId,
+    this.uploadId,
+    this.failedAttemptId,
+    this.recoverAttemptId,
+    this.purgedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7858,6 +7974,18 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
     map['byte_length'] = Variable<int>(byteLength);
     if (!nullToAbsent || cloudId != null) {
       map['cloud_id'] = Variable<String>(cloudId);
+    }
+    if (!nullToAbsent || uploadId != null) {
+      map['upload_id'] = Variable<String>(uploadId);
+    }
+    if (!nullToAbsent || failedAttemptId != null) {
+      map['failed_attempt_id'] = Variable<String>(failedAttemptId);
+    }
+    if (!nullToAbsent || recoverAttemptId != null) {
+      map['recover_attempt_id'] = Variable<String>(recoverAttemptId);
+    }
+    if (!nullToAbsent || purgedAt != null) {
+      map['purged_at'] = Variable<DateTime>(purgedAt);
     }
     return map;
   }
@@ -7873,6 +8001,18 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
       cloudId: cloudId == null && nullToAbsent
           ? const Value.absent()
           : Value(cloudId),
+      uploadId: uploadId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(uploadId),
+      failedAttemptId: failedAttemptId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(failedAttemptId),
+      recoverAttemptId: recoverAttemptId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recoverAttemptId),
+      purgedAt: purgedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purgedAt),
     );
   }
 
@@ -7889,6 +8029,10 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
       contentType: serializer.fromJson<String>(json['contentType']),
       byteLength: serializer.fromJson<int>(json['byteLength']),
       cloudId: serializer.fromJson<String?>(json['cloudId']),
+      uploadId: serializer.fromJson<String?>(json['uploadId']),
+      failedAttemptId: serializer.fromJson<String?>(json['failedAttemptId']),
+      recoverAttemptId: serializer.fromJson<String?>(json['recoverAttemptId']),
+      purgedAt: serializer.fromJson<DateTime?>(json['purgedAt']),
     );
   }
   @override
@@ -7902,6 +8046,10 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
       'contentType': serializer.toJson<String>(contentType),
       'byteLength': serializer.toJson<int>(byteLength),
       'cloudId': serializer.toJson<String?>(cloudId),
+      'uploadId': serializer.toJson<String?>(uploadId),
+      'failedAttemptId': serializer.toJson<String?>(failedAttemptId),
+      'recoverAttemptId': serializer.toJson<String?>(recoverAttemptId),
+      'purgedAt': serializer.toJson<DateTime?>(purgedAt),
     };
   }
 
@@ -7913,6 +8061,10 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
     String? contentType,
     int? byteLength,
     Value<String?> cloudId = const Value.absent(),
+    Value<String?> uploadId = const Value.absent(),
+    Value<String?> failedAttemptId = const Value.absent(),
+    Value<String?> recoverAttemptId = const Value.absent(),
+    Value<DateTime?> purgedAt = const Value.absent(),
   }) => LocalPhoto(
     id: id ?? this.id,
     ownerId: ownerId ?? this.ownerId,
@@ -7921,6 +8073,14 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
     contentType: contentType ?? this.contentType,
     byteLength: byteLength ?? this.byteLength,
     cloudId: cloudId.present ? cloudId.value : this.cloudId,
+    uploadId: uploadId.present ? uploadId.value : this.uploadId,
+    failedAttemptId: failedAttemptId.present
+        ? failedAttemptId.value
+        : this.failedAttemptId,
+    recoverAttemptId: recoverAttemptId.present
+        ? recoverAttemptId.value
+        : this.recoverAttemptId,
+    purgedAt: purgedAt.present ? purgedAt.value : this.purgedAt,
   );
   LocalPhoto copyWithCompanion(LocalPhotosCompanion data) {
     return LocalPhoto(
@@ -7937,6 +8097,14 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
           ? data.byteLength.value
           : this.byteLength,
       cloudId: data.cloudId.present ? data.cloudId.value : this.cloudId,
+      uploadId: data.uploadId.present ? data.uploadId.value : this.uploadId,
+      failedAttemptId: data.failedAttemptId.present
+          ? data.failedAttemptId.value
+          : this.failedAttemptId,
+      recoverAttemptId: data.recoverAttemptId.present
+          ? data.recoverAttemptId.value
+          : this.recoverAttemptId,
+      purgedAt: data.purgedAt.present ? data.purgedAt.value : this.purgedAt,
     );
   }
 
@@ -7949,7 +8117,11 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
           ..write('relativePath: $relativePath, ')
           ..write('contentType: $contentType, ')
           ..write('byteLength: $byteLength, ')
-          ..write('cloudId: $cloudId')
+          ..write('cloudId: $cloudId, ')
+          ..write('uploadId: $uploadId, ')
+          ..write('failedAttemptId: $failedAttemptId, ')
+          ..write('recoverAttemptId: $recoverAttemptId, ')
+          ..write('purgedAt: $purgedAt')
           ..write(')'))
         .toString();
   }
@@ -7963,6 +8135,10 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
     contentType,
     byteLength,
     cloudId,
+    uploadId,
+    failedAttemptId,
+    recoverAttemptId,
+    purgedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -7974,7 +8150,11 @@ class LocalPhoto extends DataClass implements Insertable<LocalPhoto> {
           other.relativePath == this.relativePath &&
           other.contentType == this.contentType &&
           other.byteLength == this.byteLength &&
-          other.cloudId == this.cloudId);
+          other.cloudId == this.cloudId &&
+          other.uploadId == this.uploadId &&
+          other.failedAttemptId == this.failedAttemptId &&
+          other.recoverAttemptId == this.recoverAttemptId &&
+          other.purgedAt == this.purgedAt);
 }
 
 class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
@@ -7985,6 +8165,10 @@ class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
   final Value<String> contentType;
   final Value<int> byteLength;
   final Value<String?> cloudId;
+  final Value<String?> uploadId;
+  final Value<String?> failedAttemptId;
+  final Value<String?> recoverAttemptId;
+  final Value<DateTime?> purgedAt;
   final Value<int> rowid;
   const LocalPhotosCompanion({
     this.id = const Value.absent(),
@@ -7994,6 +8178,10 @@ class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
     this.contentType = const Value.absent(),
     this.byteLength = const Value.absent(),
     this.cloudId = const Value.absent(),
+    this.uploadId = const Value.absent(),
+    this.failedAttemptId = const Value.absent(),
+    this.recoverAttemptId = const Value.absent(),
+    this.purgedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalPhotosCompanion.insert({
@@ -8004,6 +8192,10 @@ class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
     required String contentType,
     required int byteLength,
     this.cloudId = const Value.absent(),
+    this.uploadId = const Value.absent(),
+    this.failedAttemptId = const Value.absent(),
+    this.recoverAttemptId = const Value.absent(),
+    this.purgedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        ownerId = Value(ownerId),
@@ -8019,6 +8211,10 @@ class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
     Expression<String>? contentType,
     Expression<int>? byteLength,
     Expression<String>? cloudId,
+    Expression<String>? uploadId,
+    Expression<String>? failedAttemptId,
+    Expression<String>? recoverAttemptId,
+    Expression<DateTime>? purgedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -8029,6 +8225,10 @@ class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
       if (contentType != null) 'content_type': contentType,
       if (byteLength != null) 'byte_length': byteLength,
       if (cloudId != null) 'cloud_id': cloudId,
+      if (uploadId != null) 'upload_id': uploadId,
+      if (failedAttemptId != null) 'failed_attempt_id': failedAttemptId,
+      if (recoverAttemptId != null) 'recover_attempt_id': recoverAttemptId,
+      if (purgedAt != null) 'purged_at': purgedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -8041,6 +8241,10 @@ class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
     Value<String>? contentType,
     Value<int>? byteLength,
     Value<String?>? cloudId,
+    Value<String?>? uploadId,
+    Value<String?>? failedAttemptId,
+    Value<String?>? recoverAttemptId,
+    Value<DateTime?>? purgedAt,
     Value<int>? rowid,
   }) {
     return LocalPhotosCompanion(
@@ -8051,6 +8255,10 @@ class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
       contentType: contentType ?? this.contentType,
       byteLength: byteLength ?? this.byteLength,
       cloudId: cloudId ?? this.cloudId,
+      uploadId: uploadId ?? this.uploadId,
+      failedAttemptId: failedAttemptId ?? this.failedAttemptId,
+      recoverAttemptId: recoverAttemptId ?? this.recoverAttemptId,
+      purgedAt: purgedAt ?? this.purgedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -8079,6 +8287,18 @@ class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
     if (cloudId.present) {
       map['cloud_id'] = Variable<String>(cloudId.value);
     }
+    if (uploadId.present) {
+      map['upload_id'] = Variable<String>(uploadId.value);
+    }
+    if (failedAttemptId.present) {
+      map['failed_attempt_id'] = Variable<String>(failedAttemptId.value);
+    }
+    if (recoverAttemptId.present) {
+      map['recover_attempt_id'] = Variable<String>(recoverAttemptId.value);
+    }
+    if (purgedAt.present) {
+      map['purged_at'] = Variable<DateTime>(purgedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -8095,6 +8315,10 @@ class LocalPhotosCompanion extends UpdateCompanion<LocalPhoto> {
           ..write('contentType: $contentType, ')
           ..write('byteLength: $byteLength, ')
           ..write('cloudId: $cloudId, ')
+          ..write('uploadId: $uploadId, ')
+          ..write('failedAttemptId: $failedAttemptId, ')
+          ..write('recoverAttemptId: $recoverAttemptId, ')
+          ..write('purgedAt: $purgedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11940,6 +12164,10 @@ typedef $$LocalPhotosTableCreateCompanionBuilder =
       required String contentType,
       required int byteLength,
       Value<String?> cloudId,
+      Value<String?> uploadId,
+      Value<String?> failedAttemptId,
+      Value<String?> recoverAttemptId,
+      Value<DateTime?> purgedAt,
       Value<int> rowid,
     });
 typedef $$LocalPhotosTableUpdateCompanionBuilder =
@@ -11951,6 +12179,10 @@ typedef $$LocalPhotosTableUpdateCompanionBuilder =
       Value<String> contentType,
       Value<int> byteLength,
       Value<String?> cloudId,
+      Value<String?> uploadId,
+      Value<String?> failedAttemptId,
+      Value<String?> recoverAttemptId,
+      Value<DateTime?> purgedAt,
       Value<int> rowid,
     });
 
@@ -11995,6 +12227,26 @@ class $$LocalPhotosTableFilterComposer
 
   ColumnFilters<String> get cloudId => $composableBuilder(
     column: $table.cloudId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uploadId => $composableBuilder(
+    column: $table.uploadId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get failedAttemptId => $composableBuilder(
+    column: $table.failedAttemptId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recoverAttemptId => $composableBuilder(
+    column: $table.recoverAttemptId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get purgedAt => $composableBuilder(
+    column: $table.purgedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -12042,6 +12294,26 @@ class $$LocalPhotosTableOrderingComposer
     column: $table.cloudId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get uploadId => $composableBuilder(
+    column: $table.uploadId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get failedAttemptId => $composableBuilder(
+    column: $table.failedAttemptId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recoverAttemptId => $composableBuilder(
+    column: $table.recoverAttemptId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get purgedAt => $composableBuilder(
+    column: $table.purgedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalPhotosTableAnnotationComposer
@@ -12079,6 +12351,22 @@ class $$LocalPhotosTableAnnotationComposer
 
   GeneratedColumn<String> get cloudId =>
       $composableBuilder(column: $table.cloudId, builder: (column) => column);
+
+  GeneratedColumn<String> get uploadId =>
+      $composableBuilder(column: $table.uploadId, builder: (column) => column);
+
+  GeneratedColumn<String> get failedAttemptId => $composableBuilder(
+    column: $table.failedAttemptId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recoverAttemptId => $composableBuilder(
+    column: $table.recoverAttemptId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get purgedAt =>
+      $composableBuilder(column: $table.purgedAt, builder: (column) => column);
 }
 
 class $$LocalPhotosTableTableManager
@@ -12119,6 +12407,10 @@ class $$LocalPhotosTableTableManager
                 Value<String> contentType = const Value.absent(),
                 Value<int> byteLength = const Value.absent(),
                 Value<String?> cloudId = const Value.absent(),
+                Value<String?> uploadId = const Value.absent(),
+                Value<String?> failedAttemptId = const Value.absent(),
+                Value<String?> recoverAttemptId = const Value.absent(),
+                Value<DateTime?> purgedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalPhotosCompanion(
                 id: id,
@@ -12128,6 +12420,10 @@ class $$LocalPhotosTableTableManager
                 contentType: contentType,
                 byteLength: byteLength,
                 cloudId: cloudId,
+                uploadId: uploadId,
+                failedAttemptId: failedAttemptId,
+                recoverAttemptId: recoverAttemptId,
+                purgedAt: purgedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -12139,6 +12435,10 @@ class $$LocalPhotosTableTableManager
                 required String contentType,
                 required int byteLength,
                 Value<String?> cloudId = const Value.absent(),
+                Value<String?> uploadId = const Value.absent(),
+                Value<String?> failedAttemptId = const Value.absent(),
+                Value<String?> recoverAttemptId = const Value.absent(),
+                Value<DateTime?> purgedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalPhotosCompanion.insert(
                 id: id,
@@ -12148,6 +12448,10 @@ class $$LocalPhotosTableTableManager
                 contentType: contentType,
                 byteLength: byteLength,
                 cloudId: cloudId,
+                uploadId: uploadId,
+                failedAttemptId: failedAttemptId,
+                recoverAttemptId: recoverAttemptId,
+                purgedAt: purgedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

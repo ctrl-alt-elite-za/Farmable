@@ -359,6 +359,7 @@ class ApiAuthService implements AuthService {
     Map<String, Object?>? query,
     ResponseType? responseType,
     int? generation,
+    CancelToken? cancelToken,
   }) async {
     final origin = generation ?? _epoch;
     void stillSame() {
@@ -382,6 +383,7 @@ class ApiAuthService implements AuthService {
       data,
       query,
       responseType,
+      cancelToken,
     );
     if (!_sessionRejected(response)) return response;
 
@@ -397,6 +399,7 @@ class ApiAuthService implements AuthService {
       data,
       query,
       responseType,
+      cancelToken,
     );
     if (_sessionRejected(response)) {
       if (origin == _epoch) await _dropSession(onlyToken: session.token);
@@ -493,13 +496,15 @@ class ApiAuthService implements AuthService {
     String accessToken,
     Object? data,
     Map<String, Object?>? query,
-    ResponseType? responseType,
-  ) async {
+    ResponseType? responseType, [
+    CancelToken? cancelToken,
+  ]) async {
     try {
       return await _dio.request<Object?>(
         path,
         data: data,
         queryParameters: query,
+        cancelToken: cancelToken,
         options: Options(
           method: method,
           headers: {'Authorization': 'Bearer $accessToken'},

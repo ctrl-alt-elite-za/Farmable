@@ -20,6 +20,8 @@ import 'dart:typed_data';
 import 'package:almanac/data/auth/api_auth_service.dart';
 import 'package:dio/dio.dart';
 
+import 'fake_farm_api.dart';
+
 const phoneCode = '111111';
 const emailCode = '222222';
 
@@ -122,6 +124,10 @@ class FakeAuthApi implements HttpClientAdapter {
   final Map<String, Completer<void>> hold = {};
 
   final List<SeenRequest> requests = [];
+
+  /// The farm-scoped routes (`/farms/...`), answered under the session's
+  /// account. Null leaves them unknown (404), as before sync existed.
+  FakeFarmApi? farms;
 
   final _accounts = <String, _Account>{};
   final _byAccess = <String, _Session>{};
@@ -229,6 +235,8 @@ class FakeAuthApi implements HttpClientAdapter {
       ('POST', '/auth/login') => _login(body),
       ('POST', '/auth/refresh') => await _refresh(body),
       ('POST', '/auth/logout') => _logout(auth),
+      (_, final String p) when p.startsWith('/farms') && farms != null =>
+        await _farms(options.method, p, body, auth),
       (_, final String p) when p.startsWith('/account') => _account(
         options.method,
         p,
@@ -256,6 +264,18 @@ class FakeAuthApi implements HttpClientAdapter {
         'next_step': 'phone',
       });
     }
+
+  Future<ResponseBody> _farms(
+    String method,
+    String path,
+    Map<String, Object?> body,
+    String? authorization,
+  ) async {
+    final session = _live(authorization);
+    if (session == null) return _error(401, 'invalid_session');
+    return farms!.route(method, path, body, session.userId);
+  }
+
     final password = body['password'] as String? ?? '';
     final phone = body['phone'] as String? ?? '';
     if (password.length < 15 ||

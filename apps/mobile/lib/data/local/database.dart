@@ -45,7 +45,7 @@ class AlmanacDatabase extends _$AlmanacDatabase {
   AlmanacDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -78,6 +78,15 @@ class AlmanacDatabase extends _$AlmanacDatabase {
           // came from, and treating them as plan steps would let a replan
           // delete them.
           await m.addColumn(farmTasks, farmTasks.planId);
+        }
+        // v4 lets a photo upload survive a restart mid-transfer. Below v2 the
+        // table did not exist, and `createTable` above already made it with
+        // these columns, so adding them again would fail.
+        if (from >= 2 && from < 4) {
+          await m.addColumn(localPhotos, localPhotos.uploadId);
+          await m.addColumn(localPhotos, localPhotos.failedAttemptId);
+          await m.addColumn(localPhotos, localPhotos.recoverAttemptId);
+          await m.addColumn(localPhotos, localPhotos.purgedAt);
         }
         // Drift normally updates this after onUpgrade. Include it in our
         // transaction so a process kill cannot leave new columns tagged old.

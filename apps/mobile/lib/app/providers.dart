@@ -6,6 +6,7 @@
 /// repository the screens actually use.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,7 +24,11 @@ import '../data/device_wipe.dart';
 import '../data/health_service.dart';
 import '../data/local/database.dart' show AlmanacDatabase;
 import '../data/local/local_farm_repository.dart';
+import '../data/local/offline_photos.dart';
 import '../data/local/seed.dart';
+import '../data/local/sync_outbox.dart';
+import '../data/sync/account_workspace.dart';
+import '../data/sync/sync_controller.dart';
 import '../domain/account/account_service.dart';
 import '../domain/auth/auth_models.dart';
 import '../domain/auth/auth_service.dart';
@@ -43,10 +48,24 @@ final databaseProvider = Provider<AlmanacDatabase>((ref) {
 /// assertions stay true tomorrow.
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
+/// Whose farm the screens show: the demo seed, or — once the sync controller
+/// has found it — the signed-in account's own. See `account_workspace.dart`.
+final farmScopeProvider = NotifierProvider<FarmScopeController, FarmScope>(
+  FarmScopeController.new,
+);
+
+class FarmScopeController extends Notifier<FarmScope> {
+  @override
+  FarmScope build() => FarmScope.demo;
+
+  void set(FarmScope scope) => state = scope;
+}
+
 final farmRecordsProvider = Provider<FarmRecordsRepository>(
   (ref) => LocalFarmRepository(
     ref.watch(databaseProvider),
     now: ref.watch(clockProvider),
+    ownerId: ref.watch(farmScopeProvider).ownerId,
   ),
 );
 
@@ -206,3 +225,69 @@ final healthServiceProvider = Provider<HealthService>((ref) => HealthService());
 final reachabilityProvider = FutureProvider<Reachability>(
   (ref) => ref.watch(healthServiceProvider).check(),
 );
+
+// ----------------------------------------------------------------- sync
+//
+// Issue #17. The outbox, runner and transport live in `data/`; these decide
+// when they run and for whom.
+
+final networkStatusProvider = Provider<NetworkStatus>(
+  (ref) => DeviceNetworkStatus(),
+);
+
+/// Where captured photos are kept, per account and farm.
+final photoStoreProvider = Provider<PhotoStore>(
+  (ref) => OfflinePhotos.onDevice,
+);
+
+/// The sync queue's lifecycle. Null for builds that authenticate against the
+/// local demo: a demo session is no credential, and nothing is sent.
+final syncControllerProvider = Provider<SyncController?>((ref) {
+  if (ref.watch(demoAuthProvider)) return null;
+  final auth = ref.watch(authServiceProvider);
+  if (auth is! ApiAuthService) return null;
+  final scope = ref.read(farmScopeProvider.notifier);
+  final controller = SyncController(
+    db: ref.watch(databaseProvider),
+    auth: auth,
+    network: ref.watch(networkStatusProvider),
+    photos: ref.watch(photoStoreProvider),
+    now: ref.watch(clockProvider),
+    onScope: scope.set,
+  );
+  unawaited(controller.start());
+  ref.listen(authViewModelProvider, (_, next) {
+    // Settled answers only: a reload in progress is not a sign-out.
+    if (next case AsyncData(:final value)) {
+      unawaited(controller.standing(value));
+    } else if (next is AsyncError) {
+      unawaited(controller.standing(null));
+    }
+  }, fireImmediately: true);
+  ref.onDispose(() => unawaited(controller.dispose()));
+  return controller;
+});
+
+/// Saves an observation with a photo, into the farm the screens are showing.
+final offlineObservationsProvider = FutureProvider<OfflineObservations>((
+  ref,
+) async {
+  final scope = ref.watch(farmScopeProvider);
+  final db = ref.watch(databaseProvider);
+  final store = await ref.watch(photoStoreProvider)(
+    ownerId: scope.ownerId,
+    farmId: scope.farmId,
+  );
+  await store.recover(ref.read(clockProvider)());
+  return OfflineObservations(
+    SyncOutbox(db, ownerId: scope.ownerId, farmId: scope.farmId),
+    store,
+    now: ref.watch(clockProvider),
+  );
+});
+
+/// Called from the app root's `build`, beside `keepSessionFresh`, so the
+/// queue runs however the app opens. A listener, so a change in the queue
+/// never rebuilds the app.
+void keepFarmSynced(WidgetRef ref) =>
+    ref.listen(syncControllerProvider, (_, _) {});
