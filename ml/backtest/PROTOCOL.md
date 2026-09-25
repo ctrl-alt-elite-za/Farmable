@@ -43,6 +43,68 @@ The original runner produced no complete result to report under the unamended
 snapshot rule. The eventual result package must disclose this failed attempt and
 distinguish these frozen deployment estimates from the decision backtest forecasts.
 
+### Amendment 2 — 25 September 2026: seven-default decision evaluation
+
+The completed version 1 result, merged in PR #85, exposed an incompatible input
+pairing: it valued fresh-market Johannesburg tomato prices using a processing-
+tomato production budget with a 0% marketing rate. Tomatoes were also the only
+default with no scorable switches. The project owner directed us to discard the
+tomato **production assumptions** rather than infer a replacement cost, yield or
+marketing rate from another source. This amendment is motivated by source
+compatibility; it does not recast the observed version 1 result as successful.
+
+This is a **new seven-default decision evaluation**, not a correction of version 1.
+The original 1,248-key decision ledger, reports, manifests and 96-row snapshot
+remain immutable and labelled as version 1. The amended result must be committed
+in a separate result folder and displayed alongside version 1, including version
+1's `INSUFFICIENT EVIDENCE` sentence and tomato caveat. No amended real decision
+evaluation may run until this amendment is independently merged on `main`.
+
+- Decision defaults and recommendation candidates are exactly butternut, cabbage,
+  carrots, green beans, onions, potatoes and spinach. Tomatoes are excluded from
+  both roles because no reviewed tomato production budget matches the fresh-
+  market price series. The exclusion and reason must appear in the result JSON,
+  table and sentence. Beetroot and pumpkins retain their version 1 exclusions.
+- The audit grid is January 2012–December 2024 for each of these seven defaults:
+  1,092 unique default/month keys. Preserve explicit out-of-season, missing-
+  forecast and missing-realized-price skips. Do not retroactively select a
+  different candidate when any required forecast or realized price is missing.
+- Use the same 17 audited market workbooks, current-vintage CPI file, analytical
+  next-month cutoff, forecast methods, per-origin walk-forward selection,
+  non-tomato calendar/yield/cost/marketing assumptions, margin formula, ties,
+  scoring rules, bootstrap and display rounding as version 1. No value is tuned
+  from the observed version 1 gains. The remaining seven crops use their exact
+  version 1 source values and 2025-rand basis.
+- Tomato **price** forecasts remain available in a separate price-only artifact.
+  At a fixed 1 January 2025 cutoff, use version 1's pre-2025 seasonal historical
+  range method to forecast each January–December 2025 target calendar month.
+  Record crop, market, target month, P10/P50/P90 in 2025 ZAR/kg, method, cutoff
+  and source hashes. The artifact has no planting month, harvest offset, yield,
+  cost, marketing rate or profit field. These forecasts do not enter the
+  seven-default candidate set, profit calculation or pooled statistic. The
+  version 1 deployment snapshot is not regenerated or relabelled by this
+  amendment; its tomato economics remain an archived version 1 limitation and
+  must not be activated as corrected advice.
+- Calculate the same metric fields for all seven defaults and pooled from the new
+  decision ledger. The table lists the seven defaults alphabetically plus pooled.
+  If any default has zero scorable switches or another undefined required
+  statistic, write `INSUFFICIENT EVIDENCE` and its reason instead of a headline.
+  Otherwise generate the version 1 retrospective sentence with “7 starting
+  crops” and the explicit clause “Tomatoes excluded: no compatible reviewed
+  fresh-market production budget.” All numbers come from the amended JSON.
+- Give the amended run a distinct scenario ID and content-derived run ID. Record
+  this amendment's merged mainline commit, all input/code hashes and the version
+  1 run ID in its manifest. Write new decision ledger, JSON report, Markdown table
+  and generated sentence, plus the 12-row tomato price-only artifact. Include a
+  version comparison that shows both complete
+  result sets and explains the different crop universe; never describe a change
+  in pooled gains as an improvement caused by model skill.
+
+The sections below remain the **version 1** protocol. Amendment 2 overrides only
+the decision universe, result-grid size, tomato exclusion, output packaging and
+seven-default sentence wording listed above. It does not change the archived
+version 1 forecast/deployment artifacts or their consumer contract.
+
 ## Scope and coverage
 
 - Audit grid: every first-of-month origin from January 2012 through December 2024
