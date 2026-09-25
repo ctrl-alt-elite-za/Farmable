@@ -102,11 +102,11 @@ printf '%s' 'THE_VALUE' | gcloud secrets versions add farmable-staging-gemini-ap
 
 **Required before the first deploy** (the service will not start without them):
 
-| Secret                            | Notes                          |
-| --------------------------------- | ------------------------------ |
-| `farmable-staging-database-url`   | see format below               |
+| Secret                                 | Notes                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `farmable-staging-database-url`        | see format below                                                                     |
 | `farmable-staging-export-token-secret` | stable high-entropy export-link signing secret; the service will not boot without it |
-| `farmable-staging-gemini-api-key` | the demo's primary integration |
+| `farmable-staging-gemini-api-key`      | the demo's primary integration                                                       |
 
 **Optional** — the rollout wires each one only if it holds an enabled version, and skips
 it otherwise. A skipped provider reports unavailable; it does not break the deploy, so
