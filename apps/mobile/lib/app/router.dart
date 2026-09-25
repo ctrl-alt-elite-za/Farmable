@@ -27,6 +27,7 @@ import '../features/auth/onboarding_screen.dart';
 import '../features/auth/reset_password_screen.dart';
 import '../features/auth/sign_up_screen.dart';
 import '../features/auth/verify_screen.dart';
+import '../features/crop_scan/crop_scan_screen.dart';
 import '../features/farm/farm_map_screen.dart';
 import '../features/farm/farm_screen.dart';
 import '../features/home/home_screen.dart';
@@ -86,6 +87,7 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
     // ------------------------------------------------------------ end auth
 
     GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+    GoRoute(path: '/health/camera', builder: (_, _) => const CropScanScreen()),
 
     GoRoute(
       path: '/farm',
