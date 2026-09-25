@@ -148,8 +148,8 @@ void main() {
       expect(find.byKey(const Key('assistant-send')), findsOneWidget);
     });
 
-    testWidgets('an error event ends it visibly, and Send again reuses the '
-        'same turn', (tester) async {
+    testWidgets('an error event ends it visibly, and Send again asks as a '
+        'new turn, since the server recorded that one', (tester) async {
       final api = FakeAssistantApi(granted: true);
       await pumpAssistant(tester, api: api);
 
@@ -161,8 +161,31 @@ void main() {
       expect(_statusText(tester, turn), contains('not taking questions'));
       await _tapKey(tester, Key('assistant-retry-${turn.turnId}'));
       expect(api.sent, hasLength(2));
-      expect(api.last.turnId, turn.turnId, reason: 'never a paid regeneration');
+      // The same id would only replay the recorded failure.
+      expect(api.last.turnId, isNot(turn.turnId));
       expect(api.last.message, 'Hello');
+      expect(_statusText(tester, turn), contains('not taking questions'));
+      await endOpenTurns(tester, api);
+    });
+
+    testWidgets('a turn refused before the server took it is sent again as '
+        'the same turn', (tester) async {
+      final api = FakeAssistantApi(granted: true);
+      await pumpAssistant(tester, api: api);
+
+      await _ask(tester, 'Hello');
+      final turn = api.last;
+      turn.events.addError(
+        const AssistantException(
+          AssistantProblem.notAvailable,
+          'assistant_capacity',
+        ),
+      );
+      await settle(tester);
+      await _tapKey(tester, Key('assistant-retry-${turn.turnId}'));
+
+      expect(api.sent, hasLength(2));
+      expect(api.last.turnId, turn.turnId, reason: 'never a paid regeneration');
       await endOpenTurns(tester, api);
     });
 
@@ -247,6 +270,24 @@ void main() {
       await _tapKey(tester, const Key('assistant-stop'));
       expect(api.interrupts, [turn.turnId]);
       expect(_statusText(tester, turn), 'Stopped. Nothing was saved.');
+    });
+
+    testWidgets('Stop as the answer finishes leaves it finished, not '
+        '"Stopped"', (tester) async {
+      final api = FakeAssistantApi(granted: true)
+        ..interruptFinds = TurnStatus.completed
+        ..interruptReply = 'Cabbages grow well in spring.';
+      await pumpAssistant(tester, api: api);
+
+      await _ask(tester, 'Hello');
+      final turn = api.last;
+      await _emit(tester, turn, const TurnText('Cabbages grow '));
+      await _tapKey(tester, const Key('assistant-stop'));
+
+      expect(api.interrupts, [turn.turnId]);
+      expect(_statusText(tester, turn), 'Done');
+      expect(find.text('Cabbages grow well in spring.'), findsOneWidget);
+      expect(find.textContaining('Stopped'), findsNothing);
     });
 
     testWidgets('model text is shown as words, never as markup', (
@@ -527,6 +568,26 @@ void main() {
       expect(api.serverPlans, hasLength(1));
     });
 
+    testWidgets('after a "changed" answer, the same option is confirmed '
+        'with new ids, so it can still be saved', (tester) async {
+      final (api, key) = await planShown(tester);
+      api.confirmResult = const AssistantException(
+        AssistantProblem.planChanged,
+        'plan_state_changed',
+      );
+      await confirmOption(tester, key, 0);
+      expect(find.textContaining('changed somewhere else'), findsOneWidget);
+
+      api.confirmResult = null;
+      await confirmOption(tester, key, 0);
+
+      expect(api.confirms, hasLength(2));
+      expect(api.confirms[1].candidateId, api.confirms[0].candidateId);
+      expect(api.confirms[1].planId, isNot(api.confirms[0].planId));
+      expect(api.confirms[1].mutationId, isNot(api.confirms[0].mutationId));
+      expect(find.text('Plan saved'), findsOneWidget);
+    });
+
     testWidgets('a stale preview is not saved; fresh numbers need a new '
         'choice', (tester) async {
       final (api, key) = await planShown(tester);
@@ -647,6 +708,37 @@ void main() {
       unawaited(controller.send('Hello again'));
       await settle(tester);
       expect(api.sent, hasLength(1), reason: 'only the turn sent before');
+    });
+
+    testWidgets('a message not taken stays in the box', (tester) async {
+      var allowed = true;
+      final api = FakeAssistantApi(granted: true);
+      final container = await pumpAssistant(
+        tester,
+        api: api,
+        outsideServicesNow: () => allowed,
+      );
+      String box() => tester
+          .widget<TextField>(find.byKey(const Key('assistant-input')))
+          .controller!
+          .text;
+
+      await _ask(tester, 'Hello');
+      expect(box(), isEmpty, reason: 'taken, so cleared');
+      await _emit(tester, api.last, const TurnDone());
+
+      // Turned off on another screen; the sheet has not heard yet.
+      await tester.enterText(
+        find.byKey(const Key('assistant-input')),
+        'Will it rain?',
+      );
+      allowed = false;
+      container.invalidate(externalProcessingConsentProvider);
+      await tester.tap(find.byKey(const Key('assistant-send')));
+      await settle(tester);
+
+      expect(api.sent, hasLength(1));
+      expect(box(), 'Will it rain?');
     });
 
     testWidgets('off during an answer: interrupted on the server, and no '

@@ -80,17 +80,54 @@ class ApiAssistantService implements AssistantApi {
         ),
       );
 
+  /// Cancelling the subscription aborts the request itself, at any point:
+  /// before the server has admitted the turn (so it never starts, and never
+  /// spends), or mid-answer (the connection closes, which interrupts it
+  /// there). Only stopping to listen would leave the POST to land later.
   @override
   Stream<TurnEvent> sendTurn({
     required String conversationId,
     required String turnId,
     required String message,
+  }) {
+    final cancel = CancelToken();
+    StreamSubscription<TurnEvent>? events;
+    late final StreamController<TurnEvent> out;
+    out = StreamController<TurnEvent>(
+      onListen: () {
+        events = _turnEvents(
+          conversationId: conversationId,
+          turnId: turnId,
+          message: message,
+          cancel: cancel,
+        ).listen(out.add, onError: out.addError, onDone: out.close);
+      },
+      onPause: () => events?.pause(),
+      onResume: () => events?.resume(),
+      onCancel: () async {
+        cancel.cancel();
+        try {
+          await events?.cancel();
+        } on Object {
+          // The aborted request ends in an error nobody is listening for.
+        }
+      },
+    );
+    return out.stream;
+  }
+
+  Stream<TurnEvent> _turnEvents({
+    required String conversationId,
+    required String turnId,
+    required String message,
+    required CancelToken cancel,
   }) async* {
     final response = await _send(
       'POST',
       '/assistant/conversations/$conversationId/turns',
       data: {'id': turnId, 'message': message},
       responseType: ResponseType.stream,
+      cancelToken: cancel,
     );
     final body = response.data;
     if (body is! ResponseBody) {
@@ -215,6 +252,7 @@ class ApiAssistantService implements AssistantApi {
     String path, {
     Object? data,
     ResponseType? responseType,
+    CancelToken? cancelToken,
   }) async {
     try {
       return await _auth.authorized(
@@ -223,6 +261,7 @@ class ApiAssistantService implements AssistantApi {
         data: data,
         responseType: responseType,
         generation: _generation,
+        cancelToken: cancelToken,
       );
     } on AuthException catch (e) {
       throw AssistantException(switch (e.failure) {

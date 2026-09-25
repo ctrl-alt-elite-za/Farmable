@@ -150,6 +150,21 @@ void main() {
       );
     });
 
+    test('a word against a digit or underscore is still replaced, so the '
+        'question is not asked again', () {
+      for (final message in [
+        'plant 10potatos',
+        'plant potatos_2',
+        'x_tatoes',
+      ]) {
+        final q = cropQuestionFor(message)!;
+        final resolved = resolveCropQuestion(message, q, ServerCrop.potatoes);
+        expect(resolved, isNot(message));
+        expect(resolved, contains('potatoes'));
+        expect(cropQuestionFor(resolved), isNull, reason: resolved);
+      }
+    });
+
     test('the choice replaces only that word', () {
       const message = 'Plant tatoes, then more tatoes';
       final q = cropQuestionFor(message)!;

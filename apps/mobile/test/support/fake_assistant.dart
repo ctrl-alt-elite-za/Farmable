@@ -246,10 +246,15 @@ class FakeAssistantApi implements AssistantApi {
   @override
   Future<List<TurnSnapshot>> history(String conversationId) async => history_;
 
+  /// What `…/interrupt` finds. A turn that already finished stays
+  /// finished there: `store.update` leaves a completed turn as it is.
+  TurnStatus interruptFinds = TurnStatus.interrupted;
+  String interruptReply = 'Partial';
+
   @override
   Future<TurnSnapshot> interrupt(String conversationId, String turnId) async {
     interrupts.add(turnId);
-    return snapshot(turnId, TurnStatus.interrupted, reply: 'Partial');
+    return snapshot(turnId, interruptFinds, reply: interruptReply);
   }
 
   @override

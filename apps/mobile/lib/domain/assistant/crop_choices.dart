@@ -21,7 +21,12 @@ class CropQuestion {
   /// means "did you mean …?"; more means the word is genuinely ambiguous.
   final List<ServerCrop> options;
 
-  const CropQuestion(this.word, this.options);
+  /// Where [word] starts in the message it was found in. The word is
+  /// replaced there, found by the same pattern that found it — not by a
+  /// word boundary, which a digit or underscore next to it would hide.
+  final int start;
+
+  const CropQuestion(this.word, this.options, {this.start = -1});
 }
 
 /// Every spelling that already means exactly one crop.
@@ -80,7 +85,7 @@ CropQuestion? cropQuestionFor(String message) {
         final byDistance = best[a]!.compareTo(best[b]!);
         return byDistance != 0 ? byDistance : a.index.compareTo(b.index);
       });
-    return CropQuestion(word, options);
+    return CropQuestion(word, options, start: match.start);
   }
   return null;
 }
@@ -90,10 +95,18 @@ String resolveCropQuestion(
   String message,
   CropQuestion question,
   ServerCrop crop,
-) => message.replaceFirst(
-  RegExp('\\b${RegExp.escape(question.word)}\\b'),
-  crop.label.toLowerCase(),
-);
+) {
+  final word = question.word;
+  final start = question.start;
+  final at =
+      start >= 0 &&
+          start + word.length <= message.length &&
+          message.startsWith(word, start)
+      ? start
+      : message.indexOf(word);
+  if (at < 0) return message;
+  return message.replaceRange(at, at + word.length, crop.label.toLowerCase());
+}
 
 /// Levenshtein distance. The words are short; the plain table is fine.
 int _distance(String a, String b) {

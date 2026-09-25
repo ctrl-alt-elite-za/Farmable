@@ -30,6 +30,12 @@ class _Server implements HttpClientAdapter {
   final seen = <_Seen>[];
   final answers = <(int, Object)>[];
 
+  /// When set, a request waits here before it is answered — like a POST
+  /// the server has not admitted yet.
+  Completer<void>? hold;
+  final reached = Completer<void>();
+  bool cancelled = false;
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -49,6 +55,18 @@ class _Server implements HttpClientAdapter {
         options.headers['Authorization'] as String?,
       ),
     );
+    unawaited(cancelFuture?.then((_) => cancelled = true));
+    if (!reached.isCompleted) reached.complete();
+    final waiting = hold;
+    if (waiting != null) {
+      await Future.any([waiting.future, ?cancelFuture]);
+      if (cancelled) {
+        throw DioException.requestCancelled(
+          requestOptions: options,
+          reason: 'cancelled',
+        );
+      }
+    }
     final (status, answer) = answers.removeAt(0);
     final text = answer is String ? answer : jsonEncode(answer);
     return ResponseBody.fromString(
@@ -207,6 +225,23 @@ void main() {
     final farms = await service.farms();
     expect(server.seen.single.path, '/farms');
     expect(farms.single.id, farmId);
+  });
+
+  test('cancelling a turn aborts its request, even before the server has '
+      'admitted it', () async {
+    final (service, server) = await _service();
+    server.hold = Completer<void>();
+    final events = <TurnEvent>[];
+    final subscription = service
+        .sendTurn(conversationId: 'c1', turnId: 't1', message: 'Hello')
+        .listen(events.add, onError: (_) {});
+    await server.reached.future;
+
+    await subscription.cancel();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(server.cancelled, isTrue, reason: 'not only stopped listening');
+    expect(events, isEmpty);
   });
 
   test('history reads oldest first', () async {

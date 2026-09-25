@@ -66,11 +66,16 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
     super.dispose();
   }
 
-  void _send() {
+  /// Clears the box only once the controller has taken the message. If it
+  /// did not — outside services turned off meanwhile, say — the words stay.
+  Future<void> _send() async {
     final message = _draft.text;
     if (message.trim().isEmpty) return;
-    _draft.clear();
-    ref.read(assistantControllerProvider.notifier).send(message);
+    final taken = await ref
+        .read(assistantControllerProvider.notifier)
+        .send(message);
+    // Not if the farmer has typed on since.
+    if (taken && mounted && _draft.text == message) _draft.clear();
   }
 
   /// Closes the sheet, then goes to [location]. The router is read first:

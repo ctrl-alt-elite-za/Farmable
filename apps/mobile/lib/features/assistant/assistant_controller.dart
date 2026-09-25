@@ -134,7 +134,7 @@ class FarmerLine extends ChatEntry {
 }
 
 class ReplyEntry extends ChatEntry {
-  /// The question, kept so a failed turn can be sent again as the same turn.
+  /// The question, kept so a turn that did not finish can be sent again.
   final String message;
   final String text;
   final List<ToolResult> tools;
@@ -145,6 +145,11 @@ class ReplyEntry extends ChatEntry {
   final String? code;
   final bool erased;
 
+  /// The server recorded this turn: it answered with an event, or its
+  /// snapshot was read. Sending the same id again only replays what it
+  /// recorded, so a retry of a recorded ending is a new turn.
+  final bool admitted;
+
   const ReplyEntry(
     super.turnId, {
     required this.message,
@@ -154,6 +159,7 @@ class ReplyEntry extends ChatEntry {
     this.problem,
     this.code,
     this.erased = false,
+    this.admitted = false,
   });
 
   ReplyEntry copyWith({
@@ -162,6 +168,7 @@ class ReplyEntry extends ChatEntry {
     ReplyStatus? status,
     AssistantProblem? problem,
     String? code,
+    bool? admitted,
   }) => ReplyEntry(
     turnId,
     message: message,
@@ -171,6 +178,7 @@ class ReplyEntry extends ChatEntry {
     problem: problem ?? this.problem,
     code: code ?? this.code,
     erased: erased,
+    admitted: admitted ?? this.admitted,
   );
 }
 
@@ -594,11 +602,7 @@ class AssistantController extends Notifier<AssistantChatState> {
   /// Starts again from nothing: another account, or a sign-out.
   void _reset() {
     _epoch++;
-    final run = _run;
-    run?.cancel();
-    if (run != null && !(run.finished?.isCompleted ?? true)) {
-      run.finished!.complete();
-    }
+    _run?.cancel();
     _run = null;
     _api = null;
     _userId = null;
@@ -765,19 +769,23 @@ class AssistantController extends Notifier<AssistantChatState> {
   // -------------------------------------------------------------------- turns
 
   /// Sends [raw], unless a crop name in it needs asking about first.
-  Future<void> send(String raw) async {
+  ///
+  /// True once the message is taken — sent, or held for the crop question —
+  /// so the box is cleared only then. False leaves the farmer's words where
+  /// they typed them. It does not wait for the answer.
+  Future<bool> send(String raw) async {
     final message = raw.trim();
-    if (message.isEmpty || message.length > 4000) return;
-    if (state.stage != AssistantStage.ready || state.writing) return;
+    if (message.isEmpty || message.length > 4000) return false;
+    if (state.stage != AssistantStage.ready || state.writing) return false;
     final question = cropQuestionFor(message);
     if (question != null) {
       state = state.copyWith(
         cropQuestion: () => question,
         pendingMessage: () => message,
       );
-      return;
+      return true;
     }
-    await _admit(newUuid(), message);
+    return _admit(newUuid(), message);
   }
 
   /// The farmer's answer to the crop question: a crop, or null for "keep
@@ -790,10 +798,14 @@ class AssistantController extends Notifier<AssistantChatState> {
       cropQuestion: () => null,
       pendingMessage: () => null,
     );
-    if (crop == null) {
+    final resolved = crop == null
+        ? pending
+        : resolveCropQuestion(pending, question, crop);
+    // Unchanged words would only ask the same question again.
+    if (resolved == pending) {
       await _admit(newUuid(), pending);
     } else {
-      await send(resolveCropQuestion(pending, question, crop));
+      await send(resolved);
     }
   }
 
@@ -807,26 +819,35 @@ class AssistantController extends Notifier<AssistantChatState> {
     return pending;
   }
 
-  /// Sends a turn that did not finish again, as the *same* turn. The server
-  /// never generates an admitted turn twice: it replays what it saved, or
-  /// admits the turn if it never arrived.
+  /// Sends a turn that did not finish again.
+  ///
+  /// As the *same* turn when the server may not have it — never admitted, or
+  /// lost on the way — so it is never generated twice: the server replays
+  /// what it saved, or admits it now. A turn the server recorded as ended is
+  /// asked again as a new turn; its id would only replay that ending.
   Future<void> retry(String turnId) async {
     if (state.stage != AssistantStage.ready || state.writing) return;
     final entry = state.entries.whereType<ReplyEntry>().where(
       (e) => e.turnId == turnId,
     );
     if (entry.isEmpty) return;
-    await _admit(turnId, entry.first.message, again: true);
+    final reply = entry.first;
+    if (reply.admitted && reply.status != ReplyStatus.lost) {
+      await _admit(newUuid(), reply.message);
+    } else {
+      await _admit(turnId, reply.message, again: true);
+    }
   }
 
   /// The one way into [_start]: checks the farmer's outside-services choice
-  /// as it is now, not as it was when the conversation opened.
-  Future<void> _admit(
+  /// as it is now, not as it was when the conversation opened. True when the
+  /// turn was started; it does not wait for the answer.
+  Future<bool> _admit(
     String turnId,
     String message, {
     bool again = false,
   }) async {
-    if (_admitting || _servicesOff) return;
+    if (_admitting || _servicesOff) return false;
     final epoch = _epoch;
     _admitting = true;
     final bool allowed;
@@ -835,9 +856,10 @@ class AssistantController extends Notifier<AssistantChatState> {
     } finally {
       _admitting = false;
     }
-    if (!allowed || epoch != _epoch) return;
-    if (state.stage != AssistantStage.ready || state.writing) return;
-    await _start(turnId, message, again: again);
+    if (!allowed || epoch != _epoch) return false;
+    if (state.stage != AssistantStage.ready || state.writing) return false;
+    _start(turnId, message, again: again);
+    return true;
   }
 
   /// The farmer's Stop tap.
@@ -851,7 +873,8 @@ class AssistantController extends Notifier<AssistantChatState> {
           .timeout(_timing.request);
       if (run.epoch != _epoch) return;
       _applySnapshot(snapshot);
-      _end(run.turnId, TurnInterrupted(snapshot.error));
+      // An answer that finished as Stop was tapped stays finished.
+      _end(run.turnId, snapshot.ended ?? TurnInterrupted(snapshot.error));
     } on Object {
       if (run.epoch != _epoch) return;
       // The server may not have heard; closing the stream interrupts the turn
@@ -860,7 +883,7 @@ class AssistantController extends Notifier<AssistantChatState> {
     }
   }
 
-  Future<void> _start(String turnId, String message, {bool again = false}) {
+  void _start(String turnId, String message, {bool again = false}) {
     final api = _api!;
     final conversation = _conversationId!;
     final reply = ReplyEntry(turnId, message: message);
@@ -875,8 +898,6 @@ class AssistantController extends Notifier<AssistantChatState> {
 
     final run = _Run(turnId, _epoch);
     _run = run;
-    final finished = Completer<void>();
-    run.finished = finished;
 
     void watchdog() {
       if (run.closed) return;
@@ -912,10 +933,12 @@ class AssistantController extends Notifier<AssistantChatState> {
           },
           cancelOnError: true,
         );
-    return finished.future;
   }
 
   void _onEvent(_Run run, TurnEvent event) {
+    // Any event at all means the server admitted the turn: a refusal before
+    // that is an HTTP error, not an event.
+    _updateReply(run.turnId, (r) => r.copyWith(admitted: true));
     switch (event) {
       case TurnAccepted(:final snapshot):
         if (snapshot != null) _applySnapshot(snapshot);
@@ -1011,7 +1034,11 @@ class AssistantController extends Notifier<AssistantChatState> {
   void _applySnapshot(TurnSnapshot snapshot) {
     _updateReply(
       snapshot.id,
-      (r) => r.copyWith(text: snapshot.reply, tools: snapshot.tools),
+      (r) => r.copyWith(
+        text: snapshot.reply,
+        tools: snapshot.tools,
+        admitted: true,
+      ),
     );
     for (final tool in snapshot.tools) {
       _noteTool(tool);
@@ -1036,7 +1063,6 @@ class AssistantController extends Notifier<AssistantChatState> {
     if (run != null && run.turnId == turnId) {
       run.cancel();
       _run = null;
-      if (!(run.finished?.isCompleted ?? true)) run.finished!.complete();
     }
     _updateReply(turnId, (r) {
       if (r.status != ReplyStatus.writing) return r;
@@ -1088,6 +1114,7 @@ class AssistantController extends Notifier<AssistantChatState> {
         },
         code: t.error,
         problem: _problemForCode(t.error),
+        admitted: true,
       ),
     ];
   }
@@ -1104,7 +1131,12 @@ class AssistantController extends Notifier<AssistantChatState> {
     };
     if (!open.contains(d.stage)) return;
     if (!d.preview.candidates.any((c) => c.id == candidateId)) return;
-    final next = d.candidateId == candidateId ? d : _newContent(d);
+    // After a "changed" answer the same option is a new request too: its ids
+    // were refused, and sending them again is refused again.
+    final next =
+        d.candidateId == candidateId && d.stage != DecisionStage.changed
+        ? d
+        : _newContent(d);
     _setDecision(
       key,
       next.copyWith(
@@ -1434,7 +1466,6 @@ class _Run {
   StreamSubscription<TurnEvent>? subscription;
   Timer? idle;
   Timer? overall;
-  Completer<void>? finished;
   bool closed = false;
 
   _Run(this.turnId, this.epoch);
