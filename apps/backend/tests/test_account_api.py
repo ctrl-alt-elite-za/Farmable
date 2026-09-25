@@ -380,7 +380,6 @@ def test_contact_change_success_replays_without_redelivery(accounts):
     first = accounts.client.patch("/account/profile", headers=headers, json=payload)
     assert first.status_code == 200
     assert accounts.provider.deliver.call_count == 1
-
     replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
     assert replay.status_code == 200
     assert replay.json() == first.json()
@@ -630,6 +629,24 @@ def test_contact_change_sms_budget_blocks_provider_delivery(accounts):
     )
     assert rejected.status_code == 429
     assert rejected.json()["error"]["code"] == "sms_phone_rate_limited"
+    assert accounts.provider.deliver.call_count == 3
+
+
+def test_contact_change_email_budget_blocks_provider_delivery(accounts):
+    for label in ("email-budget-one", "email-budget-two", "email-budget-three"):
+        response = accounts.client.patch(
+            "/account/profile",
+            headers=_headers(accounts.alice, label),
+            json={"email": "sipho.email-budget@example.com"},
+        )
+        assert response.status_code == 200
+    rejected = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-budget-four"),
+        json={"email": "sipho.email-budget@example.com"},
+    )
+    assert rejected.status_code == 429
+    assert rejected.json()["error"]["code"] == "email_address_rate_limited"
     assert accounts.provider.deliver.call_count == 3
 
 

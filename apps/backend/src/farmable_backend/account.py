@@ -36,6 +36,7 @@ from farmable_backend.auth import (
     Channel,
     DisabledOtpProvider,
     OtpProvider,
+    check_email_limits,
     check_sms_limits,
 )
 from farmable_backend.auth import AuthError as _AuthError
@@ -433,6 +434,11 @@ class AccountService:
                         check_sms_limits(self.sessions, ip=ip, phone=normalized)
                     except _AuthError as exc:
                         raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
+                else:
+                    try:
+                        check_email_limits(self.sessions, ip=ip, email=normalized)
+                    except _AuthError as exc:
+                        raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
                 try:
                     self.provider.notify_existing_account(channel, normalized)
                 except _AuthError:
@@ -444,6 +450,10 @@ class AccountService:
                 session.add(pending_row)
             if channel is Channel.EMAIL:
                 pending_row.pending_email = normalized
+                try:
+                    check_email_limits(self.sessions, ip=ip, email=normalized)
+                except _AuthError as exc:
+                    raise ApiError(exc.status_code, exc.code, exc.retry_after) from exc
             else:
                 pending_row.pending_phone = normalized
                 try:
