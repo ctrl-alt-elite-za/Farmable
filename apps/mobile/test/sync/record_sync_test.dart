@@ -410,6 +410,238 @@ void main() {
   });
 
   group('pull', () {
+    test(
+      'a replacement never stands down a planting owned by another account',
+      () async {
+        final a = await thandiPhone();
+        addTearDown(a.stop);
+        final section = await a.section();
+        await a.open();
+        await until(a.drained);
+        final foreign = newUuid();
+        await db
+            .into(db.plantings)
+            .insert(
+              PlantingsCompanion.insert(
+                id: foreign,
+                sectionId: section,
+                crop: 'spinach',
+                ownerId: bongani.id,
+                farmId: a.farmId,
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+        a.otherPhone('POST', '/plantings', {
+          'mutation_id': newUuid(),
+          'id': newUuid(),
+          'section_id': section,
+          'crop': 'cabbage',
+          'is_current': true,
+        });
+        await a.pull();
+        final untouched = await (db.select(
+          db.plantings,
+        )..where((t) => t.id.equals(foreign))).getSingle();
+        expect(untouched.isCurrent, true);
+        expect(untouched.ownerId, bongani.id);
+      },
+    );
+
+    test(
+      'two offline task edits settle together after the first conflicts',
+      () async {
+        final a = await thandiPhone();
+        addTearDown(a.stop);
+        final section = await a.section();
+        final task = await a.repo.createTask(
+          sectionId: section,
+          title: 'Spray',
+          dueDate: DateTime(2026, 10, 2),
+        );
+        await a.open();
+        await until(a.drained);
+        await a.stop();
+        await a.repo.updateTask(
+          taskId: task.id,
+          title: 'Spray here',
+          dueDate: DateTime(2026, 10, 2),
+        );
+        await a.repo.setTaskStatus(task.id, rec.TaskStatus.done);
+        a.otherPhone('PUT', '/tasks/${task.id}', {
+          'mutation_id': newUuid(),
+          'expected_version': 1,
+          'title': 'Spray elsewhere',
+          'due_date': '2026-10-04',
+          'status': 'pending',
+        });
+        await a.open();
+        await until(
+          () async =>
+              (await a.rows()).any((r) => r.deliveryState == 'conflict'),
+        );
+        await a.pull();
+        expect(await a.outbox.unresolved(task.id), isEmpty);
+        final local = await (db.select(
+          db.farmTasks,
+        )..where((t) => t.id.equals(task.id))).getSingle();
+        expect(local.title, 'Spray elsewhere');
+        expect(local.status, 'pending');
+        expect(local.version, 2);
+        expect(
+          (await a.rows()).where((r) => r.deliveryState == 'superseded'),
+          hasLength(2),
+        );
+        await a.repo.setTaskStatus(task.id, rec.TaskStatus.done);
+        later(a);
+        await until(
+          () async => (await a.rows()).last.deliveryState == 'synced',
+        );
+        expect(api.records['tasks']![task.id]!['version'], 3);
+      },
+    );
+
+    test('two conflicting section edits unblock their queued child', () async {
+      final a = await thandiPhone();
+      addTearDown(a.stop);
+      final section = await a.section();
+      await a.open();
+      await until(a.drained);
+      await a.stop();
+      for (final name in ['Local one', 'Local two']) {
+        final local = await a.repo.section(section);
+        await a.repo.updateSection(
+          mutationId: newUuid(),
+          sectionId: section,
+          expectedRevision: local.revision,
+          name: name,
+          areaM2: '7000.00',
+        );
+      }
+      final task = await a.repo.createTask(
+        sectionId: section,
+        title: 'Water',
+        dueDate: DateTime(2026, 10, 2),
+      );
+      a.otherPhone('PUT', '/sections/$section', {
+        'mutation_id': newUuid(),
+        'expected_version': 1,
+        'name': 'Remote name',
+        'area_m2': '7000.00',
+      });
+      await a.open();
+      await until(
+        () async => (await a.rows()).any((r) => r.deliveryState == 'conflict'),
+      );
+      await a.pull();
+      expect(await a.outbox.unresolved(section), isEmpty);
+      later(a);
+      await until(() async => (await a.outbox.unresolved(task.id)).isEmpty);
+      expect(api.records['tasks']![task.id]!['title'], 'Water');
+      expect((await a.repo.section(section)).name, 'Remote name');
+    });
+
+    test(
+      'a skipped replacement planting is retried without a new server edit',
+      () async {
+        final a = await thandiPhone();
+        addTearDown(a.stop);
+        final section = await a.section();
+        await a.repo.acceptPlan(
+          acceptance(section, Crop.spinach, DateTime(2026, 9, 20)),
+        );
+        await a.open();
+        await until(a.drained);
+        await a.stop();
+        final old = api.records['plantings']!.values.single;
+        final oldId = old['id']! as String;
+        await db.transaction(() async {
+          await (db.update(
+            db.plantings,
+          )..where((t) => t.id.equals(oldId))).write(
+            const PlantingsCompanion(crop: Value('cabbage'), version: Value(2)),
+          );
+          await enqueueRecord(db, 'planting', oldId, 'update', now);
+        });
+        a.otherPhone('PUT', '/plantings/$oldId', {
+          'mutation_id': newUuid(),
+          'expected_version': 1,
+          'crop': 'spinach',
+          'planted_on': '2026-09-20',
+          'is_current': false,
+        });
+        final replacement = newUuid();
+        a.otherPhone('POST', '/plantings', {
+          'mutation_id': newUuid(),
+          'id': replacement,
+          'section_id': section,
+          'crop': 'cabbage',
+          'planted_on': '2026-09-25',
+          'is_current': true,
+        });
+        await a.pull();
+        Future<Planting?> currentReplacement() => (db.select(
+          db.plantings,
+        )..where((t) => t.id.equals(replacement))).getSingleOrNull();
+        expect(await currentReplacement(), isNull);
+        await a.open();
+        await until(
+          () async => (await a.rows()).last.deliveryState == 'conflict',
+        );
+        await a.pull();
+        await a.pull();
+        expect((await currentReplacement())?.isCurrent, true);
+        expect(await a.outbox.unresolved(oldId), isEmpty);
+      },
+    );
+
+    test('an invalid fetched record is retried after repair without a new feed entry', () async {
+      final a = await thandiPhone();
+      addTearDown(a.stop);
+      final section = await a.section();
+      await a.open();
+      await until(a.drained);
+      final task = newUuid();
+      a.otherPhone('POST', '/tasks', {
+        'mutation_id': newUuid(),
+        'id': task,
+        'section_id': section,
+        'title': 'Repair fence',
+        'due_date': '2026-10-05',
+      });
+      final remote = api.records['tasks']![task]!;
+      remote['version'] = 'invalid';
+      final laterTask = newUuid();
+      a.otherPhone('POST', '/tasks', {
+        'mutation_id': newUuid(),
+        'id': laterTask,
+        'section_id': section,
+        'title': 'Water beds',
+        'due_date': '2026-10-06',
+      });
+      Future<int> pullOneItemPages() => ChangePuller(
+        db,
+        api.requestAs(thandi.id),
+        outbox: a.outbox,
+        pageSize: 1,
+      ).pull();
+      await pullOneItemPages();
+      expect(
+        await (db.select(
+          db.farmTasks,
+        )..where((t) => t.id.equals(laterTask))).getSingleOrNull(),
+        isNotNull,
+        reason: 'a deferred page must not prevent scanning later pages',
+      );
+      remote['version'] = 1;
+      // A fresh puller uses the durable cursor, not an in-memory retry list.
+      await pullOneItemPages();
+      final local = await (db.select(
+        db.farmTasks,
+      )..where((t) => t.id.equals(task))).getSingleOrNull();
+      expect(local?.title, 'Repair fence');
+    });
+
     test('another phone\'s edits, new records and deletions appear here, and '
         'fields only this phone has are kept', () async {
       final a = await thandiPhone();

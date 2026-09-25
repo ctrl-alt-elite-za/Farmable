@@ -14,9 +14,9 @@
 ///   becomes a conflict.
 /// * A record whose queued change the server refused as a conflict takes
 ///   the server's version: the other phone's edit reached the server first,
-///   and sending ours as-is would overwrite it. The refused change is marked
-///   `superseded` — never sent — and the record reads "Changed on another
-///   phone" until the farmer edits it again, which then goes up against the
+///   and sending ours as-is would overwrite it. The refused change and its
+///   queued successors are marked `superseded` — never sent — and the record
+///   reads "Changed on another phone" until the farmer edits it again, which then goes up against the
 ///   server's version.
 /// * Everything else follows the server whenever the server's version is
 ///   newer than the phone's. Fields only the phone has (health score,
@@ -82,10 +82,12 @@ class ChangePuller {
 
   /// Reads the feed to its end, then settles every conflicted record.
   /// Returns how many records were written. Throws on a network or server
-  /// failure; the cursor stays at the last page fully applied.
+  /// failure; the cursor stays at the last page fully applied. Deferred
+  /// records also hold the durable cursor back, including across restarts.
   Future<int> pull() async {
     var applied = 0;
     var since = await _cursor();
+    var deferred = false;
     while (true) {
       final page = _object(
         (await _get(
@@ -113,68 +115,88 @@ class ChangePuller {
         latest[change.recordId] = change;
       }
       for (final change in latest.values) {
-        if (await _settle(
+        final result = await _settle(
           localTypes[change.recordType]!,
           change.recordId,
           version: change.version,
           deleted: change.operation == 'delete',
-        )) {
-          applied++;
-        }
+        );
+        if (result == _Settlement.applied) applied++;
+        if (result == _Settlement.deferred) deferred = true;
       }
       if (last > since) {
         since = last;
-        await _saveCursor(since);
+        // Continue scanning so a later dependency can still be reconciled,
+        // but never checkpoint past work that must be tried on the next pull.
+        if (!deferred) await _saveCursor(since);
       }
       if (page['next_cursor'] == null || items.isEmpty) break;
     }
     for (final entry in (await outbox.conflicts()).entries) {
-      if (await _settle(entry.value, entry.key)) applied++;
+      if (await _settle(entry.value, entry.key) == _Settlement.applied) {
+        applied++;
+      }
     }
     return applied;
   }
 
   /// Writes the server's copy of one record, unless the phone holds work
-  /// on it the server has not seen. True when something was written.
-  Future<bool> _settle(
+  /// on it the server has not seen. Deferred records must remain in the feed.
+  Future<_Settlement> _settle(
     String type,
     String id, {
     int? version,
     bool deleted = false,
   }) async {
     final table = recordTable(db, type);
-    if (table == null) return false;
+    if (table == null) return _Settlement.unchanged;
     final local = await _local(table, id);
-    if (local != null && !local.ours(_ownerId, _farmId)) return false;
+    if (local != null && !local.ours(_ownerId, _farmId)) {
+      return _Settlement.unchanged;
+    }
     final open = await outbox.unresolved(id);
-    if (open.any((r) => r.deliveryState != 'conflict')) return false;
+    if (open.isNotEmpty &&
+        (open.first.deliveryState != 'conflict' ||
+            open.any((r) => r.deliveryState == 'syncing'))) {
+      return _Settlement.deferred;
+    }
+    final mutationIds = open.map((r) => r.mutationId).toSet();
     final conflicted = open.isNotEmpty;
     if (!conflicted &&
         local != null &&
         version != null &&
         version <= local.version) {
-      return false; // This phone already has it — often its own change.
+      return _Settlement.unchanged; // Often this phone's own change.
     }
     final Map<String, Object?>? server;
     try {
       server = deleted && !conflicted ? null : await _fetch(type, id);
     } on _Unapplicable {
       onError?.call('pull_record_invalid');
-      return false;
+      return _Settlement.deferred;
     }
-    if (server == null && local == null) return false;
+    if (server == null && local == null) return _Settlement.unchanged;
     try {
       return await db.transaction(() async {
         // Re-checked inside the write: the farmer may have edited the
         // record while it was being fetched.
         final still = await outbox.unresolved(id);
-        if (still.any((r) => r.deliveryState != 'conflict')) return false;
+        if (still.length != mutationIds.length ||
+            still.any(
+              (r) =>
+                  !mutationIds.contains(r.mutationId) ||
+                  r.deliveryState == 'syncing',
+            )) {
+          return _Settlement.deferred;
+        }
         final mine = await _local(table, id);
         if (server == null) {
-          if (mine == null) return false;
+          if (mine == null) return _Settlement.unchanged;
           if (mine.deleted) {
-            await outbox.supersede(id);
-            return still.isNotEmpty;
+            await outbox.supersede(id, mutationIds: mutationIds);
+            return still.isNotEmpty
+                ? _Settlement.applied
+                : _Settlement.unchanged;
           }
           await updateRecord(
             db,
@@ -195,21 +217,21 @@ class ChangePuller {
         } else {
           final serverVersion = server['version']! as int;
           if (still.isEmpty && mine != null && serverVersion <= mine.version) {
-            return false;
+            return _Settlement.unchanged;
           }
           if (!await _write(type, id, server, exists: mine != null)) {
-            return false;
+            throw const _Unapplicable();
           }
         }
-        await outbox.supersede(id);
-        return true;
+        await outbox.supersede(id, mutationIds: mutationIds);
+        return _Settlement.applied;
       });
     } on Object {
       // A server record the phone cannot hold as-is — most often a second
       // current planting while this phone's own replan is still unsent. It
       // is left for the next pull rather than stopping this one.
       onError?.call('pull_record_skipped');
-      return false;
+      return _Settlement.deferred;
     }
   }
 
@@ -294,6 +316,8 @@ class ChangePuller {
               await (db.select(db.plantings)..where(
                     (t) =>
                         t.sectionId.equals(section) &
+                        t.ownerId.equals(_ownerId) &
+                        t.farmId.equals(_farmId) &
                         t.isCurrent.equals(true) &
                         t.deletedAt.isNull() &
                         t.id.equals(id).not(),
@@ -301,7 +325,12 @@ class ChangePuller {
                   .get();
           for (final other in others) {
             if ((await outbox.unresolved(other.id)).isNotEmpty) return false;
-            await (db.update(db.plantings)..where((t) => t.id.equals(other.id)))
+            await (db.update(db.plantings)..where(
+                  (t) =>
+                      t.id.equals(other.id) &
+                      t.ownerId.equals(_ownerId) &
+                      t.farmId.equals(_farmId),
+                ))
                 .write(const PlantingsCompanion(isCurrent: Value(false)));
           }
         }
@@ -476,6 +505,8 @@ class ChangePuller {
     return response;
   }
 }
+
+enum _Settlement { unchanged, applied, deferred }
 
 class _Local {
   const _Local({

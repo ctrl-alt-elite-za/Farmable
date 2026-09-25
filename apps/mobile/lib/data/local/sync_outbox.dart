@@ -352,15 +352,18 @@ class SyncOutbox {
         r,
   ];
 
-  /// The server refused these changes as conflicting and its version has
-  /// now been taken in their place. They are never sent; the record reads
+  /// The server refused this chain's first change as conflicting and its
+  /// version has now replaced the captured chain, including queued successors.
+  /// They are never sent; the record reads
   /// "Changed on another phone" until the farmer changes it again.
-  Future<void> supersede(String recordId) =>
+  Future<void> supersede(String recordId, {required Set<String> mutationIds}) =>
       (db.update(db.syncMutations)..where(
             (t) =>
                 _scope(t) &
                 t.recordId.equals(recordId) &
-                t.deliveryState.equals('conflict'),
+                t.mutationId.isIn(mutationIds) &
+                t.syncedAt.isNull() &
+                t.deliveryState.equals('syncing').not(),
           ))
           .write(
             const SyncMutationsCompanion(deliveryState: Value('superseded')),
