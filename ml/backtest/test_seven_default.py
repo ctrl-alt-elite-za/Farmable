@@ -91,3 +91,7 @@ def test_amended_runner_is_reproducible_and_excludes_tomato_economics(
     assert {"cost", "yield", "profit", "harvest_offset"}.isdisjoint(tomato["rows"][0])
     sentence = (first / "backtest/results" / run_id / "slide_sentence.txt").read_text()
     assert "Tomatoes excluded" in sentence
+    comparison = (first / "backtest/results" / run_id / "version_comparison.md").read_text()
+    assert "Version 1: eight defaults" in comparison
+    assert "Amendment 2: seven defaults" in comparison
+    assert "improved model skill" in comparison

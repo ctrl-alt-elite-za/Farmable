@@ -101,6 +101,7 @@ def run(repo: Path, workbooks: Path, output: Path, main_ref: str = "origin/main"
     old_dir = repo / "ml/backtest/results" / VERSION_ONE_RUN_ID
     old_report = json.loads((old_dir / "decision_backtest.json").read_bytes())
     old_sentence = (old_dir / "slide_sentence.txt").read_text(encoding="utf-8")
+    old_table = (old_dir / "decision_backtest.md").read_text(encoding="utf-8")
     if old_report["scenario"] == SCENARIO_ID:
         raise ValueError("version 1 comparison must use the original eight-default scenario")
     comparison = {
@@ -115,6 +116,17 @@ def run(repo: Path, workbooks: Path, output: Path, main_ref: str = "origin/main"
             "to improved model skill."
         ),
     }
+    comparison_markdown = (
+        "# Issue 20 retrospective result comparison\n\n"
+        "Version 1 includes eight starting crops and uses a processing-tomato "
+        "budget against fresh-market prices. Amendment 2 has seven starting "
+        "crops and excludes tomatoes from all decision economics. A difference "
+        "in pooled gains cannot be attributed to improved model skill.\n\n"
+        "## Version 1: eight defaults\n\n"
+        f"{old_sentence.strip()}\n\n{old_table}\n"
+        "## Amendment 2: seven defaults\n\n"
+        f"{render_sentence(report).strip()}\n\n{render_table(report)}"
+    )
     forecast_artifacts = {
         "tomato_price_forecasts.json": canonical_json(
             {
@@ -143,6 +155,7 @@ def run(repo: Path, workbooks: Path, output: Path, main_ref: str = "origin/main"
         "decision_backtest.md": render_table(report).encode("utf-8"),
         "slide_sentence.txt": render_sentence(report).encode("utf-8"),
         "version_comparison.json": canonical_json(comparison),
+        "version_comparison.md": comparison_markdown.encode("utf-8"),
     }
     forecast_dir.mkdir(parents=True)
     decision_dir.mkdir(parents=True)
