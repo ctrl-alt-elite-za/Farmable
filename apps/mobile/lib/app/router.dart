@@ -19,6 +19,8 @@ import '../features/account/delete_account_screen.dart';
 import '../features/account/edit_details_screen.dart';
 import '../features/account/export_screen.dart';
 import '../features/account/privacy_screen.dart';
+import '../features/account/security_screen.dart';
+import '../features/account/help_screen.dart';
 import '../features/auth/auth_choice_screen.dart';
 import '../features/auth/brand_intro_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
@@ -29,6 +31,8 @@ import '../features/auth/sign_up_screen.dart';
 import '../features/auth/verify_screen.dart';
 import '../features/health/health_screen.dart';
 import '../features/crop_scan/crop_scan_screen.dart';
+import '../features/farm/farm_map_screen.dart';
+import '../features/farm/farm_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
 import '../features/recommendations/recommendation_detail_screen.dart';
@@ -114,25 +118,15 @@ GoRouter buildRouter({
 
     GoRoute(
       path: '/farm',
-      builder: (_, _) => const NotBuiltYetScreen(
-        destination: NavDestination.farm,
-        title: 'Farm',
-        body:
-            'The map and the full list of sections live here. For now, open '
-            'a section from the carousel on Home.',
+      // Sections mode by default — what Home's "See all" promises — and map
+      // mode at `/farm?view=map`.
+      builder: (_, state) => FarmScreen(
+        initialMode: state.uri.queryParameters['view'] == 'map'
+            ? FarmTabMode.map
+            : FarmTabMode.sections,
       ),
       routes: [
-        GoRoute(
-          path: 'map',
-          builder: (_, _) => const NotBuiltYetScreen(
-            destination: NavDestination.farm,
-            title: 'Farm map',
-            body:
-                'Walking your boundaries with the camera is being built. '
-                'Your sections and their areas are already saved on this '
-                'phone.',
-          ),
-        ),
+        GoRoute(path: 'map', builder: (_, _) => const FarmMapScreen()),
         GoRoute(
           path: 'zone/:zoneId',
           builder: (context, state) =>
@@ -205,6 +199,14 @@ GoRouter buildRouter({
     // "Review health"; reads the farm from disk, so it opens with no signal.
     GoRoute(path: '/health', builder: (_, _) => const HealthScreen()),
     // ----------------------------------------------------------- end health
+
+    // ------------------------------------------------------- issue 94 profile
+    GoRoute(
+      path: '/profile/security',
+      builder: (_, _) => const SecurityScreen(),
+    ),
+    GoRoute(path: '/profile/help', builder: (_, _) => const HelpScreen()),
+    // --------------------------------------------------- end issue 94 profile
 
     // ---------------------------------------------------------------- setup
     //

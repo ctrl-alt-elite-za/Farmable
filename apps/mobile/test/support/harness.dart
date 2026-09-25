@@ -96,6 +96,9 @@ Future<FarmHarness> pumpFarmApp(
   /// floor to check the width the type scale was actually set for.
   Size surface = phoneSize,
 
+  /// The system text size. 1 is the default; the large-text checks use 2.
+  double textScale = 1,
+
   /// Which of Zone Detail's storage streams should fail instead of loading.
   ///
   /// The one thing that cannot be provoked from the database itself: a stream
@@ -160,6 +163,7 @@ Future<FarmHarness> pumpFarmApp(
         data: MediaQueryData(
           size: surface,
           disableAnimations: reducedMotion,
+          textScaler: TextScaler.linear(textScale),
           platformBrightness: brightness,
         ),
         child: MaterialApp.router(
