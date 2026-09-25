@@ -1,5 +1,6 @@
 """Amendment 2 leaves the archived economics intact and isolates tomato prices."""
 
+import hashlib
 import json
 from dataclasses import replace
 from datetime import date
@@ -117,6 +118,25 @@ def test_amended_runner_is_reproducible_and_excludes_tomato_economics(
     assert "Amendment 2: seven defaults" in comparison
     assert "improved model skill" in comparison
     validate_result(first, run_id)
+    comparison_path = first / "backtest/results" / run_id / "version_comparison.md"
+    original_comparison = comparison_path.read_bytes()
+    comparison_path.write_bytes(
+        original_comparison.replace(b"cannot be attributed", b"can be attributed")
+    )
+    manifest_path = first / "backtest/results" / run_id / "manifest.json"
+    manifest = json.loads(manifest_path.read_bytes())
+    relative_comparison = comparison_path.relative_to(first).as_posix()
+    manifest["artifacts"][relative_comparison] = hashlib.sha256(
+        comparison_path.read_bytes()
+    ).hexdigest()
+    for path in (manifest_path, first / "forecast/price_only_results" / run_id / "manifest.json"):
+        path.write_bytes(runner.canonical_json(manifest))
+    with pytest.raises(ValueError, match="comparison Markdown"):
+        validate_result(first, run_id)
+    comparison_path.write_bytes(original_comparison)
+    manifest["artifacts"][relative_comparison] = hashlib.sha256(original_comparison).hexdigest()
+    for path in (manifest_path, first / "forecast/price_only_results" / run_id / "manifest.json"):
+        path.write_bytes(runner.canonical_json(manifest))
     report_path = first / "backtest/results" / run_id / "slide_sentence.txt"
     report_path.write_text("tampered\n", encoding="utf-8")
     with pytest.raises(ValueError, match="artifact hashes"):

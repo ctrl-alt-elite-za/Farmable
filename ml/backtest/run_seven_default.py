@@ -25,9 +25,11 @@ from farmable_ml.reports import (  # noqa: E402
 from farmable_ml.retrospective import RetrospectiveSimulation  # noqa: E402
 from farmable_ml.scenario import MARKET, to_retrospective_2025  # noqa: E402
 from farmable_ml.seven_default import (  # noqa: E402
+    COMPARISON_INTERPRETATION,
     DECISION_ASSUMPTIONS,
     SCENARIO_ID,
     VERSION_ONE_RUN_ID,
+    render_version_comparison,
     tomato_price_forecasts,
     validate_tomato_price_rows,
 )
@@ -120,21 +122,10 @@ def run(repo: Path, workbooks: Path, output: Path, main_ref: str = "origin/main"
             "sentence": old_sentence,
         },
         "seven_default": {"run_id": run_id, "report": report, "sentence": render_sentence(report)},
-        "interpretation": (
-            "The decision universes differ. A change in pooled gains cannot be attributed "
-            "to improved model skill."
-        ),
+        "interpretation": COMPARISON_INTERPRETATION,
     }
-    comparison_markdown = (
-        "# Issue 20 retrospective result comparison\n\n"
-        "Version 1 includes eight starting crops and uses a processing-tomato "
-        "budget against fresh-market prices. Amendment 2 has seven starting "
-        "crops and excludes tomatoes from all decision economics. A difference "
-        "in pooled gains cannot be attributed to improved model skill.\n\n"
-        "## Version 1: eight defaults\n\n"
-        f"{old_sentence.strip()}\n\n{old_table}\n"
-        "## Amendment 2: seven defaults\n\n"
-        f"{render_sentence(report).strip()}\n\n{render_table(report)}"
+    comparison_markdown = render_version_comparison(
+        old_sentence, old_table, render_sentence(report), render_table(report)
     )
     forecast_artifacts = {
         "tomato_price_forecasts.json": canonical_json(

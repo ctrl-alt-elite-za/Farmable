@@ -24,7 +24,12 @@ from farmable_ml.reports import (  # noqa: E402
     render_sentence,
     render_table,
 )
-from farmable_ml.seven_default import SCENARIO_ID, VERSION_ONE_RUN_ID  # noqa: E402
+from farmable_ml.seven_default import (  # noqa: E402
+    COMPARISON_INTERPRETATION,
+    SCENARIO_ID,
+    VERSION_ONE_RUN_ID,
+    render_version_comparison,
+)
 from validate_tomato_price import validate as validate_tomato_price  # noqa: E402
 
 
@@ -121,12 +126,15 @@ def validate(output: Path, run_id: str) -> None:
         raise ValueError("tomato prices do not match run identity")
     comparison = json.loads((decision_dir / "version_comparison.json").read_bytes())
     old_dir = ROOT / "ml/backtest/results" / VERSION_ONE_RUN_ID
+    old_sentence = (old_dir / "slide_sentence.txt").read_text(encoding="utf-8")
+    old_table = (old_dir / "decision_backtest.md").read_text(encoding="utf-8")
     if (
-        comparison["version_one"]["run_id"] != VERSION_ONE_RUN_ID
+        set(comparison) != {"version_one", "seven_default", "interpretation"}
+        or comparison["interpretation"] != COMPARISON_INTERPRETATION
+        or comparison["version_one"]["run_id"] != VERSION_ONE_RUN_ID
         or comparison["version_one"]["report"]
         != json.loads((old_dir / "decision_backtest.json").read_bytes())
-        or comparison["version_one"]["sentence"]
-        != (old_dir / "slide_sentence.txt").read_text(encoding="utf-8")
+        or comparison["version_one"]["sentence"] != old_sentence
         or comparison["seven_default"]
         != {
             "run_id": run_id,
@@ -135,6 +143,11 @@ def validate(output: Path, run_id: str) -> None:
         }
     ):
         raise ValueError("version comparison does not match both published results")
+    expected_markdown = render_version_comparison(
+        old_sentence, old_table, render_sentence(calculated), render_table(calculated)
+    )
+    if (decision_dir / "version_comparison.md").read_bytes() != expected_markdown.encode("utf-8"):
+        raise ValueError("version comparison Markdown does not match both published results")
 
 
 def main() -> None:

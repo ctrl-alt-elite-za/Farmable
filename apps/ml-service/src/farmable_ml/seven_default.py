@@ -13,9 +13,30 @@ from farmable_ml.retrospective import ASSUMPTIONS, ProductionAssumptions
 
 SCENARIO_ID = SEVEN_DEFAULT_SCENARIO
 VERSION_ONE_RUN_ID = "c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f"
+COMPARISON_INTERPRETATION = (
+    "The decision universes differ. A change in pooled gains cannot be attributed "
+    "to improved model skill."
+)
 DECISION_ASSUMPTIONS: Mapping[Crop, ProductionAssumptions] = MappingProxyType(
     {crop: value for crop, value in ASSUMPTIONS.items() if crop != Crop.TOMATOES}
 )
+
+
+def render_version_comparison(
+    old_sentence: str, old_table: str, new_sentence: str, new_table: str
+) -> str:
+    """Render the published results together without changing either result."""
+    return (
+        "# Issue 20 retrospective result comparison\n\n"
+        "Version 1 includes eight starting crops and uses a processing-tomato "
+        "budget against fresh-market prices. Amendment 2 has seven starting "
+        "crops and excludes tomatoes from all decision economics. A difference "
+        "in pooled gains cannot be attributed to improved model skill.\n\n"
+        "## Version 1: eight defaults\n\n"
+        f"{old_sentence.strip()}\n\n{old_table}\n"
+        "## Amendment 2: seven defaults\n\n"
+        f"{new_sentence.strip()}\n\n{new_table}"
+    )
 
 
 def tomato_price_forecasts(
