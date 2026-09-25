@@ -13,7 +13,6 @@ EXPORT_TOKEN_SECRET="$(uv run python -c 'import secrets; print(secrets.token_url
 export EXPORT_TOKEN_SECRET
 DATABASE_URL="$(uv run python -c 'import os; from sqlalchemy import URL; print(URL.create("postgresql+psycopg", username=os.environ["POSTGRES_USER"], password=os.environ["POSTGRES_PASSWORD"], host="database", database=os.environ["POSTGRES_DB"]).render_as_string(hide_password=False))')"
 export DATABASE_URL
-export EXPORT_TOKEN_SECRET="ci-export-token-secret-32-bytes"
 if [ "${GITHUB_ACTIONS:-}" = true ]; then
   printf '::add-mask::%s\n' "$POSTGRES_PASSWORD" "$DATABASE_URL" "$EXPORT_TOKEN_SECRET"
 fi

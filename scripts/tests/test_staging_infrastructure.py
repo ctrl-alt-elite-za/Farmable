@@ -986,6 +986,92 @@ def test_secret_smoke_rejects_a_literal_provider_key(tmp_path: Path) -> None:
     assert "super-secret-token" not in result.stderr + result.stdout
 
 
+OTP_DELIVERY_SECRETS = {
+    "INFOBIP_BASE_URL": "infobip-base-url",
+    "INFOBIP_API_KEY": "infobip-api-key",
+    "INFOBIP_SMS_SENDER": "infobip-sms-sender",
+    "SMTP_HOST": "smtp-host",
+    "SMTP_USER": "smtp-user",
+    "SMTP_PASSWORD": "smtp-password",
+    "EMAIL_FROM_NAME": "email-from-name",
+    "EMAIL_FROM_ADDRESS": "email-from-address",
+}
+
+
+def test_every_rollout_secret_is_provisioned_by_terraform() -> None:
+    """A secret the rollout looks for but Terraform never creates can never be wired,
+    which is how live OTP delivery silently went missing from staging.
+    """
+    rollout = read("infra/gcp-rollout.sh")
+    block = rollout.split("optional_secrets=(", 1)[1].split(")", 1)[0]
+    wired = dict(re.findall(r'"([A-Z_]+):([a-z0-9-]+)"', block))
+    assert OTP_DELIVERY_SECRETS.items() <= wired.items()
+    terraform = read("infra/gcp-staging.tf")
+    provisioned = terraform.split("provider_secrets = toset([", 1)[1].split("])", 1)[0]
+    for suffix in wired.values():
+        assert f'"{suffix}"' in provisioned, suffix
+
+
+@requires_jq
+def test_rollout_wires_live_otp_delivery_and_trusts_one_proxy_hop(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(
+        tmp_path,
+        log,
+        secrets="\n".join(f"farmable-staging-{suffix}" for suffix in OTP_DELIVERY_SECRETS.values()),
+        versions="projects/1/secrets/any/versions/1",
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    calls = log.read_text(encoding="utf-8")
+    for env_name, suffix in OTP_DELIVERY_SECRETS.items():
+        assert f"{env_name}=farmable-staging-{suffix}:latest" in calls
+    assert "OTP delivery is not configured" not in result.stdout
+    # Cloud Run's front end appends the caller's address to X-Forwarded-For; the app
+    # trusts exactly that one entry, and uvicorn itself still trusts no header.
+    assert "TRUSTED_PROXY_HOPS=1" in calls
+    assert "--no-proxy-headers" in read("infra/cloudrun-entrypoint.sh")
+    assert "--no-proxy-headers" in read("apps/backend/Dockerfile")
+
+
+@requires_jq
+def test_rollout_names_missing_live_otp_delivery_secrets(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(
+        tmp_path, log, secrets="farmable-staging-smtp-password", versions=""
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    warning = result.stdout.split("OTP delivery is not configured", 1)[1].splitlines()[0]
+    for env_name in OTP_DELIVERY_SECRETS:
+        assert env_name in warning
+
+
+@requires_jq
+@pytest.mark.parametrize("name", ["SMTP_PASSWORD", "INFOBIP_API_KEY", "EMAIL_FROM_ADDRESS"])
+def test_secret_smoke_rejects_literal_otp_delivery_values(tmp_path: Path, name: str) -> None:
+    leaked = REFERENCE_ENV_V1 + ',{"name":"' + name + '","value":"super-secret-value"}'
+    _fake_gcloud(tmp_path, _describe_body(leaked))
+    result = _run("infra/gcp-secret-smoke.sh", _secret_env(tmp_path))
+    assert result.returncode != 0
+    assert name in result.stderr
+    assert "super-secret-value" not in result.stderr + result.stdout
+
+
+def test_jobs_that_never_sign_export_links_are_not_given_the_export_secret() -> None:
+    """The migration and forecast-import jobs build DatabaseSettings, which does not
+    require EXPORT_TOKEN_SECRET (see apps/backend/tests/test_config.py). The forecast
+    importer runs as its own narrow identity and must not be able to forge links.
+    """
+    workflow = read(".github/workflows/deploy-staging.yml")
+    migration = workflow.split("Apply approved Alembic migration", 1)[1].split("- name:", 1)[0]
+    assert '--set-secrets="DATABASE_URL=${DATABASE_SECRET}:latest"' in migration
+    assert "EXPORT_TOKEN_SECRET" not in migration
+    assert "EXPORT_TOKEN_SECRET" not in read("infra/gcp-forecast-import.sh")
+    assert "export-token-secret" not in read("infra/forecast-import.tf")
+    assert "DatabaseSettings()" in read("apps/backend/src/farmable_backend/manage.py")
+    assert "DatabaseSettings()" in read("apps/backend/src/farmable_backend/forecast_cli.py")
+    assert "DatabaseSettings()" in read("migrations/env.py")
+
+
 def test_entrypoint_supervises_the_worker_instead_of_dying_with_it() -> None:
     entrypoint = read("infra/cloudrun-entrypoint.sh")
     # `wait -n "$worker_pid" "$api_pid"` returned on whichever child exited first, and

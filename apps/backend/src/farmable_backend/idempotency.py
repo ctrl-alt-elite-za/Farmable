@@ -13,6 +13,7 @@ state.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -37,19 +38,33 @@ IN_PROGRESS_STATUS = 102
 CLAIM_TIMEOUT = timedelta(minutes=5)
 
 
+def _contains_credential(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(
+            "password" in str(name).lower() or _contains_credential(item)
+            for name, item in value.items()
+        )
+    if isinstance(value, list | tuple):
+        return any(_contains_credential(item) for item in value)
+    return False
+
+
 def fingerprint(payload: dict[str, Any], *, key: str) -> str:
     """Return a deterministic, keyed digest for one idempotency claim.
 
     Request bodies can contain credentials (signup includes a password), so a
     plain fast hash would expose a cheap offline password verifier if the
-    idempotency table leaked. Derive password material with scrypt first; the
-    request's high-entropy idempotency key supplies a per-claim salt. Using
-    the same construction for every request also keeps credential handling
-    explicit to static analysis.
+    idempotency table leaked. Bodies with password material are derived with
+    scrypt; the request's high-entropy idempotency key supplies a per-claim
+    salt. Scrypt is deliberately slow (~0.1 s), so bodies without credentials
+    use a keyed HMAC instead: an anonymous caller must not be able to buy that
+    CPU for free. Callers run this off the event loop either way.
     """
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
     salt = f"farmable-idempotency:{key}".encode()
-    return hashlib.scrypt(canonical.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32).hex()
+    if _contains_credential(payload):
+        return hashlib.scrypt(canonical, salt=salt, n=2**14, r=8, p=1, dklen=32).hex()
+    return hmac.new(salt, canonical, hashlib.sha256).hexdigest()
 
 
 def replay(

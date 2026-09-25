@@ -4,13 +4,13 @@ import procrastinate
 from procrastinate.exceptions import AlreadyEnqueued
 from sqlalchemy.engine import make_url
 
-from farmable_backend.config import Settings
+from farmable_backend.config import DatabaseSettings
 from farmable_backend.database import CONNECTION_OPTIONS, Database
 from farmable_backend.logging import correlation_id, request_id
 from farmable_backend.retention import cleanup
 
 
-def create_task_app(settings: Settings) -> procrastinate.App:
+def create_task_app(settings: DatabaseSettings) -> procrastinate.App:
     url = make_url(settings.database_url.get_secret_value())
     connector = procrastinate.PsycopgConnector(
         conninfo=url.set(drivername="postgresql").render_as_string(hide_password=False),

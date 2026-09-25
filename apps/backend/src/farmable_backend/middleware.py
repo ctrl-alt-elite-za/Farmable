@@ -1,3 +1,4 @@
+import ipaddress
 import logging
 import math
 import threading
@@ -23,8 +24,35 @@ def error_response(
     return JSONResponse({"error": error}, status_code=status, **kwargs)
 
 
+def client_address(scope: Scope, trusted_proxy_hops: int = 0) -> str:
+    """Return the caller address used for abuse limits.
+
+    With no trusted proxy the socket peer is the caller. Behind ``n`` trusted
+    proxies that each append the address they received the request from, the
+    ``n``th X-Forwarded-For entry from the right is the address the outermost
+    trusted proxy saw. Entries further left are client-supplied and ignored, so
+    a spoofed header cannot choose its own bucket. A missing or malformed
+    trusted entry falls back to the peer: one shared bucket, never a spoofed one.
+    """
+    peer = scope.get("client")
+    fallback = peer[0] if peer else "unknown"
+    if trusted_proxy_hops <= 0:
+        return fallback
+    entries = [
+        entry.strip()
+        for value in Headers(scope=scope).getlist("x-forwarded-for")
+        for entry in value.split(",")
+    ]
+    if len(entries) < trusted_proxy_hops:
+        return fallback
+    try:
+        return str(ipaddress.ip_address(entries[-trusted_proxy_hops]))
+    except ValueError:
+        return fallback
+
+
 class RateLimiter:
-    """Sliding 60s window per peer IP. One API process; no trusted forwarding headers."""
+    """Sliding 60s window per caller address (see ``client_address``)."""
 
     def __init__(self, clock: Callable[[], float] = time.monotonic, max_ips: int = 10_000):
         self.clock = clock
@@ -51,9 +79,10 @@ class RateLimiter:
 
 
 class SafeDefaultsMiddleware:
-    def __init__(self, app: ASGIApp, limiter: RateLimiter):
+    def __init__(self, app: ASGIApp, limiter: RateLimiter, trusted_proxy_hops: int = 0):
         self.app = app
         self.limiter = limiter
+        self.trusted_proxy_hops = trusted_proxy_hops
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -61,7 +90,10 @@ class SafeDefaultsMiddleware:
             return
         rid = correlation_id(Headers(scope=scope).get("x-request-id"))
         context = request_id.set(rid)
-        scope.setdefault("state", {})["request_id"] = rid
+        ip = client_address(scope, self.trusted_proxy_hops)
+        state = scope.setdefault("state", {})
+        state["request_id"] = rid
+        state["client_ip"] = ip
         started = False
         status = 500
 
@@ -74,8 +106,7 @@ class SafeDefaultsMiddleware:
             await send(message)
 
         try:
-            peer = scope.get("client")
-            retry_after = self.limiter.retry_after(peer[0] if peer else "unknown")
+            retry_after = self.limiter.retry_after(ip)
             if retry_after is not None:
                 await error_response(
                     429,

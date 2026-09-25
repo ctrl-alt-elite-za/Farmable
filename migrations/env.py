@@ -1,5 +1,5 @@
 from alembic import context
-from farmable_backend.config import Settings
+from farmable_backend.config import DatabaseSettings
 from farmable_backend.database import make_engine
 from farmable_backend.models import Base
 
@@ -44,7 +44,7 @@ def run_migrations() -> None:
         with context.begin_transaction():
             context.run_migrations()
         return
-    engine = make_engine(Settings(), migration=True)
+    engine = make_engine(DatabaseSettings(), migration=True)
     try:
         with engine.connect() as connection:
             context.configure(
