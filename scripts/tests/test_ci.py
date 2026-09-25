@@ -406,6 +406,10 @@ def test_mobile_maestro_flows_wait_for_release_app_startup():
         assert "visible: '.*Hello, Sipho.*'" in flow
         assert "id: 'sync-status'" in flow
 
+    scan = (repo / "e2e/mobile/scan_pan.yaml").read_text()
+    assert "text: 'Cabbage Field\\..*'" in scan
+    assert "point: '50%,20%'" in scan
+
 
 def test_release_manifest_grants_network_access_and_scopes_cleartext():
     """A release APK must be able to reach the network, and only over HTTPS.

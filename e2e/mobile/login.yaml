@@ -15,7 +15,8 @@ name: A farmer logs out, logs back in, and is still signed in after a restart
 - extendedWaitUntil:
     visible: '.*Not logged in.*'
     timeout: 10000
-# Logging out keeps the farm.
+# Logging out puts the demo farm back on Home; the account's farm stays on
+# the phone for the next login but is not shown.
 - tapOn:
     id: 'nav-home'
 - extendedWaitUntil:
@@ -40,8 +41,9 @@ name: A farmer logs out, logs back in, and is still signed in after a restart
 - inputText: 'three blind field mice'
 - hideKeyboard
 - tapOn: 'Log in'
+# Signed in, Home is the account's own farm again.
 - extendedWaitUntil:
-    visible: '.*Hello, Sipho.*'
+    visible: '.*Hello, Thandi.*'
     timeout: 30000
 - tapOn:
     id: 'nav-profile'
@@ -51,7 +53,7 @@ name: A farmer logs out, logs back in, and is still signed in after a restart
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '.*Hello, Sipho.*'
+    visible: '.*Hello, Thandi.*'
     timeout: 60000
 - tapOn:
     id: 'nav-profile'

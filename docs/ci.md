@@ -164,7 +164,10 @@ would let mobile changes bypass the gate.
 The emulator-level proof stays in `e2e-mobile`: `scripts/ci-stack.sh` runs
 `e2e/mobile/online_launch.yaml`, then `signup.yaml` and `login.yaml` against
 the stack's real API (its fake OTP provider accepts `111111` for the phone and
-`222222` for email), stops the API container, then runs
+`222222` for email). It then runs `scan_pan.yaml` from Home through the existing
+section scan action in the same test-mode APK, with a fresh device-readiness
+check. This verifies labelled synthetic replay, not live crop inference. It
+stops the API container, then runs
 `e2e/mobile/offline_launch.yaml` against the stopped backend.
 
 ### Demo regression

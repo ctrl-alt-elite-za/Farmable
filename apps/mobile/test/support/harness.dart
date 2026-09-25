@@ -20,6 +20,7 @@ import 'package:almanac/domain/farm_records.dart' as rec;
 import 'package:almanac/features/permissions/permission_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'device_fakes.dart';
@@ -103,6 +104,10 @@ Future<FarmHarness> pumpFarmApp(
   /// and the storage stay real.
   Set<FailingStream> failing = const {},
 
+  /// Anything else a test substitutes — a camera, a photo folder. Appended
+  /// after the harness's own, so it wins.
+  List<Override> overrides = const [],
+
   /// The phone's permission answers. Defaults to nothing asked yet, and
   /// never the real plugin, which a widget test has no phone for.
   PermissionService? permissions,
@@ -141,6 +146,7 @@ Future<FarmHarness> pumpFarmApp(
         observationsProvider.overrideWith(
           (ref, id) => _storageIsDown<List<rec.Observation>>(),
         ),
+      ...overrides,
     ],
   );
 

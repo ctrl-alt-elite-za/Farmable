@@ -26,8 +26,12 @@ const _promptingPackages = [
 /// asks only when the person starts that flow.
 const _allowedDeviceCallers = [
   'lib/features/self_test/',
+  // An observation's photo: the camera opens only when "Add a photo" is
+  // tapped on the observation form.
+  'lib/features/zone/',
   // Profile's permission controls (#84): read on open, ask only on a tap.
   'lib/features/permissions/',
+  'lib/features/crop_scan/',
 ];
 
 Iterable<File> _dartFiles(String dir) =>

@@ -116,6 +116,21 @@ class OfflinePhotos {
     return file.uri;
   }
 
+  /// Removes the phone's copy of [photo]. Only for a photo the server has
+  /// confirmed a ready, cleaned copy of — see [releaseUploaded]. A copy that
+  /// is already gone is not an error: a crash between the delete and the
+  /// bookkeeping lands here again on the next pass.
+  Future<void> discard(LocalPhoto photo) async {
+    if (photo.ownerId != ownerId ||
+        photo.farmId != farmId ||
+        photo.cloudId == null ||
+        photo.relativePath != _relative(photo.id, photo.contentType)) {
+      throw StateError('invalid_media_scope');
+    }
+    final file = File('${root.path}/${photo.relativePath}');
+    if (await file.exists()) await file.delete();
+  }
+
   /// Run before saves begin. Only expired temporary files are disposable;
   /// committed and ambiguous orphan attachments are deliberately retained.
   Future<void> recover(DateTime now) async {
@@ -298,5 +313,21 @@ class OfflineObservations {
     });
     _tails[db] = work.then<void>((_) {}, onError: (Object _) {});
     return work;
+  }
+}
+
+/// Releases the phone's copy of every photo the server has made durable.
+///
+/// Runs after the acknowledgement has committed, never inside it: the
+/// database says "the server has it" first, and only then does the file go.
+/// The reverse order could lose the only copy to a crash.
+Future<void> releaseUploaded(
+  SyncOutbox outbox,
+  OfflinePhotos photos,
+  DateTime Function() now,
+) async {
+  for (final photo in await outbox.releasable()) {
+    await photos.discard(photo);
+    await outbox.markReleased(photo.id, now());
   }
 }

@@ -60,6 +60,10 @@ abstract interface class FarmRecordsRepository {
   /// the deletion itself can sync.
   Future<void> deleteObservation(String observationId);
 
+  /// Makes every failed send behind this observation — its own and its
+  /// photo's — due again. The farmer's "try again"; never called on a timer.
+  Future<void> retryObservationSync(String observationId);
+
   Future<FarmTask> createTask({
     required String sectionId,
     required String title,
