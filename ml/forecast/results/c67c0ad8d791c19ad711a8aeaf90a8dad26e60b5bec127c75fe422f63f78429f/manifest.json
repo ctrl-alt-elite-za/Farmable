@@ -1,13 +1,13 @@
 {
   "artifacts": {
-    "backtest/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/decision_backtest.json": "c8c84ac1b7872163cca6f67bda40b2f86a2070912a16d5ab09057f655920286a",
-    "backtest/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/decision_backtest.md": "57aa3d1afbd5950783ab7aa2ab86ca88ad696092b4976256f0f98cc4328a4194",
-    "backtest/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/decision_ledger.parquet": "6ee84f0024cb7d611e601e013e839efe2ac0b88843b04047e7acb879bd5a2ebe",
-    "backtest/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/slide_sentence.txt": "c8c723891a0bf8c21049824e56d3fa93f91e14738e2df965d7fa0140576e5211",
-    "forecast/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/forecast.json": "488bf805b10fa1ebdc5feb864f044ee1398deb194324d2ac6e9c9f1f2ca87924",
-    "forecast/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/forecast_backtest.json": "1850fc8d0e84f44fdbdc6b6e14b8cbcf048e983a0097df0ce44e6de02019ea0d",
-    "forecast/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/forecast_ledger.parquet": "4d6e669a9c0fa9b463aca9dbe3941aa2ddecc32faf7b1494b7122f01aedde5c2",
-    "forecast/results/5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d/forecasts.parquet": "17c131dd089516e05569f9840349c3b235cf548aa3f9815411ab295c0629788d"
+    "backtest/results/c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f/decision_backtest.json": "ff831da8eef8fe800000c845aa30d832471b6bf258d3802b18e8c874e3fd2c20",
+    "backtest/results/c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f/decision_backtest.md": "57aa3d1afbd5950783ab7aa2ab86ca88ad696092b4976256f0f98cc4328a4194",
+    "backtest/results/c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f/decision_ledger.parquet": "6ee84f0024cb7d611e601e013e839efe2ac0b88843b04047e7acb879bd5a2ebe",
+    "backtest/results/c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f/slide_sentence.txt": "c8c723891a0bf8c21049824e56d3fa93f91e14738e2df965d7fa0140576e5211",
+    "forecast/results/c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f/forecast.json": "c19e7d7a77c3b92fa88b54c498c91d838f59f80287c062216990903fb4e3e877",
+    "forecast/results/c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f/forecast_backtest.json": "c23b18923c39a14be969a6c55524372e1230af7b49de3e9441d999a68cfbecb2",
+    "forecast/results/c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f/forecast_ledger.parquet": "4d6e669a9c0fa9b463aca9dbe3941aa2ddecc32faf7b1494b7122f01aedde5c2",
+    "forecast/results/c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f/forecasts.parquet": "9e6bb973c394c90fbc1261591dfca5e28a41095ebf28a3b2633ee509d2745e13"
   },
   "caveats": [
     "Current-vintage Johannesburg history has unresolved publication/revision uncertainty.",
@@ -163,20 +163,20 @@
       "ml/data/budget_source_audit.json": "105501be5296caa2b41acd1fa2d3c00df5911cbe5cc76610bd8504182abf6258",
       "ml/data/calendar_source_audit.json": "84f3e74a029490da32f7911f92e005d754555ea2539defa79cc02485effdd4b2",
       "ml/data/cpi_za_monthly.csv": "7a02be81e4e719bf86da93a95e6ddea4d93e607fa2fc306d95e234c4b384bbce",
-      "ml/data/market_workbook_audit.json": "461cf7c8c33db22d34163f835abe58de3c2699864486878cda6556d545fa6386",
+      "ml/data/market_workbook_audit.json": "0dc4a4e596bcd05614a6012104eebaf8d836bda06581d40a883977874023afb2",
       "scripts/audit_issue20_market_workbooks.py": "57b0ec4d0ec07dbc809f04a06ea24aecb5313cb11a1cc07597d82c044a0dfdec",
       "uv.lock": "8fafc07036679e72418e381a740089b21073dbc68ddc9538727e7e784d5adef7"
     },
-    "platform": "Windows",
+    "platform": "Linux",
     "protocol_commit": "73e2c6296a5a7d7042a865fae29f665bf6ba8cb8",
-    "python": "3.12.11",
+    "python": "3.12.3",
     "scenario": "retrospective_fixed_2025_v1"
   },
   "input_hashes": {
     "budget_source_audit.json": "105501be5296caa2b41acd1fa2d3c00df5911cbe5cc76610bd8504182abf6258",
     "calendar_source_audit.json": "84f3e74a029490da32f7911f92e005d754555ea2539defa79cc02485effdd4b2",
     "cpi_za_monthly.csv": "7a02be81e4e719bf86da93a95e6ddea4d93e607fa2fc306d95e234c4b384bbce",
-    "market_workbook_audit.json": "461cf7c8c33db22d34163f835abe58de3c2699864486878cda6556d545fa6386",
+    "market_workbook_audit.json": "0dc4a4e596bcd05614a6012104eebaf8d836bda06581d40a883977874023afb2",
     "statistics-on-fresh-produce-markets-2008-ms-excel.xls": "e811a155aa457fbecd5d7e76dc6a5edfd19908b4272b2e525e6512f124f438f0",
     "statistics-on-fresh-produce-markets-2009-ms-excel.xls": "5ac5d44fda3244454ca1082359c13ca708bde7785f173d259b68b13a4a605f3b",
     "statistics-on-fresh-produce-markets-2010-ms-excel.xls": "ff6ce2e0943a018b0f7448d1f57ee1a92bfec84bc161b382fbb6e6631e2e20e5",
@@ -200,7 +200,7 @@
     "prices": 1632,
     "snapshot": 96
   },
-  "run_id": "5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d",
+  "run_id": "c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f",
   "skip_reasons": {
     "missing_forecast": 84,
     "missing_realized_price": 18,

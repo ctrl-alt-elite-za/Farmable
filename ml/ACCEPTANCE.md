@@ -1,6 +1,6 @@
 # Issue #20 acceptance evidence
 
-Updated 2026-09-24. This is implementation and real-run evidence for the
+Updated 2026-09-25. This is implementation and real-run evidence for the
 retrospective scenario, **not a completed issue**. The real result is reproducible,
 but the registered eight-default slide sentence is withheld because tomatoes have
 no scorable switches. See `RESULTS_REVIEW.md`.
@@ -9,7 +9,9 @@ no scorable switches. See `RESULTS_REVIEW.md`.
 
 Amendment 1 merged in PR #83. The protocol readiness gate passed on the resulting
 `main`. All 17 original workbooks matched the committed hashes, and the runner
-produced run `5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d`.
+produced run `c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f`
+from the LF source bytes committed in Git. The earlier Windows CRLF provenance
+run was removed from the result folders after code owner review.
 An independent repeat produced the same ID and byte-identical copies of all ten
 artifact files. The 96-row Parquet snapshot passed its validator, and its JSON
 counterpart passed the backend's retrospective consumer quality checks.
@@ -18,9 +20,14 @@ The 1,248-key decision ledger has 444 scorable rows, 326 switches and 316 positi
 switch gains. Tomatoes have 42 scorable rows, all no-switch; their switch win rate
 and gain statistics are correctly null. `slide_sentence.txt` therefore reports
 `INSUFFICIENT EVIDENCE`. This result must not be converted into an eight-default
-pitch claim. The real snapshot imports and serves an outlook in a disposable ORM
-test database. Colab execution, reviewer inspection, deployment and the final
-results-history gate remain open.
+pitch claim. Another 174 of the 326 switches recommend tomatoes, and all 174
+have positive gains under the processing-tomato budget paired with fresh-market
+prices. None of the gain figures should be quoted as evidence of forecast skill
+or farmer benefit until tomato inputs are corrected or tomatoes are excluded
+in a separately registered evaluation. The real snapshot imports and serves an
+outlook in a disposable ORM test database. Colab execution at the committed code
+revision passed; reviewer changes, deployment and the final results-history gate
+remain open.
 
 The sections below retain earlier implementation checkpoints as historical records.
 

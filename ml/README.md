@@ -9,8 +9,12 @@ lives in `apps/ml-service/src/farmable_ml`; public checks and artifacts use `ml/
 These components and the integrated retrospective runner are exercised on synthetic
 fixtures. A reproducible real retrospective result and 96-row snapshot are now
 included under `ml/backtest/results/` and `ml/forecast/results/`; see
-`ml/RESULTS_REVIEW.md` before using any number. The registered retrospective
-fixed-input rules in `ml/backtest/PROTOCOL.md`
+`ml/RESULTS_REVIEW.md` before using any number. The published run ID is
+`c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f`,
+generated from the LF source bytes committed in Git. The switch gains depend
+strongly on pairing a processing-tomato budget with fresh-market prices, so
+they are not a pitch statistic. The registered retrospective fixed-input rules
+in `ml/backtest/PROTOCOL.md`
 merged independently in PR #77 before any result run. NumPy, PyArrow
 and LightGBM are pinned in the package manifest and workspace lockfile. Reporting
 CPI data and extraction provenance are in `ml/data/SOURCES.md`. Proposed statistical

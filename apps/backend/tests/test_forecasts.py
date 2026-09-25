@@ -22,7 +22,7 @@ from test_farm_schema import _index_statements, _orm_sql, _table_elements
 pytest_plugins = ("test_records_api",)
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = ROOT / "ml/forecast/fixtures"
-REAL_RUN_ID = "5310d438e67b5333c22786a9b727f8c78fda671314677af9f77c59d131bd952d"
+REAL_RUN_ID = "c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f"
 REAL_FORECAST = ROOT / "ml/forecast/results" / REAL_RUN_ID / "forecast.json"
 
 
@@ -85,6 +85,8 @@ def test_retrospective_import_requires_explicit_mode_and_displays_caveat(forecas
     assert response.status_code == 200
     assert response.json()["data_kind"] == "retrospective"
     assert response.json()["warning"] == RETROSPECTIVE_WARNING
+    forecasts.app.state.forecast_data_mode = "historical"
+    assert get_outlook(forecasts).status_code == 503
 
 
 def test_real_retrospective_artifact_imports_and_serves_outlook(forecasts):
@@ -101,8 +103,6 @@ def test_real_retrospective_artifact_imports_and_serves_outlook(forecasts):
     assert response.status_code == 200
     assert response.json()["data_kind"] == "retrospective"
     assert response.json()["warning"] == RETROSPECTIVE_WARNING
-    forecasts.app.state.forecast_data_mode = "historical"
-    assert get_outlook(forecasts).status_code == 503
 
 
 def test_import_latest_activates_valid_run_and_serves_all_crop_months(forecasts):
