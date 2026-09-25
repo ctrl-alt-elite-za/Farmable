@@ -73,6 +73,14 @@ class _FarmTabState extends ConsumerState<_FarmTab> {
   late var _mode = widget.initialMode;
   String? _selectedId;
 
+  @override
+  void didUpdateWidget(covariant _FarmTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialMode != widget.initialMode) {
+      _mode = widget.initialMode;
+    }
+  }
+
   void _open(SectionSummary section) =>
       context.push('/farm/zone/${section.id}');
 
@@ -217,7 +225,7 @@ class _FarmTabState extends ConsumerState<_FarmTab> {
               label: 'Full map',
               icon: LucideIcons.maximize2,
               block: false,
-              onPressed: () => context.go('/farm/map'),
+              onPressed: () => context.push('/farm/map'),
             ),
           ],
         ],

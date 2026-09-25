@@ -14,12 +14,16 @@ import 'dart:typed_data';
 import 'package:almanac/data/local/database.dart';
 import 'package:almanac/data/local/seed.dart';
 import 'package:almanac/features/farm/farm_map_data.dart';
+import 'package:almanac/features/farm/farm_map_screen.dart';
+import 'package:almanac/features/farm/farm_screen.dart';
+import 'package:almanac/features/home/home_screen.dart';
 import 'package:almanac/features/zone/zone_screen.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'support/harness.dart';
@@ -118,6 +122,49 @@ void expectNoOverflow(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets('Full map Back preserves the Farm map mode', (tester) async {
+    await pumpFarmApp(
+      tester,
+      location: '/farm?view=map',
+      overrides: mapSeams(RecordingTiles(), boundaries: walkedTwo),
+    );
+    await tapOnPage(tester, find.text('Full map'));
+    expect(find.byType(FarmMapScreen), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Back'));
+    await tester.pumpAndSettle();
+    expect(find.byType(FarmMapScreen), findsNothing);
+    // The original page keeps its scroll position at the Full map button.
+    tester.state<ScrollableState>(pageScrollable().first).position.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('farm-map')), findsOneWidget);
+    await revealOnPage(tester, find.text('Full map'));
+  });
+
+  testWidgets('Home map Back returns to Home', (tester) async {
+    await pumpFarmApp(
+      tester,
+      overrides: mapSeams(RecordingTiles(), boundaries: walkedTwo),
+    );
+    await tapOnPage(tester, find.text('Open'));
+    expect(find.byType(FarmMapScreen), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Back'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeScreen), findsOneWidget);
+  });
+
+  testWidgets('a new map URL updates the existing Farm tab mode', (
+    tester,
+  ) async {
+    await pumpFarmApp(
+      tester,
+      location: '/farm',
+      overrides: mapSeams(RecordingTiles(), boundaries: walkedTwo),
+    );
+    GoRouter.of(tester.element(find.byType(FarmScreen))).go('/farm?view=map');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('farm-map')), findsOneWidget);
+  });
+
   group('sections mode', () {
     testWidgets('lists every section with its crop, area, status and next '
         'task — from the phone, with no signal', (tester) async {
