@@ -235,4 +235,32 @@ void main() {
     final turns = await service.history('c1');
     expect(turns.map((t) => t.id), ['1', '2']);
   });
+
+  test('plan history says which candidate and preview were saved', () async {
+    final (service, server) = await _service();
+    server.answers.add((
+      200,
+      {
+        'revisions': [
+          {
+            'version': 1,
+            'section_id': sectionId,
+            'origin': 'planner_confirmation',
+            'recorded_at': '2026-09-20T00:00:00Z',
+            'snapshot': {
+              'schema_version': 1,
+              'snapshot_hash': hex('a'),
+              'candidate': {'id': hex('1')},
+            },
+          },
+        ],
+        'next_before_version': null,
+      },
+    ));
+    final history = await service.planHistory(farmId, 'p1');
+    expect(server.seen.single.path, '/farms/$farmId/planning/plans/p1/history');
+    expect(history.single.origin, 'planner_confirmation');
+    expect(history.single.candidateId, hex('1'));
+    expect(history.single.snapshotHash, hex('a'));
+  });
 }

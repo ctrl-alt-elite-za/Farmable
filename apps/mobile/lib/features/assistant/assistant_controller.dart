@@ -175,6 +175,10 @@ class ReplyEntry extends ChatEntry {
 }
 
 enum DecisionStage {
+  /// Reopened from history with plan ids this phone sent: asking the server
+  /// whether one of them was saved before offering anything.
+  checking,
+
   /// Candidates shown; the farmer may pick one.
   choosing,
 
@@ -202,12 +206,23 @@ class PlanDecision {
   final String? candidateId;
   final DecisionStage stage;
 
-  /// Minted once per decision. `expected_version: 0` makes it a new plan.
+  /// The plan this confirmation creates. `expected_version: 0` makes it a
+  /// new plan, so the server takes one confirmation per id, ever: once a
+  /// confirm with this id *may* have reached it ([maybeSent]), different
+  /// content gets a fresh id and this one moves to [earlierPlanIds].
   final String planId;
 
   /// Minted when a candidate goes to review, and kept for every retry of that
   /// exact confirmation — the server's replay protection depends on it.
   final String? mutationId;
+
+  /// A confirm with [planId] was sent and may have been saved.
+  final bool maybeSent;
+
+  /// Plan ids of earlier confirmations for this preview that may have been
+  /// saved. The server's history for each is read before anything new is
+  /// sent, so a lost reply can never become a second plan.
+  final List<String> earlierPlanIds;
 
   final ConfirmedPlan? saved;
   final PlanRevision? revision;
@@ -221,6 +236,8 @@ class PlanDecision {
     this.candidateId,
     this.stage = DecisionStage.choosing,
     this.mutationId,
+    this.maybeSent = false,
+    this.earlierPlanIds = const [],
     this.saved,
     this.revision,
     this.problem,
@@ -235,18 +252,23 @@ class PlanDecision {
 
   PlanDecision copyWith({
     PlanPreview? preview,
+    String? planId,
     String? Function()? candidateId,
     DecisionStage? stage,
     String? Function()? mutationId,
+    bool? maybeSent,
+    List<String>? earlierPlanIds,
     ConfirmedPlan? saved,
     PlanRevision? revision,
     AssistantProblem? Function()? problem,
   }) => PlanDecision(
     preview: preview ?? this.preview,
-    planId: planId,
+    planId: planId ?? this.planId,
     candidateId: candidateId != null ? candidateId() : this.candidateId,
     stage: stage ?? this.stage,
     mutationId: mutationId != null ? mutationId() : this.mutationId,
+    maybeSent: maybeSent ?? this.maybeSent,
+    earlierPlanIds: earlierPlanIds ?? this.earlierPlanIds,
     saved: saved ?? this.saved,
     revision: revision ?? this.revision,
     problem: problem != null ? problem() : this.problem,
@@ -494,14 +516,19 @@ class AssistantController extends Notifier<AssistantChatState> {
     var decisions = const <String, PlanDecision>{};
     try {
       final turns = await api.history(conversationId).timeout(_timing.request);
+      final sent = await store.plansFor(
+        userId: _userId!,
+        farmId: farm.id,
+        conversationId: conversationId,
+      );
       entries = [for (final t in turns) ..._entriesFor(t)];
       decisions = {
         for (final t in turns)
           for (final tool in t.tools)
             if (tool is PlanPreviewResult)
-              tool.preview.snapshotHash: PlanDecision(
-                preview: tool.preview,
-                planId: newUuid(),
+              tool.preview.snapshotHash: _restoredDecision(
+                tool.preview,
+                sent[tool.preview.snapshotHash] ?? const [],
               ),
       };
     } on Object {
@@ -529,7 +556,22 @@ class AssistantController extends Notifier<AssistantChatState> {
         unawaited(_settleFromSnapshot(t.turnId, AssistantProblem.offline));
       }
     }
+    for (final MapEntry(:key, :value) in decisions.entries) {
+      if (value.stage == DecisionStage.checking) {
+        unawaited(_settleRestored(key));
+      }
+    }
   }
+
+  /// A preview read back from history. If this phone sent a confirmation for
+  /// it, the card waits for the server's history before offering Confirm.
+  PlanDecision _restoredDecision(PlanPreview preview, List<String> sent) =>
+      PlanDecision(
+        preview: preview,
+        planId: newUuid(),
+        earlierPlanIds: sent,
+        stage: sent.isEmpty ? DecisionStage.choosing : DecisionStage.checking,
+      );
 
   /// Said no this run. Not sent anywhere: "no" is the absence of a grant.
   bool _declined = false;
@@ -1062,17 +1104,30 @@ class AssistantController extends Notifier<AssistantChatState> {
     };
     if (!open.contains(d.stage)) return;
     if (!d.preview.candidates.any((c) => c.id == candidateId)) return;
+    final next = d.candidateId == candidateId ? d : _newContent(d);
     _setDecision(
       key,
-      d.copyWith(
+      next.copyWith(
         candidateId: () => candidateId,
         stage: DecisionStage.choosing,
-        // Different content is a different request to the server.
-        mutationId: d.candidateId == candidateId ? null : () => null,
         problem: () => null,
       ),
     );
   }
+
+  /// Different content is a different request to the server: a new mutation
+  /// id, and — if the last confirmation may have landed — a new plan id, with
+  /// the old one kept to be checked before anything else is sent. The same
+  /// plan id with a new mutation id is what the server answers with
+  /// `revision_conflict`, for a plan it may already have saved.
+  PlanDecision _newContent(PlanDecision d) => d.maybeSent
+      ? d.copyWith(
+          planId: newUuid(),
+          mutationId: () => null,
+          maybeSent: false,
+          earlierPlanIds: [...d.earlierPlanIds, d.planId],
+        )
+      : d.copyWith(mutationId: () => null);
 
   /// Shows the confirm step for the chosen candidate. Sends nothing.
   void review(String key) {
@@ -1095,6 +1150,10 @@ class AssistantController extends Notifier<AssistantChatState> {
   }
 
   /// The farmer's Confirm tap — the one path to `planning/confirm`.
+  ///
+  /// When the answer does not settle whether the plan was saved (no reply,
+  /// or a conflict on a plan id this phone minted), the plan's history on the
+  /// server decides what the card says — never a guess.
   Future<void> confirm(String key) async {
     final d = state.decisions[key];
     final farm = _farmId;
@@ -1107,6 +1166,35 @@ class AssistantController extends Notifier<AssistantChatState> {
       key,
       d.copyWith(stage: DecisionStage.saving, problem: () => null),
     );
+
+    // An earlier confirmation may have landed. Know before sending another.
+    for (final earlier in d.earlierPlanIds) {
+      final found = await _lookUp(api, farm, earlier);
+      if (epoch != _epoch) return;
+      if (found.saved != null) {
+        _showSaved(key, earlier, found.saved!);
+        return;
+      }
+      if (!found.known) {
+        _setDecision(
+          key,
+          state.decisions[key]!.copyWith(
+            stage: DecisionStage.reviewing,
+            problem: () => AssistantProblem.offline,
+          ),
+        );
+        return;
+      }
+    }
+    if (d.earlierPlanIds.isNotEmpty) {
+      _setDecision(key, state.decisions[key]!.copyWith(earlierPlanIds: []));
+    }
+
+    // Written down before it can reach the server, so a reopened chat can
+    // still ask about it.
+    await _rememberSent(key, d.planId);
+    if (epoch != _epoch) return;
+    _setDecision(key, state.decisions[key]!.copyWith(maybeSent: true));
     try {
       final saved = await api
           .confirm(
@@ -1145,17 +1233,39 @@ class AssistantController extends Notifier<AssistantChatState> {
       final problem = e is AssistantException
           ? e.problem
           : AssistantProblem.offline;
-      final current = state.decisions[key]!;
+      final code = e is AssistantException ? e.code : null;
+      if (_outcomeUnknown(problem, code)) {
+        final found = await _lookUp(api, farm, d.planId);
+        if (epoch != _epoch) return;
+        if (found.saved != null) {
+          _showSaved(key, d.planId, found.saved!);
+          return;
+        }
+        if (problem != AssistantProblem.planChanged || !found.known) {
+          // Not found, or no answer: it may have arrived, or still may.
+          // Same ids, so Confirm again is a retry the server recognises.
+          _setDecision(
+            key,
+            state.decisions[key]!.copyWith(
+              stage: DecisionStage.reviewing,
+              problem: () => AssistantProblem.offline,
+            ),
+          );
+          return;
+        }
+      }
       _setDecision(
         key,
-        current.copyWith(
+        state.decisions[key]!.copyWith(
           stage: switch (problem) {
             AssistantProblem.planStale => DecisionStage.stale,
             AssistantProblem.planChanged => DecisionStage.changed,
-            // Back to the confirm step, same mutation id: tapping Confirm
-            // again is a retry the server can recognise.
             _ => DecisionStage.reviewing,
           },
+          // The server answered, so this attempt was not saved — but an
+          // earlier one with this id may have been, and a changed plan's id
+          // is taken. Either way the next choice gets a fresh id.
+          maybeSent: d.maybeSent || problem == AssistantProblem.planChanged,
           problem: () => problem,
         ),
       );
@@ -1163,6 +1273,117 @@ class AssistantController extends Notifier<AssistantChatState> {
         state = state.copyWith(stage: AssistantStage.signedOut);
       }
     }
+  }
+
+  /// No reply, a server that failed part-way, or a conflict that only makes
+  /// sense if an earlier confirmation with this plan id was saved.
+  static bool _outcomeUnknown(AssistantProblem problem, String? code) =>
+      problem == AssistantProblem.offline ||
+      problem == AssistantProblem.unknown ||
+      problem == AssistantProblem.notAvailable ||
+      code == 'revision_conflict' ||
+      code == 'mutation_conflict';
+
+  /// Reads [planId]'s history: saved (with its confirmation), known not
+  /// saved (the server has no such plan), or not known (no answer).
+  Future<({PlanRevision? saved, bool known})> _lookUp(
+    AssistantApi api,
+    String farm,
+    String planId,
+  ) async {
+    try {
+      final history = await api
+          .planHistory(farm, planId)
+          .timeout(_timing.request);
+      if (history.isEmpty) return (saved: null, known: false);
+      final confirmation = history.where(
+        (r) => r.origin == 'planner_confirmation',
+      );
+      return (
+        saved: confirmation.isEmpty ? history.first : confirmation.first,
+        known: true,
+      );
+    } on AssistantException catch (e) {
+      return (saved: null, known: e.problem == AssistantProblem.notFound);
+    } on Object {
+      return (saved: null, known: false);
+    }
+  }
+
+  /// The server's history says [planId] was saved: show it as saved, with
+  /// the candidate it actually saved.
+  void _showSaved(String key, String planId, PlanRevision revision) {
+    final d = state.decisions[key]!;
+    final savedCandidate = revision.candidateId;
+    _setDecision(
+      key,
+      d.copyWith(
+        planId: planId,
+        stage: DecisionStage.saved,
+        candidateId:
+            savedCandidate != null &&
+                d.preview.candidates.any((c) => c.id == savedCandidate)
+            ? () => savedCandidate
+            : null,
+        saved: ConfirmedPlan(
+          id: planId,
+          version: revision.version,
+          approvedAt: revision.recordedAt,
+          replayed: true,
+        ),
+        revision: revision,
+        earlierPlanIds: [],
+        problem: () => null,
+      ),
+    );
+  }
+
+  /// A reopened card whose preview this phone sent a confirmation for.
+  Future<void> _settleRestored(String key) async {
+    final d = state.decisions[key];
+    final farm = _farmId;
+    final api = _api;
+    if (d == null || farm == null || api == null) return;
+    final epoch = _epoch;
+    for (final planId in d.earlierPlanIds) {
+      final found = await _lookUp(api, farm, planId);
+      if (epoch != _epoch) return;
+      if (found.saved != null) {
+        _showSaved(key, planId, found.saved!);
+        return;
+      }
+      if (!found.known) {
+        // No answer. The ids stay, and Confirm checks them again first.
+        _setDecision(
+          key,
+          state.decisions[key]!.copyWith(stage: DecisionStage.choosing),
+        );
+        return;
+      }
+    }
+    _setDecision(
+      key,
+      state.decisions[key]!.copyWith(
+        stage: DecisionStage.choosing,
+        earlierPlanIds: [],
+      ),
+    );
+  }
+
+  Future<void> _rememberSent(String key, String planId) async {
+    final user = _userId;
+    final farm = _farmId;
+    final conversation = _conversationId;
+    if (user == null || farm == null || conversation == null) return;
+    await ref
+        .read(assistantConversationStoreProvider)
+        .rememberPlan(
+          userId: user,
+          farmId: farm,
+          conversationId: conversation,
+          snapshotHash: key,
+          planId: planId,
+        );
   }
 
   /// After a stale answer: a fresh preview of the same request. Read-only.
@@ -1181,11 +1402,10 @@ class AssistantController extends Notifier<AssistantChatState> {
       if (epoch != _epoch) return;
       _setDecision(
         key,
-        state.decisions[key]!.copyWith(
+        _newContent(state.decisions[key]!).copyWith(
           preview: fresh,
           stage: DecisionStage.choosing,
           candidateId: () => null,
-          mutationId: () => null,
           problem: () => null,
         ),
       );

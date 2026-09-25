@@ -137,6 +137,14 @@ class ConfirmCall {
   ConfirmCall(this.preview, this.candidateId, this.planId, this.mutationId);
 }
 
+/// A plan the scripted server has saved.
+class ServerPlan {
+  final String candidateId;
+  final String snapshotHash;
+  final int version;
+  ServerPlan(this.candidateId, this.snapshotHash, this.version);
+}
+
 class FakeAssistantApi implements AssistantApi {
   List<ServerFarm> farmList = [const ServerFarm(farmId, 'My farm')];
   Object? farmsError;
@@ -151,7 +159,22 @@ class FakeAssistantApi implements AssistantApi {
   final snapshots = <String, Object>{};
   final interrupts = <String>[];
   final confirms = <ConfirmCall>[];
+
+  /// Thrown by `confirm` before the server sees it: nothing is saved.
   Object? confirmResult;
+
+  /// The server saves the plan, then the reply is lost on the way back.
+  bool loseConfirmReply = false;
+
+  /// What `planning/service.py` keeps: plans by id, and each mutation id's
+  /// request, so a replay, a reused plan id and a reused mutation id get the
+  /// answers the real server gives.
+  final serverPlans = <String, ServerPlan>{};
+  final _mutations = <String, String>{};
+
+  /// Thrown by `planHistory` when set (no signal for the check either).
+  Object? historyError;
+  final historyReads = <String>[];
   final previews = <Map<String, Object?>>[];
   Object? previewResult;
 
@@ -252,23 +275,60 @@ class FakeAssistantApi implements AssistantApi {
     confirms.add(ConfirmCall(preview, candidateId, planId, mutationId));
     final result = confirmResult;
     if (result != null) throw result;
+
+    // `expected_version` is always 0 from the app.
+    final request = '$planId|$candidateId|${preview.snapshotHash}';
+    final replayOf = _mutations[mutationId];
+    final bool replayed;
+    if (replayOf != null) {
+      if (replayOf != request) {
+        throw const AssistantException(
+          AssistantProblem.unknown,
+          'mutation_conflict',
+        );
+      }
+      replayed = true;
+    } else {
+      if (serverPlans.containsKey(planId)) {
+        throw const AssistantException(
+          AssistantProblem.planChanged,
+          'revision_conflict',
+        );
+      }
+      serverPlans[planId] = ServerPlan(candidateId, preview.snapshotHash, 1);
+      _mutations[mutationId] = request;
+      replayed = false;
+    }
+    if (loseConfirmReply) {
+      throw const AssistantException(AssistantProblem.offline);
+    }
     return ConfirmedPlan(
       id: planId,
-      version: 1,
+      version: serverPlans[planId]!.version,
       approvedAt: DateTime.utc(2026, 9, 20),
-      replayed: false,
+      replayed: replayed,
     );
   }
 
   @override
-  Future<List<PlanRevision>> planHistory(String farmId, String planId) async =>
-      [
-        PlanRevision(
-          version: 1,
-          origin: 'planner_confirmation',
-          recordedAt: DateTime.utc(2026, 9, 20),
-        ),
-      ];
+  Future<List<PlanRevision>> planHistory(String farmId, String planId) async {
+    historyReads.add(planId);
+    final error = historyError;
+    if (error != null) throw error;
+    final plan = serverPlans[planId];
+    if (plan == null) {
+      throw const AssistantException(AssistantProblem.notFound, 'not_found');
+    }
+    return [
+      PlanRevision(
+        version: plan.version,
+        origin: 'planner_confirmation',
+        recordedAt: DateTime.utc(2026, 9, 20),
+        candidateId: plan.candidateId,
+        snapshotHash: plan.snapshotHash,
+      ),
+    ];
+  }
 }
 
 TurnSnapshot snapshot(

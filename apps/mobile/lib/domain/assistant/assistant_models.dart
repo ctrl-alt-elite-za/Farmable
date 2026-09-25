@@ -432,17 +432,32 @@ class PlanRevision {
   final String origin;
   final DateTime recordedAt;
 
+  /// From the entry's `snapshot`: which candidate was saved, and from which
+  /// preview. Null when the snapshot does not say (a manual revision).
+  final String? candidateId;
+  final String? snapshotHash;
+
   const PlanRevision({
     required this.version,
     required this.origin,
     required this.recordedAt,
+    this.candidateId,
+    this.snapshotHash,
   });
 
-  factory PlanRevision.fromJson(Map<String, Object?> json) => PlanRevision(
-    version: json['version']! as int,
-    origin: json['origin']! as String,
-    recordedAt: DateTime.parse(json['recorded_at']! as String),
-  );
+  factory PlanRevision.fromJson(Map<String, Object?> json) {
+    final snapshot = json['snapshot'];
+    final candidate = snapshot is Map ? snapshot['candidate'] : null;
+    final candidateId = candidate is Map ? candidate['id'] : null;
+    final hash = snapshot is Map ? snapshot['snapshot_hash'] : null;
+    return PlanRevision(
+      version: json['version']! as int,
+      origin: json['origin']! as String,
+      recordedAt: DateTime.parse(json['recorded_at']! as String),
+      candidateId: candidateId is String ? candidateId : null,
+      snapshotHash: hash is String ? hash : null,
+    );
+  }
 }
 
 // ----------------------------------------------------------------- consent

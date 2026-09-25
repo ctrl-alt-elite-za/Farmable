@@ -388,8 +388,13 @@ void main() {
       await _tapKey(tester, const Key('plan-review'));
       await _tapKey(tester, const Key('plan-confirm'));
 
-      expect(find.textContaining('nothing is saved yet'), findsOneWidget);
+      expect(
+        find.textContaining('may not have reached the server'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('did not reach'), findsNothing);
       expect(api.confirms, hasLength(1));
+      expect(api.historyReads, [api.confirms[0].planId]);
 
       api.confirmResult = null;
       await _tapKey(tester, const Key('plan-confirm'));
@@ -397,6 +402,129 @@ void main() {
       expect(api.confirms[1].mutationId, api.confirms[0].mutationId);
       expect(api.confirms[1].planId, api.confirms[0].planId);
       expect(find.text('Plan saved'), findsOneWidget);
+    });
+
+    Future<void> confirmOption(WidgetTester tester, String key, int i) async {
+      await _tapKey(tester, Key('plan-option-$key-$i'));
+      await _tapKey(tester, const Key('plan-review'));
+      await _tapKey(tester, const Key('plan-confirm'));
+    }
+
+    bool selected(WidgetTester tester, String key, int i) =>
+        tester
+            .getSemantics(find.byKey(Key('plan-option-$key-$i')))
+            .flagsCollection
+            .isSelected ==
+        Tristate.isTrue;
+
+    testWidgets('a lost reply, then the other option: the first plan is '
+        'found saved, and no second plan is made', (tester) async {
+      // Tshego's probe on PR #95, against a server that keeps its plans.
+      final (api, key) = await planShown(tester);
+      api.loseConfirmReply = true;
+      api.historyError = const AssistantException(AssistantProblem.offline);
+      await confirmOption(tester, key, 0);
+
+      expect(api.serverPlans, hasLength(1), reason: 'the server saved it');
+      expect(
+        find.textContaining('may not have reached the server'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('did not reach'), findsNothing);
+
+      // Signal is back, and the farmer picks the other option instead.
+      api.loseConfirmReply = false;
+      api.historyError = null;
+      await _tapKey(tester, const Key('plan-back'));
+      await confirmOption(tester, key, 1);
+
+      // Before the fix: the same plan id went out with a new mutation id,
+      // the server refused it as a revision conflict, and the card said so.
+      expect(find.textContaining('changed somewhere else'), findsNothing);
+      expect(api.confirms, hasLength(1), reason: 'checked before sending');
+      expect(api.serverPlans, hasLength(1));
+      expect(find.text('Plan saved'), findsOneWidget);
+      expect(
+        find.text('Saved to your farm account as version 1.'),
+        findsOneWidget,
+      );
+      expect(selected(tester, key, 0), isTrue, reason: 'what was saved');
+    });
+
+    testWidgets('a lost reply for a plan that saved is shown as saved at '
+        'once', (tester) async {
+      final (api, key) = await planShown(tester);
+      api.loseConfirmReply = true;
+      await confirmOption(tester, key, 0);
+
+      expect(api.historyReads, [api.confirms.single.planId]);
+      expect(find.text('Plan saved'), findsOneWidget);
+      expect(find.byKey(const Key('plan-confirm')), findsNothing);
+    });
+
+    testWidgets("a revision conflict on this phone's own plan is checked, "
+        'not reported as changed elsewhere', (tester) async {
+      final (api, key) = await planShown(tester);
+      api.confirmResult = const AssistantException(AssistantProblem.offline);
+      await confirmOption(tester, key, 0);
+      final first = api.confirms.single;
+
+      // The first request arrived late: the server has the plan, but not
+      // this mutation id, so a retry is refused as a conflict.
+      api
+        ..confirmResult = null
+        ..serverPlans[first.planId] = ServerPlan(hex('1'), key, 1);
+      await _tapKey(tester, const Key('plan-confirm'));
+
+      expect(api.confirms, hasLength(2));
+      expect(find.text('Plan saved'), findsOneWidget);
+      expect(find.textContaining('changed somewhere else'), findsNothing);
+    });
+
+    testWidgets('confirmed, closed and reopened: shown as saved from the '
+        'server, and it cannot be confirmed again', (tester) async {
+      final api = FakeAssistantApi(granted: true);
+      final container = await pumpAssistant(tester, api: api);
+      await _ask(tester, 'I want to plant cabbages here');
+      final turn = api.last;
+      await _emit(tester, turn, previewTool());
+      await _emit(tester, turn, const TurnDone());
+      api.history_.add(
+        snapshot(
+          turn.turnId,
+          TurnStatus.completed,
+          message: 'I want to plant cabbages here',
+          tools: [previewTool().result],
+        ),
+      );
+      final key = hex('a');
+      await confirmOption(tester, key, 0);
+      expect(find.text('Plan saved'), findsOneWidget);
+      final saved = api.confirms.single.planId;
+
+      // Close it, and start again from the server's history, as after the
+      // app is closed.
+      await closeAssistant(tester);
+      container.invalidate(assistantControllerProvider);
+      await reopenAssistant(tester);
+
+      expect(find.text('Plan saved'), findsOneWidget);
+      expect(selected(tester, key, 0), isTrue);
+      expect(find.byKey(const Key('plan-review')), findsNothing);
+      expect(find.byKey(const Key('plan-confirm')), findsNothing);
+      final restored = container
+          .read(assistantControllerProvider)
+          .decisions[key]!;
+      expect(restored.planId, saved, reason: 'its original plan id');
+
+      // Nor by any other way into the controller.
+      final controller = container.read(assistantControllerProvider.notifier)
+        ..selectCandidate(key, hex('2'))
+        ..review(key);
+      await controller.confirm(key);
+      await settle(tester);
+      expect(api.confirms, hasLength(1));
+      expect(api.serverPlans, hasLength(1));
     });
 
     testWidgets('a stale preview is not saved; fresh numbers need a new '

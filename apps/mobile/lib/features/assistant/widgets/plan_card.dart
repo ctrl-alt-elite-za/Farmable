@@ -147,6 +147,25 @@ class _Footer extends ConsumerWidget {
     final candidate = decision.candidate;
 
     switch (decision.stage) {
+      case DecisionStage.checking:
+        return Row(
+          key: const Key('plan-checking'),
+          children: [
+            const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: AlmanacDimens.sp2),
+            Expanded(
+              child: Text(
+                'Checking with your farm account whether this plan was '
+                'already saved…',
+                style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
+              ),
+            ),
+          ],
+        );
+
       case DecisionStage.choosing:
         if (!decision.preview.feasible || decision.preview.candidates.isEmpty) {
           return const SizedBox.shrink();
@@ -283,9 +302,12 @@ class _Footer extends ConsumerWidget {
   }
 
   static String _confirmProblem(AssistantProblem problem) => switch (problem) {
+    // No reply is not "not saved": it may have arrived and the answer been
+    // lost. Confirm again asks the server first, so it never saves twice.
     AssistantProblem.offline =>
-      'It did not reach the server, so nothing is saved yet. Tap Confirm '
-          'again when you have signal.',
+      'This may not have reached the server, so it may not be saved yet. '
+          'Tap Confirm again when you have signal — it checks first, and '
+          'never saves the plan twice.',
     AssistantProblem.signedOut =>
       'You are logged out, so nothing was saved. Log in and try once more.',
     AssistantProblem.outlookNotAvailable =>

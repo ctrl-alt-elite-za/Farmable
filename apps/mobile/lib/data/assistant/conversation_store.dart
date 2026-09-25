@@ -1,10 +1,15 @@
-/// Which server conversation this phone was last using, per account and farm.
+/// Which server conversation this phone was last using, per account and farm,
+/// and which plan ids it sent a confirmation for in that conversation.
 ///
-/// Only three identifiers: the owner, the farm and the conversation. No chat
-/// text, no consent answer, no token — the conversation's words live on the
-/// server (and expire there after 30 days), and are read back from it when the
-/// sheet reopens. Stamped with its owner, so another account signing in on the
-/// same phone starts its own conversation rather than being handed this one.
+/// Identifiers only: the owner, the farm, the conversation, and plan ids keyed
+/// by the preview's snapshot hash. No chat text, no consent answer, no token —
+/// the conversation's words live on the server (and expire there after 30
+/// days), and are read back from it when the sheet reopens. Stamped with its
+/// owner, so another account signing in on the same phone starts its own
+/// conversation rather than being handed this one.
+///
+/// The plan ids are what lets a reopened chat ask the server whether a plan
+/// was already saved, instead of offering Confirm again for a new one.
 library;
 
 import '../auth/session_storage.dart';
@@ -14,7 +19,85 @@ class AssistantConversationStore {
 
   const AssistantConversationStore(this._storage);
 
+  /// Kept per conversation, newest last; older previews fall off.
+  static const maxPreviews = 20;
+  static const maxPlansPerPreview = 5;
+
   Future<String?> conversationFor({
+    required String userId,
+    required String farmId,
+  }) async {
+    final record = await _record(userId: userId, farmId: farmId);
+    final id = record?['conversation_id'];
+    return id is String ? id : null;
+  }
+
+  /// Best effort: a phone that cannot remember the id starts a fresh
+  /// conversation next time, which loses nothing the server does not keep.
+  Future<void> remember({
+    required String userId,
+    required String farmId,
+    required String conversationId,
+  }) async {
+    final record = await _record(userId: userId, farmId: farmId);
+    final plans = record?['conversation_id'] == conversationId
+        ? record!['plans']
+        : null;
+    await _write({
+      'owner': userId,
+      'farm_id': farmId,
+      'conversation_id': conversationId,
+      if (plans is Map) 'plans': plans,
+    });
+  }
+
+  /// Plan ids a confirmation was (or may have been) sent for, per preview
+  /// snapshot hash, oldest first.
+  Future<Map<String, List<String>>> plansFor({
+    required String userId,
+    required String farmId,
+    required String conversationId,
+  }) async {
+    final record = await _record(userId: userId, farmId: farmId);
+    if (record?['conversation_id'] != conversationId) return const {};
+    return _plans(record!['plans']);
+  }
+
+  /// Written *before* the confirmation is sent, so a reply that never comes
+  /// back cannot leave a saved plan the phone has no way to find again.
+  Future<void> rememberPlan({
+    required String userId,
+    required String farmId,
+    required String conversationId,
+    required String snapshotHash,
+    required String planId,
+  }) async {
+    final record = await _record(userId: userId, farmId: farmId);
+    if (record?['conversation_id'] != conversationId) return;
+    final plans = _plans(record!['plans']);
+    final ids = [
+      for (final id in plans.remove(snapshotHash) ?? const <String>[])
+        if (id != planId) id,
+      planId,
+    ];
+    plans[snapshotHash] = ids.length > maxPlansPerPreview
+        ? ids.sublist(ids.length - maxPlansPerPreview)
+        : ids;
+    while (plans.length > maxPreviews) {
+      plans.remove(plans.keys.first);
+    }
+    await _write({...record, 'plans': plans});
+  }
+
+  Future<void> forget() async {
+    try {
+      await _storage.clear();
+    } on Object {
+      // Nothing to protect: the record holds no content.
+    }
+  }
+
+  Future<Map<String, Object?>?> _record({
     required String userId,
     required String farmId,
   }) async {
@@ -29,33 +112,24 @@ class AssistantConversationStore {
         record['farm_id'] != farmId) {
       return null;
     }
-    final id = record['conversation_id'];
-    return id is String ? id : null;
+    return record;
   }
 
-  /// Best effort: a phone that cannot remember the id starts a fresh
-  /// conversation next time, which loses nothing the server does not keep.
-  Future<void> remember({
-    required String userId,
-    required String farmId,
-    required String conversationId,
-  }) async {
+  Future<void> _write(Map<String, Object?> record) async {
     try {
-      await _storage.write({
-        'owner': userId,
-        'farm_id': farmId,
-        'conversation_id': conversationId,
-      });
+      await _storage.write(record);
     } on Object {
-      // See above.
+      // See [remember].
     }
   }
 
-  Future<void> forget() async {
-    try {
-      await _storage.clear();
-    } on Object {
-      // Nothing to protect: the record holds no content.
-    }
-  }
+  static Map<String, List<String>> _plans(Object? raw) => {
+    if (raw is Map)
+      for (final MapEntry(:key, :value) in raw.entries)
+        if (key is String && value is List)
+          key: [
+            for (final id in value)
+              if (id is String) id,
+          ],
+  };
 }
