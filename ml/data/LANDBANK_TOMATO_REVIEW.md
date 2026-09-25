@@ -43,3 +43,6 @@ terms; confirm the intended tomato grade, market channel, region, VAT basis and
 cost vintage; align a traceable planting calendar and yield assumption; and
 separately approve the resulting protocol amendment. This document records a
 candidate, not approval of those choices.
+
+`SOURCE_CLARIFICATION_REQUESTS.md` contains prepared publisher questions; no
+request has been sent.
