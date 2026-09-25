@@ -7,6 +7,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:almanac/data/auth/api_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
@@ -115,6 +116,48 @@ void main() {
       final standing = await service().restore();
       expect(standing, isA<AwaitingVerification>());
       expect((standing as AwaitingVerification).pending.userId, pending.userId);
+    });
+
+    test('recovers ambiguous delivery across restart with the same idempotency key', () async {
+      api.ambiguousSignupOnce = true;
+      final first = await service().signUp(
+        firstName: 'Thandi',
+        surname: 'Mokoena',
+        phone: '+27825550123',
+        email: 'thandi@example.com',
+        password: _password,
+      );
+
+      expect(first.userId, isNotEmpty);
+      expect(first.idempotencyKey, isNotNull);
+      final stored = await storage.read();
+      expect(jsonEncode(stored), isNot(contains(_password)));
+      expect(jsonEncode(stored), isNot(contains('test-turnstile')));
+      expect((await service().restore()), isA<AwaitingVerification>());
+      final firstRequest = api.to('/auth/signup').single;
+
+      // A new service instance models a process restart. It must retain the
+      // operation key but never retain the password or Turnstile proof.
+      final restarted = service();
+      final recovered = await restarted.signUp(
+        firstName: 'Thandi',
+        surname: 'Mokoena',
+        phone: '+27825550123',
+        email: 'thandi@example.com',
+        password: _password,
+      );
+      final signupRequests = api.to('/auth/signup');
+      expect(signupRequests, hasLength(2));
+      expect(signupRequests[1].idempotencyKey, firstRequest.idempotencyKey);
+      expect(signupRequests[1].body['turnstile_token'], isNotEmpty);
+      expect(recovered.userId, first.userId);
+
+      await restarted.verify(
+        userId: recovered.userId,
+        channel: VerificationChannel.phone,
+        code: phoneCode,
+      );
+      expect((await restarted.restore()), isA<AwaitingVerification>());
     });
 
     test('phone then email grants a session that survives a restart', () async {

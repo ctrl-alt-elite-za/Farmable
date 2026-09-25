@@ -144,12 +144,17 @@ class PendingSignup {
   final String email;
   final bool phoneVerified;
 
+  /// The idempotency key for a signup whose delivery outcome is unresolved.
+  /// It is safe to persist; the password and Turnstile proof are never stored.
+  final String? idempotencyKey;
+
   const PendingSignup({
     required this.userId,
     required this.nextStep,
     required this.phone,
     required this.email,
     this.phoneVerified = false,
+    this.idempotencyKey,
   });
 
   Map<String, Object?> toJson() => {
@@ -158,6 +163,7 @@ class PendingSignup {
     'phone': phone,
     'email': email,
     'phone_verified': phoneVerified,
+    if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
   };
 
   static PendingSignup fromJson(Map<String, Object?> json) => PendingSignup(
@@ -168,6 +174,7 @@ class PendingSignup {
     phone: json['phone']! as String,
     email: json['email']! as String,
     phoneVerified: json['phone_verified'] == true,
+    idempotencyKey: json['idempotency_key'] as String?,
   );
 }
 
@@ -217,7 +224,11 @@ enum AuthFailure {
 class AuthException implements Exception {
   final AuthFailure failure;
 
-  const AuthException(this.failure);
+  /// Present only for the recoverable `delivery_unknown` signup response.
+  /// Never included in [toString].
+  final String? deliveryUnknownUserId;
+
+  const AuthException(this.failure, {this.deliveryUnknownUserId});
 
   /// Never interpolates a code, an email or a password. This string reaches
   /// logs and crash reports.

@@ -102,6 +102,11 @@ class FakeAuthApi implements HttpClientAdapter {
   /// proxy or a crashed process does.
   int? forcedStatus;
 
+  /// Creates the account but reports an ambiguous delivery outcome once.
+  bool ambiguousSignupOnce = false;
+  String? _ambiguousSignupKey;
+  String? _ambiguousSignupUserId;
+
   /// Holds `/auth/refresh` open until completed, so a test can act while a
   /// refresh is in flight.
   Completer<void>? holdRefresh;
@@ -217,7 +222,7 @@ class FakeAuthApi implements HttpClientAdapter {
     String? auth,
   ) async {
     return switch ((options.method, options.path)) {
-      ('POST', '/auth/signup') => _signup(body),
+      ('POST', '/auth/signup') => _signup(options, body),
       ('POST', '/auth/verify/phone') => _verify(body, phone: true),
       ('POST', '/auth/verify/email') => _verify(body, phone: false),
       ('POST', '/auth/otp/resend') => _resend(options),
@@ -243,7 +248,14 @@ class FakeAuthApi implements HttpClientAdapter {
     return _empty(204);
   }
 
-  ResponseBody _signup(Map<String, Object?> body) {
+  ResponseBody _signup(RequestOptions options, Map<String, Object?> body) {
+    final key = options.headers['Idempotency-Key'] as String?;
+    if (_ambiguousSignupKey != null && key == _ambiguousSignupKey) {
+      return _json(200, {
+        'user_id': _ambiguousSignupUserId!,
+        'next_step': 'phone',
+      });
+    }
     final password = body['password'] as String? ?? '';
     final phone = body['phone'] as String? ?? '';
     if (password.length < 15 ||
@@ -263,6 +275,14 @@ class FakeAuthApi implements HttpClientAdapter {
       password,
     );
     _accounts[account.id] = account;
+    if (ambiguousSignupOnce) {
+      ambiguousSignupOnce = false;
+      _ambiguousSignupKey = key;
+      _ambiguousSignupUserId = account.id;
+      return _json(503, {
+        'error': {'code': 'delivery_unknown', 'user_id': account.id},
+      });
+    }
     return _json(200, {'user_id': account.id, 'next_step': 'phone'});
   }
 

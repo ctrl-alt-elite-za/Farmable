@@ -119,24 +119,49 @@ class ApiAuthService implements AuthService {
   }) async {
     final normalisedEmail = email.trim().toLowerCase();
     final token = await _verification('sign_up');
-    final body = await _post(
-      '/auth/signup',
-      {
-        'first_name': firstName.trim(),
-        'surname': surname.trim(),
-        'phone': phone,
-        'email': normalisedEmail,
-        'password': password,
-        'turnstile_token': token,
-      },
-      headers: {'Idempotency-Key': newUuid()},
-    );
+    final previous = _pendingIn(await _read());
+    final sameSignup =
+        previous != null &&
+        previous.phone == phone &&
+        previous.email == normalisedEmail &&
+        previous.idempotencyKey != null;
+    final idempotencyKey = sameSignup ? previous.idempotencyKey! : newUuid();
+    final request = {
+      'first_name': firstName.trim(),
+      'surname': surname.trim(),
+      'phone': phone,
+      'email': normalisedEmail,
+      'password': password,
+      'turnstile_token': token,
+    };
+
+    late final Map<String, Object?> body;
+    try {
+      body = await _post(
+        '/auth/signup',
+        request,
+        headers: {'Idempotency-Key': idempotencyKey},
+      );
+    } on AuthException catch (error) {
+      final userId = error.deliveryUnknownUserId;
+      if (userId == null) rethrow;
+      final pending = PendingSignup(
+        userId: userId,
+        nextStep: VerificationChannel.phone,
+        phone: phone,
+        email: normalisedEmail,
+        idempotencyKey: idempotencyKey,
+      );
+      await _write(await _read(), pending: pending.toJson());
+      return pending;
+    }
 
     final pending = PendingSignup(
       userId: _string(body, 'user_id'),
       nextStep: _channel(body),
       phone: phone,
       email: normalisedEmail,
+      idempotencyKey: idempotencyKey,
     );
     final record = await _read();
     await _write(record, pending: pending.toJson());
@@ -163,6 +188,7 @@ class ApiAuthService implements AuthService {
         phone: previous?.phone ?? '',
         email: previous?.email ?? '',
         phoneVerified: true,
+        idempotencyKey: previous?.idempotencyKey,
       );
       await _write(record, pending: next.toJson());
       return VerificationContinues(next);
@@ -510,7 +536,18 @@ class ApiAuthService implements AuthService {
       if (status == 204 || data == null || data == '') return {};
       throw const AuthException(AuthFailure.unknown);
     }
-    throw AuthException(failureForResponse(status, data));
+    final error = data is Map ? data['error'] : null;
+    final code = error is Map ? error['code'] : null;
+    final unknownUserId = error is Map && code == 'delivery_unknown'
+        ? error['user_id']
+        : null;
+    throw AuthException(
+      failureForResponse(status, data),
+      deliveryUnknownUserId:
+          unknownUserId is String && _looksLikeUuid(unknownUserId)
+          ? unknownUserId
+          : null,
+    );
   }
 
   AuthSession _session(Map<String, Object?> body) {
@@ -570,6 +607,10 @@ class ApiAuthService implements AuthService {
     }
   }
 }
+
+bool _looksLikeUuid(String value) => RegExp(
+  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+).hasMatch(value);
 
 /// What a non-2xx response from `/auth/*` means to the farmer.
 ///
