@@ -5,6 +5,8 @@ name: Recorded crop pan keeps warning boxes tappable
 ---
 - launchApp:
     clearState: true
+# Past the first-launch journey to the demo farm (issue #89).
+- runFlow: steps/try_demo_farm.yaml
 - extendedWaitUntil:
     visible: '.*Hello, Sipho.*'
     timeout: 60000
