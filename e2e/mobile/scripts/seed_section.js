@@ -1,3 +1,6 @@
+/* global API_URL, EMAIL, PASSWORD, SECTION, http, json, output */
+// Maestro runs this with its own JavaScript runtime: `http`, `json` and
+// `output` are Maestro globals, and the upper-case names are the flow env.
 // Runs on the host, against this stack's API (API_URL): logs in as the
 // flow's account and gives its farm one section, the way a second phone or
 // the web would. The app has no "new section" screen yet, and an observation

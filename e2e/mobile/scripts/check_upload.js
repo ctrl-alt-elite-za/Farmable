@@ -1,3 +1,6 @@
+/* global API_URL, EMAIL, PASSWORD, http, json, output */
+// Maestro runs this with its own JavaScript runtime: `http`, `json` and
+// `output` are Maestro globals, and the upper-case names are the flow env.
 // Runs on the host after the phone reports the record sent: the server must
 // hold exactly one media record, and exactly one observation pointing at it.
 var login = http.post(API_URL + '/auth/login', {
@@ -9,9 +12,7 @@ var auth = { Authorization: 'Bearer ' + json(login.body).access_token };
 var farm = json(http.get(API_URL + '/farms', { headers: auth }).body).items[0];
 var base = API_URL + '/farms/' + farm.id;
 var media = json(http.get(base + '/media', { headers: auth }).body).items;
-var observations = json(
-  http.get(base + '/observations', { headers: auth }).body,
-).items;
+var observations = json(http.get(base + '/observations', { headers: auth }).body).items;
 if (media.length !== 1) throw new Error('expected 1 media record, found ' + media.length);
 if (observations.length !== 1) {
   throw new Error('expected 1 observation, found ' + observations.length);
