@@ -8,6 +8,8 @@
 /// * [farmMapTileProviderProvider] — where those pictures come from.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -19,16 +21,31 @@ import '../../app/providers.dart';
 /// A section missing from this map is **not mapped yet**: the Farm tab lists
 /// it and says so, and never hides it.
 ///
-/// Reads the farm through [farmProvider] and nothing else. Today that
-/// snapshot carries no geometry — `FarmSection` has no boundary field, though
-/// the `sections` table stores one (#15 records it, #17 syncs it) — so every
-/// section reads as not mapped yet. When `FarmSection` grows its boundary,
-/// this is the one place that changes: parse each ring with [boundaryFrom]
-/// and the maps draw it.
+/// Reads the farm through [farmProvider] and nothing else: each section's
+/// stored GeoJSON (`sections.boundary`, which #15 records and #17 syncs) is
+/// parsed here, once, with [boundaryFromGeoJson]. A boundary that cannot be
+/// read is treated as not walked rather than failing the whole map.
 final sectionBoundariesProvider = Provider<Map<String, List<LatLng>>>((ref) {
-  ref.watch(farmProvider);
-  return const {};
+  final sections = ref.watch(farmProvider).value?.sections ?? const [];
+  return {for (final s in sections) s.id: ?boundaryFromGeoJson(s.boundary)};
 });
+
+/// A stored GeoJSON `Polygon` as map points — its outer ring, through
+/// [boundaryFrom]. Null for nothing stored, text that is not JSON, or any
+/// other geometry: all of those are shown as not mapped yet.
+List<LatLng>? boundaryFromGeoJson(String? geoJson) {
+  if (geoJson == null) return null;
+  try {
+    final geometry = jsonDecode(geoJson);
+    if (geometry is! Map || geometry['type'] != 'Polygon') return null;
+    final outer = (geometry['coordinates'] as List).first as List;
+    return boundaryFrom([
+      for (final p in outer) [for (final n in p as List) (n as num).toDouble()],
+    ]);
+  } on Object {
+    return null;
+  }
+}
 
 /// A GeoJSON ring — `[longitude, latitude]` pairs, closed or not — as map
 /// points. Null when there is nothing drawable: fewer than three distinct

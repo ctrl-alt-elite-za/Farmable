@@ -190,6 +190,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
       nextTask: next == null ? null : _toTask(next),
       spentSoFar: spent,
       pendingChanges: await _sectionPending(row.id),
+      boundary: row.boundary,
     );
   }
 

@@ -2,10 +2,13 @@
 ///
 /// Runs the real screens against the real in-memory database and demo seed.
 /// Two seams are substituted, both owned by the Farm tab: which sections have
-/// a boundary — the farm snapshot carries none yet — and where map pictures
-/// come from, so a test can count every request the map makes.
+/// a boundary — so a test can draw any farm it likes — and where map pictures
+/// come from, so a test can count every request the map makes. The
+/// `stored boundaries` group substitutes only the second, and reads the
+/// boundary from storage the way the app does.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:almanac/data/local/database.dart';
@@ -486,6 +489,103 @@ void main() {
         });
       }
     }
+  });
+
+  group('stored boundaries', () {
+    // The real path, end to end: a boundary saved in the `sections` table is
+    // read by the repository, carried on the farm snapshot and drawn. Only
+    // the map pictures are substituted — never [sectionBoundariesProvider].
+    Future<AlmanacDatabase> farmWith(Map<String, String> boundaries) async {
+      final db = AlmanacDatabase.memory();
+      addTearDown(db.close);
+      await DemoSeed(db, now: () => pinnedToday).ensureSeeded();
+      for (final MapEntry(key: id, value: geoJson) in boundaries.entries) {
+        await (db.update(db.sections)..where((t) => t.id.equals(id))).write(
+          SectionsCompanion(boundary: Value(geoJson)),
+        );
+      }
+      return db;
+    }
+
+    String polygon(List<LatLng> corners) => jsonEncode({
+      'type': 'Polygon',
+      'coordinates': [
+        [
+          for (final c in [...corners, corners.first])
+            [c.longitude, c.latitude],
+        ],
+      ],
+    });
+
+    testWidgets('a saved boundary is drawn and the rest stay not mapped', (
+      tester,
+    ) async {
+      final db = await farmWith({
+        DemoSeed.cabbageFieldId: polygon(walkedTwo[DemoSeed.cabbageFieldId]!),
+      });
+      final tiles = RecordingTiles();
+      await pumpFarmApp(
+        tester,
+        location: '/farm?view=map',
+        storage: db,
+        overrides: [farmMapTileProviderProvider.overrideWithValue(tiles)],
+      );
+
+      final map = find.byKey(const Key('farm-map'));
+      expect(map, findsOneWidget);
+      final polygons = tester.widget<PolygonLayer<String>>(
+        find.byType(PolygonLayer<String>),
+      );
+      expect(polygons.polygons.map((p) => p.hitValue), [
+        DemoSeed.cabbageFieldId,
+      ]);
+      expect(
+        polygons.polygons.single.points,
+        walkedTwo[DemoSeed.cabbageFieldId],
+      );
+      expect(
+        find.descendant(of: map, matching: find.text('Cabbage Field')),
+        findsOneWidget,
+      );
+
+      await revealOnPage(tester, find.text('3 sections with no boundary'));
+      for (final id in [
+        DemoSeed.tomatoSectionId,
+        DemoSeed.northPlotId,
+        DemoSeed.spinachBedsId,
+      ]) {
+        expect(find.byKey(ValueKey('unmapped-$id')), findsOneWidget);
+      }
+      expect(
+        find.byKey(const ValueKey('unmapped-${DemoSeed.cabbageFieldId}')),
+        findsNothing,
+      );
+      expect(tiles.requests, isEmpty);
+    });
+
+    testWidgets('a boundary that cannot be read is listed as not mapped', (
+      tester,
+    ) async {
+      final db = await farmWith({
+        DemoSeed.cabbageFieldId: '{"type": "Polygon", "coordinates": ',
+        DemoSeed.tomatoSectionId: jsonEncode({
+          'type': 'Point',
+          'coordinates': [30.97, -29.74],
+        }),
+      });
+      await pumpFarmApp(
+        tester,
+        location: '/farm?view=map',
+        storage: db,
+        overrides: [
+          farmMapTileProviderProvider.overrideWithValue(RecordingTiles()),
+        ],
+      );
+
+      expect(find.text('No boundaries walked yet'), findsOneWidget);
+      expect(find.byType(FlutterMap), findsNothing);
+      await revealOnPage(tester, find.text('4 sections with no boundary'));
+    });
   });
 
   group('boundaryFrom', () {
