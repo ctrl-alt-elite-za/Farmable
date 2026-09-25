@@ -25,6 +25,18 @@ The registered eight-default headline sentence is unavailable.
   disposable database, confirms an identical second import is idempotent, and
   serves an authenticated outlook with the retrospective warning. No production
   database was changed.
+- The committed notebook ran in a fresh Google Colab runtime at PR revision
+  `26c5a3213642a30759bf48bc50e4b8f84f823217` with all 17 audited workbooks.
+  Its dependency install, ML tests, protocol readiness check, real runner and
+  96-row Parquet validator passed. Colab produced run ID
+  `c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f`.
+  The decision ledger, rendered table, slide sentence and forecast ledger match
+  the committed Windows artifacts byte for byte; report numeric results match.
+  Provenance-bearing files differ because the original Windows working tree had
+  CRLF bytes for `market_workbook_audit.json` (SHA-256
+  `461cf7c8c33db22d34163f835abe58de3c2699864486878cda6556d545fa6386`),
+  while Git and Colab use LF bytes (SHA-256
+  `0dc4a4e596bcd05614a6012104eebaf8d836bda06581d40a883977874023afb2`).
 
 ## What the decision ledger shows
 
@@ -49,11 +61,10 @@ decision ledger and follows protocol Amendment 1's frozen seasonal ranges.
 
 ## Remaining acceptance work
 
-An independent reviewer should inspect the numeric artifacts and the no-switch
-tomato case. The notebook still needs a credential-free Colab execution and
-cross-environment artifact comparison. The real snapshot has been imported only
-into a disposable test database. After the results PR merges,
-rerun the default protocol history gate to confirm the first committed result
-follows the independently merged protocol. Issue #20 cannot use its requested
+An independent code owner should review the numeric artifacts and the no-switch
+tomato case. The real snapshot has been imported only into a disposable test
+database. After the results PR merges, rerun the default protocol history gate
+to confirm the first committed result follows the independently merged protocol.
+Issue #20 cannot use its requested
 eight-default slide sentence unless a future, separately registered evaluation
 actually yields defined switch statistics for every default.
