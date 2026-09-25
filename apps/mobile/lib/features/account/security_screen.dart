@@ -124,11 +124,12 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
             ),
           ),
           const SizedBox(height: AlmanacDimens.sp3),
-          Text(
-            'A list of other devices is not available yet. You can still '
-            'log out of all of them.',
-            style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
-          ),
+          if (hasServerAccount)
+            Text(
+              'A list of other devices is not available yet. You can still '
+              'log out of all of them.',
+              style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
+            ),
           const SizedBox(height: AlmanacDimens.sp5),
           AppSecondaryButton(
             label: 'Log out on this phone',

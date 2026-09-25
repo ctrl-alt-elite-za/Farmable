@@ -2,6 +2,7 @@
 library;
 
 import 'package:almanac/data/auth/api_auth_service.dart';
+import 'package:almanac/data/auth/demo_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
 import 'package:almanac/features/account/help_screen.dart';
@@ -127,5 +128,31 @@ void main() {
     expect(find.text('How do I reach the team?'), findsOneWidget);
     await tapLabel(tester, 'Privacy notice');
     expect(find.byType(PrivacyScreen), findsOneWidget);
+  });
+
+  testWidgets('a local demo account does not claim other devices', (
+    tester,
+  ) async {
+    final storage = InMemorySessionStorage();
+    await tester.runAsync(
+      () =>
+          DemoAuthService(
+            storage,
+            now: () => pinnedToday,
+            settleDelay: Duration.zero,
+          ).logIn(
+            mode: LoginMode.email,
+            identifier: 'demo@example.com',
+            password: goodPassphrase,
+          ),
+    );
+    await pumpAuthApp(tester, location: '/profile/security', session: storage);
+
+    expect(
+      find.text('This demo account is only on this phone.'),
+      findsOneWidget,
+    );
+    expect(find.text('Log out of every device'), findsNothing);
+    expect(find.textContaining('other devices is not available'), findsNothing);
   });
 }
