@@ -29,13 +29,16 @@ import 'package:almanac/data/local/seed.dart';
 import 'package:almanac/data/sync/sync_controller.dart';
 import 'package:almanac/domain/account/account_models.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
+import 'package:almanac/domain/device/device_permissions.dart';
 import 'package:almanac/features/account/export_screen.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/auth/widgets/auth_scaffold.dart';
+import 'package:almanac/features/permissions/permission_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'device_fakes.dart';
 import 'fake_auth_api.dart';
 import 'harness.dart' show pinnedToday, phoneSize;
 
@@ -155,6 +158,10 @@ Future<AuthHarness> pumpAuthApp(
   /// see the same answer the provider does.
   FakeAuthApi? api,
   DateTime Function()? now,
+
+  /// The phone's permission answers. Defaults to nothing asked yet, and
+  /// never the real plugin, which a widget test has no phone for.
+  PermissionService? permissions,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = surface;
@@ -169,6 +176,9 @@ Future<AuthHarness> pumpAuthApp(
 
   final container = ProviderContainer(
     overrides: [
+      permissionServiceProvider.overrideWithValue(
+        permissions ?? FakePermissionService(),
+      ),
       databaseProvider.overrideWithValue(db),
       clockProvider.overrideWithValue(now ?? () => pinnedToday),
       if (!seed) seedProvider.overrideWith((ref) async {}),

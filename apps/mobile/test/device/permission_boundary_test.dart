@@ -2,10 +2,10 @@
 ///
 /// Every plugin that can raise a permission prompt is imported in exactly one
 /// folder, `lib/data/device/`, and that folder is reached only from features
-/// that call it when the person asks — the self-test's Run button today. A
-/// camera import in Home, or a device service built in `main()`, would put a
-/// prompt in front of a farmer who has not done anything yet; this fails
-/// before that can ship.
+/// that call it when the person asks — the self-test's Run button, and the
+/// permission controls' Allow button on Profile. A camera import in Home, or a
+/// device service built in `main()`, would put a prompt in front of a farmer
+/// who has not done anything yet; this fails before that can ship.
 library;
 
 import 'dart:io';
@@ -18,6 +18,7 @@ const _promptingPackages = [
   'package:record/',
   'package:geolocator/',
   'package:google_mlkit_object_detection/',
+  'package:permission_handler/',
 ];
 
 /// The only features allowed to reach the device layer. Add a feature here
@@ -28,6 +29,8 @@ const _allowedDeviceCallers = [
   // An observation's photo: the camera opens only when "Add a photo" is
   // tapped on the observation form.
   'lib/features/zone/',
+  // Profile's permission controls (#84): read on open, ask only on a tap.
+  'lib/features/permissions/',
 ];
 
 Iterable<File> _dartFiles(String dir) =>

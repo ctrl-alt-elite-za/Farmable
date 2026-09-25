@@ -22,6 +22,7 @@ import '../../domain/auth/auth_models.dart';
 import '../../domain/auth/contact_details.dart';
 import '../auth/auth_view_model.dart';
 import '../auth/widgets/auth_scaffold.dart';
+import '../permissions/permission_controls.dart';
 import '../shell/almanac_scaffold.dart';
 import '../shell/bottom_nav_island.dart';
 import 'account_view_model.dart';
@@ -62,14 +63,15 @@ class AccountScreen extends ConsumerWidget {
               ),
               SignedOut() => const _SignedOut(),
             },
-            // The device self-test (#4) — the part of "what the app is
-            // allowed to use" that exists so far, and the way a phone build
-            // that opens on Home reaches it. Asks for nothing until Run.
+            // What the app is allowed to use (#84), and the device self-test
+            // (#4) — the way a phone build that opens on Home reaches it.
+            // Neither asks for anything until the farmer taps.
             SectionHeader(
               title: 'This phone',
               actionLabel: 'Device self-test',
               onAction: () => context.push('/self-test'),
             ),
+            const PermissionControls(),
           ],
         ),
       ),

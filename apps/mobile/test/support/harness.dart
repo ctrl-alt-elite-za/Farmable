@@ -15,11 +15,15 @@ import 'package:almanac/app/theme/app_theme.dart';
 import 'package:almanac/data/health_service.dart';
 import 'package:almanac/data/local/database.dart';
 import 'package:almanac/data/local/seed.dart';
+import 'package:almanac/domain/device/device_permissions.dart';
 import 'package:almanac/domain/farm_records.dart' as rec;
+import 'package:almanac/features/permissions/permission_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+
+import 'device_fakes.dart';
 
 /// A fixed Sunday, matching the design's "Sunday, 20 September". Pinned so
 /// assertions about overdue steps and "92 days" do not rot overnight.
@@ -103,6 +107,9 @@ Future<FarmHarness> pumpFarmApp(
   /// Anything else a test substitutes — a camera, a photo folder. Appended
   /// after the harness's own, so it wins.
   List<Override> overrides = const [],
+  /// The phone's permission answers. Defaults to nothing asked yet, and
+  /// never the real plugin, which a widget test has no phone for.
+  PermissionService? permissions,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = surface;
@@ -115,6 +122,9 @@ Future<FarmHarness> pumpFarmApp(
 
   final container = ProviderContainer(
     overrides: [
+      permissionServiceProvider.overrideWithValue(
+        permissions ?? FakePermissionService(),
+      ),
       databaseProvider.overrideWithValue(db),
       clockProvider.overrideWithValue(() => pinnedToday),
       // Home seeds on launch, so a test of the un-seeded state has to stop it
