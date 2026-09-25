@@ -10,6 +10,7 @@ POSTGRES_PASSWORD="$(uv run python -c 'import secrets; print(secrets.token_hex(2
 export POSTGRES_PASSWORD
 DATABASE_URL="$(uv run python -c 'import os; from sqlalchemy import URL; print(URL.create("postgresql+psycopg", username=os.environ["POSTGRES_USER"], password=os.environ["POSTGRES_PASSWORD"], host="database", port=5432, database=os.environ["POSTGRES_DB"]).render_as_string(hide_password=False))')"
 export DATABASE_URL
+export EXPORT_TOKEN_SECRET="ci-export-token-secret-32-bytes"
 COMMIT_SHA="$(git rev-parse HEAD)"
 export COMMIT_SHA
 export API_PORT=0 # Docker chooses a free localhost port; cannot collide with the dev API.

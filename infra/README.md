@@ -105,6 +105,7 @@ printf '%s' 'THE_VALUE' | gcloud secrets versions add farmable-staging-gemini-ap
 | Secret                            | Notes                          |
 | --------------------------------- | ------------------------------ |
 | `farmable-staging-database-url`   | see format below               |
+| `farmable-staging-export-token-secret` | stable high-entropy export-link signing secret; the service will not boot without it |
 | `farmable-staging-gemini-api-key` | the demo's primary integration |
 
 **Optional** — the rollout wires each one only if it holds an enabled version, and skips
@@ -116,7 +117,8 @@ keys can be added later followed by a redeploy:
 `azure-speech-region`, `crop-health-api-key`, `maps-server-api-key` — each prefixed
 `farmable-staging-`.
 
-Do **not** add placeholder values. Several fields are pattern-validated
+Do **not** add placeholder values. The backend refuses to boot if
+`EXPORT_TOKEN_SECRET` is missing or blank, and several fields are pattern-validated
 (`TWILIO_ACCOUNT_SID` must match `^AC[0-9a-fA-F]{32}$`), and a value that fails
 validation crashes the container on startup. Leave a secret empty of versions instead.
 

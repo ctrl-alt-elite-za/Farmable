@@ -305,11 +305,14 @@ def _path(tmp_path: Path) -> str:
 REFERENCE_ENV_V1 = (
     '{"name":"DATABASE_URL","valueFrom":{"secretKeyRef":'
     '{"name":"farmable-staging-database-url","key":"latest"}}},'
+    '{"name":"EXPORT_TOKEN_SECRET","valueFrom":{"secretKeyRef":'
+    '{"name":"farmable-staging-export-token-secret","key":"latest"}}},'
     '{"name":"GEMINI_API_KEY","valueFrom":{"secretKeyRef":'
     '{"name":"farmable-staging-gemini-api-key","key":"latest"}}}'
 )
 LITERAL_ENV = (
     '{"name":"DATABASE_URL","value":"postgresql://user:pw@host/db"},'
+    '{"name":"EXPORT_TOKEN_SECRET","value":"super-secret-export-token"},'
     '{"name":"GEMINI_API_KEY","value":"AIzaSyFAKE"}'
 )
 
@@ -399,6 +402,7 @@ def _rollout_env(tmp_path: Path) -> dict:
         "CLOUD_SQL_CONNECTION": "farmable-project:africa-south1:farmable-staging",
         "RUNTIME_SERVICE_ACCOUNT": "runtime@farmable-project.iam.gserviceaccount.com",
         "DATABASE_SECRET": "farmable-staging-database-url",
+        "EXPORT_SECRET": "farmable-staging-export-token-secret",
         "GEMINI_SECRET": "farmable-staging-gemini-api-key",
         "GCS_BUCKET": "farmable-project-farmable-staging-media",
     }
@@ -1005,6 +1009,7 @@ _REQUIRED_CONFIG_VARS = (
     "GCP_CLOUD_SQL_CONNECTION",
     "GCP_MEDIA_BUCKET",
     "GCP_DATABASE_SECRET",
+    "GCP_EXPORT_TOKEN_SECRET",
     "GCP_GEMINI_SECRET",
 )
 
@@ -1032,6 +1037,7 @@ def test_required_config_emits_every_deployment_output(tmp_path: Path) -> None:
         "media_bucket=value-for-GCP_MEDIA_BUCKET",
         "runtime_account=value-for-GCP_RUNTIME_SERVICE_ACCOUNT",
         "database_secret=value-for-GCP_DATABASE_SECRET",
+        "export_token_secret=value-for-GCP_EXPORT_TOKEN_SECRET",
         "gemini_secret=value-for-GCP_GEMINI_SECRET",
     ]
 

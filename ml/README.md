@@ -117,10 +117,12 @@ Analytical availability includes an observation from the first day of the next
 month. Ordinary publication-vintage records retain the strict earlier-than-origin
 cutoff. Future CPI revisions remain a disclosed retrospective assumption.
 
-The snapshot uses 2025 planting months and history ending in December 2024. It
-exports gross market prices and separate costs/yields; decision scoring additionally
-deducts the registered marketing rates. Consumer integration, the reference-data
-migration verification on PostgreSQL, Colab execution and real-run reproducibility remain outstanding. ORM
+The snapshot uses 2025 planting months and history ending in December 2024. Under
+protocol Amendment 1, its 96 rows use frozen pre-2025 historical ranges for the
+harvest target calendar month. The decision simulation retains per-origin model
+selection. The snapshot exports gross market prices and separate costs/yields;
+decision scoring additionally deducts the registered marketing rates. Real-artifact
+consumer import, Colab execution and real-run reproducibility remain outstanding. ORM
 models and a bounded explicit importer now cover market prices, crop calendars and
 costs. Identical canonical bundles are no-ops; changed identities and invalid
 bundles fail without partial rows. After migration, import one with

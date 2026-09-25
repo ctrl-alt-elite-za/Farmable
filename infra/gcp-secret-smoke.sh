@@ -15,7 +15,7 @@ service_json="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
 # EnvVar.valueFrom -> EnvVarSource.secretKeyRef -> SecretKeySelector{name, key}.
 # Checking that one shape fails loudly if the encoding ever changes; accepting several
 # shapes could only fail open.
-for name in DATABASE_URL GEMINI_API_KEY; do
+for name in DATABASE_URL EXPORT_TOKEN_SECRET GEMINI_API_KEY; do
   if ! jq -e --arg name "$name" '
     any(.. | objects;
       .name == $name

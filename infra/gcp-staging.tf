@@ -50,6 +50,7 @@ locals {
   ])
   provider_secrets = toset([
     "database-url",
+    "export-token-secret",
     "twilio-account-sid",
     "twilio-verify-service-sid",
     "gemini-api-key",

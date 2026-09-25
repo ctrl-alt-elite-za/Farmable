@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     database_url: SecretStr
     log_level: Literal["debug", "info", "warning", "error", "critical"] = "info"
     commit_sha: str = "unknown"
-    export_token_secret: SecretStr | None = None
+    export_token_secret: SecretStr
     photo_bucket: str | None = None
     photo_signer_email: str | None = None
     diagnosis_enabled: bool = False
@@ -27,3 +27,11 @@ class Settings(BaseSettings):
         if url.drivername != "postgresql+psycopg" or not url.username or not url.password:
             raise ValueError("DATABASE_URL requires postgresql+psycopg and credentials")
         return value
+
+    @field_validator("export_token_secret")
+    @classmethod
+    def export_secret_is_real(cls, value: SecretStr) -> SecretStr:
+        secret = value.get_secret_value().strip()
+        if not secret or secret.startswith("replace-with-"):
+            raise ValueError("EXPORT_TOKEN_SECRET must be a non-placeholder secret")
+        return SecretStr(secret)
