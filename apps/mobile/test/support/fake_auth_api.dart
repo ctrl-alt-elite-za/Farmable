@@ -265,16 +265,16 @@ class FakeAuthApi implements HttpClientAdapter {
       });
     }
 
-  Future<ResponseBody> _farms(
-    String method,
-    String path,
-    Map<String, Object?> body,
-    String? authorization,
-  ) async {
-    final session = _live(authorization);
-    if (session == null) return _error(401, 'invalid_session');
-    return farms!.route(method, path, body, session.userId);
-  }
+    Future<ResponseBody> _farms(
+      String method,
+      String path,
+      Map<String, Object?> body,
+      String? authorization,
+    ) async {
+      final session = _live(authorization);
+      if (session == null) return _error(401, 'invalid_session');
+      return farms!.route(method, path, body, session.userId);
+    }
 
     final password = body['password'] as String? ?? '';
     final phone = body['phone'] as String? ?? '';
