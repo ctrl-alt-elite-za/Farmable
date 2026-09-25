@@ -41,6 +41,8 @@ TOMATO_EXCLUSION = (
     "No compatible reviewed fresh-market tomato production budget; the published "
     "version 1 result paired a processing budget with fresh-market prices."
 )
+# Protocol Amendment 2 requires this timing in the JSON, table and sentence.
+AMENDMENT_TIMING = "Amendment 2 was registered after the version 1 result was observed."
 RETROSPECTIVE_CAVEATS = [
     "Current-vintage Johannesburg history has unresolved publication/revision uncertainty.",
     "The next-month observation cutoff is analytical, not a publisher release-date claim.",
@@ -239,7 +241,8 @@ def build_report(
         + (
             [
                 "Tomatoes are excluded from production and switching calculations; "
-                "a separate price-only forecast is available."
+                "a separate price-only forecast is available.",
+                AMENDMENT_TIMING,
             ]
             if scenario == SEVEN_DEFAULT_SCENARIO
             else []
@@ -299,7 +302,7 @@ def render_table(report: dict[str, Any]) -> str:
             "Undefined values and their reasons are recorded in decision_backtest.json.",
             "",
             *(
-                [f"Tomatoes excluded: {TOMATO_EXCLUSION}", ""]
+                [f"Tomatoes excluded: {TOMATO_EXCLUSION}", "", AMENDMENT_TIMING, ""]
                 if report["scenario"] == SEVEN_DEFAULT_SCENARIO
                 else []
             ),
@@ -329,10 +332,14 @@ def _report_period(report: dict[str, Any]) -> str:
     if report.get("information_policy", {}).get("status") != expected_status:
         raise ValueError("report policy has inconsistent information-cutoff evidence")
     required_caveats = (
-        [c for c in CAVEATS if "Tomatoes use" not in c]
-        if scenario == SEVEN_DEFAULT_SCENARIO
-        else CAVEATS
-    ) + RETROSPECTIVE_CAVEATS
+        (
+            [c for c in CAVEATS if "Tomatoes use" not in c]
+            if scenario == SEVEN_DEFAULT_SCENARIO
+            else CAVEATS
+        )
+        + RETROSPECTIVE_CAVEATS
+        + ([AMENDMENT_TIMING] if scenario == SEVEN_DEFAULT_SCENARIO else [])
+    )
     if scenario in {RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO} and not all(
         caveat in report.get("caveats", []) for caveat in required_caveats
     ):
@@ -364,12 +371,16 @@ def render_sentence(report: dict[str, Any]) -> str:
     if pooled["median_gain_rand"] is None or any(rate is None for rate in rates):
         reason = "switch statistics are undefined for one or more defaults."
         if report["scenario"] == SEVEN_DEFAULT_SCENARIO:
-            reason += " Tomatoes excluded: no compatible reviewed fresh-market production budget."
+            reason += (
+                " Tomatoes excluded: no compatible reviewed fresh-market production budget. "
+                + AMENDMENT_TIMING
+            )
         return prefix + f"INSUFFICIENT EVIDENCE: {reason}\n"
     if report["scenario"] in {RETROSPECTIVE_SCENARIO, SEVEN_DEFAULT_SCENARIO}:
         count = len(defaults)
         exclusion = (
-            " Tomatoes excluded: no compatible reviewed fresh-market production budget."
+            " Tomatoes excluded: no compatible reviewed fresh-market production budget. "
+            + AMENDMENT_TIMING
             if report["scenario"] == SEVEN_DEFAULT_SCENARIO
             else ""
         )

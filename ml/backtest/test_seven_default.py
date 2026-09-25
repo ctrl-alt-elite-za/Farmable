@@ -12,7 +12,7 @@ import run_seven_default as runner
 from check_protocol_first import ProtocolGateError
 from farmable_ml.data import Crop
 from farmable_ml.forecast import shift_month
-from farmable_ml.reports import Bootstrap, build_report
+from farmable_ml.reports import AMENDMENT_TIMING, Bootstrap, build_report, render_sentence
 from farmable_ml.retrospective import RetrospectiveSimulation
 from farmable_ml.scenario import MARKET
 from farmable_ml.seven_default import (
@@ -113,6 +113,16 @@ def test_amended_runner_is_reproducible_and_excludes_tomato_economics(
     assert {"cost", "yield", "profit", "harvest_offset"}.isdisjoint(tomato["rows"][0])
     sentence = (first / "backtest/results" / run_id / "slide_sentence.txt").read_text()
     assert "Tomatoes excluded" in sentence
+    # Amendment 2 was written after version 1 was seen; every output must say so.
+    assert sentence.rstrip().endswith(AMENDMENT_TIMING)
+    assert AMENDMENT_TIMING in report["caveats"]
+    table = (first / "backtest/results" / run_id / "decision_backtest.md").read_text()
+    assert AMENDMENT_TIMING in table
+    undefined = json.loads(json.dumps(report))
+    undefined["results"]["cabbage"]["switch_win_rate"] = None
+    insufficient = render_sentence(undefined)
+    assert insufficient.startswith("INSUFFICIENT EVIDENCE")
+    assert insufficient.rstrip().endswith(AMENDMENT_TIMING)
     comparison = (first / "backtest/results" / run_id / "version_comparison.md").read_text()
     assert "Version 1: eight defaults" in comparison
     assert "Amendment 2: seven defaults" in comparison
