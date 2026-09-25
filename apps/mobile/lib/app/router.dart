@@ -27,7 +27,10 @@ import '../features/auth/onboarding_screen.dart';
 import '../features/auth/reset_password_screen.dart';
 import '../features/auth/sign_up_screen.dart';
 import '../features/auth/verify_screen.dart';
+import '../features/health/health_screen.dart';
 import '../features/crop_scan/crop_scan_screen.dart';
+import '../features/farm/farm_map_screen.dart';
+import '../features/farm/farm_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
 import '../features/recommendations/recommendation_detail_screen.dart';
@@ -89,25 +92,15 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
 
     GoRoute(
       path: '/farm',
-      builder: (_, _) => const NotBuiltYetScreen(
-        destination: NavDestination.farm,
-        title: 'Farm',
-        body:
-            'The map and the full list of sections live here. For now, open '
-            'a section from the carousel on Home.',
+      // Sections mode by default — what Home's "See all" promises — and map
+      // mode at `/farm?view=map`.
+      builder: (_, state) => FarmScreen(
+        initialMode: state.uri.queryParameters['view'] == 'map'
+            ? FarmTabMode.map
+            : FarmTabMode.sections,
       ),
       routes: [
-        GoRoute(
-          path: 'map',
-          builder: (_, _) => const NotBuiltYetScreen(
-            destination: NavDestination.farm,
-            title: 'Farm map',
-            body:
-                'Walking your boundaries with the camera is being built. '
-                'Your sections and their areas are already saved on this '
-                'phone.',
-          ),
-        ),
+        GoRoute(path: 'map', builder: (_, _) => const FarmMapScreen()),
         GoRoute(
           path: 'zone/:zoneId',
           builder: (context, state) =>
@@ -171,6 +164,15 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
     // Nothing on it asks for a permission until the person taps Run.
     GoRoute(path: '/self-test', builder: (_, _) => const SelfTestScreen()),
     // -------------------------------------------------------- end self-test
+
+    // --------------------------------------------------------------- health
+    //
+    // Issue #92, design screen 25: every section's latest health, worst first.
+    // Its own block at the end of the table, like the self-test, so branches
+    // adding farm routes above do not collide with it. Reached from Home's
+    // "Review health"; reads the farm from disk, so it opens with no signal.
+    GoRoute(path: '/health', builder: (_, _) => const HealthScreen()),
+    // ----------------------------------------------------------- end health
   ],
   errorBuilder: (context, state) => NotBuiltYetScreen(
     destination: NavDestination.home,

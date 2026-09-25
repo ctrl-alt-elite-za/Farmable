@@ -158,6 +158,12 @@ class FarmSection {
   final String? soilNote;
   final String? marketNote;
 
+  /// Where the section, its current planting and its approved plan are on
+  /// their way to the server — rolled up, worst first. Null when nothing
+  /// about the section was ever queued (the demo farm, or a section that
+  /// came from the server).
+  final RecordDelivery? delivery;
+
   const FarmSection({
     required this.id,
     required this.farmId,
@@ -169,6 +175,7 @@ class FarmSection {
     this.waterNote,
     this.soilNote,
     this.marketNote,
+    this.delivery,
   });
 
   /// Hectares to one decimal — `0.6 ha`. Metric, as the design requires.
@@ -265,6 +272,10 @@ class FarmTask {
   final Cents? expectedCost;
   final SyncState syncState;
 
+  /// Where this task's changes are on their way to the server; null when
+  /// none were ever queued.
+  final RecordDelivery? delivery;
+
   const FarmTask({
     required this.id,
     required this.sectionId,
@@ -274,6 +285,7 @@ class FarmTask {
     required this.status,
     required this.expectedCost,
     required this.syncState,
+    this.delivery,
   });
 
   bool get isDone => status == TaskStatus.done;
@@ -359,6 +371,9 @@ class SectionSummary {
   /// not a warning: "2 changes waiting".
   final int pendingChanges;
 
+  /// The walked boundary as stored — GeoJSON text, null if never walked.
+  final String? boundary;
+
   const SectionSummary({
     required this.section,
     required this.planting,
@@ -367,6 +382,7 @@ class SectionSummary {
     required this.nextTask,
     required this.spentSoFar,
     required this.pendingChanges,
+    this.boundary,
   });
 
   String get id => section.id;

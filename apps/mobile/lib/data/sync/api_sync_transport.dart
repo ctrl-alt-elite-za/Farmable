@@ -100,12 +100,148 @@ class ApiSyncTransport implements SyncTransport {
     return switch (row.recordType) {
       'observation' => _observation(delivery, token),
       'media' => _media(delivery, token, cancel),
+      'section' ||
+      'planting' ||
+      'farm_task' ||
+      'financial' ||
+      'saved_plan' => _record(row, token),
       _ => throw const SyncFailure(
         DeliveryFailure.validation,
         code: 'unsupported_record',
       ),
     };
   }
+
+  // --------------------------------------------------------------- records
+
+  /// The server's collection for each outbox record type.
+  static const resources = {
+    'section': 'sections',
+    'planting': 'plantings',
+    'farm_task': 'tasks',
+    'financial': 'financials',
+    'saved_plan': 'plans',
+  };
+
+  /// Sections, plantings, tasks, financials and plans: the generic record
+  /// routes of docs/farm-records-api.md. Create is `POST` with the phone's
+  /// own id, update is `PUT` with `expected_version`, delete is
+  /// `POST …/delete` with `RecordDelete`.
+  Future<SyncAcknowledgement> _record(
+    SyncMutation row,
+    CancelToken token,
+  ) async {
+    final body = jsonDecode(row.payload!) as Map<String, dynamic>;
+    final collection = '$_farm/${resources[row.recordType]}';
+    final expected = (row.recordVersion ?? 1) - 1;
+    final Response<Object?> response;
+    switch (row.operation) {
+      // A plan the farmer accepted is created already approved: the phone
+      // never stores a plan in any other state (see `acceptPlan`).
+      case 'create' || 'approve':
+        response = await _call('POST', collection, token, {
+          'mutation_id': row.mutationId,
+          'id': row.recordId,
+          ...createFields(row.recordType, body),
+        });
+      // A reschedule is an update: `TaskUpdate` replaces the whole task, and
+      // the snapshot holds the whole task.
+      case 'update' || 'reschedule':
+        response = await _call('PUT', '$collection/${row.recordId}', token, {
+          'mutation_id': row.mutationId,
+          'expected_version': expected,
+          ...updateFields(row.recordType, body),
+        });
+      case 'delete':
+        response = await _call(
+          'POST',
+          '$collection/${row.recordId}/delete',
+          token,
+          {'mutation_id': row.mutationId, 'expected_version': expected},
+        );
+      default:
+        throw const SyncFailure(
+          DeliveryFailure.validation,
+          code: 'unsupported_operation',
+        );
+    }
+    final ack = _object(response.data);
+    return SyncAcknowledgement(
+      mutationId: _id(ack, 'mutation_id'),
+      recordId: _id(ack, 'entity_id'),
+      ownerId: _id(ack, 'owner_id'),
+      farmId: _id(ack, 'farm_id'),
+    );
+  }
+
+  /// `SectionCreate`, `PlantingCreate`, `TaskCreate`, `FinancialCreate`,
+  /// `PlanCreate` — less `mutation_id` and `id`.
+  static Map<String, Object?> createFields(
+    String type,
+    Map<String, dynamic> s,
+  ) => switch (type) {
+    'section' => _section(s),
+    'planting' => {'section_id': s['sectionId'], ..._planting(s)},
+    'farm_task' => {'section_id': s['sectionId'], ..._task(s)},
+    'financial' => {'section_id': s['sectionId'], ..._financial(s)},
+    'saved_plan' => {'section_id': s['sectionId'], ..._plan(s)},
+    _ => throw const SyncFailure(
+      DeliveryFailure.validation,
+      code: 'unsupported_record',
+    ),
+  };
+
+  /// `SectionUpdate`, `PlantingUpdate`, `TaskUpdate`, `FinancialUpdate`,
+  /// `PlanUpdate` — less `mutation_id` and `expected_version`. None of them
+  /// can move a record to another section.
+  static Map<String, Object?> updateFields(
+    String type,
+    Map<String, dynamic> s,
+  ) => switch (type) {
+    'section' => _section(s),
+    'planting' => _planting(s),
+    'farm_task' => _task(s),
+    'financial' => _financial(s),
+    'saved_plan' => _plan(s),
+    _ => throw const SyncFailure(
+      DeliveryFailure.validation,
+      code: 'unsupported_record',
+    ),
+  };
+
+  static Map<String, Object?> _section(Map<String, dynamic> s) => {
+    'name': s['name'],
+    // `Numeric(14, 2)`: sent as the string it is stored as, never a double.
+    'area_m2': s['areaM2'],
+    'boundary': s['boundary'],
+  };
+
+  static Map<String, Object?> _planting(Map<String, dynamic> s) => {
+    'crop': s['crop'],
+    'planted_on': s['plantedOn'],
+    'is_current': s['isCurrent'],
+  };
+
+  static Map<String, Object?> _task(Map<String, dynamic> s) => {
+    'title': s['title'],
+    'description': s['description'],
+    'due_date': s['dueDate'],
+    'status': s['status'],
+    'expected_cost_cents': s['expectedCostCents'],
+  };
+
+  static Map<String, Object?> _financial(Map<String, dynamic> s) => {
+    'type': s['type'],
+    'category': s['category'],
+    'amount_cents': s['amountCents'],
+    'date': s['date'],
+    'note': s['note'],
+  };
+
+  static Map<String, Object?> _plan(Map<String, dynamic> s) => {
+    'plan': s['plan'],
+    'status': s['status'],
+  };
 
   // ---------------------------------------------------------- observations
 
