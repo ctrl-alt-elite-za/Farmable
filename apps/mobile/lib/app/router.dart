@@ -19,6 +19,8 @@ import '../features/account/delete_account_screen.dart';
 import '../features/account/edit_details_screen.dart';
 import '../features/account/export_screen.dart';
 import '../features/account/privacy_screen.dart';
+import '../features/account/security_screen.dart';
+import '../features/account/help_screen.dart';
 import '../features/auth/auth_choice_screen.dart';
 import '../features/auth/brand_intro_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
@@ -171,6 +173,14 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
     // Nothing on it asks for a permission until the person taps Run.
     GoRoute(path: '/self-test', builder: (_, _) => const SelfTestScreen()),
     // -------------------------------------------------------- end self-test
+
+    // ------------------------------------------------------- issue 94 profile
+    GoRoute(
+      path: '/profile/security',
+      builder: (_, _) => const SecurityScreen(),
+    ),
+    GoRoute(path: '/profile/help', builder: (_, _) => const HelpScreen()),
+    // --------------------------------------------------- end issue 94 profile
   ],
   errorBuilder: (context, state) => NotBuiltYetScreen(
     destination: NavDestination.home,

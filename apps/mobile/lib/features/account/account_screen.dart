@@ -63,6 +63,12 @@ class AccountScreen extends ConsumerWidget {
               ),
               SignedOut() => const _SignedOut(),
             },
+            ProfileRow(
+              icon: LucideIcons.circleHelp,
+              title: 'Help',
+              subtitle: 'Offline use, syncing and contacting the team',
+              onTap: () => context.go('/profile/help'),
+            ),
             // What the app is allowed to use (#84), and the device self-test
             // (#4) — the way a phone build that opens on Home reaches it.
             // Neither asks for anything until the farmer taps.
@@ -170,6 +176,12 @@ class _SignedInState extends ConsumerState<_SignedIn> {
           title: 'Privacy and consent',
           subtitle: 'What is kept, and what outside services may do',
           onTap: () => context.go('/profile/privacy'),
+        ),
+        ProfileRow(
+          icon: LucideIcons.lockKeyhole,
+          title: 'Security',
+          subtitle: 'Where you are signed in',
+          onTap: () => context.go('/profile/security'),
         ),
         ProfileRow(
           icon: LucideIcons.download,
