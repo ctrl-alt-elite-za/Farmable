@@ -26,6 +26,27 @@ enum SyncState {
   );
 }
 
+/// Where one record's changes are on their way to the server, read from the
+/// outbox rather than from the record — [SyncState] says whether the server
+/// has the latest version; this says what the phone is doing about it.
+enum RecordDelivery {
+  /// Saved on the phone and waiting for a connection, a session, or its turn.
+  queued,
+
+  /// Being sent right now.
+  sending,
+
+  /// The server has every change to this record.
+  sent,
+
+  /// Sending stopped. The farmer can try again.
+  failed,
+
+  /// The server holds a different version. Sending it again as-is would
+  /// overwrite someone's work, so this is not offered a plain retry.
+  conflict,
+}
+
 /// Mirrors `TASK_STATUSES`.
 enum TaskStatus {
   pending,
@@ -213,6 +234,10 @@ class Observation {
   /// exists so an observation created by the camera flow has somewhere to go.
   final String? localMediaId;
 
+  /// Null when the outbox holds nothing for this record — a seeded record,
+  /// or one written before the outbox kept delivery state.
+  final RecordDelivery? delivery;
+
   const Observation({
     required this.id,
     required this.sectionId,
@@ -225,6 +250,7 @@ class Observation {
     required this.syncState,
     this.healthScore,
     this.localMediaId,
+    this.delivery,
   });
 }
 

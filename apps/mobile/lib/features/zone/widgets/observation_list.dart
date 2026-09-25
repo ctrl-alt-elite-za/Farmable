@@ -22,6 +22,9 @@ class ObservationList extends StatelessWidget {
   final void Function(Observation observation) onTap;
   final VoidCallback onAdd;
 
+  /// The farmer's "try again" on a record whose send stopped.
+  final void Function(Observation observation)? onRetry;
+
   const ObservationList({
     super.key,
     required this.observations,
@@ -30,6 +33,7 @@ class ObservationList extends StatelessWidget {
     required this.today,
     required this.onTap,
     required this.onAdd,
+    this.onRetry,
   });
 
   @override
@@ -60,6 +64,7 @@ class ObservationList extends StatelessWidget {
               today: today,
               last: observation == observations.last,
               onTap: () => onTap(observation),
+              onRetry: onRetry == null ? null : () => onRetry!(observation),
             ),
         ],
       ),
@@ -76,6 +81,7 @@ class ObservationTile extends StatelessWidget {
   final DateTime today;
   final bool last;
   final VoidCallback onTap;
+  final VoidCallback? onRetry;
 
   const ObservationTile({
     super.key,
@@ -85,6 +91,7 @@ class ObservationTile extends StatelessWidget {
     required this.today,
     required this.last,
     required this.onTap,
+    this.onRetry,
   });
 
   @override
@@ -166,13 +173,26 @@ class ObservationTile extends StatelessWidget {
                       // Queued work, stated calmly. A record that has not
                       // reached the server is not a failed record — it is a
                       // record on a phone, which is where it was always safest.
-                      if (observation.syncState == SyncState.pending)
+                      if (observation.delivery case final delivery?)
+                        DeliveryChip(delivery: delivery)
+                      else if (observation.syncState == SyncState.pending)
                         const SyncIndicator(
                           standing: SyncStanding.pending,
                           pending: 1,
                         ),
                     ],
                   ),
+                  if (observation.delivery == RecordDelivery.failed &&
+                      onRetry != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        key: ValueKey('retry-${observation.id}'),
+                        onPressed: onRetry,
+                        icon: const Icon(LucideIcons.rotateCw, size: 16),
+                        label: const Text('Try again'),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -181,4 +201,51 @@ class ObservationTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Where one record is on its way to the server.
+///
+/// Each state carries a stable accessibility identifier —
+/// `record-delivery-queued`, `-sending`, `-sent`, `-failed`, `-conflict` — so
+/// the E2E flows can wait for a record to reach the server without matching
+/// on wording.
+class DeliveryChip extends StatelessWidget {
+  final RecordDelivery delivery;
+
+  const DeliveryChip({super.key, required this.delivery});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    identifier: 'record-delivery-${delivery.name}',
+    container: true,
+    child: switch (delivery) {
+      RecordDelivery.queued => const SyncIndicator(
+        standing: SyncStanding.pending,
+        pending: 1,
+      ),
+      RecordDelivery.sending => const ConstraintChip(
+        icon: LucideIcons.refreshCw,
+        text: 'Sending',
+      ),
+      RecordDelivery.sent => const ConstraintChip(
+        icon: LucideIcons.cloudCheck,
+        text: 'Sent',
+        tone: ChipTone.ok,
+      ),
+      // Not "failed": nothing is lost. The record is on the phone, and the
+      // button beside this sends it again.
+      RecordDelivery.failed => const ConstraintChip(
+        icon: LucideIcons.cloudAlert,
+        text: 'Not sent yet',
+        tone: ChipTone.warn,
+      ),
+      // No plain retry: the server holds a different version, and sending
+      // this one again as-is would overwrite it.
+      RecordDelivery.conflict => const ConstraintChip(
+        icon: LucideIcons.gitCompare,
+        text: 'Changed on another phone',
+        tone: ChipTone.warn,
+      ),
+    },
+  );
 }

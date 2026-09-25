@@ -8,9 +8,12 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/ids.dart';
 import '../../app/providers.dart';
+import '../../data/local/offline_photos.dart';
 import '../../domain/farm_records.dart';
 import '../../domain/farm_records_repository.dart';
+import '../../data/device/photo_capture.dart';
 
 /// Where a timeline item sits in the season.
 ///
@@ -137,7 +140,45 @@ class ZoneActions {
   final FarmRecordsRepository _records;
   final String sectionId;
 
-  const ZoneActions(this._records, this.sectionId);
+  /// Saves an observation that carries a photo. The photo is copied into the
+  /// app's storage and queued ahead of the observation that needs it.
+  final Future<OfflineObservations> Function()? capture;
+
+  const ZoneActions(this._records, this.sectionId, {this.capture});
+
+  /// The ids are the caller's, allocated once when the form opened and reused
+  /// if this is called again — a second tap on Save, or a retry after a
+  /// storage hiccup, is the same observation, never a second one.
+  Future<void> addObservationWithPhoto({
+    required ObservationIds ids,
+    required String type,
+    required String note,
+    required HealthState health,
+    required CapturedPhoto photo,
+    String? actionTaken,
+  }) async {
+    final capture = this.capture;
+    if (capture == null) throw StateError('photo_capture_unavailable');
+    await (await capture()).save(
+      id: ids.observation,
+      mutationId: ids.mutation,
+      sectionId: sectionId,
+      type: type,
+      note: note,
+      healthStatus: health.wire,
+      actionTaken: actionTaken,
+      photo: PhotoCapture(
+        source: photo.uri,
+        mediaId: ids.media,
+        mutationId: ids.mediaMutation,
+        contentType: photo.contentType,
+      ),
+    );
+  }
+
+  /// The farmer's "try again" on a record whose send stopped.
+  Future<void> retrySync(String observationId) =>
+      _records.retryObservationSync(observationId);
 
   Future<void> addObservation({
     required String type,
@@ -208,5 +249,23 @@ class ZoneActions {
 }
 
 final zoneActionsProvider = Provider.family<ZoneActions, String>(
-  (ref, sectionId) => ZoneActions(ref.watch(farmRecordsProvider), sectionId),
+  (ref, sectionId) => ZoneActions(
+    ref.watch(farmRecordsProvider),
+    sectionId,
+    capture: () => ref.read(offlineObservationsProvider.future),
+  ),
 );
+
+final photoTakerProvider = Provider<PhotoTaker>((ref) => defaultPhotoTaker());
+
+/// Everything one new observation will be known by, minted when its form
+/// opens.
+class ObservationIds {
+  ObservationIds()
+    : observation = newUuid(),
+      mutation = newUuid(),
+      media = newUuid(),
+      mediaMutation = newUuid();
+
+  final String observation, mutation, media, mediaMutation;
+}
