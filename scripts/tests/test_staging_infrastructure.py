@@ -284,7 +284,27 @@ def _log_calls(log: Path) -> str:
 
 def _fake_gcloud(tmp_path: Path, body: str) -> None:
     script = tmp_path / "gcloud"
-    script.write_text("#!/usr/bin/env bash\nset -Eeuo pipefail\n" + body, encoding="utf-8")
+    required_secret_stub = ""
+    if "secrets list" not in body:
+        required_secret_stub += (
+            'if [[ "$*" == *"secrets list"* ]]; then\n'
+            "  printf '%s\\n' 'farmable-staging-export-token-secret'; exit 0\n"
+            "fi\n"
+        )
+    if "secrets versions list" not in body:
+        required_secret_stub += (
+            'if [[ "$*" == *"secrets versions list"* ]]; then\n'
+            '  if [[ "$*" == *"farmable-staging-export-token-secret"* ]]; then\n'
+            "    printf '%s\\n' "
+            "'projects/1/secrets/farmable-staging-export-token-secret/versions/1';\n"
+            "  fi\n"
+            "  exit 0\n"
+            "fi\n"
+        )
+    script.write_text(
+        "#!/usr/bin/env bash\nset -Eeuo pipefail\n" + required_secret_stub + body,
+        encoding="utf-8",
+    )
     script.chmod(0o755)
 
 
@@ -851,15 +871,6 @@ def _provider_secret_gcloud(log: Path, sha: str, *, secrets: str, versions: str)
     """
     required_export_resource = "farmable-staging-export-token-secret"
     secrets = "\n".join(filter(None, (required_export_resource, secrets)))
-    versions = "\n".join(
-        filter(
-            None,
-            (
-                "projects/1/secrets/farmable-staging-export-token-secret/versions/1",
-                versions,
-            ),
-        )
-    )
     service_json = (
         '{"status":{"traffic":[{"tag":"sha-' + sha + '",'
         '"url":"https://sha-' + sha[:8] + '---farmable.run.app",'
@@ -867,7 +878,12 @@ def _provider_secret_gcloud(log: Path, sha: str, *, secrets: str, versions: str)
     )
     return (
         _log_calls(log) + 'if [[ "$*" == *"secrets versions list"* ]]; then\n'
-        f"  printf '%s\\n' '{versions}'; exit 0\n"
+        '  if [[ "$*" == *"farmable-staging-export-token-secret"* ]]; then\n'
+        "    printf '%s\\n' 'projects/1/secrets/farmable-staging-export-token-secret/versions/1';\n"
+        "  else\n"
+        f"    printf '%s\\n' '{versions}';\n"
+        "  fi\n"
+        "  exit 0\n"
         "fi\n"
         'if [[ "$*" == *"secrets list"* ]]; then\n'
         f"  printf '%s\\n' '{secrets}'; exit 0\n"
