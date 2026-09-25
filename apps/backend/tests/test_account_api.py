@@ -642,6 +642,34 @@ def test_contact_change_sms_budget_blocks_provider_delivery(accounts):
     assert accounts.provider.deliver.call_count == 3
 
 
+def test_email_change_ip_budget_does_not_block_another_ip(accounts):
+    accounts.client._transport.client = ("192.0.2.1", 1234)
+    for i in range(10):
+        response = accounts.client.patch(
+            "/account/profile",
+            headers=_headers(accounts.alice, f"email-ip-{i}"),
+            json={"email": f"email-ip-{i}@example.com"},
+        )
+        assert response.status_code == 200
+    blocked = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-ip-blocked"),
+        json={"email": "email-ip-blocked@example.com"},
+    )
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "email_ip_rate_limited"
+    assert accounts.provider.deliver.call_count == 10
+
+    accounts.client._transport.client = ("192.0.2.2", 1234)
+    allowed = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.bob, "email-ip-other"),
+        json={"email": "email-ip-other@example.com"},
+    )
+    assert allowed.status_code == 200
+    assert accounts.provider.deliver.call_count == 11
+
+
 def test_contact_change_email_budget_blocks_provider_delivery(accounts):
     for label in ("email-budget-one", "email-budget-two", "email-budget-three"):
         response = accounts.client.patch(

@@ -371,9 +371,11 @@ def create_app(
         # Turnstile tokens are single-use, so a retry needs a fresh proof.
         # The proof is verified above but is not part of the account mutation.
         body = payload.model_dump(mode="json", exclude={"turnstile_token"})
-        key, replayed = await idempotent_claim(
-            request, "auth_signup", body, scope=client_ip(request)
-        )
+        # A phone can change networks before retrying a lost response. The
+        # operation key and matching request fingerprint identify the signup;
+        # the peer IP remains an abuse-limit input, not its replay identity.
+        signup_scope = "signup"
+        key, replayed = await idempotent_claim(request, "auth_signup", body, scope=signup_scope)
         if replayed is not None:
             status, response_body = replayed
             if status >= 400:
@@ -396,7 +398,7 @@ def create_app(
                 payload.password,
                 ip=client_ip(request),
                 idempotency_key=key or None,
-                idempotency_scope=client_ip(request),
+                idempotency_scope=signup_scope,
             )
             mutation_committed = True
             response = AuthProgressResponse(user_id=user.id, next_step="phone")
@@ -406,7 +408,7 @@ def create_app(
                 body,
                 200,
                 response.model_dump(mode="json"),
-                scope=client_ip(request),
+                scope=signup_scope,
             )
             return response
         except AuthError as exc:
@@ -423,14 +425,14 @@ def create_app(
                             "user_id": str(exc.user_id) if exc.user_id is not None else None,
                         }
                     },
-                    scope=client_ip(request),
+                    scope=signup_scope,
                 )
             else:
-                await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
+                await idempotent_abandon(request, "auth_signup", scope=signup_scope, key=key)
             raise
         except Exception:
             if not mutation_committed:
-                await idempotent_abandon(request, "auth_signup", scope=client_ip(request), key=key)
+                await idempotent_abandon(request, "auth_signup", scope=signup_scope, key=key)
             raise
 
     @app.post(

@@ -119,13 +119,36 @@ class ApiAuthService implements AuthService {
   }) async {
     final normalisedEmail = email.trim().toLowerCase();
     final token = await _verification('sign_up');
-    final previous = _pendingIn(await _read());
+    final record = await _read();
+    final previous = _pendingIn(record);
     final sameSignup =
         previous != null &&
         previous.phone == phone &&
         previous.email == normalisedEmail &&
         previous.idempotencyKey != null;
-    final idempotencyKey = sameSignup ? previous.idempotencyKey! : newUuid();
+    final attempt = record['signup_attempt'];
+    final rememberedKey =
+        attempt is Map &&
+            attempt['phone'] == phone &&
+            attempt['email'] == normalisedEmail
+        ? attempt['idempotency_key']
+        : null;
+    final idempotencyKey = sameSignup
+        ? previous.idempotencyKey!
+        : rememberedKey is String && _looksLikeUuid(rememberedKey)
+        ? rememberedKey
+        : newUuid();
+    // Save before dispatch: the account may be created even if no response
+    // reaches this phone. No user ID is invented, and no password or proof
+    // is persisted. A retry re-enters credentials and obtains fresh proof.
+    await _write(
+      record,
+      signupAttempt: {
+        'phone': phone,
+        'email': normalisedEmail,
+        'idempotency_key': idempotencyKey,
+      },
+    );
     final request = {
       'first_name': firstName.trim(),
       'surname': surname.trim(),
@@ -152,7 +175,11 @@ class ApiAuthService implements AuthService {
         email: normalisedEmail,
         idempotencyKey: idempotencyKey,
       );
-      await _write(await _read(), pending: pending.toJson());
+      await _write(
+        await _read(),
+        pending: pending.toJson(),
+        signupAttempt: null,
+      );
       return pending;
     }
 
@@ -163,8 +190,7 @@ class ApiAuthService implements AuthService {
       email: normalisedEmail,
       idempotencyKey: idempotencyKey,
     );
-    final record = await _read();
-    await _write(record, pending: pending.toJson());
+    await _write(await _read(), pending: pending.toJson(), signupAttempt: null);
     return pending;
   }
 
@@ -196,7 +222,12 @@ class ApiAuthService implements AuthService {
 
     final session = _session(body);
     _epoch++;
-    await _write(record, pending: null, session: session.toJson());
+    await _write(
+      record,
+      pending: null,
+      session: session.toJson(),
+      signupAttempt: null,
+    );
     return VerificationComplete(session);
   }
 
@@ -230,7 +261,12 @@ class ApiAuthService implements AuthService {
     });
     final session = _session(body);
     _epoch++;
-    await _write(await _read(), session: session.toJson());
+    await _write(
+      await _read(),
+      pending: null,
+      session: session.toJson(),
+      signupAttempt: null,
+    );
     return session;
   }
 
@@ -301,7 +337,7 @@ class ApiAuthService implements AuthService {
   Future<void> signOut() async {
     final record = await _read();
     final session = _sessionIn(record);
-    await _write(record, session: null, pending: null);
+    await _write(record, session: null, pending: null, signupAttempt: null);
     // After the write, not before: a refresh that starts while the write is
     // in flight still reads the old session, and has to be caught out by an
     // epoch that moves once that session is really gone.
@@ -320,7 +356,7 @@ class ApiAuthService implements AuthService {
     final record = await _read();
     _endedToken = _sessionIn(record)?.token;
     _epoch++;
-    await _write(record, session: null, pending: null);
+    await _write(record, session: null, pending: null, signupAttempt: null);
   }
 
   /// Forgets the half-finished signup on this phone.
@@ -332,7 +368,7 @@ class ApiAuthService implements AuthService {
   @override
   Future<void> abandonSignup() async {
     final record = await _read();
-    await _write(record, pending: null);
+    await _write(record, pending: null, signupAttempt: null);
   }
 
   /// Makes an authenticated request, refreshing once if the server says the
@@ -601,11 +637,16 @@ class ApiAuthService implements AuthService {
     Map<String, Object?> record, {
     Object? pending = _unchanged,
     Object? session = _unchanged,
+    Object? signupAttempt = _unchanged,
   }) async {
+    final attempt = identical(signupAttempt, _unchanged)
+        ? record['signup_attempt']
+        : signupAttempt;
     try {
       await _storage.write({
         'pending': identical(pending, _unchanged) ? record['pending'] : pending,
         'session': identical(session, _unchanged) ? record['session'] : session,
+        'signup_attempt': ?attempt,
       });
     } on SessionStorageException {
       throw const AuthException(AuthFailure.storageUnavailable);

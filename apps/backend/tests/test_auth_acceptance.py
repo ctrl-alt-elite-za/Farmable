@@ -351,6 +351,43 @@ def test_idempotency_key_replays_the_original_signup_response(settings):
         assert len(session.scalars(select(AuthIdentity)).all()) == 1  # no second account
 
 
+@pytest.mark.parametrize("ambiguous", [False, True])
+def test_signup_replay_survives_network_change(settings, ambiguous):
+    provider = AmbiguousOtpProvider() if ambiguous else CountingOtpProvider()
+    app, _, _, _ = _app(settings, provider)
+    key = _idempotency_key("network-change")
+    with TestClient(app, client=("192.0.2.1", 1234)) as client:
+        first = _signup_request(client, key=key)
+        assert first.status_code == (503 if ambiguous else 200)
+        # Change the ASGI peer, not an untrusted forwarding header. Keep the
+        # application lifespan running while the phone changes networks.
+        client._transport.client = ("192.0.2.2", 1234)
+        recovered = _signup_request(client, key=key)
+        assert recovered.status_code == first.status_code
+        assert recovered.json() == first.json()
+        assert provider.deliveries == 1
+        user_id = recovered.json()["error"]["user_id"] if ambiguous else recovered.json()["user_id"]
+        verified = client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
+        assert verified.status_code == 200
+
+
+def test_signup_replay_from_another_ip_still_requires_matching_body(settings):
+    app, _, provider, _ = _app(settings)
+    key = _idempotency_key("network-conflict")
+    with TestClient(app, client=("192.0.2.1", 1234)) as client:
+        first = _signup_request(client, key=key)
+        assert first.status_code == 200
+        client._transport.client = ("192.0.2.2", 1234)
+        conflict = _signup_request(client, _signup_body(password=PASSWORD + " changed"), key=key)
+        assert conflict.status_code == 409
+        assert conflict.json()["error"]["code"] == "idempotency_key_conflict"
+        # A different key must not reveal the existing account's continuation.
+        collision = _signup_request(client, key=_idempotency_key("unrelated"))
+        assert collision.status_code == 200
+        assert collision.json()["user_id"] != first.json()["user_id"]
+        assert provider.deliveries == 1
+
+
 def test_signup_ambiguous_delivery_persists_challenge_and_replays_without_resend(settings):
     provider = AmbiguousOtpProvider()
     app, _, provider, _ = _app(settings, provider)
@@ -372,7 +409,7 @@ def test_interrupted_signup_claim_recovers_account_without_resending(settings):
     app, auth, provider, sessions = _app(settings, provider)
     body = _signup_body()
     key = _idempotency_key("signup-interrupted")
-    scope = "testclient"
+    scope = "signup"
     request_fingerprint = fingerprint(
         {name: value for name, value in body.items() if name != "turnstile_token"}, key=key
     )
@@ -394,7 +431,7 @@ def test_interrupted_signup_claim_recovers_account_without_resending(settings):
             body["phone"],
             body["email"],
             body["password"],
-            ip=scope,
+            ip="testclient",
             idempotency_key=key,
             idempotency_scope=scope,
         )

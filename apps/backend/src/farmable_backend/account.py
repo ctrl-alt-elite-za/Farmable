@@ -249,7 +249,11 @@ class AccountService:
                         body={"error": {"code": "delivery_unknown"}},
                     )
                 self._request_contact_change(
-                    authorization, Channel.EMAIL, payload.email, idempotency_key=idempotency_key
+                    authorization,
+                    Channel.EMAIL,
+                    payload.email,
+                    ip=ip,
+                    idempotency_key=idempotency_key,
                 )
             if payload.phone is not None:
                 contact_started = True
