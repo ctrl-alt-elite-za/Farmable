@@ -275,6 +275,10 @@ class AssistantChatState {
   /// A consent call did not reach the server; the farmer can try again.
   final AssistantProblem? consentProblem;
 
+  /// Outside services were turned off while this conversation was open (as
+  /// opposed to never having been on).
+  final bool outsideServicesTurnedOff;
+
   const AssistantChatState({
     this.stage = AssistantStage.starting,
     this.consent,
@@ -286,6 +290,7 @@ class AssistantChatState {
     this.consentBusy = false,
     this.withdrawn = false,
     this.consentProblem,
+    this.outsideServicesTurnedOff = false,
   });
 
   bool get writing =>
@@ -302,6 +307,7 @@ class AssistantChatState {
     bool? consentBusy,
     bool? withdrawn,
     AssistantProblem? Function()? consentProblem,
+    bool? outsideServicesTurnedOff,
   }) => AssistantChatState(
     stage: stage ?? this.stage,
     consent: consent ?? this.consent,
@@ -317,10 +323,15 @@ class AssistantChatState {
     consentProblem: consentProblem != null
         ? consentProblem()
         : this.consentProblem,
+    outsideServicesTurnedOff:
+        outsideServicesTurnedOff ?? this.outsideServicesTurnedOff,
   );
 }
 
 // --------------------------------------------------------------- controller
+
+/// The ending code of a turn stopped because outside services were turned off.
+const outsideServicesOffCode = 'outside_services_off';
 
 class AssistantController extends Notifier<AssistantChatState> {
   AssistantApi? _api;
@@ -335,6 +346,13 @@ class AssistantController extends Notifier<AssistantChatState> {
 
   _Run? _run;
 
+  /// Outside services are off as far as this conversation knows. Set the
+  /// moment they are turned off; cleared only by reading them on again.
+  bool _servicesOff = false;
+
+  /// A turn is waiting on the permission check, so a second tap is ignored.
+  bool _admitting = false;
+
   AssistantTiming get _timing => ref.read(assistantTimingProvider);
 
   @override
@@ -344,6 +362,15 @@ class AssistantController extends Notifier<AssistantChatState> {
       final standing = next.value;
       final id = standing is SignedIn ? standing.session.user.id : null;
       if (_userId != null && id != _userId) _reset();
+    });
+    // Outside services turned off in Profile → Privacy while this
+    // conversation is open: stop at once, not at the next open.
+    ref.listen(externalProcessingConsentProvider, (previous, next) {
+      if (next.isLoading) return;
+      if (next case AsyncData(value: true)) return;
+      // Never opened: [open] reads the choice itself when it is.
+      if (_api == null) return;
+      _outsideServicesOff();
     });
     ref.onDispose(() => _run?.cancel());
     return const AssistantChatState();
@@ -378,6 +405,16 @@ class AssistantController extends Notifier<AssistantChatState> {
 
     final userId = standing.session.user.id;
     if (userId != _userId) _reset();
+    _userId = userId;
+    final epoch = _epoch;
+
+    // Read every time, a conversation already open included: the farmer may
+    // have turned outside services off since it was opened.
+    if (!await _outsideServicesOn(epoch)) return;
+    if (state.outsideServicesTurnedOff) {
+      state = state.copyWith(outsideServicesTurnedOff: false);
+    }
+
     const settled = {
       AssistantStage.ready,
       AssistantStage.needsConsent,
@@ -386,26 +423,12 @@ class AssistantController extends Notifier<AssistantChatState> {
     };
     if (_api != null && settled.contains(state.stage)) return;
 
-    _userId = userId;
     _api = api;
-    final epoch = _epoch;
-
-    bool allowed;
-    try {
-      allowed = await ref.read(externalProcessingConsentProvider.future);
-    } on Object {
-      allowed = false;
-    }
-    if (epoch != _epoch) return;
-    if (!allowed) {
-      state = state.copyWith(stage: AssistantStage.outsideServicesOff);
-      return;
-    }
 
     state = state.copyWith(stage: AssistantStage.starting);
     try {
       final farms = await api.farms().timeout(_timing.request);
-      if (epoch != _epoch) return;
+      if (epoch != _epoch || _servicesOff) return;
       if (farms.isEmpty) {
         state = state.copyWith(stage: AssistantStage.noFarm);
       } else if (farms.length > 1) {
@@ -414,7 +437,7 @@ class AssistantController extends Notifier<AssistantChatState> {
         await _startConversation(farms.single, epoch);
       }
     } on Object catch (e) {
-      if (epoch == _epoch) _openFailed(e);
+      if (epoch == _epoch && !_servicesOff) _openFailed(e);
     }
   }
 
@@ -485,6 +508,11 @@ class AssistantController extends Notifier<AssistantChatState> {
       // Earlier turns are a convenience. Their absence does not stop today's.
     }
     if (epoch != _epoch) return;
+    // Turned off while this was loading.
+    if (_servicesOff) {
+      state = state.copyWith(entries: entries, decisions: decisions);
+      return;
+    }
 
     state = state.copyWith(
       stage: consent.granted
@@ -535,7 +563,61 @@ class AssistantController extends Notifier<AssistantChatState> {
     _farmId = null;
     _conversationId = null;
     _declined = false;
+    _servicesOff = false;
+    _admitting = false;
     state = const AssistantChatState();
+  }
+
+  /// Reads the farmer's current outside-services choice. When it is off,
+  /// moves to [AssistantStage.outsideServicesOff] and answers false; also
+  /// false when [epoch] has moved on meanwhile.
+  Future<bool> _outsideServicesOn(int epoch) async {
+    bool allowed;
+    try {
+      allowed = await ref.read(externalProcessingConsentProvider.future);
+    } on Object {
+      allowed = false;
+    }
+    if (epoch != _epoch) return false;
+    if (!allowed) {
+      _outsideServicesOff();
+      return false;
+    }
+    _servicesOff = false;
+    return true;
+  }
+
+  /// Outside services are off. Nothing more is sent: a turn being written is
+  /// interrupted on the server, and its stream is no longer read, so no
+  /// further words appear. Only turning them back on reopens the
+  /// conversation — which [open] notices on the farmer's next visit.
+  void _outsideServicesOff() {
+    _servicesOff = true;
+    final wasOpen = _api != null && _conversationId != null;
+    final run = _run;
+    if (run != null) {
+      run.cancel();
+      unawaited(_interruptOnServer(run.turnId));
+      _end(run.turnId, const TurnInterrupted(outsideServicesOffCode));
+    }
+    state = state.copyWith(
+      stage: AssistantStage.outsideServicesOff,
+      outsideServicesTurnedOff: wasOpen || state.outsideServicesTurnedOff,
+      cropQuestion: () => null,
+      pendingMessage: () => null,
+    );
+  }
+
+  Future<void> _interruptOnServer(String turnId) async {
+    final api = _api;
+    final conversation = _conversationId;
+    if (api == null || conversation == null) return;
+    try {
+      await api.interrupt(conversation, turnId).timeout(_timing.request);
+    } on Object {
+      // The server may not have heard; closing the stream interrupts the
+      // turn there too. Its snapshot is not shown: no more words appear.
+    }
   }
 
   /// Checks again after an offline or not-available answer.
@@ -653,7 +735,7 @@ class AssistantController extends Notifier<AssistantChatState> {
       );
       return;
     }
-    await _start(newUuid(), message);
+    await _admit(newUuid(), message);
   }
 
   /// The farmer's answer to the crop question: a crop, or null for "keep
@@ -667,7 +749,7 @@ class AssistantController extends Notifier<AssistantChatState> {
       pendingMessage: () => null,
     );
     if (crop == null) {
-      await _start(newUuid(), pending);
+      await _admit(newUuid(), pending);
     } else {
       await send(resolveCropQuestion(pending, question, crop));
     }
@@ -692,7 +774,28 @@ class AssistantController extends Notifier<AssistantChatState> {
       (e) => e.turnId == turnId,
     );
     if (entry.isEmpty) return;
-    await _start(turnId, entry.first.message, again: true);
+    await _admit(turnId, entry.first.message, again: true);
+  }
+
+  /// The one way into [_start]: checks the farmer's outside-services choice
+  /// as it is now, not as it was when the conversation opened.
+  Future<void> _admit(
+    String turnId,
+    String message, {
+    bool again = false,
+  }) async {
+    if (_admitting || _servicesOff) return;
+    final epoch = _epoch;
+    _admitting = true;
+    final bool allowed;
+    try {
+      allowed = await _outsideServicesOn(epoch);
+    } finally {
+      _admitting = false;
+    }
+    if (!allowed || epoch != _epoch) return;
+    if (state.stage != AssistantStage.ready || state.writing) return;
+    await _start(turnId, message, again: again);
   }
 
   /// The farmer's Stop tap.

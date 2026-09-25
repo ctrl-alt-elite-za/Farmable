@@ -4,10 +4,13 @@ library;
 
 import 'dart:async';
 
+import 'package:almanac/app/providers.dart';
 import 'package:almanac/domain/assistant/assistant_models.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
 import 'package:almanac/core/ui/buttons.dart';
+import 'package:almanac/features/assistant/assistant_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dart:ui' show Tristate;
 
@@ -428,6 +431,124 @@ void main() {
       expect(find.text('No plan fits these conditions'), findsOneWidget);
       expect(find.textContaining('R7,500'), findsOneWidget);
       expect(find.byKey(const Key('plan-review')), findsNothing);
+    });
+  });
+
+  group('turning outside services off', () {
+    // Profile → Privacy saves the choice, then invalidates the provider.
+    Future<void> turnOff(
+      WidgetTester tester,
+      ProviderContainer container,
+      void Function() set,
+    ) async {
+      set();
+      container.invalidate(externalProcessingConsentProvider);
+      await settle(tester);
+    }
+
+    AssistantController controllerOf(ProviderContainer container) =>
+        container.read(assistantControllerProvider.notifier);
+
+    void expectTurnedOff(WidgetTester tester) {
+      expect(find.byKey(const Key('assistant-outside-services-off')), findsOne);
+      expect(find.text('You turned outside services off'), findsOne);
+      expect(find.byKey(const Key('assistant-send')), findsOneWidget);
+      expect(
+        tester
+            .widget<AppPrimaryButton>(find.byKey(const Key('assistant-send')))
+            .onPressed,
+        isNull,
+      );
+      expectNoFailureLanguage(tester);
+    }
+
+    testWidgets('off, then the chat is closed and reopened: nothing is sent '
+        'until they are turned back on', (tester) async {
+      // Kea's reproduction on PR #95.
+      var allowed = true;
+      final api = FakeAssistantApi(granted: true);
+      final container = await pumpAssistant(
+        tester,
+        api: api,
+        outsideServicesNow: () => allowed,
+      );
+      expect(find.byKey(const Key('assistant-input')), findsOneWidget);
+
+      await closeAssistant(tester);
+      await turnOff(tester, container, () => allowed = false);
+      await reopenAssistant(tester);
+
+      expectTurnedOff(tester);
+      // Not awaited: an admitted turn's future waits for its ending.
+      unawaited(controllerOf(container).send('Hello'));
+      await settle(tester);
+      expect(api.sent, isEmpty);
+
+      // Only turning them back on, then opening again, lets a message go.
+      await closeAssistant(tester);
+      await turnOff(tester, container, () => allowed = true);
+      await reopenAssistant(tester);
+      await _ask(tester, 'Hello');
+      expect(api.sent, hasLength(1));
+      await endOpenTurns(tester, api);
+    });
+
+    testWidgets('off while the chat is open: no send, retry or crop answer '
+        'goes out', (tester) async {
+      var allowed = true;
+      final api = FakeAssistantApi(granted: true);
+      final container = await pumpAssistant(
+        tester,
+        api: api,
+        outsideServicesNow: () => allowed,
+      );
+      await _ask(tester, 'Hello');
+      final failed = api.last;
+      await _emit(tester, failed, const TurnFailed('assistant_unavailable'));
+      await _ask(tester, 'Can I plant tatoes in the north plot?');
+      expect(api.sent, hasLength(1));
+
+      await turnOff(tester, container, () => allowed = false);
+      expectTurnedOff(tester);
+
+      final controller = controllerOf(container);
+      unawaited(controller.answerCrop(null));
+      await settle(tester);
+      unawaited(controller.retry(failed.turnId));
+      await settle(tester);
+      unawaited(controller.send('Hello again'));
+      await settle(tester);
+      expect(api.sent, hasLength(1), reason: 'only the turn sent before');
+    });
+
+    testWidgets('off during an answer: interrupted on the server, and no '
+        'more words are shown', (tester) async {
+      var allowed = true;
+      final api = FakeAssistantApi(granted: true);
+      final container = await pumpAssistant(
+        tester,
+        api: api,
+        outsideServicesNow: () => allowed,
+      );
+      await _ask(tester, 'Hello');
+      final turn = api.last;
+      await _emit(tester, turn, const TurnText('Cabbages grow '));
+
+      await turnOff(tester, container, () => allowed = false);
+      expect(api.interrupts, [turn.turnId]);
+      expectTurnedOff(tester);
+
+      turn.events.add(const TurnText('well in spring.'));
+      await settle(tester);
+      final reply = container
+          .read(assistantControllerProvider)
+          .entries
+          .whereType<ReplyEntry>()
+          .single;
+      expect(reply.text, 'Cabbages grow ');
+      expect(reply.status, ReplyStatus.stopped);
+      expect(find.textContaining('well in spring'), findsNothing);
+      unawaited(turn.events.close());
     });
   });
 

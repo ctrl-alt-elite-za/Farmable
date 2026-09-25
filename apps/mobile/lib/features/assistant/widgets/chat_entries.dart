@@ -242,6 +242,8 @@ class _Ending extends ConsumerWidget {
   static String _stoppedCopy(ReplyEntry reply) => switch (reply.code) {
     'assistant_consent_withdrawn' || 'assistant_consent_required' =>
       'Stopped because you withdrew permission. Nothing was saved.',
+    outsideServicesOffCode =>
+      'Stopped because you turned outside services off. Nothing was saved.',
     _ => 'Stopped. Nothing was saved.',
   };
 

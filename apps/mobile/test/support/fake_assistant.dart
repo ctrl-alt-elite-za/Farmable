@@ -323,12 +323,17 @@ const fastTiming = AssistantTiming(
 );
 
 /// Pumps the real assistant sheet over [api] (null: a build with no server).
+///
+/// [outsideServicesNow], when given, is read each time the outside-services
+/// choice is (re)computed, so a test can turn it off and invalidate
+/// `externalProcessingConsentProvider` as Profile → Privacy does.
 Future<ProviderContainer> pumpAssistant(
   WidgetTester tester, {
   FakeAssistantApi? api,
   bool noServer = false,
   AuthStanding? standing,
   bool outsideServices = true,
+  bool Function()? outsideServicesNow,
   AssistantTiming timing = fastTiming,
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -351,7 +356,7 @@ Future<ProviderContainer> pumpAssistant(
         () => _FixedAuth(standing ?? signedIn),
       ),
       externalProcessingConsentProvider.overrideWith(
-        (ref) async => outsideServices,
+        (ref) async => outsideServicesNow?.call() ?? outsideServices,
       ),
     ],
   );
@@ -400,6 +405,18 @@ Future<ProviderContainer> pumpAssistant(
     await db.close();
   });
   return container;
+}
+
+/// Closes the sheet the way the farmer does, leaving the controller alive.
+Future<void> closeAssistant(WidgetTester tester) async {
+  Navigator.of(tester.element(find.byType(AssistantSheet))).pop();
+  await settle(tester);
+}
+
+/// Opens the sheet again from the same screen.
+Future<void> reopenAssistant(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('open-assistant')));
+  await settle(tester);
 }
 
 /// Ends every turn the test left open, so its watchdog is not left running.

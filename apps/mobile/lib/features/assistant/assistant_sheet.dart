@@ -296,11 +296,17 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
         return _Panel(
           key: const Key('assistant-outside-services-off'),
           icon: LucideIcons.lock,
-          title: 'Outside services are off',
-          body:
-              'The assistant sends your questions to Google Gemini to answer '
-              'them. That only happens if you allow outside services in your '
-              'privacy choices.',
+          title: state.outsideServicesTurnedOff
+              ? 'You turned outside services off'
+              : 'Outside services are off',
+          body: state.outsideServicesTurnedOff
+              ? 'Nothing more from this conversation goes to Google Gemini, '
+                    'and any answer it was writing has been stopped. To ask '
+                    'again, turn outside services back on in your privacy '
+                    'choices.'
+              : 'The assistant sends your questions to Google Gemini to '
+                    'answer them. That only happens if you allow outside '
+                    'services in your privacy choices.',
           actions: [
             AppSecondaryButton(
               label: 'Open privacy choices',
@@ -718,8 +724,11 @@ class _Composer extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: AlmanacDimens.sp1),
               child: Text(
-                'You can keep typing. It is sent once the assistant can '
-                'take it.',
+                state.stage == AssistantStage.outsideServicesOff
+                    ? 'Nothing you type here is sent while outside services '
+                          'are off.'
+                    : 'You can keep typing. It is sent once the assistant '
+                          'can take it.',
                 style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
               ),
             ),
