@@ -24,6 +24,12 @@ const apiUrl = String.fromEnvironment(
 /// Replaces live camera input with recorded frames, for emulators and CI.
 const testMode = bool.fromEnvironment('TEST_MODE');
 
+/// Which recorded walk a [testMode] build plays back instead of walking a
+/// field: `field` (AR and GPS agree), `drift` (GPS drifts past the 15%
+/// warning) or `gps-only` (a phone without ARCore). See
+/// `data/mapping/recorded_walks.dart`.
+const walkReplay = String.fromEnvironment('WALK_REPLAY', defaultValue: 'field');
+
 /// For showing the product to people. Never combined with [testMode] — a build
 /// that was both would present recorded detections as live ones and nobody
 /// watching could tell. `scripts/check-test-mode.sh` fails such a build.

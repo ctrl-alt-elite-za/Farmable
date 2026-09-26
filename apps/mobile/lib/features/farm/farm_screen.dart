@@ -219,7 +219,7 @@ class _FarmTabState extends ConsumerState<_FarmTab> {
               label: 'Edit boundaries',
               icon: LucideIcons.pencil,
               block: false,
-              onPressed: () => showBoundaryWalking(context),
+              onPressed: () => showBoundaryWalking(context, edit: true),
             ),
             AppTonalButton(
               label: 'Full map',

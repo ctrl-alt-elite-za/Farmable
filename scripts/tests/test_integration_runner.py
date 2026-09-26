@@ -146,6 +146,7 @@ bash "$1" mobile
             "dashboard_degraded",
             "dashboard_offline",
             "offline_launch",
+            "map_section_replay",
         ]
     assert flows == [f"maestro test e2e/mobile/{name}.yaml" for name in expected]
     assert result.returncode == (23 if scan_fails else 0), result.stdout + result.stderr

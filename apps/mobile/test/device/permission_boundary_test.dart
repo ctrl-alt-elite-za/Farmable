@@ -32,6 +32,9 @@ const _allowedDeviceCallers = [
   // Profile's permission controls (#84): read on open, ask only on a tap.
   'lib/features/permissions/',
   'lib/features/crop_scan/',
+  // Walking a boundary (#15): location is asked for only when "Start
+  // walking" is tapped.
+  'lib/features/boundary/',
 ];
 
 Iterable<File> _dartFiles(String dir) =>

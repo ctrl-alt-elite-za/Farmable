@@ -74,11 +74,17 @@ class DemoApiFarmRepository implements FarmRepository {
     required String mutationId,
     required String name,
     required String areaM2,
+    Map<String, Object?>? boundary,
   }) async => Section.fromJson(
     await _send(
       'POST',
       '/demo/sections',
-      body: {'name': name, 'area_m2': areaM2},
+      // The demo API takes a boundary or an area, never both: with a
+      // boundary it measures the area itself.
+      body: {
+        'name': name,
+        ...boundary == null ? {'area_m2': areaM2} : {'boundary': boundary},
+      },
       headers: {'Idempotency-Key': mutationId},
     ),
   );
@@ -90,11 +96,15 @@ class DemoApiFarmRepository implements FarmRepository {
     required int expectedRevision,
     required String name,
     required String areaM2,
+    Map<String, Object?>? boundary,
   }) async => Section.fromJson(
     await _send(
       'PUT',
       '/demo/sections/$sectionId',
-      body: {'name': name, 'area_m2': areaM2},
+      body: {
+        'name': name,
+        ...boundary == null ? {'area_m2': areaM2} : {'boundary': boundary},
+      },
       headers: {
         'Idempotency-Key': mutationId,
         'Section-Revision': '$expectedRevision',
