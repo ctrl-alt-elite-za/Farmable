@@ -1,13 +1,13 @@
 {
   "devices": [
     {
-      "name": "iPhone 12 Pro",
+      "name": "iPhone 13 (iPhone14,5)",
       "platform": "ios",
       "install_method": "Sideloadly with a free Apple ID",
       "signature_valid_days": 7,
       "warn_days_before_expiry": 2,
-      "installed_at": null,
-      "build_sha": null
+      "installed_at": "2026-09-24",
+      "build_sha": "ec094e9b5b90a4dab7c810d3533886b3f8832de6"
     },
     {
       "name": "Android test phone",
