@@ -1,5 +1,8 @@
 import asyncio
+import logging
 import sys
+
+from procrastinate.exceptions import AlreadyEnqueued
 
 from farmable_backend.assistant.accounting import AccountingWorker
 from farmable_backend.assistant.retention import RetentionWorker
@@ -36,6 +39,20 @@ async def run() -> None:
     accounting_task = None
     try:
         async with app.open_async():
+            tasks = getattr(app, "tasks", {})
+            if isinstance(tasks, dict) and "retention_cleanup" in tasks:
+                try:
+                    await (
+                        tasks["retention_cleanup"]
+                        .configure(queueing_lock="retention-cleanup", schedule_in={"hours": 1})
+                        .defer_async()
+                    )
+                except AlreadyEnqueued:
+                    pass
+                except Exception:
+                    # A worker restart must not prevent the main queue from
+                    # starting if a duplicate scheduled cleanup is present.
+                    logging.getLogger(__name__).exception("Could not schedule retention cleanup")
             # Retention must continue even when generation/providers are disabled.
             database = Database(settings)
             retention = RetentionWorker(database.sessions)
@@ -49,10 +66,13 @@ async def run() -> None:
                 services = ServiceRegistry(services_settings)
                 weather = WeatherWorker(database.sessions, services.open_meteo)
                 weather_task = asyncio.create_task(weather.run())
-            if database is not None and settings.photo_bucket:
+            # No-file section erasure must run even with storage/providers disabled.
+            if database is not None:
                 photos = PhotoWorker(database.sessions, lambda: create_gcs_photos(settings))
-                photo_task = asyncio.create_task(photos.run())
-                if services is not None and settings.diagnosis_enabled:
+                photo_task = asyncio.create_task(
+                    photos.run(cleanup_only=not bool(settings.photo_bucket))
+                )
+                if services is not None and settings.photo_bucket and settings.diagnosis_enabled:
                     diagnosis = DiagnosisWorker(
                         database.sessions,
                         CropHealth(

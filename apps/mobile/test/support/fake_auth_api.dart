@@ -32,8 +32,15 @@ class SeenRequest {
   final String path;
   final Map<String, Object?> body;
   final String? authorization;
+  final String? idempotencyKey;
 
-  const SeenRequest(this.method, this.path, this.body, this.authorization);
+  const SeenRequest(
+    this.method,
+    this.path,
+    this.body,
+    this.authorization,
+    this.idempotencyKey,
+  );
 }
 
 class _Account {
@@ -96,6 +103,11 @@ class FakeAuthApi implements HttpClientAdapter {
   /// Makes the server answer with a bare status and no JSON body, the way a
   /// proxy or a crashed process does.
   int? forcedStatus;
+
+  /// Creates the account but reports an ambiguous delivery outcome once.
+  bool ambiguousSignupOnce = false;
+  String? _ambiguousSignupKey;
+  String? _ambiguousSignupUserId;
 
   /// Holds `/auth/refresh` open until completed, so a test can act while a
   /// refresh is in flight.
@@ -176,10 +188,26 @@ class FakeAuthApi implements HttpClientAdapter {
       _ => <String, Object?>{},
     };
     final auth = options.headers['Authorization'] as String?;
-    requests.add(SeenRequest(options.method, options.path, body, auth));
+    final idempotencyKey = options.headers['Idempotency-Key'] as String?;
+    requests.add(
+      SeenRequest(options.method, options.path, body, auth, idempotencyKey),
+    );
 
     final forced = forcedStatus;
     if (forced != null) return ResponseBody.fromString('', forced);
+
+    if (options.method == 'POST' &&
+        const {'/auth/signup', '/auth/login'}.contains(options.path)) {
+      final token = body['turnstile_token'];
+      if (token is! String || token.isEmpty || token.length > 2048) {
+        return _error(422, 'validation_error');
+      }
+    }
+    if (options.method == 'POST' &&
+        const {'/auth/signup', '/auth/otp/resend'}.contains(options.path) &&
+        (idempotencyKey == null || idempotencyKey.isEmpty)) {
+      return _error(400, 'idempotency_key_required');
+    }
 
     // Answered now, delivered when released: the server has done the work
     // by the time the phone hears about it.
@@ -204,10 +232,10 @@ class FakeAuthApi implements HttpClientAdapter {
     String? auth,
   ) async {
     return switch ((options.method, options.path)) {
-      ('POST', '/auth/signup') => _signup(body),
+      ('POST', '/auth/signup') => _signup(options, body),
       ('POST', '/auth/verify/phone') => _verify(body, phone: true),
       ('POST', '/auth/verify/email') => _verify(body, phone: false),
-      ('POST', '/auth/otp/resend') => _empty(204),
+      ('POST', '/auth/otp/resend') => _resend(options),
       ('POST', '/auth/login') => _login(body),
       ('POST', '/auth/refresh') => await _refresh(body),
       ('POST', '/auth/logout') => _logout(auth),
@@ -225,18 +253,23 @@ class FakeAuthApi implements HttpClientAdapter {
     };
   }
 
-  Future<ResponseBody> _farms(
-    String method,
-    String path,
-    Map<String, Object?> body,
-    String? authorization,
-  ) async {
-    final session = _live(authorization);
-    if (session == null) return _error(401, 'invalid_session');
-    return farms!.route(method, path, body, session.userId);
+  ResponseBody _resend(RequestOptions options) {
+    final key = (options.headers['Idempotency-Key'] as String? ?? '').trim();
+    if (key.length < 16 || key.length > 200) {
+      return _error(400, 'idempotency_key_required');
+    }
+    return _empty(204);
   }
 
-  ResponseBody _signup(Map<String, Object?> body) {
+  ResponseBody _signup(RequestOptions options, Map<String, Object?> body) {
+    final key = options.headers['Idempotency-Key'] as String?;
+    if (_ambiguousSignupKey != null && key == _ambiguousSignupKey) {
+      return _json(200, {
+        'user_id': _ambiguousSignupUserId!,
+        'next_step': 'phone',
+      });
+    }
+
     final password = body['password'] as String? ?? '';
     final phone = body['phone'] as String? ?? '';
     if (password.length < 15 ||
@@ -256,7 +289,26 @@ class FakeAuthApi implements HttpClientAdapter {
       password,
     );
     _accounts[account.id] = account;
+    if (ambiguousSignupOnce) {
+      ambiguousSignupOnce = false;
+      _ambiguousSignupKey = key;
+      _ambiguousSignupUserId = account.id;
+      return _json(503, {
+        'error': {'code': 'delivery_unknown', 'user_id': account.id},
+      });
+    }
     return _json(200, {'user_id': account.id, 'next_step': 'phone'});
+  }
+
+  Future<ResponseBody> _farms(
+    String method,
+    String path,
+    Map<String, Object?> body,
+    String? authorization,
+  ) async {
+    final session = _live(authorization);
+    if (session == null) return _error(401, 'invalid_session');
+    return farms!.route(method, path, body, session.userId);
   }
 
   ResponseBody _verify(Map<String, Object?> body, {required bool phone}) {
@@ -464,7 +516,8 @@ class FakeAuthApi implements HttpClientAdapter {
     return {
       'access_token': access,
       'refresh_token': refresh,
-      'expires_at': session.expiresAt.toIso8601String(),
+      'expires_at': now().add(const Duration(minutes: 15)).toIso8601String(),
+      'refresh_expires_at': session.expiresAt.toIso8601String(),
       'user': account.toJson(),
     };
   }

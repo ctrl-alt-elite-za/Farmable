@@ -7,6 +7,7 @@
 /// unwritable, so what is exercised is the code that ships.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:almanac/data/auth/demo_auth_service.dart';
@@ -46,17 +47,14 @@ void _block(Directory dir, {String name = _fileName}) {
 /// machine is busier: a sleep is a guess about someone else's timing, and the
 /// guess is wrong exactly when everything is under load.
 ///
-/// A counter rather than a Future on purpose. The write is real file I/O
-/// started under a widget test's fake clock, so its continuation sits on the
-/// fake queue while the I/O itself runs on the real one — a Future completed
-/// from in here cannot be awaited from either side without deadlocking. A
-/// counter can simply be read between turns of both clocks, and counting
-/// rather than flagging lets a test wait for a *second* write in a flow that
-/// already made one.
+/// Widget callbacks resume on the fake clock even when the tap is issued in
+/// `runAsync`. A completion counter lets the helper pump those continuations
+/// while also yielding to real file I/O, without awaiting a fake-zone Future.
 class _AnnouncedStorage implements SessionStorage {
-  _AnnouncedStorage(this._inner);
+  _AnnouncedStorage(this._inner, {this.writeDelay = Duration.zero});
 
   final SessionStorage _inner;
+  final Duration writeDelay;
   int _settled = 0;
 
   /// How many writes have finished — succeeded **or** failed. A failure is the
@@ -70,6 +68,9 @@ class _AnnouncedStorage implements SessionStorage {
   @override
   Future<void> write(Map<String, Object?> value) async {
     try {
+      if (writeDelay > Duration.zero) {
+        await Zone.root.run(() => Future<void>.delayed(writeDelay));
+      }
       await _inner.write(value);
     } finally {
       _settled++;
@@ -80,23 +81,24 @@ class _AnnouncedStorage implements SessionStorage {
   Future<void> clear() => _inner.clear();
 }
 
-/// Turn both clocks until one more write has finished trying.
-///
-/// `pump` drains the fake queue the continuation is scheduled on; `runAsync`
-/// gives the real file I/O its turn. Neither finishes a write alone, which is
-/// why waiting on a duration here was unreliable rather than merely slow.
-///
-/// The cap is a failure guard, not a budget — it makes a screen that never
-/// writes say so, instead of hanging until the runner gives up with nothing
-/// to point at.
-Future<void> _settleWrite(
+/// Capture the counter before the tap, then service both clocks until the write
+/// settles. A wall-clock deadline replaces the machine-speed-dependent spin cap.
+/// The short yield lets real disk I/O run; success depends on the completed
+/// write, not an elapsed delay. The action is never retried.
+Future<void> _tapAndAwaitWrite(
   WidgetTester tester,
   _AnnouncedStorage storage,
+  Finder target,
 ) async {
   final before = storage.writesSettled;
-  for (var turn = 0; turn < 200 && storage.writesSettled == before; turn++) {
+  await tester.tap(target);
+  final deadline = Stopwatch()..start();
+  while (storage.writesSettled == before &&
+      deadline.elapsed < const Duration(seconds: 10)) {
     await tester.pump();
-    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
   }
   expect(
     storage.writesSettled,
@@ -268,12 +270,11 @@ void main() {
     await enterField(tester, 'Confirm password', goodPassphrase);
     // This is the one group of widget tests whose storage is a real file
     // rather than a map in memory, so the write has to be waited for rather
-    // than pumped for — see [_settleWrite].
+    // than pumped for — see [_tapAndAwaitWrite].
     final submit = find.text('Create account');
     await tester.ensureVisible(submit.first);
     await pumpBriefly(tester);
-    await tester.tap(submit.first);
-    await _settleWrite(tester, storage);
+    await _tapAndAwaitWrite(tester, storage, submit.first);
     await pumpBriefly(tester);
 
     expect(
@@ -299,7 +300,12 @@ void main() {
     // `accountExists`, and the code screen they were sent to is now behind
     // them with no way back. Stuck, having been told the opposite.
     final dir = _scratch();
-    final storage = _AnnouncedStorage(_storageIn(dir));
+    // Model a busy disk without replacing FileSessionStorage. A spin-count
+    // wait exhausts its budget before real I/O has a chance to complete.
+    final storage = _AnnouncedStorage(
+      _storageIn(dir),
+      writeDelay: const Duration(milliseconds: 500),
+    );
 
     // Sign up for real first — storage works at this point, so there is a
     // genuine pending account for the abandonment to fail to remove.
@@ -313,8 +319,7 @@ void main() {
     final submit = find.text('Create account');
     await tester.ensureVisible(submit.first);
     await pumpBriefly(tester);
-    await tester.tap(submit.first);
-    await _settleWrite(tester, storage);
+    await _tapAndAwaitWrite(tester, storage, submit.first);
     await pumpBriefly(tester);
     expect(
       find.byType(OtpSlots),
@@ -334,8 +339,7 @@ void main() {
     );
     await tester.ensureVisible(startAgain.first);
     await pumpBriefly(tester);
-    await tester.tap(startAgain.first);
-    await _settleWrite(tester, storage);
+    await _tapAndAwaitWrite(tester, storage, startAgain.first);
     await pumpBriefly(tester);
 
     expect(

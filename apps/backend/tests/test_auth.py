@@ -1,3 +1,5 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -14,26 +16,39 @@ from farmable_backend.auth import (
     SessionTokens,
     _hash_token,
 )
+from farmable_backend.integrations.registry import ServiceRegistry
+from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
 from farmable_backend.models import (
     AuthIdentity,
     AuthSession,
     Base,
     Farm,
+    RateLimitCounter,
     User,
     VerificationChallenge,
 )
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 PASSWORD = "correct horse battery staple"  # noqa: S105 - synthetic test credential
 
 
 def client(settings):
-    app = create_app(settings, readiness=lambda: {})
+    app = create_app(
+        settings,
+        readiness=lambda: {},
+        service_settings=ServiceSettings(environment="ci", integrations_mode="fake"),
+    )
     app.state.auth = InMemoryAuthService()
+    # TestClient(app) without a `with` block never runs the lifespan, so
+    # app.state.services (normally set there) needs to be seeded by hand too.
+    app.state.services = ServiceRegistry(
+        ServiceSettings(environment="ci", integrations_mode="fake")
+    )
     return TestClient(app), app.state.auth
 
 
@@ -47,6 +62,7 @@ def verified_account(settings):
             "phone": "+27123456789",
             "email": "sipho@example.com",
             "password": PASSWORD,
+            "turnstile_token": "fixture-token",
         },
     )
     assert signup.status_code == 200
@@ -77,7 +93,12 @@ def test_email_and_phone_password_login_do_not_send_an_otp(settings):
     before = list(auth.deliveries)
     for identifier in ("sipho@example.com", "+27123456789"):
         response = test_client.post(
-            "/auth/login", json={"identifier": identifier, "password": PASSWORD}
+            "/auth/login",
+            json={
+                "identifier": identifier,
+                "password": PASSWORD,
+                "turnstile_token": "fixture-token",
+            },
         )
         assert response.status_code == 200
         assert response.json()["refresh_token"]
@@ -95,13 +116,24 @@ def test_unverified_account_cannot_log_in_and_errors_are_generic(settings):
             "phone": "+27820000000",
             "email": "nandi@example.com",
             "password": PASSWORD,
+            "turnstile_token": "fixture-token",
         },
     )
     unverified = test_client.post(
-        "/auth/login", json={"identifier": "nandi@example.com", "password": PASSWORD}
+        "/auth/login",
+        json={
+            "identifier": "nandi@example.com",
+            "password": PASSWORD,
+            "turnstile_token": "fixture-token",
+        },
     )
     missing = test_client.post(
-        "/auth/login", json={"identifier": "missing@example.com", "password": PASSWORD}
+        "/auth/login",
+        json={
+            "identifier": "missing@example.com",
+            "password": PASSWORD,
+            "turnstile_token": "fixture-token",
+        },
     )
     assert unverified.status_code == 401
     assert missing.status_code == 401
@@ -125,6 +157,82 @@ def test_missing_account_still_performs_password_verification(monkeypatch):
         service.login("missing@example.com", PASSWORD)
 
     assert verified_hashes == [DUMMY_PASSWORD_HASH]
+
+
+def test_login_lockout_is_checked_before_a_correct_password():
+    _sessions, service = _database_auth()
+    user = service.signup("Sipho", "Dlamini", "+27123456789", "sipho@example.com", PASSWORD)
+    service.verify(user.id, Channel.PHONE, "111111")
+    service.verify(user.id, Channel.EMAIL, "222222")
+    for _ in range(5):
+        with pytest.raises(AuthError, match="invalid_credentials"):
+            service.login("sipho@example.com", "wrong password")
+    with pytest.raises(AuthError, match="login_rate_limited"):
+        service.login("sipho@example.com", PASSWORD)
+
+
+def test_parallel_login_failures_fence_a_paused_valid_request(tmp_path, monkeypatch):
+    """Five failures completed while Argon2 is paused cannot mint a token."""
+    engine = create_engine(
+        f"sqlite+pysqlite:///{tmp_path / 'login-race.db'}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+        poolclass=NullPool,
+    )
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            User.__table__,
+            Farm.__table__,
+            AuthIdentity.__table__,
+            VerificationChallenge.__table__,
+            AuthSession.__table__,
+            RateLimitCounter.__table__,
+        ],
+    )
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    service = AuthService(sessions, DeterministicFakeOtpProvider())
+    user = service.signup("Sipho", "Dlamini", "+27123456789", "sipho@example.com", PASSWORD)
+    service.verify(user.id, Channel.PHONE, "111111")
+    service.verify(user.id, Channel.EMAIL, "222222")
+    # Email verification creates an authenticated session. Remove that setup
+    # session so this race test only observes a token minted by login.
+    with sessions.begin() as session:
+        session.execute(delete(AuthSession))
+    original_verify = service._verify_password
+    valid_started = threading.Event()
+    release_valid = threading.Event()
+
+    def paused_verify(password_hash, password):
+        if password == PASSWORD:
+            valid_started.set()
+            assert release_valid.wait(30)
+        return original_verify(password_hash, password)
+
+    monkeypatch.setattr(service, "_verify_password", paused_verify)
+
+    def login(password):
+        try:
+            service.login("sipho@example.com", password, ip="race-ip")
+        except AuthError as exc:
+            return exc.code
+        return "success"
+
+    with ThreadPoolExecutor(max_workers=7) as executor:
+        valid = executor.submit(login, PASSWORD)
+        assert valid_started.wait(30)
+        # SQLite has no row locks. Failures run serially while the valid
+        # request remains paused; true concurrent accounting is covered by
+        # test_auth_postgres.py against PostgreSQL, without patching counters.
+        try:
+            for _ in range(5):
+                assert executor.submit(login, "wrong password").result() == "invalid_credentials"
+        finally:
+            release_valid.set()
+        assert valid.result() == "login_rate_limited"
+
+    with sessions() as session:
+        assert session.scalar(select(AuthSession)) is None
+    engine.dispose()
 
 
 def test_refresh_rotates_a_session(settings):
@@ -151,6 +259,7 @@ def _database_auth():
             AuthIdentity.__table__,
             VerificationChallenge.__table__,
             AuthSession.__table__,
+            RateLimitCounter.__table__,
         ],
     )
     sessions = sessionmaker(engine, expire_on_commit=False)
@@ -201,7 +310,7 @@ def test_database_service_rate_limits_resends_and_invalidates_old_code():
     user = service.signup("Sipho", "Dlamini", "+27123456789", "sipho@example.com", PASSWORD)
     service.resend(user.id, Channel.PHONE)
     service.resend(user.id, Channel.PHONE)
-    with pytest.raises(AuthError, match="otp_rate_limited"):
+    with pytest.raises(AuthError, match="sms_phone_rate_limited"):
         service.resend(user.id, Channel.PHONE)
 
     with sessions() as session:
@@ -233,19 +342,45 @@ def test_signup_only_translates_credential_unique_violations(sqlstate, constrain
     failure = IntegrityError("generated statement", {}, original)
     sessions = MagicMock()
     transaction = sessions.begin.return_value
-    transaction.__enter__.return_value.scalar.return_value = None
-    transaction.__enter__.return_value.flush.side_effect = failure
+    session = transaction.__enter__.return_value
+    session.scalar.return_value = None
+    # An existing counter row for every rate-limit scope checked (signup_ip,
+    # sms_ip, sms_daily), so none of those take the row-creation branch and
+    # add their own flush() calls — only the real owner/identity inserts do.
+    session.get.return_value = RateLimitCounter(scope="x", subject_hash="y", hits=[])
+    # A real SAVEPOINT context manager propagates an exception raised inside
+    # it; MagicMock's auto-mocked __exit__ would otherwise swallow it (any
+    # truthy return value suppresses the exception).
+    session.begin_nested.return_value.__exit__.return_value = False
+    # The owner-row insert flushes first; only the credential (AuthIdentity)
+    # insert's flush should hit the simulated unique-constraint failure.
+    calls = {"n": 0}
+
+    def flush_side_effect():
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise failure
+
+    session.flush.side_effect = flush_side_effect
     provider = MagicMock()
     service = AuthService(sessions, provider)
-    with pytest.raises(AuthError if conflict else IntegrityError) as caught:
-        service.signup("Test", "User", "+27820000000", "test@example.com", PASSWORD)
     if conflict:
-        assert caught.value.code == "account_exists"
-        assert caught.value.status_code == 409
+        # #9 enumeration resistance: a credential collision (even one only
+        # discovered via a race at flush time) returns the same public shape
+        # as a new sign-up, never a distinguishable error.
+        user = service.signup("Test", "User", "+27820000000", "test@example.com", PASSWORD)
+        assert user.email == "test@example.com"
+        # The conflict is caught and handled inside a nested SAVEPOINT, so
+        # the outer transaction commits normally (the rate-limit hit
+        # recorded earlier in it is never rolled back by the collision).
+        assert transaction.__exit__.call_args.args[0] is None
     else:
+        with pytest.raises(IntegrityError) as caught:
+            service.signup("Test", "User", "+27820000000", "test@example.com", PASSWORD)
         assert caught.value is failure
-    # Exception exits the transaction before the public conflict is raised.
-    assert transaction.__exit__.call_args.args[0] is IntegrityError
+        # An unrecognised conflict re-raises past the savepoint and exits
+        # the outer transaction too.
+        assert transaction.__exit__.call_args.args[0] is IntegrityError
     provider.deliver.assert_not_called()
 
 

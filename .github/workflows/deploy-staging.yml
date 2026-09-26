@@ -118,6 +118,7 @@ jobs:
           CLOUD_SQL_CONNECTION: ${{ steps.config.outputs.sql_connection }}
           RUNTIME_SERVICE_ACCOUNT: ${{ steps.config.outputs.runtime_account }}
           DATABASE_SECRET: ${{ steps.config.outputs.database_secret }}
+          EXPORT_SECRET: ${{ steps.config.outputs.export_secret }}
           GEMINI_SECRET: ${{ steps.config.outputs.gemini_secret }}
           GCS_BUCKET: ${{ steps.config.outputs.media_bucket }}
           COMMIT_SHA: ${{ github.sha }}

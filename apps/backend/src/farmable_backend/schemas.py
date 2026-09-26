@@ -14,6 +14,7 @@ class StrictModel(BaseModel):
 class Error(StrictModel):
     code: str
     message: str
+    user_id: UUID | None = None
 
 
 class ErrorResponse(StrictModel):
@@ -37,6 +38,7 @@ class SignUpRequest(StrictModel):
     phone: str = Field(pattern=r"^\+[1-9][0-9]{7,14}$")
     email: EmailStr
     password: str = Field(min_length=15, max_length=128, pattern=r".*\S.*")
+    turnstile_token: str = Field(min_length=1, max_length=2048, repr=False)
 
 
 class VerifyOtpRequest(StrictModel):
@@ -52,6 +54,7 @@ class ResendOtpRequest(StrictModel):
 class LoginRequest(StrictModel):
     identifier: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=1, max_length=128)
+    turnstile_token: str = Field(min_length=1, max_length=2048, repr=False)
 
 
 class RefreshRequest(StrictModel):
@@ -77,4 +80,5 @@ class SessionResponse(StrictModel):
     access_token: str
     refresh_token: str
     expires_at: datetime
+    refresh_expires_at: datetime
     user: UserResponse

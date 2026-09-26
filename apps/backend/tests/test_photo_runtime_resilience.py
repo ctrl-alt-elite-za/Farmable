@@ -163,11 +163,11 @@ def test_disabled_storage_is_cached_until_runtime_restart():
         runtime.close()
 
 
-def test_shutdown_during_cleanup_finishes_current_attempt_but_does_not_claim_next():
-    worker = PhotoWorker(Mock(), Mock())
+def test_shutdown_during_cleanup_finishes_current_attempt_but_does_not_claim_next(records):
+    worker = PhotoWorker(records.sessions, Mock())
     storage = Mock()
     worker.storage = storage
-    jobs = Mock()
+    jobs = Mock(sessions=records.sessions)
     worker.jobs = jobs
     jobs.cleanup_candidates.return_value = [(1, 10), (2, 20)]
     fence = uuid4()
@@ -195,9 +195,9 @@ def test_shutdown_during_cleanup_finishes_current_attempt_but_does_not_claim_nex
 
 
 @pytest.mark.parametrize("phase", ["claim", "bootstrap"])
-def test_shutdown_before_cleanup_io_releases_lease_without_starting_cloud_work(phase):
-    worker = PhotoWorker(Mock(), Mock())
-    storage, jobs = Mock(), Mock()
+def test_shutdown_before_cleanup_io_releases_lease_without_starting_cloud_work(phase, records):
+    worker = PhotoWorker(records.sessions, Mock())
+    storage, jobs = Mock(), Mock(sessions=records.sessions)
     worker.jobs = jobs
     jobs.cleanup_candidates.return_value = [(1, 10), (2, 20)]
     fence = uuid4()

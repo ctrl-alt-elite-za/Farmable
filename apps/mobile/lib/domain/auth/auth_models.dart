@@ -78,9 +78,10 @@ class AuthUser {
 
 /// A granted session.
 ///
-/// [expiresAt] carries the whole offline story. With no network there is no
-/// way to ask anyone whether a session still stands, so this field alone
-/// decides — see [isValidAt], which exists so no caller invents a second rule.
+/// [expiresAt] is the refresh expiry and carries the whole offline story. With
+/// no network there is no way to ask whether a session can still be revived,
+/// so this field alone decides — see [isValidAt]. [accessExpiresAt] determines
+/// when the shorter-lived bearer token should be refreshed.
 class AuthSession {
   /// The bearer token. Sent on authenticated calls and nowhere else.
   final String token;
@@ -91,21 +92,24 @@ class AuthSession {
   /// Never sent anywhere but `/auth/refresh` — the account API is explicit
   /// that a refresh token on any other request is a mistake.
   final String? refreshToken;
+  final DateTime accessExpiresAt;
   final DateTime expiresAt;
   final AuthUser user;
 
   const AuthSession({
     required this.token,
     this.refreshToken,
+    DateTime? accessExpiresAt,
     required this.expiresAt,
     required this.user,
-  });
+  }) : accessExpiresAt = accessExpiresAt ?? expiresAt;
 
   bool isValidAt(DateTime now) => expiresAt.isAfter(now);
 
   Map<String, Object?> toJson() => {
     'token': token,
     if (refreshToken != null) 'refresh_token': refreshToken,
+    'access_expires_at': accessExpiresAt.toIso8601String(),
     'expires_at': expiresAt.toIso8601String(),
     'user': user.toJson(),
   };
@@ -113,13 +117,17 @@ class AuthSession {
   static AuthSession fromJson(Map<String, Object?> json) => AuthSession(
     token: json['token']! as String,
     refreshToken: json['refresh_token'] as String?,
+    accessExpiresAt: DateTime.parse(
+      (json['access_expires_at'] ?? json['expires_at'])! as String,
+    ),
     expiresAt: DateTime.parse(json['expires_at']! as String),
     user: AuthUser.fromJson((json['user']! as Map).cast<String, Object?>()),
   );
 
   /// Never the tokens. This string reaches logs and crash reports.
   @override
-  String toString() => 'AuthSession(expiresAt: $expiresAt)';
+  String toString() =>
+      'AuthSession(accessExpiresAt: $accessExpiresAt, expiresAt: $expiresAt)';
 }
 
 /// An account that has been created but still owes at least one code.
@@ -136,12 +144,17 @@ class PendingSignup {
   final String email;
   final bool phoneVerified;
 
+  /// The idempotency key for a signup whose delivery outcome is unresolved.
+  /// It is safe to persist; the password and Turnstile proof are never stored.
+  final String? idempotencyKey;
+
   const PendingSignup({
     required this.userId,
     required this.nextStep,
     required this.phone,
     required this.email,
     this.phoneVerified = false,
+    this.idempotencyKey,
   });
 
   Map<String, Object?> toJson() => {
@@ -150,6 +163,7 @@ class PendingSignup {
     'phone': phone,
     'email': email,
     'phone_verified': phoneVerified,
+    if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
   };
 
   static PendingSignup fromJson(Map<String, Object?> json) => PendingSignup(
@@ -160,6 +174,7 @@ class PendingSignup {
     phone: json['phone']! as String,
     email: json['email']! as String,
     phoneVerified: json['phone_verified'] == true,
+    idempotencyKey: json['idempotency_key'] as String?,
   );
 }
 
@@ -209,7 +224,11 @@ enum AuthFailure {
 class AuthException implements Exception {
   final AuthFailure failure;
 
-  const AuthException(this.failure);
+  /// Present only for the recoverable `delivery_unknown` signup response.
+  /// Never included in [toString].
+  final String? deliveryUnknownUserId;
+
+  const AuthException(this.failure, {this.deliveryUnknownUserId});
 
   /// Never interpolates a code, an email or a password. This string reaches
   /// logs and crash reports.

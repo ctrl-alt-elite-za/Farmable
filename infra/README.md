@@ -102,21 +102,42 @@ printf '%s' 'THE_VALUE' | gcloud secrets versions add farmable-staging-gemini-ap
 
 **Required before the first deploy** (the service will not start without them):
 
-| Secret                            | Notes                          |
-| --------------------------------- | ------------------------------ |
-| `farmable-staging-database-url`   | see format below               |
-| `farmable-staging-gemini-api-key` | the demo's primary integration |
+| Secret                                 | Notes                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `farmable-staging-database-url`        | see format below                                                                     |
+| `farmable-staging-export-token-secret` | stable high-entropy export-link signing secret; the service will not boot without it |
+| `farmable-staging-gemini-api-key`      | the demo's primary integration                                                       |
 
 **Optional** — the rollout wires each one only if it holds an enabled version, and skips
 it otherwise. A skipped provider reports unavailable; it does not break the deploy, so
 keys can be added later followed by a redeploy:
 
 `gemini-model`, `twilio-account-sid`, `twilio-verify-service-sid`, `twilio-auth-token`,
-`turnstile-secret`, `turnstile-hostname`, `azure-speech-key`, `azure-speech-resource`,
+`turnstile-secret`, `turnstile-hostname`, `turnstile-site-key`, `azure-speech-key`, `azure-speech-resource`,
 `azure-speech-region`, `crop-health-api-key`, `maps-server-api-key` — each prefixed
 `farmable-staging-`.
 
-Do **not** add placeholder values. Several fields are pattern-validated
+**Required for sign-up in live mode** — `INTEGRATIONS_MODE=live` (the default) sends
+sign-up codes by SMS through Infobip and by email through Gmail SMTP:
+`infobip-base-url`, `infobip-api-key`, `infobip-sms-sender`, `smtp-host`, `smtp-user`,
+`smtp-password`, `email-from-name`, `email-from-address`. They are wired the same way as
+the optional keys, but a live backend refuses to boot without the SMTP values, and
+sign-up cannot send codes without the Infobip ones. The rollout emits a
+`Live sign-up OTP delivery is not configured` warning naming any that are missing.
+Set `INTEGRATIONS_MODE=disabled` to deploy without them.
+
+The migration and forecast-import jobs receive only `DATABASE_URL` (and the forecast
+GitHub token); they never sign export links, so they are not given
+`EXPORT_TOKEN_SECRET`.
+
+The rollout sets `TRUSTED_PROXY_HOPS=1`. Cloud Run's front end appends the caller's
+address to `X-Forwarded-For`, and per-client abuse limits (sign-up, login, the global
+request limit) use only that last entry; anything a client puts before it is ignored.
+Uvicorn keeps `--no-proxy-headers`. Placing a load balancer in front of the service
+adds entries to the header, so re-verify the hop count before doing so.
+
+Do **not** add placeholder values. The backend refuses to boot if
+`EXPORT_TOKEN_SECRET` is missing or blank, and several fields are pattern-validated
 (`TWILIO_ACCOUNT_SID` must match `^AC[0-9a-fA-F]{32}$`), and a value that fails
 validation crashes the container on startup. Leave a secret empty of versions instead.
 
@@ -144,6 +165,7 @@ non-secret resource identifiers:
 | `GCP_MEDIA_BUCKET`               | `almanac-staging-za-farmable-staging-media`                                   |
 | `GCP_DATABASE_SECRET`            | `farmable-staging-database-url`                                               |
 | `GCP_GEMINI_SECRET`              | `farmable-staging-gemini-api-key`                                             |
+| `GCP_EXPORT_SECRET`              | `farmable-staging-export-token-secret`                                        |
 
 Optional overrides: `INTEGRATIONS_MODE` (defaults to `live`) and `GCP_SECRET_PREFIX`
 (defaults to the prefix implied by `GCP_DATABASE_SECRET`).

@@ -17,6 +17,7 @@ from sqlalchemy import (
     Identity,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     Text,
     UniqueConstraint,
@@ -25,12 +26,13 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from farmable_backend.photo_policy import MAX_CLAIMS
 
 # Spinach is sold by bunch or kilogram, so only these crops get a per-plant formula (#16).
 WEIGHED_CROPS = ("cabbage", "tomato")
+SECTION_KINDS = ("crop", "animal")
 SYNC_STATES = ("pending", "synced", "conflict")
 TASK_STATUSES = ("pending", "in_progress", "done", "cancelled")
 FINANCIAL_TYPES = ("expense", "income")
@@ -344,6 +346,82 @@ class AccountProfile(Base):
     )
 
 
+class Consent(Base):
+    """Versioned, auditable consent state for POPIA/account operations."""
+
+    __tablename__ = "account_consents"
+    __table_args__ = (
+        UniqueConstraint("user_id", "consent_type", "version", name="uq_account_consents_version"),
+        _nonblank("consent_type", "account_consents"),
+        _max_length("consent_type", "account_consents", 80),
+        _max_length("version", "account_consents", 40),
+        _max_length("source", "account_consents", 40),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE"), index=True
+    )
+    consent_type: Mapped[str] = mapped_column(Text)
+    version: Mapped[str] = mapped_column(Text)
+    granted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source: Mapped[str] = mapped_column(Text, default="api", server_default="api")
+
+
+class PendingContactChange(Base):
+    """A verified account's requested-but-unconfirmed email/phone change.
+
+    A separate table, not new columns on auth_identities, for the same reason
+    as AccountProfile: migration 0004 is immutable and pinned against the
+    current ORM by tests/test_auth_migration.py. Never applied to
+    auth_identities.email/phone until the matching VerificationChallenge is
+    consumed via AccountService.confirm_contact_change.
+    """
+
+    __tablename__ = "pending_contact_changes"
+    __table_args__ = (
+        _max_length("pending_email", "pending_contact_changes", 320),
+        _max_length("pending_phone", "pending_contact_changes", 32),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("auth_identities.id", ondelete="CASCADE"), primary_key=True
+    )
+    pending_email: Mapped[str | None] = mapped_column(Text)
+    pending_phone: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class FarmLocation(Base):
+    """A farm's optional coordinates, rounded to tenths of a degree like
+    WeatherJob's existing lat/lon representation, for consistency.
+
+    A separate table, not new columns on farms, for the same reason as
+    AccountProfile/PendingContactChange: migration 0003 is immutable and
+    pinned against the current ORM by tests/test_farm_schema.py.
+    """
+
+    __tablename__ = "farm_locations"
+    __table_args__ = (
+        CheckConstraint(column("latitude_tenths").between(-900, 900), name="ck_farm_locations_lat"),
+        CheckConstraint(
+            column("longitude_tenths").between(-1800, 1799), name="ck_farm_locations_lon"
+        ),
+    )
+
+    farm_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("farms.id", ondelete="CASCADE"), primary_key=True
+    )
+    latitude_tenths: Mapped[int | None] = mapped_column(BigInteger)
+    longitude_tenths: Mapped[int | None] = mapped_column(BigInteger)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class AssistantConversation(Base):
     __tablename__ = "assistant_conversations"
     __table_args__ = (
@@ -598,6 +676,65 @@ class Section(Base):
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Migration 0003 is pinned to this table's original columns by
+    # test_farm_schema.py, so kind = crop|animal (#11) lives in a companion
+    # table (migration 0011's farm_locations pattern), not a new column here.
+    # lazy="select" (not "joined"): a joined eager load adds a LEFT OUTER JOIN
+    # to every Section query, including the .with_for_update() locking
+    # queries in record_access.section_scope/SyncRecordRepository._load --
+    # Postgres rejects FOR UPDATE on the nullable side of an outer join.
+    kind_row: Mapped["SectionKind | None"] = relationship(
+        primaryjoin="Section.id == foreign(SectionKind.section_id)",
+        uselist=False,
+        lazy="select",
+        viewonly=True,
+    )
+
+    @property
+    def kind(self) -> str:
+        return self.kind_row.kind if self.kind_row is not None else "crop"
+
+
+class SectionKind(Base):
+    """Section.kind (#11); a companion table so migration 0003 stays pinned."""
+
+    __tablename__ = "section_kinds"
+    __table_args__ = (
+        CheckConstraint(column("kind").in_(SECTION_KINDS), name="ck_section_kinds_kind"),
+    )
+
+    section_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("sections.id", ondelete="CASCADE"), primary_key=True
+    )
+    kind: Mapped[str] = mapped_column(Text, default="crop", server_default="crop")
+
+
+class SectionDeletion(Base):
+    """Durable erasure intent; failures include expired worker claims."""
+
+    __tablename__ = "section_deletions"
+    __table_args__ = (
+        _farm_owner_fk("section_deletions"),
+        _section_owner_fk("section_deletions"),
+        CheckConstraint(
+            column("status").in_(("pending", "processing", "complete", "failed")),
+            name="ck_section_deletions_status",
+        ),
+        CheckConstraint(column("failures").between(0, 4), name="ck_section_deletions_failures"),
+        Index("ix_section_deletions_due", "status", "next_attempt_at"),
+    )
+
+    section_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    farm_id: Mapped[UUID] = mapped_column(Uuid)
+    status: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
+    failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(Text)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
 
 class Planting(Base):
     __tablename__ = "plantings"
@@ -631,6 +768,85 @@ class Planting(Base):
     version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     sync_state: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Migration 0003 is pinned to this table's original columns by
+    # test_farm_schema.py, so the catalogue-restricted crop and its computed
+    # harvest window (#11) live in a companion table, not new columns here.
+    # lazy="select": same reason as Section.kind_row above -- avoid adding a
+    # LEFT OUTER JOIN to the .with_for_update() locking queries on Planting.
+    crop_row: Mapped["PlantingCrop | None"] = relationship(
+        primaryjoin="Planting.id == foreign(PlantingCrop.planting_id)",
+        uselist=False,
+        lazy="select",
+        viewonly=True,
+    )
+
+    @property
+    def crop_type_code(self) -> str | None:
+        return self.crop_row.crop_type_code if self.crop_row is not None else None
+
+    @property
+    def harvest_from(self) -> date | None:
+        return self.crop_row.harvest_from if self.crop_row is not None else None
+
+    @property
+    def harvest_to(self) -> date | None:
+        return self.crop_row.harvest_to if self.crop_row is not None else None
+
+
+class CropType(Base):
+    """The catalogue #11 restricts planting.crop_type_code to."""
+
+    __tablename__ = "crop_types"
+
+    code: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str] = mapped_column(Text)
+
+
+class CropCalendar(Base):
+    """Days-from-planting harvest window per catalogue crop (#11).
+
+    Values are invented, illustrative demonstration figures, like
+    planning/demo_data.py's harvest_days_min/max -- not researched agronomic
+    data.
+    """
+
+    __tablename__ = "crop_calendars"
+    __table_args__ = (
+        CheckConstraint(
+            column("harvest_days_min") > 0, name="ck_crop_calendars_harvest_days_min_positive"
+        ),
+        CheckConstraint(
+            column("harvest_days_max") >= column("harvest_days_min"),
+            name="ck_crop_calendars_harvest_days_order",
+        ),
+    )
+
+    crop_type_code: Mapped[str] = mapped_column(
+        Text, ForeignKey("crop_types.code", ondelete="CASCADE"), primary_key=True
+    )
+    harvest_days_min: Mapped[int] = mapped_column(BigInteger)
+    harvest_days_max: Mapped[int] = mapped_column(BigInteger)
+
+
+class PlantingCrop(Base):
+    """Planting.crop_type_code/harvest_from/harvest_to (#11), kept out of the
+    migration-0003-pinned plantings table (see Planting.crop_row).
+    """
+
+    __tablename__ = "planting_crops"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("crop_type_code",), ("crop_types.code",), name="fk_planting_crops_crop_type"
+        ),
+    )
+
+    planting_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("plantings.id", ondelete="CASCADE"), primary_key=True
+    )
+    crop_type_code: Mapped[str] = mapped_column(Text)
+    harvest_from: Mapped[date | None] = mapped_column(Date)
+    harvest_to: Mapped[date | None] = mapped_column(Date)
 
 
 class Media(Base):
@@ -1123,6 +1339,99 @@ class PhotoRate(Base):
     __tablename__ = "photo_rates"
     owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id"), primary_key=True)
     hits: Mapped[list[float]] = mapped_column(JSON_DOCUMENT)
+
+
+class RateLimitCounter(Base):
+    """Durable sliding-window counter for auth/abuse limits (#9).
+
+    Keyed by ``scope`` (e.g. ``signup_ip``, ``sms_phone``) plus a hashed
+    subject so raw IPs/phones are never persisted. One row per scope+subject;
+    a process restart cannot reset it because ``hits`` lives in the database.
+    """
+
+    __tablename__ = "rate_limit_counters"
+    __table_args__ = (
+        _nonblank("scope", "rate_limit_counters"),
+        _max_length("scope", "rate_limit_counters", 40),
+        _max_length("subject_hash", "rate_limit_counters", 64),
+    )
+
+    scope: Mapped[str] = mapped_column(Text, primary_key=True)
+    subject_hash: Mapped[str] = mapped_column(Text, primary_key=True)
+    hits: Mapped[list[float]] = mapped_column(JSON_DOCUMENT)
+    in_flight: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    login_leases: Mapped[dict[str, float]] = mapped_column(
+        JSON_DOCUMENT, default=dict, server_default="{}"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ExportJob(Base):
+    """A durable, owner-scoped account-data export job (#9).
+
+    Job creation builds the artifact synchronously (the underlying query is
+    cheap) but is modelled as a job — not a synchronous response — so the
+    contract (status polling, an expiring signed download link, rate
+    limiting, idempotent creation) matches the issue regardless of how long
+    artifact assembly ever needs to take. ``download_token_hash`` is the only
+    persisted trace of the download credential; the raw token is returned to
+    the caller once, at creation, and never logged or stored.
+    """
+
+    __tablename__ = "export_jobs"
+    __table_args__ = (
+        _max_length("status", "export_jobs", 20),
+        _max_length("format", "export_jobs", 4),
+        _max_length("download_token_hash", "export_jobs", 64),
+        CheckConstraint(
+            column("status").in_(["pending", "ready", "failed", "expired"]),
+            name="ck_export_jobs_status",
+        ),
+        CheckConstraint(column("format").in_(["json", "zip"]), name="ck_export_jobs_format"),
+        Index("ix_export_jobs_owner_created", "owner_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    owner_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    format: Mapped[str] = mapped_column(Text)
+    artifact: Mapped[bytes | None] = mapped_column(LargeBinary)
+    download_token_hash: Mapped[str | None] = mapped_column(Text, unique=True)
+    error_code: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    downloaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class IdempotencyRecord(Base):
+    """Durable Idempotency-Key ledger (#9): one row per key+route.
+
+    ``request_fingerprint`` lets a replay with a different payload be
+    rejected instead of silently returning the first response. Responses are
+    stored as their own JSON document so a replay never re-runs the mutation.
+    """
+
+    __tablename__ = "idempotency_records"
+    __table_args__ = (
+        _nonblank("route", "idempotency_records"),
+        _max_length("scope", "idempotency_records", 128),
+        _max_length("route", "idempotency_records", 60),
+        _max_length("idempotency_key", "idempotency_records", 200),
+        CheckConstraint(
+            column("request_fingerprint").regexp_match("^[0-9a-f]{64}$"),
+            name="ck_idempotency_records_request_fingerprint_hex",
+        ),
+    )
+
+    route: Mapped[str] = mapped_column(Text, primary_key=True)
+    scope: Mapped[str] = mapped_column(Text, primary_key=True, default="", server_default="")
+    idempotency_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    request_fingerprint: Mapped[str] = mapped_column(Text)
+    status_code: Mapped[int] = mapped_column(Integer)
+    response_body: Mapped[dict[str, Any]] = mapped_column(JSON_DOCUMENT)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # Reusable ORM field annotations for future models (#8), not feature tables.

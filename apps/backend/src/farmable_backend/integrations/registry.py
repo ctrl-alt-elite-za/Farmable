@@ -7,6 +7,7 @@ from .crop_health import CropHealth
 from .fakes import FakeMode, FakeTransport
 from .gemini import Gemini
 from .gemini_live import GeminiLive
+from .infobip import Infobip
 from .maps import Maps
 from .open_meteo import OpenMeteo
 from .settings import ServiceSettings
@@ -41,6 +42,7 @@ class ServiceRegistry:
         self.soilgrids = SoilGrids("soilgrids", self.client, settings)
         self.open_meteo = OpenMeteo("open_meteo", self.client, settings)
         self.maps = Maps("maps", self.client, settings)
+        self.infobip = Infobip("infobip", self.client, settings)
         self.adapters: dict[str, Adapter] = {
             service: getattr(self, service)
             for service in (
@@ -53,6 +55,7 @@ class ServiceRegistry:
                 "soilgrids",
                 "open_meteo",
                 "maps",
+                "infobip",
             )
         }
         for adapter in self.adapters.values():

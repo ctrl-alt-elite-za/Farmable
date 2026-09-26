@@ -50,18 +50,29 @@ locals {
   ])
   provider_secrets = toset([
     "database-url",
+    "export-token-secret",
     "twilio-account-sid",
     "twilio-verify-service-sid",
     "gemini-api-key",
     "twilio-auth-token",
     "turnstile-secret",
     "turnstile-hostname",
+    "turnstile-site-key",
     "azure-speech-key",
     "azure-speech-resource",
     "azure-speech-region",
     "gemini-model",
     "crop-health-api-key",
     "maps-server-api-key",
+    # Live OTP delivery: SMS through Infobip, email through Gmail SMTP.
+    "infobip-base-url",
+    "infobip-api-key",
+    "infobip-sms-sender",
+    "smtp-host",
+    "smtp-user",
+    "smtp-password",
+    "email-from-name",
+    "email-from-address",
   ])
 }
 

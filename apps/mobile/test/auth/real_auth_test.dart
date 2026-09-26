@@ -83,6 +83,7 @@ void main() {
       await tapLabel(tester, 'Create account', settle: false);
 
       expect(api.to('/auth/signup').single.body['phone'], '+27825550123');
+      expect(api.to('/auth/signup').single.idempotencyKey, hasLength(36));
 
       await _enterCode(tester, phoneCode);
       expect(find.textContaining('@example.com'), findsOneWidget);

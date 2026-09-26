@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from functools import partial
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.security import HTTPBearer
@@ -15,11 +16,19 @@ from sqlalchemy.exc import TimeoutError as DatabaseTimeout
 from farmable_backend.account import EXPORT_BASENAME, AccountService, json_bytes, zip_bytes
 from farmable_backend.account_schemas import (
     AccountFarmResponse,
+    ConsentResponse,
+    ConsentUpdate,
+    ContactChangeConfirm,
     DeleteAccountRequest,
+    ExportJobCreateResponse,
+    ExportJobStatusResponse,
     FarmUpdate,
     ProfileResponse,
     ProfileUpdate,
 )
+from farmable_backend.auth import Channel
+from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
+from farmable_backend.middleware import client_address
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import token
 from farmable_backend.schemas import ErrorResponse
@@ -66,6 +75,11 @@ def runtime(request: Request) -> AccountRuntime:
     return value
 
 
+def client_ip(request: Request) -> str:
+    # Resolved once by SafeDefaultsMiddleware from its trusted proxy hops.
+    return getattr(request.state, "client_ip", None) or client_address(request.scope)
+
+
 @router.post("/auth/logout", status_code=204, operation_id="authLogout")
 async def logout(request: Request) -> None:
     worker = runtime(request)
@@ -85,13 +99,81 @@ async def read_profile(request: Request, response: Response):
     return await worker.call(worker.service.profile, token(request))
 
 
+@router.get(
+    "/account/consents", response_model=list[ConsentResponse], operation_id="listAccountConsents"
+)
+async def list_consents(request: Request, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    return await worker.call(worker.service.list_consents, token(request))
+
+
+@router.put(
+    "/account/consents/{consent_type}",
+    response_model=ConsentResponse,
+    operation_id="setAccountConsent",
+)
+async def update_consent(
+    request: Request, response: Response, consent_type: str, payload: ConsentUpdate
+):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    return await worker.call(
+        worker.service.set_consent,
+        token(request),
+        consent_type,
+        payload.version,
+        payload.granted,
+    )
+
+
 @router.patch(
     "/account/profile", response_model=ProfileResponse, operation_id="updateAccountProfile"
 )
 async def write_profile(request: Request, response: Response, payload: ProfileUpdate):
     response.headers["Cache-Control"] = "no-store"
     worker = runtime(request)
-    return await worker.call(worker.service.update_profile, token(request), payload)
+    key = request.headers.get("Idempotency-Key", "").strip() or None
+    has_contact_change = payload.email is not None or payload.phone is not None
+    if has_contact_change and (key is None or not 16 <= len(key) <= 200):
+        raise ApiError(400, "idempotency_key_required")
+    if key is not None and not 16 <= len(key) <= 200:
+        raise ApiError(400, "idempotency_key_required")
+    scope = ""
+    request_fingerprint = None
+    if key is not None:
+        scope = str(await worker.call(worker.service.owner_id, token(request)))
+        # The fingerprint can run scrypt; keep it on the bounded account executor.
+        request_fingerprint = await worker.call(
+            partial(idempotency_fingerprint, payload.model_dump(mode="json"), key=key)
+        )
+    return await worker.call(
+        partial(
+            worker.service.update_profile,
+            token(request),
+            payload,
+            ip=client_ip(request),
+            idempotency_key=key,
+            idempotency_scope=scope,
+            request_fingerprint=request_fingerprint,
+        )
+    )
+
+
+@router.post(
+    "/account/contact/confirm",
+    response_model=ProfileResponse,
+    operation_id="confirmAccountContactChange",
+)
+async def confirm_contact_change(
+    request: Request, response: Response, payload: ContactChangeConfirm
+):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    channel = Channel.EMAIL if payload.channel == "email" else Channel.PHONE
+    return await worker.call(
+        worker.service.confirm_contact_change, token(request), channel, payload.code
+    )
 
 
 @router.get("/account/farm", response_model=AccountFarmResponse, operation_id="getAccountFarm")
@@ -128,6 +210,76 @@ async def export_account(request: Request, format: Literal["json", "zip"] = "jso
         media_type=media_type,
         headers={
             "Content-Disposition": f'attachment; filename="{EXPORT_BASENAME}.{format}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@router.post(
+    "/account/export/jobs",
+    response_model=ExportJobCreateResponse,
+    status_code=201,
+    operation_id="createAccountExportJob",
+)
+async def create_export_job(
+    request: Request, response: Response, format: Literal["json", "zip"] = "json"
+):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    raw_key = request.headers.get("Idempotency-Key")
+    key = raw_key.strip() if raw_key is not None else None
+    if key is not None and not 16 <= len(key) <= 200:
+        raise ApiError(400, "idempotency_key_required")
+    body = {"format": format}
+    scope = ""
+    if key:
+        scope = str(await worker.call(worker.service.owner_id, token(request)))
+        request_fingerprint = await worker.call(partial(idempotency_fingerprint, body, key=key))
+    else:
+        request_fingerprint = None
+    job_id, download_token = await worker.call(
+        partial(
+            worker.service.create_export_job,
+            token(request),
+            format,
+            idempotency_key=key,
+            idempotency_scope=scope,
+            request_fingerprint=request_fingerprint,
+        )
+    )
+    result = ExportJobCreateResponse(id=job_id, download_token=download_token)
+    return result
+
+
+@router.get(
+    "/account/export/jobs/{job_id}",
+    response_model=ExportJobStatusResponse,
+    operation_id="getAccountExportJob",
+)
+async def read_export_job(request: Request, response: Response, job_id: UUID):
+    response.headers["Cache-Control"] = "no-store"
+    worker = runtime(request)
+    return await worker.call(worker.service.export_job_status, token(request), job_id)
+
+
+@router.get(
+    "/account/export/jobs/{job_id}/download",
+    operation_id="downloadAccountExportJob",
+    response_class=Response,
+    responses={200: {"content": {"application/json": {}, "application/zip": {}}}},
+)
+async def download_export_job(request: Request, job_id: UUID, token: str) -> Response:
+    # Authorized by the download token alone, not the caller's own session
+    # bearer: the link is meant to be usable on its own, short-lived and
+    # single-purpose, matching issue #9's "expiring authorized download link".
+    worker = runtime(request)
+    body, media_type = await worker.call(worker.service.download_export_job, job_id, token)
+    extension = "zip" if media_type == "application/zip" else "json"
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{EXPORT_BASENAME}.{extension}"',
             "Cache-Control": "no-store",
         },
     )

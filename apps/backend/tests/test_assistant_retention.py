@@ -90,7 +90,9 @@ def test_expired_history_export_and_provider_context_hidden_without_cleanup(assi
     assert response.status_code == 200
     history = assistant.store.history(assistant.alice.auth, assistant.conversation)
     assert [turn.id for turn in history.turns] == [recent]
-    exported = AccountService(assistant.sessions).export_document(assistant.alice.auth)
+    account = AccountService(assistant.sessions, export_token_secret="unit-export-token-secret")  # noqa: S106
+    account.set_consent(assistant.alice.auth, "data_export", "1", True)
+    exported = account.export_document(assistant.alice.auth)
     assert [turn["id"] for turn in exported["assistant_turns"]] == [str(recent)]
     assert "expired private" not in json.dumps(requests) + json.dumps(exported)
     # The above must be true even if cleanup has never run.

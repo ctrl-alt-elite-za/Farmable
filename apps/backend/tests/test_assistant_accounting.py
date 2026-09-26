@@ -202,13 +202,18 @@ def test_cancel_and_account_deletion_preserve_only_content_free_receipt(assistan
         )
     assistant.store.interrupt(assistant.alice.auth, assistant.conversation, identifier)
     accounting.finish_call(assistant.sessions, receipt, usage(), "fixture-version", complete=False)
-    exported = AccountService(assistant.sessions).export_document(assistant.alice.auth)
+    account = AccountService(assistant.sessions, export_token_secret="unit-export-token-secret")  # noqa: S106
+    account.set_consent(assistant.alice.auth, "data_export", "1", True)
+    exported = account.export_document(assistant.alice.auth)
     assert exported["assistant_model_calls"][0]["state"] == "unknown"
     with assistant.sessions.begin() as session:
         session.get(AuthIdentity, assistant.alice.owner).password_hash = PASSWORD_HASHER.hash(
             "fixture password"
         )
-    AccountService(assistant.sessions).delete_account(assistant.alice.auth, "fixture password")
+    AccountService(
+        assistant.sessions,
+        export_token_secret="unit-export-token-secret",  # noqa: S106
+    ).delete_account(assistant.alice.auth, "fixture password")
     accounting.finish_call(assistant.sessions, receipt, usage(), "fixture-version", complete=True)
     with assistant.sessions() as session:
         call = session.get(AssistantModelCall, receipt)

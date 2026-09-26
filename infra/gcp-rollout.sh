@@ -9,6 +9,7 @@ set -Eeuo pipefail
 : "${CLOUD_SQL_CONNECTION:?CLOUD_SQL_CONNECTION is required}"
 : "${RUNTIME_SERVICE_ACCOUNT:?RUNTIME_SERVICE_ACCOUNT is required}"
 : "${DATABASE_SECRET:?DATABASE_SECRET is required}"
+: "${EXPORT_SECRET:?EXPORT_SECRET is required}"
 : "${GEMINI_SECRET:?GEMINI_SECRET is required}"
 : "${GCS_BUCKET:?GCS_BUCKET is required}"
 FORECAST_DATA_MODE="${FORECAST_DATA_MODE:-disabled}"
@@ -118,12 +119,25 @@ optional_secrets=(
   "TWILIO_AUTH_TOKEN:twilio-auth-token"
   "TURNSTILE_SECRET:turnstile-secret"
   "TURNSTILE_HOSTNAME:turnstile-hostname"
+  "TURNSTILE_SITE_KEY:turnstile-site-key"
   "AZURE_SPEECH_KEY:azure-speech-key"
   "AZURE_SPEECH_RESOURCE:azure-speech-resource"
   "AZURE_SPEECH_REGION:azure-speech-region"
   "CROP_HEALTH_API_KEY:crop-health-api-key"
   "MAPS_SERVER_API_KEY:maps-server-api-key"
+  "INFOBIP_BASE_URL:infobip-base-url"
+  "INFOBIP_API_KEY:infobip-api-key"
+  "INFOBIP_SMS_SENDER:infobip-sms-sender"
+  "SMTP_HOST:smtp-host"
+  "SMTP_USER:smtp-user"
+  "SMTP_PASSWORD:smtp-password"
+  "EMAIL_FROM_NAME:email-from-name"
+  "EMAIL_FROM_ADDRESS:email-from-address"
 )
+# Live mode delivers sign-up codes through these; without them sign-up cannot
+# complete (and a live backend refuses to boot without its SMTP settings).
+otp_delivery_secrets=(INFOBIP_BASE_URL INFOBIP_API_KEY INFOBIP_SMS_SENDER SMTP_HOST SMTP_USER
+  SMTP_PASSWORD EMAIL_FROM_NAME EMAIL_FROM_ADDRESS)
 
 # One listing call decides existence for every candidate. Probing each secret
 # individually cannot tell NOT_FOUND from a transient 503, and reading a transient
@@ -134,7 +148,15 @@ if ! available="$(gcloud secrets list --project="$GCP_PROJECT" \
   exit 1
 fi
 
-secret_args="DATABASE_URL=${DATABASE_SECRET}:latest,GEMINI_API_KEY=${GEMINI_SECRET}:latest"
+export_secret_id="$EXPORT_SECRET"
+if ! grep -qxF "$export_secret_id" <<<"$available"; then
+  echo "Required export-token secret is missing: $export_secret_id" >&2
+  exit 1
+fi
+export_secret_version="$(gcloud secrets versions list "$export_secret_id" --project="$GCP_PROJECT" \
+  --filter='state:ENABLED' --limit=1 --format='value(name)')"
+[[ -n "$export_secret_version" ]] || { echo "Required export-token secret has no enabled version" >&2; exit 1; }
+secret_args="DATABASE_URL=${DATABASE_SECRET}:latest,GEMINI_API_KEY=${GEMINI_SECRET}:latest,EXPORT_TOKEN_SECRET=${export_secret_id}:latest"
 wired=()
 skipped=()
 for entry in "${optional_secrets[@]}"; do
@@ -159,13 +181,22 @@ done
 echo "Integrations mode: ${INTEGRATIONS_MODE}"
 echo "Provider secrets wired: ${wired[*]:-none}"
 echo "Provider secrets skipped, no enabled version: ${skipped[*]:-none}"
+if [[ "$INTEGRATIONS_MODE" == live ]]; then
+  missing_otp=()
+  for env_name in "${otp_delivery_secrets[@]}"; do
+    [[ " ${wired[*]:-} " == *" ${env_name} "* ]] || missing_otp+=("$env_name")
+  done
+  if [[ ${#missing_otp[@]} -gt 0 ]]; then
+    echo "::warning::Live sign-up OTP delivery is not configured; missing: ${missing_otp[*]}"
+  fi
+fi
 
 gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --project="$GCP_PROJECT" --region="$GCP_REGION" \
   --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="sha-${COMMIT_SHA}" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
-  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \
+  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE,TRUSTED_PROXY_HOPS=1" \
   --set-secrets="$secret_args" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null

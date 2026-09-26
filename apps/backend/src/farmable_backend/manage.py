@@ -4,13 +4,13 @@ import argparse
 import asyncio
 import sys
 
-from farmable_backend.config import Settings
+from farmable_backend.config import DatabaseSettings
 from farmable_backend.logging import configure_logging, request_id
 from farmable_backend.tasks import create_task_app
 
 
 async def run(command: str) -> None:
-    settings = Settings()
+    settings = DatabaseSettings()
     configure_logging(settings.log_level)
     app = create_task_app(settings)
     async with app.open_async():

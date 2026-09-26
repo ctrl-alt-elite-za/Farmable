@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from contextvars import copy_context
 from functools import partial
 from http import HTTPStatus
+from uuid import UUID
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -27,17 +28,38 @@ from farmable_backend.auth import (
     AuthUser,
     Channel,
     DeterministicFakeOtpProvider,
+    LiveOtpProvider,
     SessionTokens,
 )
-from farmable_backend.config import Settings
+from farmable_backend.auth_challenge import router as auth_challenge_router
+from farmable_backend.config import ProxySettings, Settings
 from farmable_backend.database import Database
 from farmable_backend.diagnosis_api import router as diagnosis_router
 from farmable_backend.forecast_api import router as forecast_router
 from farmable_backend.gcs_photos import create_gcs_photos
+from farmable_backend.idempotency import (
+    IdempotencyConflict,
+    IdempotencyInProgress,
+)
+from farmable_backend.idempotency import (
+    abandon as idempotency_abandon,
+)
+from farmable_backend.idempotency import (
+    claim as idempotency_claim,
+)
+from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
+from farmable_backend.idempotency import replay as idempotency_replay
+from farmable_backend.idempotency import store as idempotency_store
+from farmable_backend.integrations.email.gmail_smtp import GmailSmtpEmailSender
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
-from farmable_backend.middleware import RateLimiter, SafeDefaultsMiddleware, error_response
+from farmable_backend.middleware import (
+    RateLimiter,
+    SafeDefaultsMiddleware,
+    client_address,
+    error_response,
+)
 from farmable_backend.planning.api import router as planning_router
 from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import RecordBodyLimit, RecordRuntime
@@ -76,6 +98,7 @@ def _session_response(tokens: SessionTokens) -> SessionResponse:
         access_token=tokens.access_token,
         refresh_token=tokens.refresh_token,
         expires_at=tokens.expires_at,
+        refresh_expires_at=tokens.refresh_expires_at,
         user=_user_response(tokens.user),
     )
 
@@ -91,9 +114,9 @@ def create_app(
     # HTTP requests cannot free a running thread's slot before its work finishes.
     auth_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="farmable-auth")
 
-    async def call_auth(function, *args):
+    async def call_auth(function, *args, **kwargs):
         return await asyncio.get_running_loop().run_in_executor(
-            auth_executor, partial(copy_context().run, function, *args)
+            auth_executor, partial(copy_context().run, function, *args, **kwargs)
         )
 
     @asynccontextmanager
@@ -113,16 +136,28 @@ def create_app(
                 app.state.readiness = readiness
             elif database is not None:
                 app.state.readiness = database.readiness
-                provider = (
-                    DeterministicFakeOtpProvider()
-                    if integration_config.integrations_mode == "fake"
-                    else None
-                )
+                if integration_config.integrations_mode == "fake":
+                    provider = DeterministicFakeOtpProvider()
+                elif integration_config.integrations_mode == "live":
+                    provider = LiveOtpProvider(
+                        services.infobip,
+                        GmailSmtpEmailSender(integration_config),
+                        asyncio.get_running_loop(),
+                        database.sessions,
+                    )
+                else:
+                    provider = None
                 app.state.auth = AuthService(database.sessions, provider)
                 app.state.records = RecordRuntime(
                     RecordsService(database.sessions), lambda: create_gcs_photos(config)
                 )
-                app.state.account = AccountRuntime(AccountService(database.sessions))
+                app.state.account = AccountRuntime(
+                    AccountService(
+                        database.sessions,
+                        provider,
+                        export_token_secret=config.export_token_secret.get_secret_value(),
+                    )
+                )
                 app.state.assistant = AssistantRuntime(
                     AssistantStore(database.sessions, AssistantSettings(), integration_config),
                     app.state.records,
@@ -166,9 +201,14 @@ def create_app(
     app.state.sha = settings.commit_sha if settings else os.getenv("COMMIT_SHA", "unknown")
     app.state.auth_executor = auth_executor
     app.add_middleware(RecordBodyLimit)
-    app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
+    app.add_middleware(
+        SafeDefaultsMiddleware,
+        limiter=limiter or RateLimiter(),
+        trusted_proxy_hops=(settings or ProxySettings()).trusted_proxy_hops,
+    )
     app.include_router(records_router)
     app.include_router(account_router)
+    app.include_router(auth_challenge_router)
     app.include_router(assistant_router)
     app.include_router(assistant_live_router)
     app.include_router(voice_router)
@@ -209,8 +249,31 @@ def create_app(
             "invalid_session": "Your session has expired",
             "provider_unavailable": "Verification is temporarily unavailable",
             "provider_error": "Verification is temporarily unavailable",
+            "turnstile_failed": "Please try again",
+            "password_too_common": "Choose a less common password",
+            "signup_rate_limited": "Please wait before trying again",
+            "sms_ip_rate_limited": "Please wait before requesting another code",
+            "sms_phone_rate_limited": "Please wait before requesting another code",
+            "daily_sms_cap": "Please try again later",
+            "login_rate_limited": "Please wait before trying again",
+            "idempotency_key_conflict": (
+                "This Idempotency-Key was already used with a different request"
+            ),
+            "idempotency_in_progress": "The request is already being processed",
+            "idempotency_key_required": "Idempotency-Key is required",
+            "delivery_unknown": (
+                "Delivery may have succeeded; retry with the same Idempotency-Key"
+            ),
+            "consent_required": "Required consent has not been granted",
         }
-        return error_response(exc.status_code, exc.code, messages.get(exc.code, "Request failed"))
+        headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
+        return error_response(
+            exc.status_code,
+            exc.code,
+            messages.get(exc.code, "Request failed"),
+            user_id=str(exc.user_id) if exc.user_id is not None else None,
+            headers=headers,
+        )
 
     def auth(request: Request):
         service = getattr(request.app.state, "auth", None)
@@ -218,17 +281,170 @@ def create_app(
             raise HTTPException(503)
         return service
 
+    def client_ip(request: Request) -> str:
+        # Resolved once by SafeDefaultsMiddleware from its trusted proxy hops.
+        return getattr(request.state, "client_ip", None) or client_address(request.scope)
+
+    async def idempotent_replay(
+        request: Request, route: str, body: dict, *, scope: str
+    ) -> tuple[int, dict] | None:
+        # Only enforced against a real DB-backed AuthService (has .sessions);
+        # test doubles without persistence (InMemoryAuthService, etc.) can't
+        # meaningfully dedupe and are left alone.
+        key = request.headers.get("Idempotency-Key", "").strip()
+        sessions = getattr(auth(request), "sessions", None)
+        if not key or sessions is None or not hasattr(sessions, "begin"):
+            return None
+        # The fingerprint can run scrypt; never block the event loop with it.
+        fp = await run_in_threadpool(idempotency_fingerprint, body, key=key)
+        try:
+            return await run_in_threadpool(
+                idempotency_replay,
+                sessions,
+                route=route,
+                scope=scope,
+                key=key,
+                request_fingerprint=fp,
+            )
+        except IdempotencyConflict:
+            raise AuthError("idempotency_key_conflict", 409) from None
+
+    async def require_idempotency_key(request: Request) -> str:
+        key = request.headers.get("Idempotency-Key", "").strip()
+        if len(key) < 16 or len(key) > 200:
+            raise AuthError("idempotency_key_required", 400)
+        return key
+
+    async def idempotent_claim(
+        request: Request, route: str, body: dict, *, scope: str
+    ) -> tuple[str, tuple[int, dict] | None]:
+        sessions = getattr(auth(request), "sessions", None)
+        if sessions is None or not hasattr(sessions, "begin"):
+            return "", None
+        key = await require_idempotency_key(request)
+        fp = await run_in_threadpool(idempotency_fingerprint, body, key=key)
+        try:
+            result = await run_in_threadpool(
+                idempotency_claim,
+                sessions,
+                route=route,
+                scope=scope,
+                key=key,
+                request_fingerprint=fp,
+            )
+        except IdempotencyConflict:
+            raise AuthError("idempotency_key_conflict", 409) from None
+        except IdempotencyInProgress:
+            raise AuthError("idempotency_in_progress", 409, 1) from None
+        return key, result
+
+    async def idempotent_abandon(request: Request, route: str, *, scope: str, key: str) -> None:
+        sessions = getattr(auth(request), "sessions", None)
+        if sessions is not None and hasattr(sessions, "begin"):
+            await run_in_threadpool(
+                idempotency_abandon, sessions, route=route, scope=scope, key=key
+            )
+
+    async def idempotent_store(
+        request: Request, route: str, body: dict, status_code: int, response: dict, *, scope: str
+    ) -> None:
+        key = request.headers.get("Idempotency-Key", "").strip()
+        sessions = getattr(auth(request), "sessions", None)
+        if not key or sessions is None or not hasattr(sessions, "begin"):
+            return
+        fp = await run_in_threadpool(idempotency_fingerprint, body, key=key)
+        await run_in_threadpool(
+            idempotency_store,
+            sessions,
+            route=route,
+            scope=scope,
+            key=key,
+            request_fingerprint=fp,
+            status_code=status_code,
+            body=response,
+        )
+
+    async def require_turnstile(request: Request, token: str, action: str) -> None:
+        # Verified before password hashing, user lookup/mutation, or OTP
+        # dispatch. Any non-ok result (rejected, timeout, unavailable,
+        # misconfigured) fails closed with one safe, generic error — the
+        # token/secret are never logged (see Turnstile adapter + logging.mask).
+        services = getattr(request.app.state, "services", None)
+        if services is None:
+            raise AuthError("turnstile_failed", 503)
+        result = await services.turnstile.validate(token, action=action)
+        if not result.ok:
+            raise AuthError("turnstile_failed", 503)
+
     @app.post("/auth/signup", response_model=AuthProgressResponse, operation_id="authSignup")
     async def signup(request: Request, payload: SignUpRequest) -> AuthProgressResponse:
-        user = await call_auth(
-            auth(request).signup,
-            payload.first_name,
-            payload.surname,
-            payload.phone,
-            str(payload.email),
-            payload.password,
-        )
-        return AuthProgressResponse(user_id=user.id, next_step="phone")
+        await require_turnstile(request, payload.turnstile_token, "sign_up")
+        # Turnstile tokens are single-use, so a retry needs a fresh proof.
+        # The proof is verified above but is not part of the account mutation.
+        body = payload.model_dump(mode="json", exclude={"turnstile_token"})
+        # A phone can change networks before retrying a lost response. The
+        # operation key and matching request fingerprint identify the signup;
+        # the peer IP remains an abuse-limit input, not its replay identity.
+        signup_scope = "signup"
+        key, replayed = await idempotent_claim(request, "auth_signup", body, scope=signup_scope)
+        if replayed is not None:
+            status, response_body = replayed
+            if status >= 400:
+                error = response_body.get("error", {})
+                raise AuthError(
+                    error.get("code", "request_failed"),
+                    status,
+                    error.get("retry_after"),
+                    user_id=UUID(error["user_id"]) if error.get("user_id") else None,
+                )
+            return AuthProgressResponse(**response_body)
+        mutation_committed = False
+        try:
+            user = await call_auth(
+                auth(request).signup,
+                payload.first_name,
+                payload.surname,
+                payload.phone,
+                str(payload.email),
+                payload.password,
+                ip=client_ip(request),
+                idempotency_key=key or None,
+                idempotency_scope=signup_scope,
+            )
+            mutation_committed = True
+            response = AuthProgressResponse(user_id=user.id, next_step="phone")
+            await idempotent_store(
+                request,
+                "auth_signup",
+                body,
+                200,
+                response.model_dump(mode="json"),
+                scope=signup_scope,
+            )
+            return response
+        except AuthError as exc:
+            if exc.code == "delivery_unknown":
+                await idempotent_store(
+                    request,
+                    "auth_signup",
+                    body,
+                    exc.status_code,
+                    {
+                        "error": {
+                            "code": exc.code,
+                            "retry_after": exc.retry_after,
+                            "user_id": str(exc.user_id) if exc.user_id is not None else None,
+                        }
+                    },
+                    scope=signup_scope,
+                )
+            else:
+                await idempotent_abandon(request, "auth_signup", scope=signup_scope, key=key)
+            raise
+        except Exception:
+            if not mutation_committed:
+                await idempotent_abandon(request, "auth_signup", scope=signup_scope, key=key)
+            raise
 
     @app.post(
         "/auth/verify/phone", response_model=AuthProgressResponse, operation_id="authVerifyPhone"
@@ -246,12 +462,57 @@ def create_app(
 
     @app.post("/auth/otp/resend", status_code=204, operation_id="authResendOtp")
     async def resend_otp(request: Request, payload: ResendOtpRequest) -> None:
-        await call_auth(auth(request).resend, payload.user_id, Channel(payload.channel))
+        body = payload.model_dump(mode="json")
+        key, replayed = await idempotent_claim(
+            request, "auth_otp_resend", body, scope=str(payload.user_id)
+        )
+        if replayed is not None:
+            status, response_body = replayed
+            if status >= 400:
+                error = response_body.get("error", {})
+                raise AuthError(
+                    error.get("code", "request_failed"), status, error.get("retry_after")
+                )
+            return
+        try:
+            await call_auth(
+                auth(request).resend,
+                payload.user_id,
+                Channel(payload.channel),
+                ip=client_ip(request),
+                idempotency_key=key or None,
+            )
+            await idempotent_store(
+                request, "auth_otp_resend", body, 204, {}, scope=str(payload.user_id)
+            )
+        except AuthError as exc:
+            if exc.code == "delivery_unknown":
+                await idempotent_store(
+                    request,
+                    "auth_otp_resend",
+                    body,
+                    exc.status_code,
+                    {"error": {"code": exc.code, "retry_after": exc.retry_after}},
+                    scope=str(payload.user_id),
+                )
+            else:
+                await idempotent_abandon(
+                    request, "auth_otp_resend", scope=str(payload.user_id), key=key
+                )
+            raise
+        except Exception:
+            await idempotent_abandon(
+                request, "auth_otp_resend", scope=str(payload.user_id), key=key
+            )
+            raise
 
     @app.post("/auth/login", response_model=SessionResponse, operation_id="authLogin")
     async def login(request: Request, payload: LoginRequest) -> SessionResponse:
+        await require_turnstile(request, payload.turnstile_token, "login")
         return _session_response(
-            await call_auth(auth(request).login, payload.identifier, payload.password)
+            await call_auth(
+                auth(request).login, payload.identifier, payload.password, ip=client_ip(request)
+            )
         )
 
     @app.post("/auth/refresh", response_model=SessionResponse, operation_id="authRefresh")

@@ -1,9 +1,10 @@
 """REST and sync contract for #11: owner scope, idempotency and change polling."""
 
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
-from farmable_backend.models import FarmTask, SyncChange
+from farmable_backend.models import FarmTask, Planting, SyncChange
 from farmable_backend.records_schemas import (
     FinancialCreate,
     FinancialUpdate,
@@ -60,7 +61,7 @@ CREATE_FIELDS = {
 
 UPDATE_FIELDS = {
     "sections": lambda ids: {"name": "South block", "area_m2": "1300.00"},
-    "plantings": lambda ids: {"crop": "tomato", "planted_on": "2026-08-02"},
+    "plantings": lambda ids: {"crop": "spinach", "planted_on": "2026-08-02"},
     "tasks": lambda ids: {"title": "Weed again", "due_date": "2026-10-02", "status": "done"},
     "financials": lambda ids: {
         "type": "income",
@@ -586,6 +587,273 @@ def test_section_detail_exposes_the_flutter_summary(records):
     }
     foreign = records.client.get(f"/farms/{farm}/sections/{records.ids.foreign_section}")
     assert foreign.status_code == 404
+
+
+def test_new_account_has_no_sections(records):
+    from farmable_backend.models import Farm
+
+    with records.sessions.begin() as session:
+        new_farm = Farm(owner_id=records.ids.owner, name="Brand new")
+        session.add(new_farm)
+        session.flush()
+        new_farm_id = new_farm.id
+    response = records.client.get(f"/farms/{new_farm_id}/sections")
+    assert response.status_code == 200, response.text
+    assert response.json()["items"] == []
+
+
+def test_section_kind_defaults_to_crop_and_accepts_animal(records):
+    base = f"/farms/{records.ids.farm}/sections"
+    default_kind = records.client.post(base, json=create_body(records, "sections"))
+    assert default_kind.status_code == 200, default_kind.text
+    assert default_kind.json()["record"]["kind"] == "crop"
+
+    animal_id = str(uuid4())
+    animal_body = create_body(records, "sections", animal_id)
+    animal_body["kind"] = "animal"
+    animal = records.client.post(base, json=animal_body)
+    assert animal.status_code == 200, animal.text
+    assert animal.json()["record"]["kind"] == "animal"
+    # GET .../sections/{id} returns the Flutter section-detail summary, not a bare SectionView.
+    assert records.client.get(f"{base}/{animal_id}").json()["section"]["kind"] == "animal"
+
+
+def test_crop_harvest_window_from_calendar(records):
+    base = f"/farms/{records.ids.farm}/plantings"
+    body = create_body(records, "plantings")
+    body["crop_type_code"] = "cabbage"
+    body["planted_on"] = "2026-09-01"
+    created = records.client.post(base, json=body)
+    assert created.status_code == 200, created.text
+    planting = created.json()["record"]
+    assert planting["crop_type_code"] == "cabbage"
+    assert planting["harvest_from"] == "2026-11-30"  # 2026-09-01 + 90 days
+    assert planting["harvest_to"] == "2026-12-20"  # 2026-09-01 + 110 days
+
+
+@pytest.mark.parametrize("kind", [None, "animal", "crop"])
+def test_legacy_section_update_preserves_animal_kind_unless_explicit(records, kind):
+    base = f"/farms/{records.ids.farm}/sections"
+    body = {**create_body(records, "sections"), "kind": "animal"}
+    assert records.client.post(base, json=body).status_code == 200
+    update = update_body(records, "sections")
+    if kind is not None:
+        update["kind"] = kind
+    response = records.client.put(f"{base}/{body['id']}", json=update)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["name"] == "South block"
+    assert response.json()["record"]["kind"] == (kind or "animal")
+    assert records.client.get(f"{base}/{body['id']}").json()["section"]["kind"] == (
+        kind or "animal"
+    )
+    assert records.client.put(f"{base}/{body['id']}", json=update).json() == response.json()
+
+
+@pytest.mark.parametrize("crop", ["cabbage", "Butternut"])
+@pytest.mark.parametrize("offset", [-731, 731])
+@pytest.mark.parametrize("operation", ["create", "update"])
+def test_planting_date_bound_without_explicit_catalogue_code(records, crop, offset, operation):
+    base = f"/farms/{records.ids.farm}/plantings"
+    body = {**create_body(records, "plantings"), "crop": crop}
+    bad_date = (datetime.now(UTC).date() + timedelta(days=offset)).isoformat()
+    if operation == "create":
+        response = records.client.post(base, json={**body, "planted_on": bad_date})
+    else:
+        assert records.client.post(base, json=body).status_code == 200
+        response = records.client.put(
+            f"{base}/{body['id']}",
+            json={**update_body(records, "plantings"), "crop": crop, "planted_on": bad_date},
+        )
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "planted_on_out_of_range"
+    with records.sessions() as session:
+        row = session.get(Planting, UUID(body["id"]))
+        if operation == "create":
+            assert row is None
+        else:
+            assert row.version == 1
+            assert row.planted_on == date(2026, 8, 1)
+
+
+@pytest.mark.parametrize("offset", [-730, 730, None])
+def test_planting_date_bound_accepts_endpoints_and_unknown_date(records, offset):
+    base = f"/farms/{records.ids.farm}/plantings"
+    planted_on = (
+        None if offset is None else (datetime.now(UTC).date() + timedelta(days=offset)).isoformat()
+    )
+    body = {**create_body(records, "plantings"), "planted_on": planted_on}
+    response = records.client.post(base, json=body)
+    assert response.status_code == 200, response.text
+    assert response.json()["record"]["planted_on"] == planted_on
+
+
+def test_unknown_crop_rejected(records):
+    base = f"/farms/{records.ids.farm}/plantings"
+    body = create_body(records, "plantings")
+    body["crop_type_code"] = "banana"
+    response = records.client.post(base, json=body)
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "unknown_crop_type"
+
+
+def test_planted_on_out_of_range_rejected(records):
+    base = f"/farms/{records.ids.farm}/plantings"
+    body = create_body(records, "plantings")
+    body["crop_type_code"] = "cabbage"
+    body["planted_on"] = "2000-01-01"
+    response = records.client.post(base, json=body)
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "planted_on_out_of_range"
+
+
+def test_legacy_crop_text_is_preserved_and_old_planting_edits_sync(records):
+    base = f"/farms/{records.ids.farm}/plantings"
+    planting_id = str(uuid4())
+    # Historical data can already exist, but new out-of-range submissions must
+    # not bypass validation merely because the client omits catalogue fields.
+    with records.sessions.begin() as session:
+        session.add(
+            Planting(
+                id=UUID(planting_id),
+                owner_id=records.ids.owner,
+                farm_id=records.ids.farm,
+                section_id=records.ids.section,
+                crop="Butternut",
+                planted_on=date(2000, 1, 1),
+                is_current=False,
+            )
+        )
+
+    updated = records.client.put(
+        f"{base}/{planting_id}",
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_version": 1,
+            "crop": "Butternut",
+            "planted_on": "2000-01-01",
+            "is_current": False,
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["record"]["crop"] == "Butternut"
+    assert updated.json()["record"]["crop_type_code"] is None
+    assert updated.json()["record"]["planted_on"] == "2000-01-01"
+
+
+def test_section_delete_requires_versions_for_attached_children(records):
+    section_id = str(uuid4())
+    assert (
+        records.client.post(
+            f"/farms/{records.ids.farm}/sections",
+            json=create_body(records, "sections", section_id),
+        ).status_code
+        == 200
+    )
+    planting = create_body(records, "plantings")
+    planting["section_id"] = section_id
+    assert (
+        records.client.post(f"/farms/{records.ids.farm}/plantings", json=planting).status_code
+        == 200
+    )
+    delete = records.client.post(
+        f"/farms/{records.ids.farm}/sections/{section_id}/delete",
+        json={"mutation_id": str(uuid4()), "expected_version": 1},
+    )
+    assert delete.status_code == 409
+    assert delete.json()["error"]["code"] == "revision_conflict"
+
+    delete = records.client.post(
+        f"/farms/{records.ids.farm}/sections/{section_id}/delete",
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_version": 1,
+            "expected_child_versions": {planting["id"]: 1},
+        },
+    )
+    assert delete.status_code == 200, delete.text
+
+
+def test_delete_section_cascades(records):
+    farm = records.ids.farm
+    section_id = str(uuid4())
+    section = records.client.post(
+        f"/farms/{farm}/sections",
+        json=create_body(records, "sections", section_id),
+    )
+    assert section.status_code == 200, section.text
+
+    attached = {}
+    for resource in ("plantings", "tasks", "financials", "plans", "media"):
+        body = create_body(records, resource)
+        body["section_id"] = section_id
+        created = records.client.post(f"/farms/{farm}/{resource}", json=body)
+        assert created.status_code == 200, created.text
+        attached[resource] = body["id"]
+    observation = observation_payload(records.ids)
+    observation["section_id"] = section_id
+    created_observation = records.client.post(f"/farms/{farm}/observations", json=observation)
+    assert created_observation.status_code == 200, created_observation.text
+    attached["observations"] = observation["observation_id"]
+
+    expected_child_versions = {record_id: 1 for record_id in attached.values()}
+
+    before = records.client.get(f"/farms/{farm}/changes?since=0&limit=100").json()
+    change_count_before = len(before["items"])
+
+    delete = records.client.post(
+        f"/farms/{farm}/sections/{section_id}/delete",
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_version": 1,
+            "expected_child_versions": expected_child_versions,
+        },
+    )
+    assert delete.status_code == 200, delete.text
+
+    for resource, record_id in attached.items():
+        get = records.client.get(f"/farms/{farm}/{resource}/{record_id}")
+        assert get.status_code == 404, f"{resource} not tombstoned: {get.text}"
+    with records.sessions() as session:
+        from farmable_backend.models import (
+            FarmTask,
+            FinancialRecord,
+            Media,
+            Observation,
+            Planting,
+            PlantingCrop,
+            SavedPlan,
+        )
+
+        for model, record_id in zip(
+            (Planting, FarmTask, FinancialRecord, SavedPlan, Media, Observation),
+            (
+                attached["plantings"],
+                attached["tasks"],
+                attached["financials"],
+                attached["plans"],
+                attached["media"],
+                attached["observations"],
+            ),
+            strict=True,
+        ):
+            row = session.get(model, UUID(record_id))
+            assert row is not None
+            assert row.deleted_at is not None
+        assert session.get(PlantingCrop, UUID(attached["plantings"])) is None
+
+    after = records.client.get(f"/farms/{farm}/changes?since=0&limit=100").json()
+    # The section tombstone plus one SyncChange per attached record.
+    assert len(after["items"]) == change_count_before + 1 + len(attached)
+
+    # Safe to run twice: a second, different mutation against the already-deleted
+    # section must not error and must not double-tombstone or double-publish.
+    delete_again = records.client.post(
+        f"/farms/{farm}/sections/{section_id}/delete",
+        json={"mutation_id": str(uuid4()), "expected_version": delete.json()["version"]},
+    )
+    assert delete_again.status_code == 200, delete_again.text
+    again = records.client.get(f"/farms/{farm}/changes?since=0&limit=100").json()
+    assert len(again["items"]) == len(after["items"]) + 1  # only the section's own change row
 
 
 @pytest.mark.parametrize(

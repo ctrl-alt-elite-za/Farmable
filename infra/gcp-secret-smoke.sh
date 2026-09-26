@@ -15,7 +15,7 @@ service_json="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
 # EnvVar.valueFrom -> EnvVarSource.secretKeyRef -> SecretKeySelector{name, key}.
 # Checking that one shape fails loudly if the encoding ever changes; accepting several
 # shapes could only fail open.
-for name in DATABASE_URL GEMINI_API_KEY; do
+for name in DATABASE_URL GEMINI_API_KEY EXPORT_TOKEN_SECRET; do
   if ! jq -e --arg name "$name" '
     any(.. | objects;
       .name == $name
@@ -35,7 +35,9 @@ done
 # Manager, which is exactly what the no-plaintext rule exists to prevent.
 for name in TWILIO_AUTH_TOKEN TURNSTILE_SECRET AZURE_SPEECH_KEY CROP_HEALTH_API_KEY \
   MAPS_SERVER_API_KEY TWILIO_ACCOUNT_SID TWILIO_VERIFY_SERVICE_SID TURNSTILE_HOSTNAME \
-  AZURE_SPEECH_RESOURCE AZURE_SPEECH_REGION GEMINI_MODEL; do
+  TURNSTILE_SITE_KEY AZURE_SPEECH_RESOURCE AZURE_SPEECH_REGION GEMINI_MODEL \
+  INFOBIP_BASE_URL INFOBIP_API_KEY INFOBIP_SMS_SENDER SMTP_HOST SMTP_USER SMTP_PASSWORD \
+  EMAIL_FROM_NAME EMAIL_FROM_ADDRESS; do
   if jq -e --arg name "$name" '
     any(.. | objects; .name == $name and has("value"))
   ' <<<"$service_json" >/dev/null; then
