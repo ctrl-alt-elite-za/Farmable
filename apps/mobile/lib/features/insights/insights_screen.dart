@@ -82,10 +82,11 @@ class InsightsScreen extends ConsumerWidget {
               detail: 'Saved crop outlooks and their age',
               onTap: () => context.go('/insights/market'),
             ),
-            const _InsightLink(
+            _InsightLink(
               icon: LucideIcons.wallet,
-              title: 'Money · coming',
-              detail: 'Income and spending by section are being connected.',
+              title: 'Money',
+              detail: 'Money in and out, for the farm and each section',
+              onTap: () => context.go('/insights/money'),
             ),
             const _InsightLink(
               icon: LucideIcons.bell,
