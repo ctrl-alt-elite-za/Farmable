@@ -84,3 +84,8 @@ def test_the_committed_run_is_found_and_read():
     run = check.latest_run()
     assert (run / "decision_backtest.json").is_file()
     assert isinstance(check.evidence(run), check.Evidence)
+
+
+def test_the_committed_demo_script_quotes_only_backed_figures():
+    script = Path(__file__).resolve().parents[2] / "docs" / "demo-script.md"
+    assert check.main([str(script)]) == 0

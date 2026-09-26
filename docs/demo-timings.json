@@ -1,0 +1,13 @@
+{
+  "build_sha": null,
+  "measured_on": null,
+  "device": null,
+  "targets": [
+    { "moment": "live_boxes", "target": ">= 20 fps", "measured": null, "met": null, "mitigation_issue": null },
+    { "moment": "focus_scan_to_size_and_weight", "target": "<= 2 s", "measured": null, "met": null, "mitigation_issue": null },
+    { "moment": "diagnosis", "target": "<= 20 s", "measured": null, "met": null, "mitigation_issue": null },
+    { "moment": "first_assistant_text", "target": "<= 2 s", "measured": null, "met": null, "mitigation_issue": null },
+    { "moment": "first_spoken_audio", "target": "<= 3 s", "measured": null, "met": null, "mitigation_issue": null },
+    { "moment": "interrupt", "target": "<= 300 ms", "measured": null, "met": null, "mitigation_issue": null }
+  ]
+}
