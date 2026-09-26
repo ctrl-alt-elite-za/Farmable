@@ -35,7 +35,7 @@ import '../../app/config.dart';
 import '../../app/providers.dart';
 import '../../core/utils/ids.dart';
 import '../../data/assistant/api_assistant_service.dart';
-import '../../data/assistant/device_voice.dart';
+import '../../data/device/voice_audio.dart';
 import '../../data/assistant/fake_voice.dart';
 import '../../data/assistant/gemini_live_link.dart';
 import '../../data/auth/api_auth_service.dart';
