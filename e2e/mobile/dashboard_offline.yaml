@@ -1,0 +1,30 @@
+# Airplane mode, then a cold start: Home comes back from the phone, labelled
+# with how old it is and that it is offline (#12).
+#
+# Runs after dashboard_degraded.yaml, with Thandi still signed in and the API
+# stopped. Airplane mode is switched back off at the end so the flows after
+# this one start with a network.
+#
+#   maestro test e2e/mobile/dashboard_offline.yaml
+appId: za.co.almanac.app
+name: Cold start in airplane mode shows cached Home with its age
+---
+- setAirplaneMode: enabled
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Hello, Thandi.*'
+    timeout: 60000
+- extendedWaitUntil:
+    visible: '.*Updated .* · offline.*'
+    timeout: 30000
+- scrollUntilVisible:
+    element: '.*Crop analytics.*'
+    direction: DOWN
+    timeout: 20000
+# Missing measures are said, not shown as zeros.
+- scrollUntilVisible:
+    element: '.*No weight estimates yet.*'
+    direction: DOWN
+    timeout: 20000
+- setAirplaneMode: disabled

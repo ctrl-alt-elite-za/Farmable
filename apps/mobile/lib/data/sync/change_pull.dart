@@ -137,6 +137,7 @@ class ChangePuller {
         applied++;
       }
     }
+    await _markPulled();
     return applied;
   }
 
@@ -485,6 +486,20 @@ class ChangePuller {
               .getSingleOrNull())
           ?.cursor ??
       0;
+
+  /// Stamps a pull that read the feed to its end. The durable cursor is
+  /// re-read rather than passed in: a deferred record holds it back, and this
+  /// must not move it.
+  Future<void> _markPulled() async => db
+      .into(db.syncCursors)
+      .insertOnConflictUpdate(
+        SyncCursorsCompanion.insert(
+          ownerId: _ownerId,
+          farmId: _farmId,
+          cursor: await _cursor(),
+          pulledAt: Value(now()),
+        ),
+      );
 
   Future<void> _saveCursor(int cursor) => db
       .into(db.syncCursors)
