@@ -153,6 +153,14 @@ final accountStorageProvider = Provider<SessionStorage>(
       : SecureSessionStorage(key: 'almanac.account'),
 );
 
+/// Which server conversation the assistant last used, per account and farm —
+/// identifiers only, never chat text. Its own key, and wiped with the rest.
+final assistantStorageProvider = Provider<SessionStorage>(
+  (ref) => ref.watch(demoAuthProvider)
+      ? FileSessionStorage(fileName: 'almanac_demo_assistant.json')
+      : SecureSessionStorage(key: 'almanac.assistant'),
+);
+
 final exportStoreProvider = Provider<ExportStore>((ref) => FileExportStore());
 
 /// Every folder the app writes the farmer's files into. Deletion empties each.
@@ -174,6 +182,7 @@ final deviceWipeProvider = Provider<DeviceWipe>((ref) {
     stores: [
       ref.watch(sessionStorageProvider),
       ref.watch(accountStorageProvider),
+      ref.watch(assistantStorageProvider),
     ],
     directories: ref.watch(deviceDirectoriesProvider),
     reseed: () => DemoSeed(db, now: now).ensureSeeded(),

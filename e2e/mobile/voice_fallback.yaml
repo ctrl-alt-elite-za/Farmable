@@ -1,0 +1,35 @@
+# Voice falls back to typing without losing what was said (#24).
+#
+# The TEST_MODE build replaces the microphone, the backend's voice routes and
+# the Gemini Live socket with FakeVoice.fallbackDemo (lib/data/assistant/
+# fake_voice.dart): the provider hears "Plant cabbages in the north plot",
+# then the connection drops and cannot be resumed. No audio, network or
+# credential is involved, so this runs anywhere the other flows run.
+#
+#   maestro test e2e/mobile/voice_fallback.yaml
+appId: za.co.almanac.app
+name: A farmer talks, the connection drops, and their words wait in the typing box
+---
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+- tapOn:
+    id: 'assistant-open'
+- extendedWaitUntil:
+    visible:
+      id: 'voice-start'
+    timeout: 20000
+- tapOn:
+    id: 'voice-start'
+# The fake is listening for two seconds; too brief to assert on reliably, so
+# the flow waits for the ending instead.
+# The drop, and the plain words for it.
+- extendedWaitUntil:
+    visible: '.*voice connection was lost.*'
+    timeout: 15000
+# What was said is in the typing box, ready to send or edit.
+- assertVisible: '.*Plant cabbages in the north plot.*'
+# And the mic is offered again.
+- assertVisible:
+    id: 'voice-start'
