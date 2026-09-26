@@ -407,7 +407,7 @@ second line in `#82d89a`; the panel is `#012120`.
 **It does not theme-switch** — a native splash is a fixed asset, and both theme frames are
 identical on purpose.
 
-**Brand intro** — `intro.gif`, `object-fit: cover`, filling the screen. Its composition is
+**Brand intro** — `intro.gif` (kept out of the repo for size; see TOKENS.md), `object-fit: cover`, filling the screen. Its composition is
 centred, so cover crops evenly off the sides and loses nothing. Under `prefers-reduced-motion`
 it falls back to a still.
 

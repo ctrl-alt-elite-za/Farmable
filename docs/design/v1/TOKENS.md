@@ -366,7 +366,7 @@ as given — nothing is recoloured or redrawn.
 | File | Source | Used for |
 |---|---|---|
 | `launch.svg` | App kit.svg | The native launch screen, full bleed |
-| `intro.gif` | App kit.gif | The animated brand intro |
+| `intro.gif` | App kit.gif | The animated brand intro — **not committed** (46.7 MB); get it from the design source. The reference page shows `launch-photo.jpeg` in its place |
 | `lockup-light.svg` | App kit (3).svg | Mark + wordmark, dark type — for light surfaces |
 | `lockup-dark.svg` | App kit (4).svg | Mark + wordmark, white type — for dark surfaces |
 | `logo.svg` | App kit (2).svg | The original square lockup, kept as the master |
