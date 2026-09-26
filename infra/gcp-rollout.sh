@@ -15,6 +15,14 @@ FORECAST_DATA_MODE="${FORECAST_DATA_MODE:-disabled}"
 case "$FORECAST_DATA_MODE" in disabled|sample|historical) ;; *)
   echo 'Invalid forecast data mode' >&2; exit 1 ;;
 esac
+# Cloud Run caps a traffic tag plus the service name at 46 characters, so the full
+# 40-character SHA ("sha-" + 40 = 44) cannot tag any service. Twelve hex digits stay
+# unambiguous within one service's revisions and leave room for the name.
+TRAFFIC_TAG="sha-${COMMIT_SHA:0:12}"
+if (( ${#TRAFFIC_TAG} + ${#CLOUD_RUN_SERVICE} > 46 )); then
+  echo "Traffic tag ${TRAFFIC_TAG} and service ${CLOUD_RUN_SERVICE} exceed 46 characters" >&2
+  exit 1
+fi
 
 # `describe` exits non-zero both when the service is absent and when the call simply
 # failed, and the two are distinguishable only by parsing human-readable error text.
@@ -162,7 +170,7 @@ echo "Provider secrets skipped, no enabled version: ${skipped[*]:-none}"
 
 gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --project="$GCP_PROJECT" --region="$GCP_REGION" \
-  --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="sha-${COMMIT_SHA}" \
+  --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="$TRAFFIC_TAG" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
   --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \
@@ -180,7 +188,7 @@ service_json="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
   --project="$GCP_PROJECT" --region="$GCP_REGION" --format=json)"
 # Resolve the URL and revision together: another deployment can advance
 # latestCreatedRevisionName while our commit tag still points at our candidate.
-if ! candidate="$(jq -ce --arg tag "sha-${COMMIT_SHA}" '
+if ! candidate="$(jq -ce --arg tag "$TRAFFIC_TAG" '
   [.status.traffic[]? | select(.tag == $tag)] |
   select(length == 1) | .[0] |
   select(.revisionName | strings | length > 0) |

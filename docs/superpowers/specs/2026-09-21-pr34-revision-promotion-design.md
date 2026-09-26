@@ -10,7 +10,7 @@ policy.
 ## Design
 
 After deployment, read one service JSON snapshot. Require exactly one traffic
-entry matching `sha-${COMMIT_SHA}`, with a nonempty revision name and an HTTPS
+entry matching `sha-${COMMIT_SHA:0:12}`, with a nonempty revision name and an HTTPS
 URL. Resolve both candidate values from that entry and promote only that revision
 after all existing health and smoke checks pass. Never use
 `latestCreatedRevisionName` to select the promotion target.
