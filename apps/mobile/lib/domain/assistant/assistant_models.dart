@@ -446,10 +446,13 @@ class PlanRevision {
   });
 
   factory PlanRevision.fromJson(Map<String, Object?> json) {
+    // The backend's snapshot is the whole saved_plans row
+    // (planning/history.py): the planner result sits under `plan`.
     final snapshot = json['snapshot'];
-    final candidate = snapshot is Map ? snapshot['candidate'] : null;
+    final plan = snapshot is Map ? snapshot['plan'] : null;
+    final candidate = plan is Map ? plan['candidate'] : null;
     final candidateId = candidate is Map ? candidate['id'] : null;
-    final hash = snapshot is Map ? snapshot['snapshot_hash'] : null;
+    final hash = plan is Map ? plan['snapshot_hash'] : null;
     return PlanRevision(
       version: json['version']! as int,
       origin: json['origin']! as String,

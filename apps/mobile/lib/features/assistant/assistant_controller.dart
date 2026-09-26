@@ -420,8 +420,16 @@ class AssistantController extends Notifier<AssistantChatState> {
 
   /// Called when the sheet opens. Cheap when the conversation is already
   /// open for this account; otherwise works out where the farmer stands.
-  Future<void> open() =>
-      _opening ??= _open().whenComplete(() => _opening = null);
+  Future<void> open() {
+    final pending = _opening;
+    if (pending != null) return pending;
+    late final Future<void> run;
+    // Only this run clears the slot: after a reset, a newer open may own it.
+    run = _open().whenComplete(() {
+      if (identical(_opening, run)) _opening = null;
+    });
+    return _opening = run;
+  }
 
   Future<void> _open() async {
     final api = ref.read(assistantApiFactoryProvider)();
@@ -612,6 +620,9 @@ class AssistantController extends Notifier<AssistantChatState> {
   /// Starts again from nothing: another account, or a sign-out.
   void _reset() {
     _epoch++;
+    // An open still in flight belongs to the old account and gives up at its
+    // epoch check; the next open must start afresh, not wait on that one.
+    _opening = null;
     _run?.cancel();
     _run = null;
     _api = null;
