@@ -35,6 +35,9 @@ const _allowedDeviceCallers = [
   // Walking a boundary (#15): location is asked for only when "Start
   // walking" is tapped.
   'lib/features/boundary/',
+  // Talking to the assistant (#24): the microphone is asked for only when the
+  // mic is tapped, after the voice notice has been accepted.
+  'lib/features/assistant/',
 ];
 
 Iterable<File> _dartFiles(String dir) =>

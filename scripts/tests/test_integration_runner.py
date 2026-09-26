@@ -142,6 +142,9 @@ bash "$1" mobile
     expected = ["online_launch", "signup", "login", "scan_pan"]
     if not scan_fails:
         expected += [
+            "voice_fallback",
+            "upload_offline_resume",
+            "assistant_plan",
             "first_launch_setup",
             "dashboard_degraded",
             "dashboard_offline",

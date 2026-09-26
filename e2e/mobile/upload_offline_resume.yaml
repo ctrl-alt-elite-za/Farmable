@@ -8,12 +8,8 @@
 # reports it ready, then creates the observation. scripts/check_upload.js then
 # asks the API itself: one media record, one observation carrying it.
 #
-# PREREQUISITE, NOT YET MET IN CI: the stack must have photo storage. The API
-# only uploads to Google Cloud Storage (PHOTO_BUCKET + PHOTO_SIGNER_EMAIL);
-# scripts/ci-stack.sh configures neither, so every reservation there answers
-# 503 photo_storage_disabled and this flow would wait for "sent" forever. It is
-# deliberately not wired into ci-stack.sh until the backend (#11) can upload
-# to a disposable store in CI.
+# The stack needs photo storage: scripts/ci-stack.sh mobile adds a disposable
+# MinIO (compose.ci-photos.yaml, #11) whose signed forms point at 10.0.2.2.
 #
 #   API_URL=http://127.0.0.1:8000 maestro test e2e/mobile/upload_offline_resume.yaml
 #
@@ -40,9 +36,19 @@ env:
 - extendedWaitUntil:
     visible: '.*Offline test beds.*'
     timeout: 60000
-- tapOn: '.*Offline test beds.*'
+# Open it from the Farm tab's list: on Home the name also appears in the
+# "missing a planting date" notice, which a tap on the text would hit instead.
+- tapOn:
+    id: 'nav-farm'
+- scrollUntilVisible:
+    element: 'Offline test beds.*'
+    direction: DOWN
+    centerElement: true
+- tapOn: 'Offline test beds.*'
+# Centred, so the tap cannot land on the assistant button docked at the bottom.
 - scrollUntilVisible:
     element: 'Write one down'
+    centerElement: true
 # From here until the photo is saved, the phone has no signal at all.
 - setAirplaneMode: enabled
 - tapOn: 'Write one down'
@@ -52,6 +58,11 @@ env:
 - tapOn: 'Yellow leaves on the south side'
 - inputText: 'Under the leaves, north corner'
 - hideKeyboard
+# Below the fold of the sheet on a small screen.
+- scrollUntilVisible:
+    element: 'Add a photo'
+    direction: DOWN
+    centerElement: true
 - tapOn: 'Add a photo'
 - extendedWaitUntil:
     visible: '.*Photo added.*'

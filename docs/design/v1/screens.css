@@ -1,0 +1,49 @@
+/* ============================================================================
+   Farmable v1 — styles used only by the screen-gallery pages.
+   ========================================================================== */
+.greet { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3);
+           padding: var(--sp-3) 0 var(--sp-4); }
+  .greet h1 { margin: 0; font: var(--type-headline-m); letter-spacing: var(--tracking-tight); }
+  .greet .g-date { font: var(--type-label-s); color: var(--on-surface-variant); margin-top: 2px; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--secondary-container);
+            color: var(--on-secondary-container); display: grid; place-items: center; font: var(--type-label-m); flex: none; }
+  .row-item { display: grid; grid-template-columns: 38px 1fr auto; gap: var(--sp-3); align-items: center;
+              padding: var(--sp-3) 0; border-bottom: 1px solid var(--outline-variant); }
+  .row-item:last-child { border-bottom: 0; }
+  .row-ico { width: 38px; height: 38px; border-radius: var(--r-sm); display: grid; place-items: center; }
+  .row-ico svg { width: 19px; height: 19px; }
+  .row-t { font: var(--type-title-s); }
+  .row-s { font: var(--type-label-s); color: var(--on-surface-variant); margin-top: 2px; }
+  .zone-hero { position: relative; height: 38%; flex: none; }
+  .zone-hero > div[data-scene] { position: absolute; inset: 0; }
+  .zone-hero > div[data-scene] svg { width: 100%; height: 100%; }
+  .zh-scrim { position: absolute; inset: 0; background: var(--scrim-top); }
+  .zh-bottom-scrim { position: absolute; left:0; right:0; bottom: 0; height: 40%;
+                     background: linear-gradient(to top, rgba(18,17,14,0.72), rgba(18,17,14,0)); }
+  .zh-top { position: absolute; top: 34px; left: var(--sp-4); right: var(--sp-4); display: flex; gap: var(--sp-2); }
+  .zh-title { position: absolute; left: var(--gutter); right: var(--gutter); bottom: var(--sp-4); color: var(--on-scrim); }
+  .zh-title h1 { margin: 0; font: var(--type-headline-m); letter-spacing: var(--tracking-tight); }
+  .detail-row { display: flex; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) 0;
+                border-bottom: 1px solid var(--outline-variant); font: var(--type-body-s); }
+  .detail-row:last-child { border-bottom: 0; }
+  .detail-row .dk { color: var(--on-surface-variant); }
+  .detail-row .dv { font: var(--type-label-m); text-align: right; }
+  .why-row { display: grid; grid-template-columns: 32px 1fr auto; gap: var(--sp-3); align-items: center;
+             padding: var(--sp-3) 0; border-bottom: 1px solid var(--outline-variant); }
+  .why-row:last-child { border-bottom: 0; }
+  .action-bar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 45;
+                padding: var(--sp-4) var(--gutter) var(--sp-5);
+                background: var(--glass-surface);
+                -webkit-backdrop-filter: var(--blur-md); backdrop-filter: var(--blur-md);
+                border-top: 1px solid var(--glass-hairline-strong);
+                border-radius: var(--r-xl) var(--r-xl) 0 0;
+                box-shadow: var(--elev-sheet); display: grid; gap: var(--sp-2); }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .action-bar { background: var(--surface); }
+  }
+  .assistant-strip { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3);
+                     background: var(--primary-container); color: var(--on-primary-container); border-radius: var(--r-md); }
+  .frames { align-items: flex-start; }
+  .grp { margin-bottom: var(--sp-9); }
+  .grp > h2 { font: var(--type-headline-s); letter-spacing: var(--tracking-tight); margin: 0 0 var(--sp-2); }
+  .grp > p { margin: 0 0 var(--sp-5); font: var(--type-body-s); color: var(--on-surface-variant); max-width: 80ch; }

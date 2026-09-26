@@ -867,3 +867,42 @@ def test_every_required_check_documents_its_local_reproduction():
         assert f"`{name}`" in documentation, name
         assert f"`{command}`" in documentation, name
         assert guidance, name
+
+
+def test_ci_photo_storage_is_only_in_the_mobile_stack():
+    """Uploads from the emulator need storage (#11, #17); nothing else gets it."""
+    repo = Path(__file__).resolve().parents[2]
+    stack = (repo / "scripts/ci-stack.sh").read_text(encoding="utf-8")
+    added = stack.index("compose+=(-f compose.ci-photos.yaml)")
+    # The nearest top-level `if` above it (column 0) is the mobile one.
+    opening = stack.rindex("\nif [", 0, added)
+    assert stack[opening + 1 :].startswith('if [ "$mode" = mobile ]; then')
+    assert "\nfi\n" not in stack[opening:added]
+    assert stack.count("compose.ci-photos.yaml") == 1
+
+    override = yaml.safe_load((repo / "compose.ci-photos.yaml").read_text(encoding="utf-8"))
+    for service in ("api", "worker"):
+        env = override["services"][service]["environment"]
+        assert env["PHOTO_TEST_STORAGE_URL"] == "http://photo-storage:9000"
+        # The emulator reaches the host's published port as 10.0.2.2.
+        assert env["PHOTO_TEST_STORAGE_PUBLIC_URL"] == "http://10.0.2.2:9000"
+    assert override["services"]["photo-storage"]["ports"] == ["127.0.0.1:9000:9000"]
+
+
+def test_the_assistant_runs_only_for_its_own_flow_onward():
+    """#23: the assistant and forecasts switch on just before assistant_plan."""
+    repo = Path(__file__).resolve().parents[2]
+    stack = (repo / "scripts/ci-stack.sh").read_text(encoding="utf-8")
+    switched = stack.index("compose+=(-f compose.ci-assistant.yaml)")
+    assert stack.index("maestro test e2e/mobile/voice_fallback.yaml") < switched
+    assert switched < stack.index("maestro test e2e/mobile/assistant_plan.yaml")
+    assert stack.index('"${compose[@]}" run --rm forecast-import') < stack.index(
+        "maestro test e2e/mobile/assistant_plan.yaml"
+    )
+    override = yaml.safe_load((repo / "compose.ci-assistant.yaml").read_text(encoding="utf-8"))
+    for service in ("api", "worker"):
+        env = override["services"][service]["environment"]
+        # The fake model only: never a live provider or a real budget.
+        assert env["ASSISTANT_POLICY_MODEL"] == "fixture-model"
+        assert env["FORECAST_DATA_MODE"] == "retrospective"
+    assert override["services"]["forecast-import"]["profiles"] == ["tools"]

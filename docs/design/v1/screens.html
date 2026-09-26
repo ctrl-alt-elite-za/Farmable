@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmable — Screens</title>
+<link rel="stylesheet" href="tokens.css?v=5">
+<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app-forms.css?v=5">
+<link rel="stylesheet" href="screens.css?v=5">
+
+</head>
+<body data-theme="light" data-size="standard">
+
+<header class="topbar">
+  <div class="brand">Farmable — Screens<span>v1 · Sipho Dlamini · Siyakhula Farm</span></div>
+  <nav class="inline">
+    <a class="btn btn-tonal" href="index.html">Overview</a>
+    <a class="btn btn-tonal" href="screens.html">Core</a>
+    <a class="btn btn-tonal" href="screens-auth.html">Auth</a>
+    <a class="btn btn-tonal" href="screens-farm.html">Farm</a>
+    <a class="btn btn-tonal" href="screens-insights.html">Insights</a>
+  </nav>
+  <div class="seg">
+    <button data-size-set="standard" aria-pressed="true">390 × 844</button>
+    <button data-size-set="compact" aria-pressed="false">360 × 640</button>
+  </div>
+  <div class="seg">
+    <button data-font-set="system" aria-pressed="true">System (SF on Apple)</button>
+    <button data-font-set="android" aria-pressed="false">Android (Roboto)</button>
+  </div>
+  <button class="btn btn-secondary" data-toggle-theme>
+    <i data-icon="moon" style="display:contents"></i><span data-theme-label>Light</span>
+  </button>
+</header>
+
+<main class="page">
+  <nav class="scroll-index" id="screen-index"></nav>
+  <div id="screens"></div>
+</main>
+
+<script src="farmable.js?v=5"></script>
+<script src="screens-lib.js?v=5"></script>
+<script>
+/* ===========================================================================
+   Screen templates. Each is rendered twice — once into a light frame, once
+   into a dark frame — from the same source, so the themes cannot drift.
+   Content is the demo data from section 54 of the guide.
+=========================================================================== */
+/* ================================================================== HOME */
+function screenHome(opts) {
+  opts = opts || {};
+  let h = '<div class="device-screen' + (opts.sheet ? ' sheet-open' : '') + '">';
+  h += '<div class="glow-top"></div>';
+  h += statusbar(sync('offline', 'cloudOff', 'Offline'));
+  h += '<div class="screen-scroll">';
+
+  h += '<div class="pad"><div class="greet"><div><h1>Hello, Sipho</h1>' +
+       '<div class="g-date">Sunday, 20 September</div></div>' +
+       '<div class="inline" style="gap:var(--sp-2)">' + sync('pending', 'upload', '3') +
+       '<div class="avatar">SD</div></div></div></div>';
+
+  /* FarmHeroCard */
+  h += '<div class="pad"><div class="hero-card"><div data-scene="farm" style="display:contents"></div>' +
+       '<div class="hc-scrim"></div>' +
+       '<div class="hc-top">' + badge('on-track', 'checkCircle', 'Health: Good') +
+       '<button class="btn-icon on-scrim" aria-label="Open farm map">' + I('map') + '</button></div>' +
+       '<div class="hc-body"><h3>Siyakhula Farm</h3>' +
+       '<div class="hc-loc">KwaMashu, KwaZulu-Natal</div>' +
+       '<div class="hc-meta"><span class="hm">' + I('ruler') + '2.4 ha</span>' +
+       '<span class="hm">' + I('layers') + '4 sections</span>' +
+       '<span class="hm">' + I('coins') + 'R48,100 projected</span></div></div></div></div>';
+
+  /* Zone carousel */
+  h += '<div class="pad">' + sectionHeader('Your farm', '4 sections', 'See all') + '</div>';
+  h += '<div class="carousel">' + ZONES.map(function (z) {
+    return '<div class="car-item">' + zoneCard(z) + '</div>';
+  }).join('') + '</div>';
+
+  /* Farm health */
+  h += '<div class="pad">' + sectionHeader('Farm health', 'Updated 2 hours ago') +
+    '<div class="card health-card"><div class="health-top">' +
+    '<div class="gauge"><svg viewBox="0 0 100 100" width="86" height="86">' +
+    '<circle cx="50" cy="50" r="40" stroke="var(--surface-container-high)" stroke-width="10" fill="none"/>' +
+    '<circle cx="50" cy="50" r="40" stroke="var(--status-on-track)" stroke-width="10" fill="none" ' +
+    'stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="45.2"/></svg>' +
+    '<div class="g-num"><b>82</b><i>/ 100</i></div></div>' +
+    '<div><div style="font:var(--type-title-m);margin-bottom:6px">Farm health</div>' +
+    badge('on-track', 'checkCircle', 'On track') +
+    '<div class="muted" style="font:var(--type-body-s);margin-top:8px">1 section needs attention</div></div></div>' +
+    '<div class="health-bars">' +
+    hbar('Cabbage Field', 88, 'on-track', 'Good') +
+    hbar('Tomato Section', 54, 'needs-attention', 'Needs attention') +
+    hbar('Spinach Beds', 91, 'on-track', 'Good') +
+    '</div><button class="btn btn-secondary btn-block" style="margin-top:var(--sp-4)">' +
+    I('gauge') + 'Review health</button></div></div>';
+
+  /* Quick actions */
+  h += '<div class="pad">' + sectionHeader('Add to your farm') + '<div class="qa-grid">' +
+    qa('notebook', 'Add observation') + qa('receipt', 'Add expense') + qa('tag', 'Add sale') +
+    qa('check', 'Add task') + qa('layers', 'Add section') + qa('camera', 'Scan crop') +
+    '</div></div>';
+
+  /* Map */
+  h += '<div class="pad">' + sectionHeader('Farm map', 'Saved on your phone', 'Open') +
+    '<div class="map-card"><div data-scene="map" style="display:contents"></div>' +
+    '<span class="badge badge-offline map-chip">' + I('cloudOff') + 'Offline map</span></div></div>';
+
+  /* Next up */
+  h += '<div class="pad">' + sectionHeader('Next up') + '<div class="card" style="padding:0 var(--sp-4)">' +
+    rowItem('alert', 'action-required', 'Weed second row', 'Cabbage Field · overdue since 16 Sep', 'Overdue') +
+    rowItem('droplet', 'primary', 'Fertiliser application', 'Cabbage Field · by Friday 26 Sep', '') +
+    rowItem('scan', 'needs-attention', 'Check tomato leaves', 'Tomato Section · leaf curl seen 18 Sep', '') +
+    '</div></div>';
+
+  h += '</div>';  /* /screen-scroll */
+
+  if (opts.sheet) h += '<div class="backdrop"></div>' + assistantSheet();
+  h += navbar('home') + aiDock(opts.sheet ? 'listening' : 'idle', opts.sheet ? 'Listening' : undefined);
+  h += '</div>';
+  return h;
+}
+/* ====================================================== ASSISTANT SHEET */
+function assistantSheet() {
+  return '<div class="sheet" role="dialog" aria-label="Farm assistant">' +
+    '<div class="handle"></div>' +
+    '<div class="sheet-scroll">' +
+      '<div class="ai-status"><span class="as-dot">' + I('mic') + '</span>' +
+      '<div><div class="as-state">Listening…</div>' +
+      '<div class="as-hint">Release to finish, or tap the logo</div></div>' +
+      '<div class="waveform" style="margin-left:auto;color:var(--primary)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>' +
+
+      '<div class="transcript"><span class="t-k">You said</span>' +
+      'I have R12,000 and water is limited. What can I plant on the North Plot?</div>' +
+
+      '<div class="chip-row" style="margin-bottom:var(--sp-4)">' +
+        chip('', 'pin', 'North Plot · 0.7 ha') +
+        chip('', 'wallet', 'Budget R12,000') +
+        chip('warn', 'droplet', 'Water limited') +
+      '</div>' +
+
+      sectionHeader('2 crops fit this land') +
+
+      recCard({ crop: 'Cabbage', variety: 'Star 3306', scene: 'cropCabbage', fit: 'strong',
+                profit: 'R17,400', cost: 'R10,600',
+                chips: [['ok','check','Within budget'],['ok','flask','Soil fit'],['warn','droplet','Water: medium'],['','clock','~90 days']] }) +
+      '<div style="height:var(--sp-3)"></div>' +
+      recCard({ crop: 'Tomatoes', variety: 'Roma VF', scene: 'cropTomato', fit: 'weak',
+                profit: 'R22,100', cost: 'R14,800',
+                chips: [['block','wallet','R2,800 over your R12,000'],['block','droplet','Water: high'],['','clock','~100 days']] }) +
+
+      '<div class="card" style="padding:var(--sp-3) var(--sp-4);margin-top:var(--sp-4);display:flex;gap:var(--sp-3);align-items:center">' +
+      '<span style="color:var(--tertiary)">' + I('volume') + '</span>' +
+      '<div style="font:var(--type-body-s)">Cabbage fits your budget and the water you have. Tomatoes earn more but need more of both.</div></div>' +
+
+      '<div style="height:var(--sp-5)"></div>' +
+    '</div></div>';
+}
+/* =========================================================== ZONE DETAIL */
+function screenZone(opts) {
+  opts = opts || {};
+  let h = '<div class="device-screen">';
+  h += statusbar(sync('offline', 'cloudOff', 'Offline'));
+  h += '<div class="screen-scroll" style="padding-top:0">';
+
+  h += '<div class="zone-hero"><div data-scene="cabbageWide"></div><div class="zh-scrim"></div><div class="zh-bottom-scrim"></div>' +
+    '<div class="zh-top"><button class="btn-icon on-scrim" aria-label="Back">' + I('arrowLeft') + '</button>' +
+    '<span style="flex:1"></span>' +
+    '<button class="btn-icon on-scrim" aria-label="Scan this section">' + I('camera') + '</button>' +
+    '<button class="btn-icon on-scrim" aria-label="More options">' + I('more') + '</button></div>' +
+    '<div class="zh-title"><h1>Cabbage Field</h1>' +
+    '<div class="inline" style="margin-top:var(--sp-2)">' + badge('on-track', 'checkCircle', 'On track') +
+    badge('scrim', 'leaf', 'Cabbage · Star 3306') + badge('scrim', 'ruler', '0.6 ha') + '</div></div></div>';
+
+  h += '<div class="pad" style="padding-top:var(--sp-4)">' +
+    '<p style="margin:0 0 var(--sp-4);font:var(--type-body-m);color:var(--on-surface-variant)">' +
+    'The flat section below the water tank. Planted 8 August after the winter rain.</p>' +
+
+    '<div class="metric-row">' +
+    metric('gauge', 'Current health', 'Good', 'Scanned 3 days ago', '') +
+    metric('trendUp', 'Expected profit', 'R17,400', 'at current prices', 'profit') +
+    metric('wallet', 'Expected cost', 'R10,600', 'R6,200 spent so far', '') +
+    metric('calendar', 'Harvest', '92 days', 'around 21 Dec', '') +
+    '</div>';
+
+  h += sectionHeader('Additional details') + '<div class="card" style="padding:0 var(--sp-4)">' +
+    detailRow('Crop', 'Cabbage · Star 3306') +
+    detailRow('Area', '0.6 ha') +
+    detailRow('Planted', '8 August 2026') +
+    detailRow('Water', 'Tank + hose · last watered today') +
+    detailRow('Soil', 'Sandy loam · slightly acidic') +
+    detailRow('Market outlook', 'R4.20–R5.10 per head in December') +
+    '</div>' +
+    '<button class="btn btn-tonal btn-block" style="margin-top:var(--sp-3)">' + I('chevronDown') + 'Show more</button>';
+
+  h += sectionHeader('Timeline', 'Tap any step to change it') + '<div class="card" style="padding:var(--sp-5)">' + timeline() + '</div>';
+
+  h += sectionHeader('Recent observations', '', 'History');
+  h += '<div class="card" style="padding:0 var(--sp-4)">' + observations() + '</div>';
+
+  h += '<div style="height:var(--sp-6)"></div></div></div>';
+  h += navbar('farm') + aiDock('idle');
+  h += '</div>';
+  return h;
+}
+/* ================================================================ CAMERA */
+function screenCamera(opts) {
+  opts = opts || {};
+  let h = '<div class="device-screen camera-screen">';
+  h += '<div class="cam-feed"><div data-scene="camera" style="display:contents"></div></div>';
+  h += '<div class="statusbar" style="color:#fff;position:relative;z-index:21">' +
+       '<span>09:42</span><span class="sb-right">' + '</span></div>';
+
+  h += '<div class="cam-top"><button class="btn-icon on-scrim" aria-label="Back">' + I('arrowLeft') + '</button>' +
+    '<span class="cam-title" style="white-space:nowrap">Crop health</span>' +
+    '<span class="badge badge-scrim">' + I('scan') + 'Offline vision active</span></div>';
+
+
+  if (!opts.panel) {
+    h += '<div class="cam-bottom">' +
+      '<div class="cam-hint" style="margin-bottom:var(--sp-8)">Point at a plant. Hold the logo to talk while you look.</div>' +
+      '<button class="btn-icon on-scrim" aria-label="Choose a photo instead">' + I('layers') + '</button>' +
+      '<div style="width:64px"></div>' +
+      '<button class="btn-icon on-scrim" aria-label="Switch to mapping mode">' + I('map') + '</button>' +
+      '</div>';
+    h += '<div class="ai-dock" data-ai="idle" style="bottom:22px">' +
+      '<button class="ai-btn" aria-label="Farm assistant. Hold to speak, or tap to start and stop.">' +
+      '<span class="ring"></span><span class="ring"></span><span class="ring"></span>' + I('sprout') + '</button></div>';
+  } else {
+    h += camPanel();
+    h += '<div class="ai-dock" data-ai="listening" style="bottom:calc(36% + 14px)">' +
+      '<button class="ai-btn" aria-label="Listening. Tap to stop.">' +
+      '<span class="ring"></span><span class="ring"></span><span class="ring"></span>' + I('mic') + '</button></div>';
+  }
+  h += '</div>';
+  return h;
+}
+function camPanel() {
+  return '<div class="cam-panel">' +
+    '<div class="handle" style="width:40px;height:4px;border-radius:2px;background:var(--outline-variant);margin:var(--sp-2) auto"></div>' +
+    '<div class="ai-status" style="padding:0 0 var(--sp-2)">' +
+      '<span class="as-dot">' + I('mic') + '</span>' +
+      '<div><div class="as-state">Listening…</div></div>' +
+      '<div class="waveform" style="margin-left:auto;color:var(--primary)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>' +
+    '</div>' +
+    '<div class="cam-panel-scroll">' +
+    '<div class="transcript">I want to record that the leaves on these plants are yellowing.</div>' +
+    '</div>' +
+    '<div class="proposed" style="border-width:1.5px">' +
+      '<div class="pp-head" style="padding:var(--sp-2) var(--sp-3)">' + I('sparkles') + 'Proposed observation</div>' +
+      '<div style="padding:var(--sp-3) var(--sp-3) var(--sp-2)"><div class="chip-row">' +
+        chip('', 'scan', 'Cabbage 96%') + chip('', 'pin', 'Cabbage Field') +
+        chip('warn', 'leaf', 'Leaf yellowing') + '</div></div>' +
+      '<div class="confirm-bar" style="padding:0 var(--sp-3) var(--sp-3)">' +
+        '<button class="btn btn-primary" style="min-height:46px">' + I('check') + 'Confirm</button>' +
+        '<button class="btn btn-tonal" style="min-height:46px">Edit</button>' +
+        '<button class="btn btn-tonal" style="min-height:46px">Cancel</button>' +
+      '</div></div></div>';
+}
+
+/* ======================================================= RECOMMENDATIONS */
+function screenRecommendations() {
+  let h = '<div class="device-screen">';
+  h += statusbar(sync('offline', 'cloudOff', 'Offline'));
+  h += '<div class="screen-scroll"><div class="pad">';
+  h += '<div class="greet" style="padding-bottom:var(--sp-2)"><div>' +
+    '<div class="inline" style="margin-bottom:var(--sp-2)">' +
+    '<button class="btn-icon" aria-label="Back">' + I('arrowLeft') + '</button></div>' +
+    '<h1>What to plant</h1><div class="g-date">North Plot · 0.7 ha · empty since June</div></div></div>';
+
+  h += '<div class="card" style="padding:var(--sp-4);margin-bottom:var(--sp-4)">' +
+    '<div class="demo-label" style="font:var(--type-label-s);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--on-surface-variant);margin-bottom:var(--sp-3)">What I used</div>' +
+    '<div class="chip-row">' + chip('', 'wallet', 'Budget R12,000') + chip('warn', 'droplet', 'Water limited') +
+    chip('', 'flask', 'Sandy loam') + chip('', 'sun', 'Planting now, Sept') + '</div>' +
+    '<button class="btn btn-tonal btn-block" style="margin-top:var(--sp-3)">' + I('edit') + 'Change these</button></div>';
+
+  h += sectionHeader('2 crops fit', 'Sorted by what you keep');
+  h += recCard({ crop: 'Cabbage', variety: 'Star 3306', scene: 'cropCabbage', fit: 'strong',
+    profit: 'R17,400', cost: 'R10,600',
+    chips: [['ok','check','Within budget'],['ok','flask','Soil fit'],['warn','droplet','Water: medium'],['','clock','~90 days']] });
+  h += '<div style="height:var(--sp-3)"></div>';
+  h += recCard({ crop: 'Beans', variety: 'Bush type', scene: 'cropBeans', fit: 'strong',
+    profit: 'R9,800', cost: 'R4,600',
+    chips: [['ok','check','Within budget'],['ok','droplet','Water: low'],['ok','flask','Feeds the soil'],['','clock','~70 days']] });
+
+  h += sectionHeader('Does not fit right now');
+  h += recCard({ crop: 'Tomatoes', variety: 'Roma VF', scene: 'cropTomato', fit: 'weak',
+    profit: 'R22,100', cost: 'R14,800',
+    chips: [['block','wallet','R2,800 over your R12,000'],['block','droplet','Water: high'],['','clock','~100 days']] });
+  h += '<div class="card" style="padding:var(--sp-3) var(--sp-4);margin-top:var(--sp-3);display:flex;gap:var(--sp-3)">' +
+    '<span style="color:var(--on-surface-variant)">' + I('info') + '</span>' +
+    '<div style="font:var(--type-body-s);color:var(--on-surface-variant)">Tomatoes earn the most on this land, but only with R14,800 up front and steady water. Shown so you can plan for it.</div></div>';
+
+  h += '<div style="height:var(--sp-7)"></div></div></div>';
+  h += navbar('insights') + aiDock('idle');
+  h += '</div>';
+  return h;
+}
+
+/* ================================================ RECOMMENDATION DETAIL */
+function screenRecDetail() {
+  let h = '<div class="device-screen">';
+  h += statusbar(sync('offline', 'cloudOff', 'Offline'));
+  h += '<div class="screen-scroll" style="padding-top:0;padding-bottom:150px">';
+
+  h += '<div class="zone-hero" style="height:31%"><div data-scene="cropCabbage"></div>' +
+    '<div class="zh-scrim"></div><div class="zh-bottom-scrim"></div>' +
+    '<div class="zh-top"><button class="btn-icon on-scrim" aria-label="Back">' + I('arrowLeft') + '</button></div>' +
+    '<div class="zh-title"><h1>Cabbage</h1>' +
+    '<div class="inline" style="margin-top:var(--sp-2)">' + badge('on-track', 'checkCircle', 'Strong fit') +
+    badge('scrim', 'pin', 'North Plot') + '</div></div></div>';
+
+  h += '<div class="pad" style="padding-top:var(--sp-4)">';
+  h += '<div class="metric-row">' +
+    metric('trendUp', 'Expected profit', 'R17,400', 'after all costs', 'profit') +
+    metric('wallet', 'Expected cost', 'R10,600', 'seed, fertiliser, labour', '') +
+    metric('coins', 'Harvest price', 'R4.60', 'per head, December', '') +
+    metric('calendar', 'Harvest period', '18–28 Dec', 'about 90 days', '') +
+    '</div>';
+
+  h += '<p style="font:var(--type-body-m);margin:var(--sp-4) 0 0">Cabbage fits North Plot because the ' +
+    'sandy loam drains the way it likes, the full cost stays inside your R12,000, and it can carry a ' +
+    'few dry days without losing the head.</p>';
+
+  h += sectionHeader('Why this fits') + '<div class="card" style="padding:0 var(--sp-4)">' +
+    whyRow('flask', 'ok', 'Soil', 'Sandy loam, slightly acidic — suits cabbage') +
+    whyRow('droplet', 'warn', 'Water', 'Needs medium water. Your tank covers it if you water twice a week') +
+    whyRow('wallet', 'ok', 'Budget', 'R10,600 of your R12,000') +
+    whyRow('trendUp', 'ok', 'Market', 'December prices are usually strong at KwaMashu market') +
+    whyRow('calendar', 'ok', 'Timing', 'Planting now lands the harvest before the January heat') +
+    whyRow('shield', 'warn', 'Risk', 'Diamondback moth is common here. Two checks are in the plan') +
+    '</div>';
+
+  h += sectionHeader('Your plan', 'Every step can be changed') +
+    '<div class="card" style="padding:var(--sp-5)"><div class="timeline">' +
+    tlItem('upcoming', '', 'Prepare land', 'Week of 21 Sep', 'Clear and turn the soil. Lime if you have it.', 'About R400') +
+    tlItem('upcoming', '', 'Plant seedlings', '28 Sep', '', 'R2,400') +
+    tlItem('upcoming', '', 'First fertiliser', '12 Oct', '', 'R680') +
+    tlItem('upcoming', '', 'Health check', '26 Oct', 'Look under the leaves for moth eggs.', '') +
+    tlItem('upcoming', '', 'Second fertiliser', '9 Nov', '', 'R680') +
+    tlItem('upcoming', '', 'Health check', '23 Nov', '', '') +
+    tlItem('upcoming', '', 'Harvest', '18–28 Dec', 'Cut when the head feels hard.', '', true) +
+    '</div></div>';
+
+  h += '<div style="height:var(--sp-6)"></div></div></div>';
+
+  h += '<div class="action-bar">' +
+    '<button class="btn btn-primary btn-block">' + I('check') + 'Accept and plan North Plot</button>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2)">' +
+    '<button class="btn btn-secondary">' + I('layers') + 'Compare</button>' +
+    '<button class="btn btn-tonal">Not this one</button></div></div>';
+  h += '</div>';
+  return h;
+}
+/* ===================================================== PROPOSED CHANGE */
+function screenProposed() {
+  let h = '<div class="device-screen">';
+  h += statusbar(sync('offline', 'cloudOff', 'Offline'));
+  h += '<div class="screen-scroll" style="padding-top:0">';
+
+  h += '<div class="zone-hero" style="height:22%"><div data-scene="cabbageWide"></div>' +
+    '<div class="zh-scrim"></div><div class="zh-bottom-scrim"></div>' +
+    '<div class="zh-top"><button class="btn-icon on-scrim" aria-label="Back">' + I('arrowLeft') + '</button></div>' +
+    '<div class="zh-title"><h1 style="font:var(--type-headline-s)">Cabbage Field</h1></div></div>';
+
+  h += '<div class="pad" style="padding-top:var(--sp-4)">';
+
+  h += '<div class="assistant-strip" style="margin-bottom:var(--sp-4)">' + I('volume') +
+    '<div style="font:var(--type-body-s)">I brought you to Cabbage Field. Check this before I save it.</div></div>';
+
+  h += sectionHeader('Recent observations');
+
+  h += '<div class="proposed" style="margin-bottom:var(--sp-4)">' +
+    '<div class="pp-head">' + I('sparkles') + 'Proposed observation · not saved yet</div>' +
+    '<div class="pp-body"><div class="pp-target">Cabbage Field</div>' +
+    '<div class="pp-time">Today, 09:42</div>' +
+    '<div class="pp-field"><div class="pf-k">Observation</div>' +
+    '<div class="pf-v">Yellowing leaves observed on the southern side.</div></div>' +
+    '<div class="pp-field"><div class="pf-k">Action recorded</div>' +
+    '<div class="pf-v">Watered this morning.</div></div>' +
+    '<div class="chip-row" style="margin-top:var(--sp-4)">' +
+    chip('', 'mic', 'From your voice note') + chip('', 'cloudOff', 'Will sync later') + '</div></div>' +
+    '<div class="confirm-bar">' +
+    '<button class="btn btn-primary">' + I('check') + 'Confirm</button>' +
+    '<button class="btn btn-tonal">Edit</button>' +
+    '<button class="btn btn-tonal">Cancel</button></div></div>';
+
+  h += '<div class="card" style="padding:0 var(--sp-4)">' + observations() + '</div>';
+  h += '<div style="height:var(--sp-6)"></div></div></div>';
+  h += navbar('farm') + aiDock('speaking', 'Speaking');
+  h += '</div>';
+  return h;
+}
+
+/* ====================================================== render the page */
+const SCREENS = [
+  { id: 'home', title: '1 · Home', note: 'Greeting, farm hero, zone carousel, farm health, quick actions, offline map, next up. ' +
+      'The carousel scrolls: drag it. Centre card sits at scale 1.0 and neighbours fall to about 0.88, ' +
+      'driven continuously by scroll position, with the label chip overlapping the card edge by half its height.',
+    render: function () { return screenHome(); } },
+  { id: 'zone', title: '2 · Zone detail — Cabbage Field', note: 'Hero occupies 38% of the screen. Metrics, ' +
+      'expandable details, editable timeline with all four item states, then observation history.',
+    render: function () { return screenZone(); } },
+  { id: 'assistant', title: '3 · Home + assistant sheet (70%)', note: 'Dimmed backdrop, drag handle, dashboard still ' +
+      'visible above. The transcript is one muted quote; the answer is two recommendation cards and a chip row ' +
+      'showing what the assistant understood. It should not read as a chat app.',
+    render: function () { return screenHome({ sheet: true }); } },
+  { id: 'camera', title: '4a · Crop health camera', note: 'Full-bleed camera, CV boxes tracking real objects, ' +
+      'offline-vision badge, centre logo button. Nothing covers the crop that does not have to.',
+    render: function () { return screenCamera(); } },
+  { id: 'camera-panel', title: '4b · Camera + assistant panel (34%)', note: 'The camera stays live. The panel carries ' +
+      'the listening state, a short transcript and the proposed record — confirm and it collapses, camera still open.',
+    render: function () { return screenCamera({ panel: true }); } },
+  { id: 'recs', title: '5a · Recommendations — North Plot', note: 'Constraints shown as chips so the farmer can see ' +
+      'and change what the engine used. The crop that breaks the budget is shown and the breach named in rands.',
+    render: function () { return screenRecommendations(); } },
+  { id: 'rec-detail', title: '5b · Crop recommendation detail', note: 'Hero, the four numbers, plain-language summary, ' +
+      'Why this fits with per-factor states, and the proactive timeline. Accept still requires a confirmation.',
+    render: function () { return screenRecDetail(); } },
+  { id: 'proposed', title: '6 · Proposed observation — Confirm / Edit / Cancel', note: 'The assistant navigated here ' +
+      'by itself and stopped. Nothing is written until Confirm. The card sits at the top of the history it would join.',
+    render: function () { return screenProposed(); } },
+];
+
+renderScreens(SCREENS);
+</script>
+</body>
+</html>

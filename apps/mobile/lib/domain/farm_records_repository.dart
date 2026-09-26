@@ -48,6 +48,10 @@ abstract interface class FarmRecordsRepository {
   /// section with no current planting is left as it is.
   Future<void> clearPlanting(String sectionId, {required String mutationId});
 
+  /// Every income and expense record on this farm, newest first — what the
+  /// Money screen totals. Empty when there is no farm on this phone yet.
+  Stream<List<FinancialRecord>> watchFinancials();
+
   Future<Observation> createObservation({
     required String sectionId,
     required String type,
