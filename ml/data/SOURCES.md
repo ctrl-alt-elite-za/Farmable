@@ -6,6 +6,13 @@
 - Source URL: https://www.statssa.gov.za/publications/P0141/CPIHistory.pdf
 - Retrieved through the web reader: **2026-09-23**. The visible source extended
   through July 2026; the checked-in subset covers January 2000–December 2025.
+- Original PDF downloaded from the same URL on **2026-09-25**: 429,947 bytes,
+  SHA-256 `45899dcddeaf30bd3317f813fa4300bfb99352681eb07179babe86f94f9430bfc`.
+  It is a three-page file whose PDF metadata says it was created on
+  8 September 2026; metadata is not a publication date. All 26 annual Table B1
+  rows for 2000–2025 were compared with the committed transcription, including
+  the displayed annual-average cells. They match exactly after converting
+  decimal commas to points and normalizing whitespace.
 - Series: headline **index levels**, December 2024 = 100. These are not inflation
   percentages. Primary urban areas through 2008, all urban areas from 2009;
   the publisher describes its linked series as a continuous index.
@@ -25,11 +32,10 @@
 - The reporting base is the arithmetic mean of the twelve displayed monthly
   2025 levels: `1229.9 / 12`, rather than the source's rounded `102.5` annual cell.
   January 2012 is `53.0`; R100 then converts to R193.38 at two decimal places.
-- Limits: direct HTTP download returned an HTML protection page, not the PDF.
-  The hashes above identify the transcription and generated CSV, **not original
-  PDF bytes**. Independent comparison to a locally downloaded original remains
-  outstanding. The original PDF is not redistributed. The numeric facts are
-  attributed here; no claim of an identified redistribution licence is made.
+- Limits: the original PDF is not redistributed. The numeric facts are attributed
+  here; no claim of an identified redistribution licence is made. The verified
+  current PDF does not establish what CPI vintage was public at any historical
+  planting date.
 - This is a **current-vintage snapshot**, not an archived release known to a
   farmer in 2012. Registered protocol version 1 explicitly uses it for retrospective
   constant-2025-rand transformation and disclaims historical publication-time
@@ -164,3 +170,14 @@ several crops lack yield ranges or explicit durations, onions lack a planting
 window, butternut's class-level yield unit is unsafe, and regional/cultivar choices
 remain. Historical release dates and redistribution permission are also unknown.
 No calendar row is imported from the PDFs.
+
+### Land Bank market-tomato budget candidate
+
+The Land Bank [2025/26 vegetable enterprise budget](https://landbank.co.za/Media-Centre/Publications/2026/Vegetable%20Enterprise%20Budget%202025%20print.pdf)
+was downloaded on 25 September 2026 and inspected at the original-file level.
+Its 4,637,725 bytes have SHA-256
+`50a329bd452770b8dc02d0f8e1b69ab7ab95d921c7982cf47e3b93b13a5820c7`.
+See `LANDBANK_TOMATO_REVIEW.md` for the tomato fields, arithmetic and blockers.
+The PDF is not redistributed, and its copyright notice requires permission for
+copying or reprinting. It is a candidate for a future registered evaluation, not
+an input to the completed version 1 result.
