@@ -45,8 +45,10 @@ env:
     direction: DOWN
     centerElement: true
 - tapOn: 'Offline test beds.*'
+# Centred, so the tap cannot land on the assistant button docked at the bottom.
 - scrollUntilVisible:
     element: 'Write one down'
+    centerElement: true
 # From here until the photo is saved, the phone has no signal at all.
 - setAirplaneMode: enabled
 - tapOn: 'Write one down'
