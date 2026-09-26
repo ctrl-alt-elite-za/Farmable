@@ -94,6 +94,24 @@ abstract interface class FarmRecordsRepository {
 
   Future<void> deleteTask(String taskId);
 
+  /// Renames or re-measures a section. [expectedRevision] is the version the
+  /// farmer was looking at when they started editing; if the section has
+  /// moved since, this throws `RevisionConflict` rather than overwrite it.
+  ///
+  /// [mutationId] is minted once when the edit opens and reused for every
+  /// retry, so a second tap on Save is the same change, never a second one.
+  Future<void> updateSection({
+    required String mutationId,
+    required String sectionId,
+    required int expectedRevision,
+    required String name,
+    required String areaM2,
+  });
+
+  /// A soft delete, like every other record's. The section's planting, plan,
+  /// tasks and observations stop showing with it.
+  Future<void> deleteSection(String sectionId, {required String mutationId});
+
   /// Commits an accepted recommendation to its section.
   ///
   /// **Only ever called after the farmer confirms.** Guide §32 makes the

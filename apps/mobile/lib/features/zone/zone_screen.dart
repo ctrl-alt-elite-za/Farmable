@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../app/theme/tokens.g.dart';
+import '../../core/ui/buttons.dart';
 import '../../core/ui/layout.dart';
 import '../recommendations/widgets/plant_prompt.dart';
 import '../shell/almanac_scaffold.dart';
@@ -105,7 +106,15 @@ class _Zone extends StatelessWidget {
 
               ZoneMetrics(section: section, today: view.today),
 
-              const SectionHeader(title: 'Additional details'),
+              SectionHeader(
+                title: 'Additional details',
+                actionLabel: 'Edit section',
+                onAction: () => showSectionEditor(
+                  context: context,
+                  actions: actions,
+                  section: section.section,
+                ),
+              ),
               ZoneAdditionalDetails(section: section),
 
               SectionHeader(
@@ -147,6 +156,24 @@ class _Zone extends StatelessWidget {
                   actions: actions,
                   today: view.today,
                 ),
+              ),
+              const SizedBox(height: AlmanacDimens.sp6),
+              // Last on the screen, and outlined rather than filled: the one
+              // thing here that cannot be taken back should never be the
+              // easiest thing to hit.
+              AppDangerButton(
+                key: const Key('delete-section'),
+                label: 'Delete this section',
+                icon: LucideIcons.trash2,
+                onPressed: () async {
+                  final router = GoRouter.of(context);
+                  final deleted = await deleteSectionWithConfirmation(
+                    context: context,
+                    actions: actions,
+                    view: view,
+                  );
+                  if (deleted) router.go('/home');
+                },
               ),
               const SizedBox(height: AlmanacDimens.sp6),
             ],
