@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 from datetime import UTC, datetime
@@ -13,12 +14,14 @@ import yaml
 
 try:
     from .check_split import count_crop_images, split_sessions, validate_labels
+    from .export import VERSION_RE, artifact_bytes, sha256
 except ImportError:  # Running this file directly from the vision directory.
     from check_split import (  # type: ignore[no-redef]
         count_crop_images,
         split_sessions,
         validate_labels,
     )
+    from export import VERSION_RE, artifact_bytes, sha256  # type: ignore[no-redef]
 
 CLASSES = ["plant", "crop_head_or_fruit", "check_suggested"]
 CROPS = ["cabbage", "tomato", "spinach"]
@@ -87,6 +90,7 @@ def report_for(
     test_sessions: list[str],
     class_metrics: dict[str, dict[str, float | None]] | None = None,
     crop_counts: dict[str, int] | None = None,
+    provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return the stable report contract consumed by the mobile/backend work."""
     per_class = class_metrics or {
@@ -102,6 +106,7 @@ def report_for(
         "crops": {crop: {"images": (crop_counts or {}).get(crop, 0)} for crop in CROPS},
         "train_sessions": sorted(train_sessions),
         "test_sessions": sorted(test_sessions),
+        "provenance": provenance or {},
     }
 
 
@@ -125,6 +130,8 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, required=True, help="image,session_id,crop CSV")
     parser.add_argument("--export", action="store_true", help="export the trained model to TFLite")
     args = parser.parse_args()
+    if not VERSION_RE.fullmatch(args.version) or args.version in {".", ".."}:
+        parser.error("--version must be a safe filename component")
     try:
         data = validated_data(args.data, args.train_images, args.test_images)
         train_sessions, test_sessions = split_sessions(
@@ -165,8 +172,23 @@ def main() -> int:
     class_metrics = {
         class_name: class_result(box, index) for index, class_name in enumerate(CLASSES)
     }
+    provenance: dict[str, Any] = {
+        "manifest_sha256": hashlib.sha256(args.manifest.read_bytes()).hexdigest(),
+        "data_yaml_sha256": hashlib.sha256(audited_data.read_bytes()).hexdigest(),
+        "source_model": args.model,
+        "imgsz": args.imgsz,
+        "artifact": None,
+    }
     if args.export:
-        model.export(format="tflite")
+        exported = Path(model.export(format="tflite")).resolve()
+        if not exported.is_file() or exported.suffix != ".tflite":
+            raise ValueError("TFLite export did not return an existing .tflite file")
+        provenance["artifact"] = {
+            "format": "tflite",
+            "path": str(exported),
+            "sha256": sha256(exported),
+            "bytes": artifact_bytes(exported),
+        }
     report = report_for(
         args.version,
         args.seed,
@@ -176,6 +198,7 @@ def main() -> int:
         sorted(test_sessions),
         class_metrics,
         crop_counts,
+        provenance,
     )
     args.report_dir.mkdir(parents=True, exist_ok=True)
     (args.report_dir / f"{args.version}.json").write_text(

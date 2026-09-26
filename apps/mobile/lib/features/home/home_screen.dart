@@ -107,7 +107,7 @@ class _DashboardState extends ConsumerState<_Dashboard> {
             child: FarmHeroCard(
               farm: farm,
               onOpenFarm: () => context.go('/farm'),
-              onOpenMap: () => context.go('/farm/map'),
+              onOpenMap: () => context.push('/farm/map'),
             ),
           ),
 
@@ -176,13 +176,13 @@ class _DashboardState extends ConsumerState<_Dashboard> {
               title: 'Farm map',
               subtitle: 'Saved on your phone',
               actionLabel: 'Open',
-              onAction: () => context.go('/farm/map'),
+              onAction: () => context.push('/farm/map'),
             ),
           ),
           _Gutter(
             child: FarmMapPreview(
               sections: farm.sections,
-              onOpen: () => context.go('/farm/map'),
+              onOpen: () => context.push('/farm/map'),
             ),
           ),
 

@@ -5,6 +5,12 @@ retrospective scenario, **not a completed issue**. The real result is reproducib
 but the registered eight-default slide sentence is withheld because tomatoes have
 no scorable switches. See `RESULTS_REVIEW.md`.
 
+PR #85 merged on `main` at `87c903bd02cd`. The default
+`python ml/backtest/check_protocol_first.py` gate passes against fetched
+`origin/main`: protocol `73e2c6296a5a` precedes the first result merge
+`87c903bd02cd`. Source and assumption cleanup is tracked separately from the
+frozen version 1 artifacts.
+
 ### Real result after PR #83
 
 Amendment 1 merged in PR #83. The protocol readiness gate passed on the resulting
@@ -26,8 +32,8 @@ prices. None of the gain figures should be quoted as evidence of forecast skill
 or farmer benefit until tomato inputs are corrected or tomatoes are excluded
 in a separately registered evaluation. The real snapshot imports and serves an
 outlook in a disposable ORM test database. Colab execution at the committed code
-revision passed; reviewer changes, deployment and the final results-history gate
-remain open.
+revision passed; production deployment and a separately registered evaluation
+with defined tomato switch outcomes remain open.
 
 The sections below retain earlier implementation checkpoints as historical records.
 

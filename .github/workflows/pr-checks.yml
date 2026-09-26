@@ -92,23 +92,28 @@ jobs:
 
   assistant-evals:
     needs: scopes
-    if: needs.scopes.outputs.assistant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.scopes.outputs.assistant == 'true'
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+        if: needs.scopes.outputs.assistant == 'true'
       - name: Run assistant-evals
         # #23 supplies the command; no paid service keys are ever supplied to PR code.
+        if: needs.scopes.outputs.assistant == 'true'
         run: uv run python scripts/ci_run.py assistant-evals
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        if: always()
+        if: always() && needs.scopes.outputs.assistant == 'true'
         with:
           name: ci-result-assistant-evals
           path: .ci-reports/assistant-evals.json
           retention-days: 7
+      - name: No assistant changes
+        if: needs.scopes.outputs.assistant != 'true'
+        run: echo 'No assistant changes; assistant-evals not required for this diff.'
 
   e2e-mobile:
     needs: scopes

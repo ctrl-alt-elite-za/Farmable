@@ -41,7 +41,8 @@ name: A farmer logs out, logs back in, and is still signed in after a restart
 - inputText: 'three blind field mice'
 - hideKeyboard
 - tapOn: 'Log in'
-# Signed in, Home is the account's own farm again.
+# Signed in, Home is the account's own farm again. It already has a section
+# (signup.yaml set one up), so login goes straight to Home with no setup.
 - extendedWaitUntil:
     visible: '.*Hello, Thandi.*'
     timeout: 30000

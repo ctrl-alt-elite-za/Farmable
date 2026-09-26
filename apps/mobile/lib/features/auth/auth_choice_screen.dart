@@ -6,9 +6,16 @@
 /// The offline promise is made here rather than in onboarding because it is
 /// the objection that stops a smallholder signing up at all — "will this eat
 /// my airtime" — and this is the last screen before they are asked to commit.
+///
+/// Reaching this screen is what ends the first-launch journey (issue #89): the
+/// next launch opens on Home. And it is never a wall — "Try the demo farm"
+/// goes to the example farm with no account, which works with no signal.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_theme.dart';
@@ -17,9 +24,24 @@ import '../../core/ui/brand.dart';
 import '../../core/ui/buttons.dart';
 import '../../core/ui/crop_imagery.dart';
 import '../../core/ui/not_built_yet_sheet.dart';
+import '../setup/setup_providers.dart';
+import 'widgets/auth_scaffold.dart';
 
-class AuthChoiceScreen extends StatelessWidget {
+class AuthChoiceScreen extends ConsumerStatefulWidget {
   const AuthChoiceScreen({super.key});
+
+  @override
+  ConsumerState<AuthChoiceScreen> createState() => _AuthChoiceScreenState();
+}
+
+class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Onboarding is done or skipped. Whatever the farmer picks here — or if
+    // they close the app on this screen — the next launch opens on Home.
+    unawaited(ref.read(launchRecordProvider).markIntroSeen());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +112,15 @@ class AuthChoiceScreen extends StatelessWidget {
                         label: 'Log in',
                         onPressed: () => context.go('/auth/login'),
                       ),
-                      const SizedBox(height: AlmanacDimens.sp4),
+                      const SizedBox(height: AlmanacDimens.sp2),
+                      // Not a third button: the two above are the choice this
+                      // screen is for. This is the honest way past it.
+                      AuthFooterLink(
+                        leading: 'Not ready yet?',
+                        linkLabel: 'Try the demo farm',
+                        onTap: () => context.go('/home'),
+                      ),
+                      const SizedBox(height: AlmanacDimens.sp2),
                       const _LegalLine(),
                       const SizedBox(height: AlmanacDimens.sp5),
                     ],

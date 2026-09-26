@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import random
@@ -17,12 +18,18 @@ def load_measurements(path: Path) -> list[tuple[float, float]]:
         if not rows.fieldnames or not {"diameter_cm", "weight_g", "date"} <= set(rows.fieldnames):
             raise ValueError("measurements must contain diameter_cm, weight_g, and date columns")
         values = []
+        sample_ids: set[str] = set()
         for row in rows:
             try:
                 date.fromisoformat(row["date"].strip())
                 values.append((float(row["diameter_cm"]), float(row["weight_g"])))
             except (TypeError, ValueError):
                 raise ValueError("measurements must contain ISO dates and numeric values") from None
+            if "sample_id" in rows.fieldnames:
+                sample_id = (row["sample_id"] or "").strip()
+                if not sample_id or sample_id in sample_ids:
+                    raise ValueError("sample_id values must be nonempty and unique")
+                sample_ids.add(sample_id)
     if any(not math.isfinite(x) or not math.isfinite(y) or x <= 0 or y <= 0 for x, y in values):
         raise ValueError("measurements must contain finite positive diameter and weight values")
     if len(values) < 20:
@@ -55,6 +62,12 @@ def fit_range(
         "slope_g_per_cm": slope,
         "intercept_g": intercept,
         "range_residual_g": residual,
+        "measurements": len(values),
+        "measured_diameter_min_cm": min(x for x, _ in values),
+        "measured_diameter_max_cm": max(x for x, _ in values),
+        "training_diameter_min_cm": min(x for x, _ in train),
+        "training_diameter_max_cm": max(x for x, _ in train),
+        "seed": seed,
         "held_out": len(test),
         "inside": inside,
         "coverage": inside / len(test),
@@ -69,7 +82,16 @@ def main() -> int:
     )
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
-    result = {path.stem: fit_range(load_measurements(path), seed=args.seed) for path in args.paths}
+    result = {}
+    for path in args.paths:
+        if path.stem in result:
+            parser.error(f"duplicate crop {path.stem!r}")
+        fitted = fit_range(load_measurements(path), seed=args.seed)
+        result[path.stem] = {
+            **fitted,
+            "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "passed": fitted["coverage"] >= 0.8,
+        }
     print(json.dumps(result, indent=2, sort_keys=True))
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

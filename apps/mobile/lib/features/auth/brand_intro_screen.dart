@@ -16,6 +16,8 @@
 /// Nothing about where the farmer ends up depends on an animation completing.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +26,7 @@ import '../../app/theme/app_motion.dart';
 import '../../app/theme/tokens.g.dart';
 import '../../core/ui/brand.dart';
 import '../../domain/auth/auth_models.dart';
+import '../setup/setup_providers.dart';
 import 'auth_view_model.dart';
 
 /// The intro's own background. Fixed, not themed — it continues the native
@@ -88,6 +91,10 @@ class _BrandIntroScreenState extends ConsumerState<BrandIntroScreen>
     if (standing == null) return;
 
     _left = true;
+    // A farmer already signed in has nothing left to be introduced to.
+    if (standing is SignedIn) {
+      unawaited(ref.read(launchRecordProvider).markIntroSeen());
+    }
     GoRouter.of(context).go(switch (standing) {
       // Guide §5: a returning authenticated farmer skips onboarding and auth
       // entirely. No flash of the auth choice screen on the way past.

@@ -34,6 +34,11 @@ import 'package:almanac/features/account/export_screen.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/auth/widgets/auth_scaffold.dart';
 import 'package:almanac/features/permissions/permission_controls.dart';
+import 'package:almanac/features/setup/farm_name_keeper.dart';
+import 'package:almanac/features/setup/setup_providers.dart';
+import 'package:almanac/features/setup/setup_resumer.dart';
+import 'package:almanac/data/setup/setup_owed.dart';
+import 'package:almanac/data/launch/launch_record.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,6 +110,10 @@ class AuthHarness {
   /// Every file handed to the share sheet.
   final List<ExportFile> shared;
 
+  /// Whether first farm setup is still owed. Survives [restart] like
+  /// [storage] does.
+  final SetupOwed setupOwed;
+
   AuthHarness._(
     this.db,
     this.storage,
@@ -112,6 +121,7 @@ class AuthHarness {
     this.accountStorage,
     this.exports,
     this.shared,
+    this.setupOwed,
   );
 
   /// What the app would restore on its next cold launch.
@@ -152,6 +162,9 @@ Future<AuthHarness> pumpAuthApp(
   SessionStorage? account,
   InMemoryExportStore? exportStore,
 
+  /// Reuse the setup-owed marker from an earlier pump.
+  SetupOwed? setupOwed,
+
   /// Runs the screens against the real [ApiAuthService] over this fake
   /// backend instead of the demo, the way every non-demo build does. The
   /// build flag that picks between them is overridden too, so the screens
@@ -173,6 +186,7 @@ Future<AuthHarness> pumpAuthApp(
   final accountRecord = account ?? InMemorySessionStorage();
   final exports = exportStore ?? InMemoryExportStore();
   final shared = <ExportFile>[];
+  final owed = setupOwed ?? SetupOwed(MemoryLaunchFile());
 
   final container = ProviderContainer(
     overrides: [
@@ -186,6 +200,7 @@ Future<AuthHarness> pumpAuthApp(
         _FixedHealth(online ? Reachability.online : Reachability.offline),
       ),
       sessionStorageProvider.overrideWithValue(record),
+      setupOwedProvider.overrideWithValue(owed),
       accountStorageProvider.overrideWithValue(accountRecord),
       exportStoreProvider.overrideWithValue(exports),
       // No real folders: the harness never touches the filesystem.
@@ -240,6 +255,8 @@ Future<AuthHarness> pumpAuthApp(
           builder: (context, ref, child) {
             keepSessionFresh(ref);
             keepFarmSynced(ref);
+            keepFarmNameSent(ref);
+            keepSetupResumable(ref, router);
             return child!;
           },
           child: MaterialApp.router(
@@ -265,7 +282,15 @@ Future<AuthHarness> pumpAuthApp(
     if (storage == null) await db.close();
   });
 
-  return AuthHarness._(db, record, container, accountRecord, exports, shared);
+  return AuthHarness._(
+    db,
+    record,
+    container,
+    accountRecord,
+    exports,
+    shared,
+    owed,
+  );
 }
 
 /// Types into the field under [label], scrolling it into view first.
@@ -361,3 +386,14 @@ bool buttonEnabled(WidgetTester tester, String label) {
 
 /// A password that clears the policy, for tests that are about something else.
 const goodPassphrase = 'three blind field mice';
+
+/// A [LaunchFile] held in memory, for the small per-install records.
+class MemoryLaunchFile implements LaunchFile {
+  String? contents;
+
+  @override
+  Future<String?> read() async => contents;
+
+  @override
+  Future<void> write(String contents) async => this.contents = contents;
+}
