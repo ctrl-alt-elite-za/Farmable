@@ -404,6 +404,19 @@ def _rollout_env(tmp_path: Path) -> dict:
     }
 
 
+def test_rollout_refuses_a_service_name_too_long_for_the_traffic_tag(tmp_path: Path) -> None:
+    """Cloud Run rejects a traffic tag plus service name over 46 characters, and only
+    after the image is built and the database migrated. Fail before touching anything.
+    """
+    log = tmp_path / "calls.log"
+    _fake_gcloud(tmp_path, _log_calls(log) + "exit 0\n")
+    environment = {**_rollout_env(tmp_path), "CLOUD_RUN_SERVICE": "f" * 31}
+    result = _run("infra/gcp-rollout.sh", environment)
+    assert result.returncode != 0
+    assert "exceed 46 characters" in result.stderr
+    assert not log.exists() or "run deploy" not in log.read_text(encoding="utf-8")
+
+
 def test_rollout_aborts_when_describe_fails_for_any_reason_but_not_found(tmp_path: Path) -> None:
     """A transient 503 must not be read as "the service does not exist". Concluding
     absence sets service_existed=false, which arms the `gcloud run services delete`
@@ -624,7 +637,7 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     # Reuse the one place the Knative v1 container/env nesting is spelled out, so a
     # correction there cannot leave a stale second copy here.
     service_json = (
-        '{"status":{"traffic":[{"tag":"sha-' + sha + '",'
+        '{"status":{"traffic":[{"tag":"sha-' + sha[:12] + '",'
         '"url":"https://sha-' + sha[:8] + '---farmable.run.app",'
         '"revisionName":"farmable-00002"}]},' + _service_spec(REFERENCE_ENV_V1)[1:]
     )
@@ -652,6 +665,8 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     assert "run deploy" in calls
     deploy_call = calls.split("run deploy", 1)[1].split("\n", 1)[0]
     assert "--no-traffic" not in deploy_call
+    # Cloud Run rejects a tag whose length plus the service name's exceeds 46.
+    assert f"--tag=sha-{sha[:12]} " in deploy_call
     assert "update-traffic" in calls
     assert "farmable-00002=100" in calls
     assert "farmable-unrelated=100" not in calls
@@ -681,7 +696,7 @@ def test_rollout_rejects_invalid_tag_without_promoting_a_candidate(
     deployed = tmp_path / "deployed"
     sha = _rollout_env(tmp_path)["COMMIT_SHA"]
     candidate = {
-        "tag": f"sha-{sha}",
+        "tag": f"sha-{sha[:12]}",
         "revisionName": "farmable-00002",
         "url": "https://candidate.farmable.run.app",
     }
@@ -839,7 +854,7 @@ def _provider_secret_gcloud(log: Path, sha: str, *, secrets: str, versions: str)
     is not a substring of "secrets versions list", so the two cannot be confused.
     """
     service_json = (
-        '{"status":{"traffic":[{"tag":"sha-' + sha + '",'
+        '{"status":{"traffic":[{"tag":"sha-' + sha[:12] + '",'
         '"url":"https://sha-' + sha[:8] + '---farmable.run.app",'
         '"revisionName":"farmable-00002"}]},' + _service_spec(REFERENCE_ENV_V1)[1:]
     )
