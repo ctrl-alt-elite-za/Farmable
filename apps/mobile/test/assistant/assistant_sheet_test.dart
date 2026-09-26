@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 
 import 'package:almanac/app/providers.dart';
+import 'package:almanac/data/auth/session_storage.dart';
 import 'package:almanac/domain/assistant/assistant_models.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
 import 'package:almanac/core/ui/buttons.dart';
@@ -473,6 +474,35 @@ void main() {
       expect(api.confirms, hasLength(2));
       expect(api.confirms[1].mutationId, api.confirms[0].mutationId);
       expect(api.confirms[1].planId, api.confirms[0].planId);
+      expect(find.text('Plan saved'), findsOneWidget);
+    });
+
+    testWidgets('a plan id the phone cannot write down is not sent', (
+      tester,
+    ) async {
+      final storage = _FlakyStorage();
+      final api = FakeAssistantApi(granted: true);
+      await pumpAssistant(tester, api: api, assistantStorage: storage);
+      await _ask(tester, 'I want to plant cabbages here');
+      await _emit(tester, api.last, previewTool());
+      await _emit(tester, api.last, const TurnDone());
+      final key = hex('a');
+
+      storage.failWrites = true;
+      await _tapKey(tester, Key('plan-option-$key-0'));
+      await _tapKey(tester, const Key('plan-review'));
+      await _tapKey(tester, const Key('plan-confirm'));
+
+      expect(api.confirms, isEmpty);
+      expect(
+        find.textContaining('could not keep a note of the plan'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('plan-confirm-step')), findsOneWidget);
+
+      storage.failWrites = false;
+      await _tapKey(tester, const Key('plan-confirm'));
+      expect(api.confirms, hasLength(1));
       expect(find.text('Plan saved'), findsOneWidget);
     });
 
@@ -1001,4 +1031,15 @@ void main() {
       expect(line, isNot(contains('thought')));
     }
   });
+}
+
+/// Keeps the record in memory, but refuses writes while [failWrites] is set.
+class _FlakyStorage extends InMemorySessionStorage {
+  bool failWrites = false;
+
+  @override
+  Future<void> write(Map<String, Object?> value) {
+    if (failWrites) throw const SessionStorageException('write');
+    return super.write(value);
+  }
 }

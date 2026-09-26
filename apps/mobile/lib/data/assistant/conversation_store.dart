@@ -65,16 +65,37 @@ class AssistantConversationStore {
 
   /// Written *before* the confirmation is sent, so a reply that never comes
   /// back cannot leave a saved plan the phone has no way to find again.
-  Future<void> rememberPlan({
+  ///
+  /// True only once the id is on the phone. Unlike [remember] this is not
+  /// best effort: the caller must not send a confirmation it could not note.
+  Future<bool> rememberPlan({
     required String userId,
     required String farmId,
     required String conversationId,
     required String snapshotHash,
     required String planId,
   }) async {
-    final record = await _record(userId: userId, farmId: farmId);
-    if (record?['conversation_id'] != conversationId) return;
-    final plans = _plans(record!['plans']);
+    final Map<String, Object?>? stored;
+    try {
+      stored = await _storage.read();
+    } on Object {
+      // Unreadable: writing now could drop the ids already kept.
+      return false;
+    }
+    // No record for this conversation — [remember]'s write did not land, say.
+    // Start one here rather than lose the plan id.
+    final record =
+        stored != null &&
+            stored['owner'] == userId &&
+            stored['farm_id'] == farmId &&
+            stored['conversation_id'] == conversationId
+        ? stored
+        : <String, Object?>{
+            'owner': userId,
+            'farm_id': farmId,
+            'conversation_id': conversationId,
+          };
+    final plans = _plans(record['plans']);
     final ids = [
       for (final id in plans.remove(snapshotHash) ?? const <String>[])
         if (id != planId) id,
@@ -86,7 +107,7 @@ class AssistantConversationStore {
     while (plans.length > maxPreviews) {
       plans.remove(plans.keys.first);
     }
-    await _write({...record, 'plans': plans});
+    return _write({...record, 'plans': plans});
   }
 
   Future<void> forget() async {
@@ -115,11 +136,14 @@ class AssistantConversationStore {
     return record;
   }
 
-  Future<void> _write(Map<String, Object?> record) async {
+  /// False when the phone could not keep it — see [remember] and
+  /// [rememberPlan] for what each caller does about that.
+  Future<bool> _write(Map<String, Object?> record) async {
     try {
       await _storage.write(record);
+      return true;
     } on Object {
-      // See [remember].
+      return false;
     }
   }
 

@@ -531,6 +531,10 @@ enum AssistantProblem {
   /// The server refused the request as invalid.
   rejected,
 
+  /// This phone could not write down what it was about to send, so it did
+  /// not send it. Never from the server.
+  notKeptOnPhone,
+
   unknown,
 }
 

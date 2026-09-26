@@ -1256,9 +1256,20 @@ class AssistantController extends Notifier<AssistantChatState> {
     }
 
     // Written down before it can reach the server, so a reopened chat can
-    // still ask about it.
-    await _rememberSent(key, d.planId);
+    // still ask about it. Not written, not sent: a confirmation whose reply
+    // was lost could otherwise be saved with no way to find it again.
+    final noted = await _rememberSent(key, d.planId);
     if (epoch != _epoch) return;
+    if (!noted) {
+      _setDecision(
+        key,
+        state.decisions[key]!.copyWith(
+          stage: DecisionStage.reviewing,
+          problem: () => AssistantProblem.notKeptOnPhone,
+        ),
+      );
+      return;
+    }
     _setDecision(key, state.decisions[key]!.copyWith(maybeSent: true));
     try {
       final saved = await api
@@ -1435,12 +1446,13 @@ class AssistantController extends Notifier<AssistantChatState> {
     );
   }
 
-  Future<void> _rememberSent(String key, String planId) async {
+  /// True once [planId] is on the phone; see [confirm].
+  Future<bool> _rememberSent(String key, String planId) async {
     final user = _userId;
     final farm = _farmId;
     final conversation = _conversationId;
-    if (user == null || farm == null || conversation == null) return;
-    await ref
+    if (user == null || farm == null || conversation == null) return false;
+    return ref
         .read(assistantConversationStoreProvider)
         .rememberPlan(
           userId: user,

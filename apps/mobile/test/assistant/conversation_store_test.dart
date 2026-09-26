@@ -59,4 +59,78 @@ void main() {
       isEmpty,
     );
   });
+
+  test(
+    'a plan id is kept even when the conversation record is missing',
+    () async {
+      final store = AssistantConversationStore(InMemorySessionStorage());
+      final kept = await store.rememberPlan(
+        userId: 'u1',
+        farmId: 'f1',
+        conversationId: 'c1',
+        snapshotHash: 'h1',
+        planId: 'p1',
+      );
+
+      expect(kept, isTrue);
+      expect(
+        await store.plansFor(userId: 'u1', farmId: 'f1', conversationId: 'c1'),
+        {
+          'h1': ['p1'],
+        },
+      );
+      expect(await store.conversationFor(userId: 'u1', farmId: 'f1'), 'c1');
+    },
+  );
+
+  test('a plan id the phone could not write or read is reported', () async {
+    final unwritable = _FailingStorage(failWrite: true);
+    expect(
+      await AssistantConversationStore(unwritable).rememberPlan(
+        userId: 'u1',
+        farmId: 'f1',
+        conversationId: 'c1',
+        snapshotHash: 'h1',
+        planId: 'p1',
+      ),
+      isFalse,
+    );
+
+    // Unreadable: writing blind could drop the ids already kept.
+    final unreadable = _FailingStorage(failRead: true);
+    expect(
+      await AssistantConversationStore(unreadable).rememberPlan(
+        userId: 'u1',
+        farmId: 'f1',
+        conversationId: 'c1',
+        snapshotHash: 'h1',
+        planId: 'p1',
+      ),
+      isFalse,
+    );
+    expect(unreadable.writes, 0);
+  });
+}
+
+class _FailingStorage implements SessionStorage {
+  final bool failRead;
+  final bool failWrite;
+  int writes = 0;
+
+  _FailingStorage({this.failRead = false, this.failWrite = false});
+
+  @override
+  Future<Map<String, Object?>?> read() async {
+    if (failRead) throw const SessionStorageException('read');
+    return null;
+  }
+
+  @override
+  Future<void> write(Map<String, Object?> value) async {
+    writes++;
+    if (failWrite) throw const SessionStorageException('write');
+  }
+
+  @override
+  Future<void> clear() async {}
 }

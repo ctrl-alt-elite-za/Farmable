@@ -315,6 +315,9 @@ class _Footer extends ConsumerWidget {
           'saved.',
     AssistantProblem.planStale =>
       'The numbers changed since this preview, so it was not saved.',
+    AssistantProblem.notKeptOnPhone =>
+      'This phone could not keep a note of the plan, so it was not sent and '
+          'nothing was saved. Tap Confirm to try again.',
     _ => 'The server did not save it. Nothing has changed on your farm.',
   };
 }

@@ -403,6 +403,7 @@ Future<ProviderContainer> pumpAssistant(
   AssistantTiming timing = fastTiming,
   AuthViewModel? authOverride,
   Override? consentOverride,
+  SessionStorage? assistantStorage,
   List<Override> overrides = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -419,7 +420,9 @@ Future<ProviderContainer> pumpAssistant(
       assistantApiFactoryProvider.overrideWithValue(
         () => noServer ? null : api,
       ),
-      assistantStorageProvider.overrideWithValue(InMemorySessionStorage()),
+      assistantStorageProvider.overrideWithValue(
+        assistantStorage ?? InMemorySessionStorage(),
+      ),
       assistantTimingProvider.overrideWithValue(timing),
       authViewModelProvider.overrideWith(
         () => authOverride ?? _FixedAuth(standing ?? signedIn),
