@@ -1,5 +1,28 @@
 # Issue #20 acceptance evidence
 
+## Amendment 2 checkpoint — 26 September 2026
+
+The seven-default implementation and real local artifacts are ready for review.
+See [the amended result review](SEVEN_DEFAULT_RESULTS_REVIEW.md) for the current
+acceptance evidence and remaining requirements. The checkpoints below describe
+version 1 and earlier work; they are retained as history.
+
+The amended run has 1,092 decision keys, seven defaults plus pooled, explicit
+tomato exclusion, and a separate 12-row tomato price-only artifact. Two independent
+local process executions produced the same run ID and ten byte-identical files.
+Both output validators pass. The archived version 1 files are unchanged.
+The generated sentence remains `INSUFFICIENT EVIDENCE` because cabbage has no
+scorable switches; it explicitly identifies the **7 starting crops** and the
+post-version-1 timing of Amendment 2. This is a valid negative result under the
+approved amendment, not a reason to change the experiment.
+
+Issue #20 remains open pending the amended Colab execution, independent review of
+the amended real artifacts, results-PR checks/merge, and final mainline history
+verification. Existing PR #102 approval and CI cover its implementation revision,
+not these new result artifacts or the fallback wording fix.
+
+## Historical checkpoints
+
 Updated 2026-09-25. This is implementation and real-run evidence for the
 retrospective scenario, **not a completed issue**. The real result is reproducible,
 but the registered eight-default slide sentence is withheld because tomatoes have

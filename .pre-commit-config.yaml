@@ -10,6 +10,8 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ['--maxkb=1000']
+        # Registered Amendment 2 forecast audit; bytes are checked by its manifest.
+        exclude: ^ml/forecast/price_only_results/69dbbedc531c3d1baf8349e0b9936dc9fb17aa702d84895d31594d6a12c9b2f7/forecast_selections\.json$
       - id: check-yaml
       - id: check-toml
 
