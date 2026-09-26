@@ -79,7 +79,10 @@ class AssistantConversationStore {
     try {
       stored = await _storage.read();
     } on Object {
-      // Unreadable: writing now could drop the ids already kept.
+      // A storage that says it could not read: writing now could drop the
+      // ids already kept. The phone's own storages never say so — they
+      // report an unreadable record as absent, and a fresh record replaces
+      // it below, losing nothing [plansFor] could have read either.
       return false;
     }
     // No record for this conversation — [remember]'s write did not land, say.
