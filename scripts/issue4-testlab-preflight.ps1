@@ -1,9 +1,15 @@
+[CmdletBinding()]
+param(
+    # The gcloud account expected to run Test Lab, e.g. -Account you@example.com.
+    [Parameter(Mandatory)][string]$Account,
+    [string]$Project = 'almanac-staging-za'
+)
+
 $ErrorActionPreference = 'Stop'
 
-$project = 'almanac-staging-za'
-$account = gcloud config get-value account 2>$null
-if ($account -ne 'tshego300@gmail.com') {
-    throw "Expected tshego300@gmail.com; active account is $account"
+$active = gcloud config get-value account 2>$null
+if ($active -ne $Account) {
+    throw "Expected $Account; active account is $active"
 }
 
 gcloud projects describe $project `

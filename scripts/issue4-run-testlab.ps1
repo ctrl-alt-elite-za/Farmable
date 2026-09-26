@@ -55,7 +55,7 @@ try {
             throw 'Android Gradle wrapper is not present; run the repository wrapper bootstrap before Test Lab.'
         }
         & $gradlew -p android app:assembleAndroidTest `
-          '-Ptarget=../integration_test/issue4_device_test.dart'
+          "-Ptarget=$(Join-Path $mobile 'integration_test/issue4_device_test.dart')"
         if ($LASTEXITCODE -ne 0) { throw 'Android instrumentation APK build failed' }
     } finally {
         Pop-Location

@@ -7,6 +7,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:almanac/app/config.dart';
 import 'package:almanac/domain/device/self_test.dart';
 import 'package:almanac/features/self_test/self_test_controller.dart';
+import 'package:almanac/main.dart' as app;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +15,8 @@ void main() {
   testWidgets('issue 4 physical device self-test', (tester) async {
     expect(testMode, isFalse);
     expect(demoMode, isFalse);
+    // Built with INITIAL_ROUTE=/status, so the app opens on the status screen.
+    app.main();
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('api-status')), findsOneWidget);
     expect(find.text('Offline'), findsOneWidget);
@@ -35,22 +38,13 @@ void main() {
 
       expect(report.platform, 'android');
       expect(report.buildSha, buildSha);
-      expect(
-        report.results[SelfTestItem.camera]?.outcome,
-        CheckOutcome.pass,
-      );
-      expect(
-        report.results[SelfTestItem.arPlane]?.outcome,
-        CheckOutcome.pass,
-      );
+      expect(report.results[SelfTestItem.camera]?.outcome, CheckOutcome.pass);
+      expect(report.results[SelfTestItem.arPlane]?.outcome, CheckOutcome.pass);
       expect(
         report.results[SelfTestItem.microphone]?.outcome,
         CheckOutcome.pass,
       );
-      expect(
-        report.results[SelfTestItem.detector]?.outcome,
-        CheckOutcome.pass,
-      );
+      expect(report.results[SelfTestItem.detector]?.outcome, CheckOutcome.pass);
       expect(report.detectorMs, greaterThan(0));
     } finally {
       controller.dispose();
