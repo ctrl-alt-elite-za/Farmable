@@ -27,15 +27,29 @@ class GeminiLiveLink implements LiveLink {
 
   const GeminiLiveLink({this.handshake = const Duration(seconds: 10)});
 
+  /// [connecting] within [handshake]. A socket that opens after the
+  /// deadline is closed, not left open on a single-use credential.
+  Future<WebSocket> _within(Future<WebSocket> connecting) => connecting.timeout(
+    handshake,
+    onTimeout: () {
+      unawaited(
+        connecting.then((late) => late.close(), onError: (Object _) {}),
+      );
+      throw TimeoutException('handshake', handshake);
+    },
+  );
+
   @override
   Future<LiveConnection> connect(LiveCredential credential) async {
     if (credential.fake) throw const LiveLinkException(refused: true);
     try {
       return _GeminiConnection(
-        await WebSocket.connect(
-          _endpoint,
-          headers: {'Authorization': 'Token ${credential.credential}'},
-        ).timeout(handshake),
+        await _within(
+          WebSocket.connect(
+            _endpoint,
+            headers: {'Authorization': 'Token ${credential.credential}'},
+          ),
+        ),
       );
     } on WebSocketException {
       // Refused in the header form; try the query form once.
@@ -50,7 +64,7 @@ class GeminiLiveLink implements LiveLink {
       final url = Uri.parse(_endpoint)
           .replace(queryParameters: {'access_token': credential.credential});
       return _GeminiConnection(
-        await WebSocket.connect(url.toString()).timeout(handshake),
+        await _within(WebSocket.connect(url.toString())),
       );
     } on WebSocketException {
       throw const LiveLinkException(refused: true);

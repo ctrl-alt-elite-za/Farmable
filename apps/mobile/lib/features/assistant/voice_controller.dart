@@ -41,6 +41,7 @@ import '../../data/assistant/gemini_live_link.dart';
 import '../../data/auth/api_auth_service.dart';
 import '../../domain/assistant/assistant_models.dart';
 import '../../domain/assistant/voice.dart';
+import '../../domain/auth/auth_models.dart' show AuthStanding, SignedIn;
 import '../auth/auth_view_model.dart';
 import '../permissions/permission_controls.dart';
 import 'assistant_controller.dart';
@@ -243,7 +244,12 @@ class VoiceController extends Notifier<VoiceState> {
   @override
   VoiceState build() {
     ref.listen(authViewModelProvider, (previous, next) {
-      if (previous?.value != next.value && state.phase != VoicePhase.off) {
+      if (previous?.value == next.value) return;
+      if (_accountOf(previous?.value) != _accountOf(next.value)) {
+        // Another account, or nobody: nothing said by the last one may
+        // remain, on screen or in the typing box — voice on or off.
+        unawaited(_end(null, forget: true));
+      } else if (state.phase != VoicePhase.off) {
         unawaited(_end(VoiceEnding.signedOut));
       }
     });
@@ -402,7 +408,7 @@ class VoiceController extends Notifier<VoiceState> {
       return;
     }
 
-    _connection!.send(LiveMessages.note(_languageNote(state.language)));
+    _connection?.send(LiveMessages.note(_languageNote(state.language)));
     try {
       final frames = await microphone.start();
       if (epoch != _epoch) return;
@@ -424,6 +430,9 @@ class VoiceController extends Notifier<VoiceState> {
     _expiry = Timer(left.isNegative ? Duration.zero : left, () {
       if (epoch == _epoch) unawaited(_end(VoiceEnding.expired));
     });
+    // The socket closed while the microphone was starting: resume now,
+    // rather than show "Listening" over a dead connection.
+    if (_connection == null) unawaited(_resume(epoch));
   }
 
   /// Opens the socket, sends the setup and waits for the provider to take it.
@@ -457,7 +466,13 @@ class VoiceController extends Notifier<VoiceState> {
       onDone: () {
         if (!ready.isCompleted) ready.complete(false);
         if (epoch == _epoch && identical(_connection, connection)) {
-          unawaited(_resume(epoch));
+          if (state.phase == VoicePhase.listening) {
+            unawaited(_resume(epoch));
+          } else {
+            // Still connecting or reconnecting: whoever is doing that sees
+            // the missing connection and resumes or retries.
+            _connection = null;
+          }
         }
       },
       onError: (Object _) {},
@@ -495,6 +510,8 @@ class VoiceController extends Notifier<VoiceState> {
         if (epoch != _epoch) return;
         if (!DateTime.now().toUtc().isBefore(credential.endsAt)) break;
         if (await _connect(epoch, resumeHandle: _resumeHandle ?? handle)) {
+          // Dropped again between ready and here: the next try.
+          if (_connection == null) continue;
           state = state.copyWith(phase: VoicePhase.listening);
           return;
         }
@@ -629,7 +646,12 @@ class VoiceController extends Notifier<VoiceState> {
   }
 
   /// Every ending. Local teardown first, without waiting on the network.
-  Future<void> _end(VoiceEnding? ending) async {
+  static String? _accountOf(AuthStanding? standing) =>
+      standing is SignedIn ? standing.session.user.id : null;
+
+  /// With [forget], the account changed: everything is dropped, and
+  /// unanswered words are not handed to the next account's typing box.
+  Future<void> _end(VoiceEnding? ending, {bool forget = false}) async {
     if (!ref.mounted) return;
     _epoch++;
     final api = _api;
@@ -640,6 +662,15 @@ class VoiceController extends Notifier<VoiceState> {
         if (e.reply.trim().isEmpty && e.heard.trim().isNotEmpty) e.heard.trim(),
     ].join(' ');
     _teardown();
+    if (forget) {
+      state = const VoiceState();
+      if (api != null && conversation != null && credential != null) {
+        unawaited(
+          _quietly(api.endLiveSession(conversation, credential.sessionId)),
+        );
+      }
+      return;
+    }
     state = state.copyWith(
       phase: VoicePhase.off,
       consentBusy: false,

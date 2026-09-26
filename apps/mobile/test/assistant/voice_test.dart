@@ -11,6 +11,8 @@ import 'dart:typed_data';
 import 'package:almanac/data/assistant/fake_voice.dart';
 import 'package:almanac/domain/assistant/assistant_models.dart';
 import 'package:almanac/domain/assistant/voice.dart';
+import 'package:almanac/domain/auth/auth_models.dart';
+import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/assistant/voice_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -67,6 +69,31 @@ String _draft(WidgetTester tester) => tester
     .widget<TextField>(find.byKey(const Key('assistant-input')))
     .controller!
     .text;
+
+class _SwitchableAuth extends AuthViewModel {
+  AuthStanding standing;
+
+  _SwitchableAuth(this.standing);
+
+  @override
+  Future<AuthStanding> build() async => standing;
+
+  void switchTo(AuthStanding next) {
+    standing = next;
+    state = AsyncData(next);
+  }
+}
+
+/// Starts only when [gate] completes, so a test can act in between.
+class _GatedMicrophone extends FakeMicrophone {
+  final gate = Completer<void>();
+
+  @override
+  Future<Stream<Uint8List>> start() async {
+    await gate.future;
+    return super.start();
+  }
+}
 
 VoiceController _voice(ProviderContainer c) =>
     c.read(voiceControllerProvider.notifier);
@@ -423,6 +450,55 @@ void main() {
       expect(voice.api.ended, hasLength(1));
       expect(voice.link.connections, hasLength(1), reason: 'no new socket');
       expect(voice.api.started, hasLength(1), reason: 'no new credential');
+    });
+
+    testWidgets('signing out leaves nothing said for the next account', (
+      tester,
+    ) async {
+      final voice = FakeVoice();
+      final auth = _SwitchableAuth(signedIn);
+      final container = await pumpAssistant(
+        tester,
+        api: FakeAssistantApi(granted: true),
+        authOverride: auth,
+        overrides: [
+          liveVoiceApiFactoryProvider.overrideWithValue(() => voice.api),
+          liveLinkProvider.overrideWithValue(voice.link),
+          microphoneProvider.overrideWithValue(voice.microphone),
+          speechPlayerFactoryProvider.overrideWithValue(() => voice.player),
+          voiceTimingProvider.overrideWithValue(_fastVoice),
+        ],
+      );
+      await _startListening(tester, voice);
+      await _receive(tester, voice, FakeProvider.heard('My private words'));
+
+      auth.switchTo(const SignedOut());
+      await settle(tester);
+
+      expect(container.read(voiceControllerProvider).exchanges, isEmpty);
+      expect(voice.microphone.listening, isFalse);
+      expect(find.textContaining('My private words'), findsNothing);
+    });
+
+    testWidgets('a connection lost while the microphone starts is resumed, '
+        'not shown as listening', (tester) async {
+      final microphone = _GatedMicrophone();
+      final voice = FakeVoice(microphone: microphone);
+      await _pumpVoice(tester, voice);
+      voice.api.granted = true;
+      await tester.ensureVisible(find.byKey(const Key('voice-start')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('voice-start')));
+      await settle(tester);
+
+      voice.link.last.drop();
+      microphone.gate.complete();
+      await settle(tester);
+
+      // No resume handle yet, so it falls back to typing rather than
+      // pretending to listen on a closed socket.
+      expect(find.byKey(const Key('voice-listening')), findsNothing);
+      expect(find.textContaining('connection was lost'), findsOneWidget);
     });
 
     testWidgets('a dropped connection resumes on the same credential', (
