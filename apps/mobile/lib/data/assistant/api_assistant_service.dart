@@ -19,10 +19,11 @@ import 'package:dio/dio.dart';
 
 import '../../domain/assistant/assistant_api.dart';
 import '../../domain/assistant/assistant_models.dart';
+import '../../domain/assistant/voice.dart';
 import '../../domain/auth/auth_models.dart';
 import '../auth/api_auth_service.dart';
 
-class ApiAssistantService implements AssistantApi {
+class ApiAssistantService implements AssistantApi, LiveVoiceApi {
   final ApiAuthService _auth;
 
   /// The session this service acts for. Captured when it is made; once the
@@ -230,6 +231,100 @@ class ApiAssistantService implements AssistantApi {
       for (final raw in body['revisions'] as List? ?? const [])
         if (raw is Map) PlanRevision.fromJson(raw.cast<String, Object?>()),
     ];
+  }
+
+  // ----------------------------------------------------------------- voice
+  //
+  // The conversation-scoped Gemini Live routes (docs/assistant-live.md). The
+  // credential in a started session is a secret: it is returned to the voice
+  // controller and nowhere else.
+
+  String _live(String conversationId) =>
+      '/assistant/conversations/$conversationId';
+
+  @override
+  Future<VoiceConsent> voiceConsent(String conversationId) async =>
+      VoiceConsent.fromJson(
+        await _voice('GET', '${_live(conversationId)}/live-consent'),
+      );
+
+  @override
+  Future<VoiceConsent> grantVoiceConsent(
+    String conversationId,
+    VoiceConsent shown,
+  ) async => VoiceConsent.fromJson(
+    await _voice(
+      'PUT',
+      '${_live(conversationId)}/live-consent',
+      data: {'notice_version': shown.noticeVersion, 'model': shown.model},
+    ),
+  );
+
+  @override
+  Future<LiveCredential> startLiveSession(
+    String conversationId,
+    String sessionId,
+  ) async => LiveCredential.fromJson(
+    await _voice(
+      'POST',
+      '${_live(conversationId)}/live-sessions',
+      data: {'id': sessionId},
+    ),
+  );
+
+  @override
+  Future<bool> disconnectRequired(
+    String conversationId,
+    String sessionId,
+  ) async {
+    final body = await _voice(
+      'GET',
+      '${_live(conversationId)}/live-sessions/$sessionId',
+    );
+    return body['disconnect_required'] != false;
+  }
+
+  @override
+  Future<void> endLiveSession(String conversationId, String sessionId) =>
+      _voice(
+        'POST',
+        '${_live(conversationId)}/live-sessions/$sessionId/interrupt',
+      );
+
+  @override
+  Future<Map<String, Object?>> runTool(
+    String conversationId,
+    String sessionId, {
+    required String id,
+    required String name,
+    required Map<String, Object?> args,
+  }) async {
+    final body = await _voice(
+      'POST',
+      '${_live(conversationId)}/live-sessions/$sessionId/tools',
+      data: {'id': id, 'name': name, 'args': args},
+    );
+    return (body['response'] as Map?)?.cast<String, Object?>() ?? const {};
+  }
+
+  /// [_json], with the voice routes' own error codes.
+  Future<Map<String, Object?>> _voice(
+    String method,
+    String path, {
+    Object? data,
+  }) async {
+    final response = await _send(method, path, data: data);
+    final status = response.statusCode ?? 0;
+    final body = _decode(response.data);
+    if (status < 200 || status >= 300) {
+      final error = body is Map ? body['error'] : null;
+      final code = error is Map && error['code'] is String
+          ? error['code']! as String
+          : null;
+      throw AssistantException(voiceProblemFor(status, code), code);
+    }
+    if (body is Map) return body.cast<String, Object?>();
+    throw const AssistantException(AssistantProblem.unknown);
   }
 
   // ------------------------------------------------------------------ guts
