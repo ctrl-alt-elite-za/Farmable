@@ -7,7 +7,7 @@ from farmable_backend.assistant.settings import AssistantSettings
 from farmable_backend.config import Settings
 from farmable_backend.database import Database
 from farmable_backend.diagnosis_worker import DiagnosisWorker
-from farmable_backend.gcs_photos import create_gcs_photos
+from farmable_backend.gcs_photos import create_photos
 from farmable_backend.integrations.crop_health import CropHealth
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
@@ -50,7 +50,7 @@ async def run() -> None:
                 weather = WeatherWorker(database.sessions, services.open_meteo)
                 weather_task = asyncio.create_task(weather.run())
             if database is not None and settings.photo_bucket:
-                photos = PhotoWorker(database.sessions, lambda: create_gcs_photos(settings))
+                photos = PhotoWorker(database.sessions, lambda: create_photos(settings))
                 photo_task = asyncio.create_task(photos.run())
                 if services is not None and settings.diagnosis_enabled:
                     diagnosis = DiagnosisWorker(
@@ -58,7 +58,7 @@ async def run() -> None:
                         CropHealth(
                             "crop_health", services.client, services_settings, max_attempts=1
                         ),
-                        lambda: create_gcs_photos(settings),
+                        lambda: create_photos(settings),
                     )
                     diagnosis_task = asyncio.create_task(diagnosis.run())
             await app.run_worker_async(queues=["default"], update_heartbeat_interval=5.0)

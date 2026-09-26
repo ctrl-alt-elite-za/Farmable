@@ -33,7 +33,7 @@ from farmable_backend.config import Settings
 from farmable_backend.database import Database
 from farmable_backend.diagnosis_api import router as diagnosis_router
 from farmable_backend.forecast_api import router as forecast_router
-from farmable_backend.gcs_photos import create_gcs_photos
+from farmable_backend.gcs_photos import create_photos
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
@@ -120,7 +120,7 @@ def create_app(
                 )
                 app.state.auth = AuthService(database.sessions, provider)
                 app.state.records = RecordRuntime(
-                    RecordsService(database.sessions), lambda: create_gcs_photos(config)
+                    RecordsService(database.sessions), lambda: create_photos(config)
                 )
                 app.state.account = AccountRuntime(AccountService(database.sessions))
                 app.state.assistant = AssistantRuntime(

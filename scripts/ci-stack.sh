@@ -19,6 +19,16 @@ export COMMIT_SHA API_PORT=0
 if [ "$mode" = mobile ]; then export API_PORT=8000; fi
 project="farmable-ci-$(uv run python -c 'import uuid; print(uuid.uuid4().hex)')"
 compose=(docker compose -p "$project" -f compose.yaml)
+if [ "$mode" = mobile ]; then
+  # Disposable photo storage for uploads from the emulator (#11, #17).
+  PHOTO_TEST_STORAGE_USER="$(uv run python -c 'import secrets; print(secrets.token_hex(12))')"
+  PHOTO_TEST_STORAGE_PASSWORD="$(uv run python -c 'import secrets; print(secrets.token_hex(24))')"
+  export PHOTO_TEST_STORAGE_USER PHOTO_TEST_STORAGE_PASSWORD
+  if [ "${GITHUB_ACTIONS:-}" = true ]; then
+    printf '::add-mask::%s\n' "$PHOTO_TEST_STORAGE_PASSWORD"
+  fi
+  compose+=(-f compose.ci-photos.yaml)
+fi
 cleanup() {
   local status=$?
   if [ "$mode" = mobile ] && [ "$status" -ne 0 ]; then
@@ -35,6 +45,7 @@ cleanup() {
 }
 trap cleanup EXIT
 "${compose[@]}" build api worker
+if [ "$mode" = mobile ]; then "${compose[@]}" build photo-storage; fi
 if [ "$mode" = deployability ]; then
   # Build the post-migration importer too; no live DB or notifier credential in CI.
   docker build --file apps/backend/Dockerfile --target forecast-import .

@@ -299,3 +299,12 @@ def create_gcs_photos(settings) -> GcsPhotos | None:
         raise
     except (GoogleAuthError, RequestException, ValueError, OSError):
         raise UploadError("storage_unavailable") from None
+
+
+def create_photos(settings):
+    """The configured photo storage: private GCS, or disposable CI storage."""
+    if getattr(settings, "photo_test_storage_url", None):
+        from farmable_backend.ci_photos import create_ci_photos
+
+        return create_ci_photos(settings)
+    return create_gcs_photos(settings)

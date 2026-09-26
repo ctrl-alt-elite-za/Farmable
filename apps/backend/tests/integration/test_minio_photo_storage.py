@@ -1,14 +1,25 @@
 """Real MinIO boundary tests; NOT the pending HTTP/media/job acceptance flow."""
 
+import hashlib
 import os
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from types import SimpleNamespace
 from uuid import uuid4
 
 import boto3
 import httpx
 import pytest
 from botocore.config import Config
-from farmable_backend.uploads import PhotoSpec, PhotoStorage, PostUpload, UploadError
+from farmable_backend.ci_photos import CiPhotos
+from farmable_backend.uploads import (
+    CleanPhoto,
+    PhotoSpec,
+    PhotoStorage,
+    PostUpload,
+    UploadError,
+    sanitize_photo,
+)
 from PIL import Image
 
 pytestmark = pytest.mark.integration
@@ -126,3 +137,71 @@ def test_corrupt_upload_is_not_published(storage):
         store.sanitize(spec)
     keys = [obj["Key"] for obj in client.list_objects_v2(Bucket=bucket).get("Contents", [])]
     assert spec.clean_key not in keys
+
+
+def _ci_upload(data):
+    upload = SimpleNamespace(
+        farm_id=uuid4(), media_id=uuid4(), content_type="image/jpeg", byte_length=len(data)
+    )
+    attempt = SimpleNamespace(
+        id=uuid4(),
+        form_expires_at=datetime.now(UTC) + timedelta(minutes=5),
+        source_generation=None,
+        clean_generation=None,
+        clean_sha256=None,
+        clean_size=None,
+    )
+    return upload, attempt
+
+
+def test_ci_storage_speaks_the_worker_contract(storage):
+    """CiPhotos (#11): the CI stack's stand-in for GCS, end to end on MinIO."""
+    _store, client, bucket = storage
+    photos = CiPhotos(client, client, bucket)
+    data = gps_photo()
+    upload, attempt = _ci_upload(data)
+
+    photos.private()
+    form = photos.prepare(upload, attempt)
+    assert post_file(form, data) == 204
+
+    info = photos.inspect(upload, attempt)
+    assert (info.size, info.content_type) == (len(data), "image/jpeg")
+    attempt.source_generation = info.generation
+    assert photos.read(upload, attempt) == data
+
+    clean = sanitize_photo(data, "image/jpeg")
+    generation = photos.publish(upload, attempt, clean)
+    # A retry after a lost response reuses identical bytes, never replaces them.
+    assert photos.publish(upload, attempt, clean) == generation
+    with pytest.raises(UploadError, match="^clean_object_conflict$"):
+        photos.publish(upload, attempt, CleanPhoto(b"other", "image/jpeg", 1, 1))
+
+    attempt.clean_generation = generation
+    attempt.clean_sha256 = hashlib.sha256(clean.data).hexdigest()
+    attempt.clean_size = len(clean.data)
+    assert photos.read_clean(upload, attempt) == clean.data
+
+    # Replacing the incoming object moves its ETag: the pinned read refuses it.
+    assert post_file(form, gps_photo()[::-1][: len(data)]) == 204
+    with pytest.raises(UploadError):
+        photos.read(upload, attempt)
+
+    assert photos.cleanup(upload, attempt, keep_clean=True) is True
+    with pytest.raises(UploadError, match="^incoming_missing$"):
+        photos.inspect(upload, attempt)
+    assert photos.read_clean(upload, attempt) == clean.data
+
+
+def test_ci_storage_refuses_a_bucket_with_a_policy(storage):
+    _store, client, bucket = storage
+    client.put_bucket_policy(
+        Bucket=bucket,
+        Policy=(
+            '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*",'
+            '"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::' + bucket + '/*"]}]}'
+        ),
+    )
+    with pytest.raises(UploadError, match="^private_bucket_unverified$|^private_bucket_required$"):
+        CiPhotos(client, client, bucket).private()
+    client.delete_bucket_policy(Bucket=bucket)
