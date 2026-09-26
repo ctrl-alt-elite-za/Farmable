@@ -20,6 +20,8 @@ import '../../domain/planning/recommendations.dart';
 import '../../domain/planning/scenario.dart';
 import '../shell/almanac_scaffold.dart';
 import '../shell/bottom_nav_island.dart';
+import 'live_plan_body.dart';
+import 'live_plan_view_model.dart';
 import 'recommendation_view_model.dart';
 import 'widgets/constraints_sheet.dart';
 import 'widgets/recommendation_card.dart';
@@ -32,6 +34,17 @@ class RecommendationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A signed-in farmer's section is planned by the backend; the demo farm,
+    // which no server knows, keeps the bundled planner below.
+    if (ref.watch(usesLivePlannerProvider)) {
+      return AlmanacScaffold(
+        destination: NavDestination.farm,
+        body: LivePlanBody(
+          sectionId: sectionId,
+          onBack: () => back(context, sectionId),
+        ),
+      );
+    }
     final view = ref.watch(recommendationsProvider(sectionId));
 
     return AlmanacScaffold(

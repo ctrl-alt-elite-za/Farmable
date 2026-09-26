@@ -10,16 +10,16 @@ name: Recorded crop pan keeps warning boxes tappable
 - extendedWaitUntil:
     visible: '.*Hello, Sipho.*'
     timeout: 60000
-- scrollUntilVisible:
-    element: 'Cabbage Field\..*'
-    direction: DOWN
+# Open the section from the Farm tab's list rather than the Home carousel:
+# the carousel card's position moves with Home's header, and a tap near its
+# bottom lands on the persistent assistant button instead.
 - tapOn:
-    text: 'Cabbage Field\..*'
-    # The carousel card extends under the persistent assistant button. Maestro
-    # taps the centre of a matched element by default, which opens that
-    # button instead of the card on the emulator. Keep the selector semantic,
-    # but tap the card's visible upper area.
-    point: '50%,20%'
+    id: 'nav-farm'
+- scrollUntilVisible:
+    element: 'Cabbage Field.*'
+    direction: DOWN
+    centerElement: true
+- tapOn: 'Cabbage Field.*'
 - tapOn:
     id: 'zone-scan'
 - assertVisible: '.*Test replay.*synthetic crop boxes.*'

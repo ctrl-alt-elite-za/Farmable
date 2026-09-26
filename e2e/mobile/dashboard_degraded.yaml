@@ -1,0 +1,46 @@
+# Home for a signed-in farmer with the API stopped (#12).
+#
+# Runs straight after first_launch_setup.yaml, which leaves Thandi signed in
+# with her own farm, and after ci-stack.sh has stopped ONLY this stack's API.
+# The phone still has a network, so every server-backed source is tried and
+# fails for real: the connectivity check, the market outlook and the pull.
+# Home must still show the farm, say how old it is, and keep each failed
+# source to its own panel.
+#
+# A panel that errors outright (rather than finding nothing saved) is proven
+# deterministically by test/home_hardening_test.dart, which fails each source
+# on its own; this flow proves the real stack degrades the same way.
+#
+#   maestro test e2e/mobile/dashboard_degraded.yaml
+appId: za.co.almanac.app
+name: Home degrades per panel when the API is down
+---
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Hello, Thandi.*'
+    timeout: 60000
+# The farm it last pulled, labelled with its age. "offline" because the
+# health check cannot reach the API, whatever Android thinks of the network.
+- extendedWaitUntil:
+    visible: '.*Updated .* · offline.*'
+    timeout: 30000
+- assertVisible:
+    id: 'sync-status'
+# The market outlook answers inside its own panel — it never blanks Home.
+- scrollUntilVisible:
+    element: '.*Market outlook.*'
+    direction: DOWN
+    timeout: 20000
+- scrollUntilVisible:
+    element: '.*(No forecast yet|No outlook saved on this phone yet|Market outlook could not load).*'
+    direction: DOWN
+    timeout: 20000
+# And everything below it is still there and usable.
+- scrollUntilVisible:
+    element: '.*Next up.*'
+    direction: DOWN
+    timeout: 20000
+- scrollUntilVisible:
+    element: '.*Hello, Thandi.*'
+    direction: UP
+    timeout: 20000

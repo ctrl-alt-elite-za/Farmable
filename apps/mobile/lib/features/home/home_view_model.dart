@@ -10,6 +10,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/utils/ids.dart';
 import '../../data/health_service.dart';
 import '../../domain/farm_records.dart';
 import '../../domain/farm_records_repository.dart';
@@ -22,10 +23,14 @@ class HomeView {
   /// farm below it is identical either way, which is the point.
   final bool offline;
 
+  /// False for the demo farm, which no server knows.
+  final bool isAccount;
+
   const HomeView({
     required this.farm,
     required this.today,
     required this.offline,
+    this.isAccount = false,
   });
 
   /// Section id to name, for rows that name a section they do not own.
@@ -63,6 +68,32 @@ final homeViewProvider = Provider<AsyncValue<HomeView?>>((ref) {
             farm: snapshot,
             today: ref.watch(clockProvider)(),
             offline: reachability != Reachability.online,
+            isAccount: ref.watch(farmScopeProvider).isAccount,
           ),
   );
 });
+
+/// When the farm was last brought up to date from the server. A source of
+/// its own: if it fails, only the age line under the greeting goes.
+final homeLastPulledProvider = StreamProvider<DateTime?>(
+  (ref) => ref.watch(farmRecordsProvider).watchLastPulled(),
+);
+
+/// The Cleared / Still growing answer (#12).
+class HarvestActions {
+  final FarmRecordsRepository _records;
+
+  const HarvestActions(this._records);
+
+  /// A key for one "Cleared" answer, minted when the prompt is first shown
+  /// and reused for every retry of it.
+  String newKey() => newUuid();
+
+  /// Stands the planting down and queues it with [key]. Safe to repeat.
+  Future<void> cleared(String sectionId, String key) =>
+      _records.clearPlanting(sectionId, mutationId: key);
+}
+
+final harvestActionsProvider = Provider<HarvestActions>(
+  (ref) => HarvestActions(ref.watch(farmRecordsProvider)),
+);
