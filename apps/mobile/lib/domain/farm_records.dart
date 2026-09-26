@@ -298,8 +298,8 @@ class FarmTask {
       isOpen && dueDate.isBefore(DateTime(today.year, today.month, today.day));
 }
 
-/// `financial_records`. Only the expense side is used this session — it is
-/// what turns "Expected cost R10,600" into "R6,200 spent so far".
+/// `financial_records`. Expenses turn "Expected cost R10,600" into "R6,200
+/// spent so far"; both sides are totalled on the Money screen.
 class FinancialRecord {
   final String id;
   final String? sectionId;

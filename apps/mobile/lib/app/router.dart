@@ -36,6 +36,7 @@ import '../features/farm/farm_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/insights/insights_screen.dart';
 import '../features/insights/market_screen.dart';
+import '../features/insights/money_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
 import '../features/recommendations/recommendation_detail_screen.dart';
 import '../features/recommendations/recommendations_screen.dart';
@@ -197,6 +198,11 @@ GoRouter buildRouter({
     // Issue #93 first slice: crop outlooks for this account's planted land.
     GoRoute(path: '/insights/market', builder: (_, _) => const MarketScreen()),
     // -------------------------------------------------- end insights market
+
+    // ------------------------------------------------------- insights money
+    // Issue #93, design 32: money in and out, from the records on the phone.
+    GoRoute(path: '/insights/money', builder: (_, _) => const MoneyScreen()),
+    // --------------------------------------------------- end insights money
 
     // ------------------------------------------------------- issue 94 profile
     GoRoute(
