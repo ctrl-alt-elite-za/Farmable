@@ -418,6 +418,9 @@ class AssistantController extends Notifier<AssistantChatState> {
 
   String? get farmId => _farmId;
 
+  /// The server conversation, once one is open. Voice sessions belong to it.
+  String? get conversationId => _conversationId;
+
   /// Called when the sheet opens. Cheap when the conversation is already
   /// open for this account; otherwise works out where the farmer stands.
   Future<void> open() =>
@@ -836,6 +839,18 @@ class AssistantController extends Notifier<AssistantChatState> {
   }
 
   /// The words to put back in the box, once; null when there are none.
+  /// Hands words to the typing box — what the farmer said aloud that voice
+  /// could not answer. Added after anything already waiting there.
+  void returnDraft(String words) {
+    final trimmed = words.trim();
+    if (trimmed.isEmpty) return;
+    final waiting = state.returnedDraft;
+    state = state.copyWith(
+      returnedDraft: () =>
+          waiting == null ? trimmed : [waiting, trimmed].join('\n'),
+    );
+  }
+
   String? takeReturnedDraft() {
     final words = state.returnedDraft;
     if (words != null) state = state.copyWith(returnedDraft: () => null);

@@ -235,6 +235,7 @@ class AIActionButton extends StatelessWidget {
             duration: motion.micro,
             curve: AlmanacMotion.easeEmphasised,
             child: Semantics(
+              identifier: 'assistant-open',
               button: true,
               label: 'Farm assistant. Hold to speak, or tap to start and stop.',
               child: Material(

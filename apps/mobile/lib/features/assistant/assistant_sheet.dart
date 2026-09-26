@@ -1,8 +1,11 @@
 /// The assistant sheet: type a question, watch the answer arrive, choose from
 /// what the planner offers, and confirm before anything is saved.
 ///
-/// Voice is not part of this (#24). What is here is the typed conversation
-/// against the backend's assistant contract (`docs/assistant-backend.md`).
+/// The typed conversation runs against the backend's assistant contract
+/// (`docs/assistant-backend.md`); the mic beside Send talks to it instead
+/// (#24, [VoiceController]). Voice stops whenever the sheet closes or the app
+/// goes to the background, and anything said but not answered lands in the
+/// typing box.
 ///
 /// ## Words for states that are not faults
 ///
@@ -28,8 +31,10 @@ import '../../app/theme/tokens.g.dart';
 import '../../core/ui/buttons.dart';
 import '../../domain/assistant/assistant_models.dart';
 import 'assistant_controller.dart';
+import 'voice_controller.dart';
 import 'widgets/chat_entries.dart';
 import 'widgets/choice_button.dart';
+import 'widgets/voice_widgets.dart';
 
 Future<void> showAssistantSheet(BuildContext context) => showModalBottomSheet(
   context: context,
@@ -50,10 +55,19 @@ class AssistantSheet extends ConsumerStatefulWidget {
 class _AssistantSheetState extends ConsumerState<AssistantSheet> {
   final _draft = TextEditingController();
   final _scroll = ScrollController();
+  late final VoiceController _voice;
+
+  /// The microphone and speaker never keep running behind another app.
+  late final AppLifecycleListener _lifecycle;
 
   @override
   void initState() {
     super.initState();
+    _voice = ref.read(voiceControllerProvider.notifier);
+    _lifecycle = AppLifecycleListener(
+      onHide: _voice.stop,
+      onPause: _voice.stop,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final controller = ref.read(assistantControllerProvider.notifier);
@@ -73,6 +87,11 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
+    // Leaving the sheet ends the session: nothing listens once it is gone.
+    // A microtask, because a provider cannot change while the tree is being
+    // torn down; the microphone stops a moment later, not a frame later.
+    Future.microtask(_voice.stop);
     _draft.dispose();
     _scroll.dispose();
     super.dispose();
@@ -116,15 +135,18 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
 
     // Keep the newest line in view as the answer grows. Only new words move
     // the view: choosing on an older plan card must not scroll it away.
-    ref.listen(assistantControllerProvider, (previous, next) {
-      if (previous?.entries != next.entries) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scroll.hasClients) {
-            _scroll.jumpTo(_scroll.position.maxScrollExtent);
-          }
-        });
+    void toBottom() => WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
       }
     });
+    ref.listen(assistantControllerProvider, (previous, next) {
+      if (previous?.entries != next.entries) toBottom();
+    });
+    ref.listen(
+      voiceControllerProvider.select((s) => s.exchanges),
+      (_, _) => toBottom(),
+    );
 
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -179,6 +201,7 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
                   _Composer(
                     draft: _draft,
                     state: state,
+                    voiceEnabled: _voice.available(state),
                     onSend: _send,
                     onStop: () =>
                         ref.read(assistantControllerProvider.notifier).stop(),
@@ -386,7 +409,7 @@ class _Header extends ConsumerWidget {
                   child: Text('Ask Almanac', style: text.titleLarge),
                 ),
                 Text(
-                  'Type a question about your farm.',
+                  'Type or talk — ask about your farm.',
                   style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
                 ),
               ],
@@ -439,17 +462,20 @@ class _Starting extends StatelessWidget {
   }
 }
 
-class _Conversation extends StatelessWidget {
+class _Conversation extends ConsumerWidget {
   final AssistantChatState state;
   final ScrollController scroll;
 
   const _Conversation({required this.state, required this.scroll});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     final c = context.semantic;
-    if (state.entries.isEmpty) {
+    final spoken = ref.watch(
+      voiceControllerProvider.select((s) => s.exchanges.isNotEmpty),
+    );
+    if (state.entries.isEmpty && !spoken) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(AlmanacDimens.sp4),
@@ -473,6 +499,7 @@ class _Conversation extends StatelessWidget {
             FarmerLine() => FarmerBubble(entry),
             ReplyEntry() => ReplyBubble(entry),
           },
+        const VoiceExchanges(),
       ],
     );
   }
@@ -725,12 +752,14 @@ class _CropQuestionPanel extends ConsumerWidget {
 class _Composer extends StatelessWidget {
   final TextEditingController draft;
   final AssistantChatState state;
+  final bool voiceEnabled;
   final VoidCallback onSend;
   final VoidCallback onStop;
 
   const _Composer({
     required this.draft,
     required this.state,
+    required this.voiceEnabled,
     required this.onSend,
     required this.onStop,
   });
@@ -747,6 +776,7 @@ class _Composer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const VoiceStrip(),
           if (!ready)
             Padding(
               padding: const EdgeInsets.only(bottom: AlmanacDimens.sp1),
@@ -776,7 +806,10 @@ class _Composer extends StatelessWidget {
                   },
                   decoration: InputDecoration(
                     hintText: 'Ask about your farm',
+                    hintMaxLines: 1,
                     counterText: '',
+                    // Inside the box, so the box keeps its width.
+                    suffixIcon: MicButton(enabled: voiceEnabled),
                     filled: true,
                     fillColor: c.surface,
                     border: OutlineInputBorder(
