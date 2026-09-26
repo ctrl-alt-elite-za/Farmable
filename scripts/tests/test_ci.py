@@ -867,3 +867,22 @@ def test_every_required_check_documents_its_local_reproduction():
         assert f"`{name}`" in documentation, name
         assert f"`{command}`" in documentation, name
         assert guidance, name
+
+
+def test_the_assistant_runs_only_for_its_own_flow_onward():
+    """#23: the assistant and forecasts switch on just before assistant_plan."""
+    repo = Path(__file__).resolve().parents[2]
+    stack = (repo / "scripts/ci-stack.sh").read_text(encoding="utf-8")
+    switched = stack.index("compose+=(-f compose.ci-assistant.yaml)")
+    assert stack.index("maestro test e2e/mobile/voice_fallback.yaml") < switched
+    assert switched < stack.index("maestro test e2e/mobile/assistant_plan.yaml")
+    assert stack.index('"${compose[@]}" run --rm forecast-import') < stack.index(
+        "maestro test e2e/mobile/assistant_plan.yaml"
+    )
+    override = yaml.safe_load((repo / "compose.ci-assistant.yaml").read_text(encoding="utf-8"))
+    for service in ("api", "worker"):
+        env = override["services"][service]["environment"]
+        # The fake model only: never a live provider or a real budget.
+        assert env["ASSISTANT_POLICY_MODEL"] == "fixture-model"
+        assert env["FORECAST_DATA_MODE"] == "retrospective"
+    assert override["services"]["forecast-import"]["profiles"] == ["tools"]

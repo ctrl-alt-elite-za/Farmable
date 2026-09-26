@@ -1,0 +1,75 @@
+# Issue #23: a farmer asks the assistant for a plan, chooses an option and
+# confirms it, and the saved version comes back from the server.
+#
+# The stack runs the assistant against fake integrations (compose.ci-assistant.yaml):
+# the model is fixture-model and its planning turn is scripted in
+# apps/backend/src/farmable_backend/integrations/fakes.py (list the sections,
+# preview cabbage on the one named, then answer). The plan numbers come from
+# the real planner over the committed retrospective forecast bundle.
+#
+#   API_URL=http://127.0.0.1:8000 maestro test e2e/mobile/assistant_plan.yaml
+appId: za.co.almanac.app
+name: A farmer asks the assistant for a plan, chooses one and confirms it
+env:
+  API_URL: http://127.0.0.1:8000
+---
+- evalScript: ${output.suffix = String(Date.now()).slice(-7)}
+- runFlow: signup.yaml
+# A section the server knows, with an area: the planner needs both.
+- runScript:
+    file: scripts/seed_section.js
+    env:
+      EMAIL: farmer${output.suffix}@example.com
+      PASSWORD: three blind field mice
+      SECTION: Plan test beds
+      AREA_M2: '400.00'
+# Outside services stay off until the farmer allows them.
+# signup.yaml leaves Profile scrolled down to Log out; the row's label is its
+# title and subtitle together, so match the title as a prefix.
+- scrollUntilVisible:
+    element: 'Privacy and consent.*'
+    direction: UP
+    centerElement: true
+- tapOn: 'Privacy and consent.*'
+- scrollUntilVisible:
+    element: '.*Allow outside services.*'
+    direction: DOWN
+    centerElement: true
+- tapOn: '.*Allow outside services.*'
+- back
+- tapOn:
+    id: 'nav-home'
+- tapOn:
+    id: 'assistant-open'
+# The assistant's own notice, then Allow: nothing is sent before it.
+- extendedWaitUntil:
+    visible: 'Before you ask'
+    timeout: 20000
+# The notice is long; the button sits below it.
+- scrollUntilVisible:
+    element: 'Allow'
+    direction: DOWN
+    centerElement: true
+- tapOn: 'Allow'
+- tapOn: 'Ask about your farm'
+- inputText: 'Plan cabbage on Plan test beds'
+- hideKeyboard
+- tapOn: 'Send'
+- extendedWaitUntil:
+    visible: '.*Plan option 1 of.*'
+    timeout: 60000
+# Nothing is saved until the farmer chooses, reviews and confirms.
+- tapOn: '.*Plan option 1 of.*'
+- scrollUntilVisible:
+    element: 'Review this plan'
+    direction: DOWN
+    centerElement: true
+- tapOn: 'Review this plan'
+- scrollUntilVisible:
+    element: 'Confirm and save'
+    direction: DOWN
+    centerElement: true
+- tapOn: 'Confirm and save'
+- extendedWaitUntil:
+    visible: '.*Saved to your farm account as version 1.*'
+    timeout: 30000
