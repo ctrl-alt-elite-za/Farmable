@@ -1,0 +1,43 @@
+# CI mobile stack only (scripts/ci-stack.sh mobile): disposable photo storage,
+# so a photo taken on the emulator reaches the API end to end (#11, #17).
+# The API refuses PHOTO_TEST_STORAGE_URL unless ENVIRONMENT=ci or development.
+x-ci-photos: &ci-photos
+  PHOTO_BUCKET: farmable-ci-photos
+  # The API and worker reach storage on the compose network...
+  PHOTO_TEST_STORAGE_URL: http://photo-storage:9000
+  # ...and sign forms for the host the emulator sees as 10.0.2.2. A V4 POST
+  # policy does not sign the host, so one form works at either address.
+  PHOTO_TEST_STORAGE_PUBLIC_URL: http://10.0.2.2:9000
+  PHOTO_TEST_STORAGE_USER: ${PHOTO_TEST_STORAGE_USER:?run scripts/ci-stack.sh mobile}
+  PHOTO_TEST_STORAGE_PASSWORD: ${PHOTO_TEST_STORAGE_PASSWORD:?run scripts/ci-stack.sh mobile}
+
+services:
+  photo-storage:
+    build:
+      context: .
+      dockerfile: e2e/uploads/Dockerfile.minio
+    command: ['server', '/tmp/photos']
+    environment:
+      MINIO_ROOT_USER: ${PHOTO_TEST_STORAGE_USER:?run scripts/ci-stack.sh mobile}
+      MINIO_ROOT_PASSWORD: ${PHOTO_TEST_STORAGE_PASSWORD:?run scripts/ci-stack.sh mobile}
+    ports:
+      - '127.0.0.1:9000:9000'
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:9000/minio/health/ready', timeout=2).close()"
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  api:
+    environment: *ci-photos
+    depends_on:
+      photo-storage:
+        condition: service_healthy
+  worker:
+    environment: *ci-photos
+    depends_on:
+      photo-storage:
+        condition: service_healthy
