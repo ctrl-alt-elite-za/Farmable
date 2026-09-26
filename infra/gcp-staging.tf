@@ -62,6 +62,10 @@ locals {
     "gemini-model",
     "crop-health-api-key",
     "maps-server-api-key",
+    "infobip-api-key",
+    "infobip-base-url",
+    "infobip-sms-sender",
+    "infobip-email-sender",
   ])
 }
 

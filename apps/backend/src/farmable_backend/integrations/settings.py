@@ -1,6 +1,6 @@
 from typing import Literal, Self
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 SERVICES = (
@@ -61,6 +61,26 @@ class ServiceSettings(BaseSettings):
     )
     crop_health_api_key: SecretStr | None = Field(default=None, repr=False)
     maps_server_api_key: SecretStr | None = Field(default=None, repr=False)
+    # Verification codes (#7). infra/set-secret.sh checks the same patterns before
+    # upload, because a value that fails them stops the backend from starting.
+    infobip_base_url: str | None = Field(
+        default=None, pattern=r"^([a-z0-9-]+\.)?api\.infobip\.com$", max_length=253
+    )
+    infobip_api_key: SecretStr | None = Field(default=None, repr=False)
+    infobip_sms_sender: str | None = Field(
+        default=None, pattern=r"^(\+?[0-9]{3,15}|[A-Za-z0-9 ]{1,11})$", max_length=16
+    )
+    infobip_email_sender: str | None = Field(
+        default=None, pattern=r"^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$", max_length=254
+    )
+
+    @field_validator("infobip_base_url", mode="before")
+    @classmethod
+    def infobip_host_only(cls, value: object) -> object:
+        # The Infobip portal shows the base URL with its scheme; keep only the host.
+        if isinstance(value, str):
+            return value.strip().removeprefix("https://").rstrip("/").lower()
+        return value
 
     @model_validator(mode="after")
     def safe_test_controls(self) -> Self:

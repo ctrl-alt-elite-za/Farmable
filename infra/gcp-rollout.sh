@@ -131,6 +131,10 @@ optional_secrets=(
   "AZURE_SPEECH_REGION:azure-speech-region"
   "CROP_HEALTH_API_KEY:crop-health-api-key"
   "MAPS_SERVER_API_KEY:maps-server-api-key"
+  "INFOBIP_API_KEY:infobip-api-key"
+  "INFOBIP_BASE_URL:infobip-base-url"
+  "INFOBIP_SMS_SENDER:infobip-sms-sender"
+  "INFOBIP_EMAIL_SENDER:infobip-email-sender"
 )
 
 # One listing call decides existence for every candidate. Probing each secret

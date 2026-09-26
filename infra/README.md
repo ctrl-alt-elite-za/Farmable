@@ -113,8 +113,33 @@ keys can be added later followed by a redeploy:
 
 `gemini-model`, `twilio-account-sid`, `twilio-verify-service-sid`, `twilio-auth-token`,
 `turnstile-secret`, `turnstile-hostname`, `azure-speech-key`, `azure-speech-resource`,
-`azure-speech-region`, `crop-health-api-key`, `maps-server-api-key` — each prefixed
+`azure-speech-region`, `crop-health-api-key`, `maps-server-api-key`, `infobip-api-key`,
+`infobip-base-url`, `infobip-sms-sender`, `infobip-email-sender` — each prefixed
 `farmable-staging-`.
+
+**The easy way to set or replace any of them** is `infra/set-secret.sh`. It needs only
+permission to add a secret version, prompts without echoing, checks the value's format
+first (a malformed value stops the backend from starting), and sends the value to
+Secret Manager on stdin, so it never appears in an argument, a log or shell history:
+
+```bash
+bash infra/set-secret.sh                    # which secrets hold a value (names only)
+bash infra/set-secret.sh infobip-api-key    # prompt for a value and store it
+```
+
+The next deploy wires every secret that holds a value; nothing else needs to change.
+
+**Verification codes (Infobip).** Sign-up and log-in need a phone code by SMS and an
+email code. With live integrations, the backend sends both through Infobip once all
+four `infobip-*` secrets hold a value; until then it refuses to send, and no one can
+finish signing up. From the Infobip portal:
+
+| Secret                 | Value                                                                |
+| ---------------------- | -------------------------------------------------------------------- |
+| `infobip-api-key`      | An API key with SMS and email send permission                        |
+| `infobip-base-url`     | Your personal base URL, e.g. `xxxxxx.api.infobip.com`                |
+| `infobip-sms-sender`   | A registered sender: a number, or up to 11 letters and digits        |
+| `infobip-email-sender` | An address on a domain verified in Infobip, e.g. `codes@example.com` |
 
 Do **not** add placeholder values. Several fields are pattern-validated
 (`TWILIO_ACCOUNT_SID` must match `^AC[0-9a-fA-F]{32}$`), and a value that fails
