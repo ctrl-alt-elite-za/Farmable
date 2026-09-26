@@ -249,4 +249,20 @@ void main() {
     expect(clean, isTrue);
     expect(await store.read('farmer-a', query), isNull);
   });
+
+  test('sign-out forgets one account and leaves the other', () async {
+    final directory = await Directory.systemTemp.createTemp('outlook-test-');
+    addTearDown(() => directory.delete(recursive: true));
+    final store = FileOutlookStore(directory: () async => directory);
+    final saved = SavedOutlook(
+      CropOutlook.fromJson(wire),
+      DateTime.utc(2026, 9, 25, 9),
+    );
+    await store.write('farmer-a', query, saved);
+    await store.write('farmer-b', query, saved);
+
+    await store.forget('farmer-a');
+    expect(await store.read('farmer-a', query), isNull);
+    expect(await store.read('farmer-b', query), isNotNull);
+  });
 }
