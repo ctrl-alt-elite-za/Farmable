@@ -58,6 +58,11 @@ env:
 - tapOn: 'Yellow leaves on the south side'
 - inputText: 'Under the leaves, north corner'
 - hideKeyboard
+# Below the fold of the sheet on a small screen.
+- scrollUntilVisible:
+    element: 'Add a photo'
+    direction: DOWN
+    centerElement: true
 - tapOn: 'Add a photo'
 - extendedWaitUntil:
     visible: '.*Photo added.*'
