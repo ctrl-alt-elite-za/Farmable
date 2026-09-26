@@ -31,6 +31,11 @@ class PlanCard extends ConsumerWidget {
       assistantControllerProvider.select((s) => s.decisions[decisionKey]),
     );
     if (decision == null) return const SizedBox.shrink();
+    final earlier = ref.watch(
+      assistantControllerProvider.select(
+        (s) => _earlierPreview(s.decisions, decisionKey),
+      ),
+    );
     final controller = ref.read(assistantControllerProvider.notifier);
     final c = context.semantic;
     final text = Theme.of(context).textTheme;
@@ -80,6 +85,11 @@ class PlanCard extends ConsumerWidget {
             ].join(' · '),
             style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
           ),
+          if (earlier != null)
+            _Changes(
+              key: Key('plan-changed-$decisionKey'),
+              changes: planChanges(earlier, preview),
+            ),
           if (preview.warning != null) ...[
             const SizedBox(height: AlmanacDimens.sp2),
             _Caution(preview.warning!),
@@ -125,6 +135,19 @@ class PlanCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// The plan shown just before this one in the conversation, if any.
+  static PlanPreview? _earlierPreview(
+    Map<String, PlanDecision> decisions,
+    String key,
+  ) {
+    PlanPreview? previous;
+    for (final MapEntry(key: k, :value) in decisions.entries) {
+      if (k == key) return previous;
+      previous = value.preview;
+    }
+    return null;
   }
 
   static bool _canChoose(DecisionStage stage) =>
@@ -392,5 +415,97 @@ class _Caution extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// What changed since the plan before this one, so a farmer who corrected
+/// the assistant can see the correction was taken.
+class _Changes extends StatelessWidget {
+  final List<PlanChange> changes;
+
+  const _Changes({super.key, required this.changes});
+
+  @override
+  Widget build(BuildContext context) {
+    if (changes.isEmpty) return const SizedBox.shrink();
+    final c = context.semantic;
+    final text = Theme.of(context).textTheme;
+    return Container(
+      margin: const EdgeInsets.only(top: AlmanacDimens.sp3),
+      padding: const EdgeInsets.all(AlmanacDimens.sp3),
+      decoration: BoxDecoration(
+        color: c.primaryContainer,
+        borderRadius: BorderRadius.circular(AlmanacDimens.rMd),
+      ),
+      child: Semantics(
+        container: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  LucideIcons.refreshCw,
+                  size: 16,
+                  color: c.onPrimaryContainer,
+                ),
+                const SizedBox(width: AlmanacDimens.sp2),
+                Expanded(
+                  child: Text(
+                    'Changed from the last plan',
+                    style: text.labelLarge?.copyWith(
+                      color: c.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            for (final change in changes) ...[
+              const SizedBox(height: AlmanacDimens.sp1),
+              Text.rich(
+                TextSpan(
+                  style: text.bodyMedium?.copyWith(color: c.onPrimaryContainer),
+                  children: [
+                    TextSpan(text: '${_label(change.field)}: '),
+                    TextSpan(
+                      text: _value(change.field, change.before, after: false),
+                      style: const TextStyle(
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                    const TextSpan(text: ' → '),
+                    TextSpan(
+                      text: _value(change.field, change.after, after: true),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _label(String field) => switch (field) {
+    'budget_cents' => 'Budget',
+    'planting_date' => 'Planting date',
+    'section_id' => 'Section',
+    'area_m2' => 'Area',
+    _ => () {
+      final words = field.replaceAll('_', ' ');
+      return words[0].toUpperCase() + words.substring(1);
+    }(),
+  };
+
+  static String _value(String field, Object? value, {required bool after}) {
+    if (value == null || '$value'.isEmpty) return 'none';
+    return switch (field) {
+      'budget_cents' when value is int => Cents(value).formatted,
+      'area_m2' => DecimalString('$value').asArea,
+      'section_id' => after ? 'this one' : 'the earlier section',
+      _ => '$value',
+    };
   }
 }
