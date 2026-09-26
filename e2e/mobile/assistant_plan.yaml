@@ -43,8 +43,13 @@ env:
     id: 'assistant-open'
 # The assistant's own notice, then Allow: nothing is sent before it.
 - extendedWaitUntil:
-    visible: 'Allow'
+    visible: 'Before you ask'
     timeout: 20000
+# The notice is long; the button sits below it.
+- scrollUntilVisible:
+    element: 'Allow'
+    direction: DOWN
+    centerElement: true
 - tapOn: 'Allow'
 - tapOn: 'Ask about your farm'
 - inputText: 'Plan cabbage on Plan test beds'
