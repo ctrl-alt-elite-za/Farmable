@@ -31,6 +31,7 @@ import '../features/auth/sign_up_screen.dart';
 import '../features/auth/verify_screen.dart';
 import '../features/health/health_screen.dart';
 import '../features/crop_scan/crop_scan_screen.dart';
+import '../features/boundary/boundary_screen.dart';
 import '../features/farm/farm_map_screen.dart';
 import '../features/farm/farm_screen.dart';
 import '../features/home/home_screen.dart';
@@ -134,6 +135,15 @@ GoRouter buildRouter({
           builder: (context, state) =>
               ZoneScreen(sectionId: state.pathParameters['zoneId']!),
           routes: [
+            // Walk the section's edge, check the shape, save it (#15).
+            // `?edit=1` opens on the saved shape instead of a new walk.
+            GoRoute(
+              path: 'boundary',
+              builder: (context, state) => BoundaryScreen(
+                sectionId: state.pathParameters['zoneId']!,
+                edit: state.uri.queryParameters['edit'] == '1',
+              ),
+            ),
             // "What should I plant here?" — deep-linkable like every other
             // screen. The planner is pure and the section is on disk, so
             // arriving cold at this URL with no network still answers.

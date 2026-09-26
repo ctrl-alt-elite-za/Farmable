@@ -80,4 +80,7 @@ elif [ "$mode" = mobile ]; then
   "${compose[@]}" stop api
   bash scripts/await-device.sh
   maestro test e2e/mobile/offline_launch.yaml
+  # Walking a boundary (#15) from a recorded walk, saved with the API down.
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/map_section_replay.yaml
 fi

@@ -926,6 +926,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required String mutationId,
     required String name,
     required String areaM2,
+    Map<String, Object?>? boundary,
   }) async {
     final replayed = await _mutation(mutationId);
     if (replayed != null) {
@@ -945,7 +946,10 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
               ownerId: farmRow.ownerId,
               name: name,
               areaM2: Value(areaM2),
-              areaSource: const Value('farmer_supplied'),
+              boundary: Value(boundary == null ? null : jsonEncode(boundary)),
+              areaSource: Value(
+                boundary == null ? 'farmer_supplied' : 'boundary_estimate',
+              ),
               createdAt: at,
               updatedAt: at,
             ),
@@ -970,6 +974,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required int expectedRevision,
     required String name,
     required String areaM2,
+    Map<String, Object?>? boundary,
   }) async {
     if (await _mutation(mutationId) != null) {
       return _toDemoSection(await _requireSection(sectionId));
@@ -988,6 +993,12 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
         SectionsCompanion(
           name: Value(name),
           areaM2: Value(areaM2),
+          boundary: boundary == null
+              ? const Value.absent()
+              : Value(jsonEncode(boundary)),
+          areaSource: boundary == null
+              ? const Value.absent()
+              : const Value('boundary_estimate'),
           version: Value(existing.version + 1),
           syncState: const Value('pending'),
           updatedAt: Value(at),
