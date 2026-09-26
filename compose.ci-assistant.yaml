@@ -1,0 +1,40 @@
+# CI mobile stack only: the assistant's planning conversation (#23), run just
+# before first_launch_setup. Fake integrations (ENVIRONMENT=ci) mean the model
+# is fixture-model and the planning turn is scripted in integrations/fakes.py;
+# no provider is called and nothing is billed. Retrospective forecasts come
+# from the committed, reviewed bundle in ml/forecast/results.
+x-ci-assistant: &ci-assistant
+  ASSISTANT_ENABLED: 'true'
+  ASSISTANT_DAILY_BUDGET_MICRO_USD: '1000000'
+  ASSISTANT_TURN_RESERVE_MICRO_USD: '1000'
+  ASSISTANT_POLICY_DATE: ${ASSISTANT_POLICY_DATE:?run scripts/ci-stack.sh mobile}
+  ASSISTANT_POLICY_MODEL: fixture-model
+  FORECAST_DATA_MODE: retrospective
+
+services:
+  api:
+    environment: *ci-assistant
+  worker:
+    environment: *ci-assistant
+  forecast-import:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: forecast-import
+    profiles: ['tools']
+    command:
+      [
+        'python',
+        '-m',
+        'farmable_backend.forecast_cli',
+        'import-latest',
+        '--root',
+        '/app/ml/forecast/results',
+      ]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      ENVIRONMENT: ci
+      FORECAST_DATA_MODE: retrospective
+    depends_on:
+      database:
+        condition: service_healthy

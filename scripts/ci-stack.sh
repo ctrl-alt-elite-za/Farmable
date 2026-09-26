@@ -75,6 +75,17 @@ elif [ "$mode" = mobile ]; then
   maestro test e2e/mobile/scan_pan.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/voice_fallback.yaml
+  # The assistant's planning conversation (#23). Only from here on: restart the
+  # API and worker with the assistant on against the fake model, and import
+  # the committed forecast bundle the planner reads (compose.ci-assistant.yaml).
+  ASSISTANT_POLICY_DATE="$(date -u +%F)"
+  export ASSISTANT_POLICY_DATE
+  compose+=(-f compose.ci-assistant.yaml)
+  "${compose[@]}" build forecast-import
+  "${compose[@]}" run --rm forecast-import
+  "${compose[@]}" up -d --wait api worker
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/assistant_plan.yaml
   # A fresh install's whole first launch (#89): intro, onboarding, sign-up,
   # first farm and first section, Home, and a second launch that skips it all.
   # Last before the API stops, because it leaves an account signed in for the
