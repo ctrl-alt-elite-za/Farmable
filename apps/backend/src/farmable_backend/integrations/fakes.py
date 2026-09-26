@@ -30,6 +30,74 @@ def examples() -> dict[str, Any]:
     return json.loads(files(__package__).joinpath("fixtures/provider_examples.json").read_text())
 
 
+PLAN_TRIGGER = "plan"
+
+
+def _johannesburg_today() -> date:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    return datetime.now(ZoneInfo("Africa/Johannesburg")).date()
+
+
+def scripted_plan_step(request_body: dict[str, Any]) -> dict[str, Any] | None:
+    """The fake model's next step in a planning turn (#23), or None.
+
+    Only when the request offers tools, still allows calling them, and the
+    farmer's message asks for a plan: list the sections, preview cabbage on
+    the one named (or the first with an area), then answer in words. Every
+    other request keeps the fixed fixture reply. Deterministic, no model.
+    """
+    if not request_body.get("tools"):
+        return None
+    mode = request_body.get("toolConfig", {}).get("functionCallingConfig", {}).get("mode")
+    contents = request_body.get("contents") or []
+    if mode != "AUTO" or not contents:
+        return None
+    asked = next(
+        (
+            part.get("text", "")
+            for content in reversed(contents)
+            if content.get("role") == "user"
+            for part in content.get("parts", [])
+            if isinstance(part, dict) and "text" in part
+        ),
+        "",
+    )
+    if PLAN_TRIGGER not in asked.lower():
+        return None
+    last = contents[-1].get("parts", [])
+    answered = {
+        part["functionResponse"]["name"]: part["functionResponse"].get("response", {})
+        for part in last
+        if isinstance(part, dict) and isinstance(part.get("functionResponse"), dict)
+    }
+    if not answered:
+        return {"functionCall": {"name": "list_sections", "args": {"limit": 20}}}
+    if "list_sections" in answered:
+        sections = [s for s in answered["list_sections"].get("sections", []) if s.get("area_m2")]
+        named = [s for s in sections if s.get("name", "").lower() in asked.lower()]
+        chosen = (named or sections or [None])[0]
+        if chosen is None:
+            return {"text": "Which section should I plan? None of them has an area yet."}
+        return {
+            "functionCall": {
+                "name": "preview_planting_plan",
+                "args": {
+                    "section_id": chosen["id"],
+                    "planting_date": (_johannesburg_today() + timedelta(days=7)).isoformat(),
+                    "budget_cents": 1_200_000,
+                    "money_basis_year": 2025,
+                    "crops": [{"crop": "cabbage"}],
+                    "planting_cost_percent": 60,
+                    "market_commission_bps": 0,
+                    "agent_commission_bps": 0,
+                },
+            }
+        }
+    return {"text": "Here are the options. Choose one, then review and confirm it in the app."}
+
+
 class FakeTransport(httpx.AsyncBaseTransport):
     def __init__(self, modes: dict[str, FakeMode] | None = None, *, slow_delay: float = 120):
         self.modes = modes or {}
@@ -115,6 +183,16 @@ class FakeTransport(httpx.AsyncBaseTransport):
                     }
                 ]
             }
+            try:
+                step = scripted_plan_step(json.loads(request.content or b"{}"))
+            except (ValueError, AttributeError, KeyError, TypeError):
+                step = None
+            if step is not None:
+                payload = {
+                    "candidates": [
+                        {"content": {"role": "model", "parts": [step]}, "finishReason": "STOP"}
+                    ]
+                }
             body = "".join("data: " + json.dumps(event) + "\n\n" for event in (thought, payload))
             return httpx.Response(200, content=body, headers={"content-type": "text/event-stream"})
         if service == "twilio" and request.url.path.endswith("/VerificationCheck"):
