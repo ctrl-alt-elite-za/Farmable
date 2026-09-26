@@ -102,9 +102,15 @@ class _BoundaryFlowState extends ConsumerState<_BoundaryFlow> {
   String? _saveNotice;
   String? _mutationId;
 
+  /// The section's version when this screen opened. [widget.section] follows
+  /// the live row, so a sync that pulls another phone's edit would otherwise
+  /// move it forward and let the save overwrite that edit unannounced.
+  late final int _baseRevision;
+
   @override
   void initState() {
     super.initState();
+    _baseRevision = widget.section.section.version;
     _source = ref.read(walkSourceProvider);
     final saved = boundaryFromGeoJson(widget.section.boundary);
     if (widget.edit && saved != null) {
@@ -259,7 +265,7 @@ class _BoundaryFlowState extends ConsumerState<_BoundaryFlow> {
       await (repository as FarmRepository).updateSection(
         mutationId: _mutationId!,
         sectionId: widget.section.id,
-        expectedRevision: widget.section.section.version,
+        expectedRevision: _baseRevision,
         name: widget.section.name,
         areaM2: areaM2String(area),
         boundary: ringToGeoJson([

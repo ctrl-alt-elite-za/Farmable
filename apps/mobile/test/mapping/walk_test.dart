@@ -91,6 +91,23 @@ void main() {
     );
   });
 
+  test('a corner marked twice in one spot is one corner, not a crossing', () {
+    final samples = recordedWalk(RecordedWalk.gpsOnly);
+    final r = WalkRecording();
+    for (final (i, s) in samples.indexed) {
+      r.add(s);
+      if (i == 0 || i == 67 || i == 117 || i == 183) r.markCorner();
+      // A second tap before the next fix arrives.
+      if (i == 67) r.markCorner();
+    }
+    final result = r.finish();
+    expect(result.ring, hasLength(4));
+    final flat = [
+      for (final p in result.ring) projectGps(p, result.ring.first),
+    ];
+    expect(firstCrossing(flat), isNull);
+  });
+
   test('a walk that encloses nothing cannot be finished', () {
     final r = WalkRecording()
       ..add(const WalkSample(at: Duration.zero, gps: GpsPoint(-25.7, 28.2)));
@@ -105,6 +122,20 @@ void main() {
     expect(source.hasAr, isTrue);
     expect(await source.start().toList(), hasLength(samples.length));
     expect(ReplayWalkSource(recordedWalk(RecordedWalk.gpsOnly)).hasAr, isFalse);
+  });
+
+  test('stopping a playback and starting another never adds to a closed '
+      'stream', () async {
+    final source = ReplayWalkSource(recordedWalk(RecordedWalk.field), speed: 8);
+    final first = source.start().listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await source.stop();
+    final second = source.start().listen((_) {});
+    // Long enough for the first playback's pending wait to wake up.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await source.stop();
+    await first.cancel();
+    await second.cancel();
   });
 
   test('samples round-trip through JSON', () {

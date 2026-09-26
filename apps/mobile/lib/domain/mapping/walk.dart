@@ -123,26 +123,26 @@ class ReplayWalkSource implements WalkSource {
   });
 
   StreamController<WalkSample>? _controller;
-  bool _stopped = false;
 
   @override
   bool get hasAr => samples.any((s) => s.tracking != ArTracking.unavailable);
 
   @override
   Stream<WalkSample> start() {
-    _stopped = false;
     final controller = StreamController<WalkSample>();
     _controller = controller;
     controller.onListen = () async {
       var previous = Duration.zero;
+      // Each playback checks its own controller: a stop followed by a new
+      // start must not wake an old loop into adding to a closed stream.
       for (final s in samples) {
-        if (_stopped) break;
+        if (controller.isClosed) break;
         if (speed > 0) {
           final wait = (s.at - previous) * (1 / speed);
           previous = s.at;
           if (wait > Duration.zero) await Future<void>.delayed(wait);
         }
-        if (_stopped) break;
+        if (controller.isClosed) break;
         controller.add(s);
       }
       if (!controller.isClosed) await controller.close();
@@ -152,7 +152,6 @@ class ReplayWalkSource implements WalkSource {
 
   @override
   Future<void> stop() async {
-    _stopped = true;
     final c = _controller;
     if (c != null && !c.isClosed) await c.close();
   }
@@ -345,7 +344,10 @@ class WalkRecording {
       ring = gpsRing(gpsPath);
     }
     // Validates the ring: a crossing or a sliver throws here, not on save.
-    closeGpsShape(ring);
+    // Review gets the cleaned corners, so a corner marked twice in one spot
+    // is one corner, not a zero-length side that reads as a crossing.
+    final closed = closeGpsShape(ring);
+    ring = closed.sublist(0, closed.length - 1);
     return WalkResult(
       ring: ring,
       arAreaM2: arArea,
