@@ -73,3 +73,11 @@ fresh-market prices without an explicit, reviewed assumption.
 
 Consequently calendar verification, historical cost vintages, VAT reconciliation
 and protocol registration remain open.
+
+## Market-tomato candidate for a future evaluation
+
+Land Bank publishes a 2025/26 market-tomato budget with a different yield,
+marketing rate and variable-cost basis. Its original-byte hash, source arithmetic,
+rights notice and unresolved comparability questions are recorded in
+`LANDBANK_TOMATO_REVIEW.md`. It does not alter the registered version 1 inputs or
+clear the historical-vintage, calendar, VAT and redistribution gaps above.

@@ -151,19 +151,18 @@ contract. Real-artifact integration remains gated by protocol registration.
 requires an exact 40-character commit SHA, installs the locked project plus the
 two pinned workbook readers, runs the shared ML tests and protocol gate, and calls
 the same runner. It contains no source data, credentials, copied model logic or
-saved outputs. A real Colab execution and cross-environment artifact comparison
-still require the independently merged protocol and audited workbook files.
+saved outputs. The real Colab execution and artifact comparison are recorded in
+`RESULTS_REVIEW.md`.
 
 ### Remaining issue work
 
 1. Review the real artifacts, especially the zero-switch tomato default. The
    registered eight-default slide sentence remains unavailable.
-2. Execute the notebook in Colab and compare its artifacts with the local run.
-3. Review the disposable-database import test, then plan any production rollout
+2. Review the disposable-database import test, then plan any production rollout
    separately.
-4. Complete deferred historical-source and licence cleanup without weakening the
-   registered retrospective caveats.
-5. After the results PR merges, verify the default protocol history gate.
+3. Complete deferred source and assumption cleanup, including the
+   [market-tomato budget candidate](data/LANDBANK_TOMATO_REVIEW.md), without
+   weakening the registered retrospective caveats.
 
 ## Acceptance evidence boundaries
 

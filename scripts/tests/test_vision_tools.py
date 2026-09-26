@@ -11,7 +11,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps/ml-service"))
 
-from vision import export  # noqa: E402
+from vision import (  # noqa: E402
+    check_split,
+    eval_weights,
+    export,
+)
 from vision.benchmark import (  # noqa: E402
     MIN_WARM_SAMPLES,
     build_report,
@@ -492,11 +496,45 @@ def test_weight_fit_requires_measurement_dates(tmp_path: Path) -> None:
         load_measurements(path)
 
 
+def test_weight_fit_rejects_duplicate_sample_ids(tmp_path: Path) -> None:
+    path = tmp_path / "cabbage.csv"
+    path.write_text(
+        "sample_id,diameter_cm,weight_g,date\n"
+        + "".join(f"plant-{index % 19},{10 + index},500,2026-09-17\n" for index in range(20)),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="sample_id values must be nonempty and unique"):
+        load_measurements(path)
+
+
 def test_weight_fit_reports_holdout_coverage() -> None:
     values = [(10.0 + index, 100.0 + 10 * index) for index in range(25)]
     result = fit_range(values)
     assert result["held_out"] == 5
     assert result["coverage"] == 1.0
+    assert result["measurements"] == 25
+    assert result["measured_diameter_min_cm"] == 10.0
+    assert result["measured_diameter_max_cm"] == 34.0
+    assert result["training_diameter_min_cm"] >= 10.0
+    assert result["training_diameter_max_cm"] <= 34.0
+
+
+def test_weight_report_binds_formula_to_source_csv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    csv_path = tmp_path / "cabbage.csv"
+    csv_path.write_text(
+        "diameter_cm,weight_g,date\n"
+        + "".join(f"{10 + index},{100 + 10 * index},2026-09-17\n" for index in range(25)),
+        encoding="utf-8",
+    )
+    output = tmp_path / "formulas.json"
+    monkeypatch.setattr(sys, "argv", ["eval_weights.py", str(csv_path), "--output", str(output)])
+    assert eval_weights.main() == 0
+    result = json.loads(output.read_text(encoding="utf-8"))["cabbage"]
+    assert result["source_sha256"] == hashlib.sha256(csv_path.read_bytes()).hexdigest()
+    assert result["seed"] == 42
+    assert result["passed"] is True
 
 
 def test_label_validator_rejects_missing_label(tmp_path: Path) -> None:
@@ -511,9 +549,85 @@ def test_crop_counts_are_derived_from_manifest_and_images(tmp_path: Path) -> Non
     images = tmp_path / "train" / "images"
     images.mkdir(parents=True)
     (images / "frame.jpg").touch()
+    labels = tmp_path / "train" / "labels"
+    labels.mkdir()
+    (labels / "frame.txt").write_text("0 0.5 0.5 0.4 0.4\n", encoding="utf-8")
     manifest = tmp_path / "sessions.csv"
     manifest.write_text("image,session_id,crop\nframe.jpg,s1,cabbage\n", encoding="utf-8")
     assert count_crop_images(images, tmp_path / "test", manifest)["cabbage"] == 1
+
+
+def test_empty_labels_do_not_meet_crop_minimum(tmp_path: Path) -> None:
+    train = tmp_path / "train" / "images"
+    test = tmp_path / "test" / "images"
+    for root, name in ((train, "train.jpg"), (test, "test.jpg")):
+        root.mkdir(parents=True)
+        (root / name).touch()
+        labels = root.parent / "labels"
+        labels.mkdir()
+        (labels / f"{Path(name).stem}.txt").write_text("", encoding="utf-8")
+    manifest = tmp_path / "sessions.csv"
+    manifest.write_text(
+        "image,session_id,crop\ntrain.jpg,s1,cabbage\ntest.jpg,s2,tomato\n",
+        encoding="utf-8",
+    )
+    assert count_crop_images(train, test, manifest) == {
+        "cabbage": 0,
+        "tomato": 0,
+        "spinach": 0,
+    }
+
+
+def test_split_cli_checks_crop_minimum_independently_of_classes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    train = tmp_path / "train" / "images"
+    test = tmp_path / "test" / "images"
+    rows = ["image,session_id,crop"]
+    for root, session in ((train, "train"), (test, "test")):
+        root.mkdir(parents=True)
+        labels = root.parent / "labels"
+        labels.mkdir()
+        for crop in ("cabbage", "tomato", "spinach"):
+            name = f"{session}_{crop}"
+            (root / f"{name}.jpg").touch()
+            (labels / f"{name}.txt").write_text(
+                "0 0.5 0.5 0.4 0.4\n1 0.5 0.5 0.2 0.2\n2 0.5 0.5 0.1 0.1\n",
+                encoding="utf-8",
+            )
+            rows.append(f"{name}.jpg,{session},{crop}")
+    manifest = tmp_path / "sessions.csv"
+    manifest.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "check_split.py",
+            "--train",
+            str(train),
+            "--test",
+            str(test),
+            "--manifest",
+            str(manifest),
+            "--min-images-per-crop",
+            "2",
+        ],
+    )
+    assert check_split.main() == 0
+    monkeypatch.setattr(sys, "argv", [*sys.argv, "--min-images-per-crop", "3"])
+    assert check_split.main() == 1
+    assert "cabbage has 2 labelled images" in capsys.readouterr().out
+
+
+def test_label_validator_rejects_box_outside_image(tmp_path: Path) -> None:
+    images = tmp_path / "train" / "images"
+    images.mkdir(parents=True)
+    (images / "frame.jpg").touch()
+    labels = tmp_path / "train" / "labels"
+    labels.mkdir()
+    (labels / "frame.txt").write_text("0 0.9 0.5 0.4 0.4\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="invalid YOLO annotation"):
+        validate_labels(images)
 
 
 def test_training_report_has_per_class_and_session_contract() -> None:

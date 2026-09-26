@@ -51,7 +51,7 @@ def read_crop_manifest(path: Path) -> dict[str, tuple[str, str]]:
 
 
 def count_crop_images(train: Path, test: Path, manifest: Path) -> dict[str, int]:
-    """Count real images per crop, requiring every image to be in the manifest."""
+    """Count labelled images per crop, requiring every image to be in the manifest."""
     records = read_crop_manifest(manifest)
     by_stem: dict[str, list[str]] = {}
     for key in records:
@@ -67,7 +67,11 @@ def count_crop_images(train: Path, test: Path, manifest: Path) -> dict[str, int]
         matches = list(dict.fromkeys(matches))
         if len(matches) != 1:
             raise ValueError(f"image {image.name!r} must map to exactly one crop manifest entry")
-        counts[records[matches[0]][1]] += 1
+        label = root.parent / "labels" / image.relative_to(root).with_suffix(".txt")
+        if not label.is_file():
+            raise ValueError(f"missing label for {image.name!r}")
+        if label.read_text(encoding="utf-8").strip():
+            counts[records[matches[0]][1]] += 1
     return counts
 
 
@@ -123,6 +127,10 @@ def validate_labels(image_root: Path) -> dict[int, int]:
                 or any(not 0 <= value <= 1 for value in coordinates)
                 or coordinates[2] <= 0
                 or coordinates[3] <= 0
+                or coordinates[0] - coordinates[2] / 2 < 0
+                or coordinates[0] + coordinates[2] / 2 > 1
+                or coordinates[1] - coordinates[3] / 2 < 0
+                or coordinates[1] + coordinates[3] / 2 > 1
             ):
                 raise ValueError(f"{label}:{line_number}: invalid YOLO annotation")
             seen.add(class_id)
@@ -136,12 +144,14 @@ def main() -> int:
     parser.add_argument("--train", type=Path, required=True)
     parser.add_argument("--test", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
-    parser.add_argument("--min-images-per-class", type=int, default=300)
+    parser.add_argument("--min-images-per-crop", type=int, default=300)
+    parser.add_argument("--min-images-per-class", type=int, default=1)
     args = parser.parse_args()
     try:
         train_ids, test_ids = split_sessions(args.train, args.test, args.manifest)
         train_counts = validate_labels(args.train)
         test_counts = validate_labels(args.test)
+        crop_counts = count_crop_images(args.train, args.test, args.manifest)
     except (OSError, ValueError) as error:
         parser.error(str(error))
     overlap = train_ids & test_ids
@@ -151,6 +161,13 @@ def main() -> int:
     if not train_ids or not test_ids:
         print("both train and test must contain at least one session")
         return 1
+    for crop in sorted(CROPS):
+        if crop_counts[crop] < args.min_images_per_crop:
+            print(
+                f"{crop} has {crop_counts[crop]} labelled images; "
+                f"minimum is {args.min_images_per_crop}"
+            )
+            return 1
     for class_id in range(CLASS_COUNT):
         total = train_counts[class_id] + test_counts[class_id]
         if total < args.min_images_per_class:

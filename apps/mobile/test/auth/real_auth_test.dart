@@ -12,12 +12,26 @@ import 'package:almanac/features/account/account_screen.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/auth/login_screen.dart';
 import 'package:almanac/features/home/home_screen.dart';
+import 'package:almanac/features/setup/farm_setup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import '../support/auth_harness.dart';
 import '../support/fake_auth_api.dart';
+import '../support/fake_farm_api.dart';
+
+/// The first account the fake creates. Its ids are deterministic.
+const _thandi = '00000000-0000-4000-8000-000000000001';
+
+/// The farm the server gives every account at sign-up: a default name and no
+/// sections. [withSection] is an account that has been set up already.
+FakeFarmApi _serverFarm(FakeAuthApi api, {bool withSection = false}) {
+  final farms = FakeFarmApi(now: () => pinnedToday);
+  final farm = farms.addFarm(_thandi);
+  if (withSection) farms.addSection(farm, name: 'Riverside beds');
+  return api.farms = farms;
+}
 
 Future<void> _enterCode(WidgetTester tester, String code) async {
   await tester.enterText(
@@ -56,12 +70,14 @@ void main() {
   setUp(() => api = FakeAuthApi(now: () => pinnedToday));
 
   group('sign-up against the backend', () {
-    testWidgets('sign up, both codes, Home — and still signed in offline '
-        'after a restart', (tester) async {
+    testWidgets('sign up, both codes, farm setup — and still signed in '
+        'offline after a restart', (tester) async {
+      _serverFarm(api);
       final first = await pumpAuthApp(
         tester,
         location: '/auth/signup',
         api: api,
+        online: true,
       );
       await _fillSignUp(tester);
       await tapLabel(tester, 'Create account', settle: false);
@@ -74,7 +90,8 @@ void main() {
       await pumpBriefly(tester, frames: 30);
       await tester.pumpAndSettle();
 
-      expect(find.byType(HomeScreen), findsOneWidget);
+      // A new account's farm has no sections, so sign-up ends in setup.
+      expect(find.byType(FarmSetupScreen), findsOneWidget);
       final standing = await first.standing();
       expect((standing as SignedIn).session.user.fullName, 'Thandi Mokoena');
 
@@ -144,10 +161,12 @@ void main() {
       tester,
     ) async {
       api.seedVerified();
+      _serverFarm(api, withSection: true);
       final harness = await pumpAuthApp(
         tester,
         location: '/auth/login',
         api: api,
+        online: true,
       );
       await _logIn(tester);
       expect(find.byType(HomeScreen), findsOneWidget);
@@ -178,13 +197,16 @@ void main() {
 
     testWidgets('logging out with no signal still logs out', (tester) async {
       api.seedVerified();
+      final farms = _serverFarm(api, withSection: true);
       final harness = await pumpAuthApp(
         tester,
         location: '/auth/login',
         api: api,
+        online: true,
       );
       await _logIn(tester);
       api.offline = true;
+      farms.offline = true;
 
       GoRouter.of(tester.element(find.byType(HomeScreen))).go('/profile');
       await tester.pumpAndSettle();
