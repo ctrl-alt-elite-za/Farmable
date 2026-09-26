@@ -103,6 +103,40 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     db.plantings,
   ], _pendingChanges);
 
+  @override
+  Stream<List<rec.FinancialRecord>> watchFinancials() =>
+      _watch([db.farms, db.financialRecords], _financials);
+
+  Future<List<rec.FinancialRecord>> _financials() async {
+    final farmRow = await _farmRow();
+    if (farmRow == null) return const [];
+    final rows =
+        await (db.select(db.financialRecords)
+              ..where(
+                (t) =>
+                    t.farmId.equals(farmRow.id) &
+                    t.deletedAt.isNull() &
+                    _mine(t.ownerId),
+              )
+              ..orderBy([
+                (t) =>
+                    OrderingTerm(expression: t.date, mode: OrderingMode.desc),
+              ]))
+            .get();
+    return [
+      for (final r in rows)
+        rec.FinancialRecord(
+          id: r.id,
+          sectionId: r.sectionId,
+          type: rec.FinancialType.parse(r.type),
+          category: r.category,
+          amount: Cents(r.amountCents),
+          date: r.date,
+          note: r.note,
+        ),
+    ];
+  }
+
   Future<rec.FarmSnapshot?> _loadFarm() async {
     final farmRow = await _farmRow();
     if (farmRow == null) return null;

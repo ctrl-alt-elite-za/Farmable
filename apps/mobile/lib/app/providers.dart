@@ -99,6 +99,11 @@ final timelineProvider = StreamProvider.family<List<FarmTask>, String>(
   (ref, sectionId) => ref.watch(farmRecordsProvider).watchTimeline(sectionId),
 );
 
+/// The farm's income and expense records, from disk.
+final financialsProvider = StreamProvider<List<FinancialRecord>>(
+  (ref) => ref.watch(farmRecordsProvider).watchFinancials(),
+);
+
 final pendingChangesProvider = StreamProvider<int>(
   (ref) => ref.watch(farmRecordsProvider).watchPendingChanges(),
 );

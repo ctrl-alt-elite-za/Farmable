@@ -36,6 +36,10 @@ abstract interface class FarmRecordsRepository {
   /// Records waiting to reach the server. Drives "3 changes waiting".
   Stream<int> watchPendingChanges();
 
+  /// Every income and expense record on this farm, newest first — what the
+  /// Money screen totals. Empty when there is no farm on this phone yet.
+  Stream<List<FinancialRecord>> watchFinancials();
+
   Future<Observation> createObservation({
     required String sectionId,
     required String type,
