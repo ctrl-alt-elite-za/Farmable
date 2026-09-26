@@ -315,13 +315,6 @@ class AuthSession(Base):
     refresh_token_hash: Mapped[str] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # The session this one was rotated into by /auth/refresh. Distinguishes a
-    # rotation from a logout/revocation, which never sets it.
-    replaced_by_id: Mapped[UUID | None] = mapped_column(Uuid)
-    # First time the access token authorized a request. A successor that was
-    # never used means its client probably never received the refresh
-    # response, so replaying the predecessor is a retry rather than theft.
-    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

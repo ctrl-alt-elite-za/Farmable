@@ -301,7 +301,6 @@ def test_database_service_stores_only_token_hashes_and_rotates_refresh():
 
     rotated = service.refresh(tokens.refresh_token)
     assert rotated.refresh_token != tokens.refresh_token
-    service.refresh(rotated.refresh_token)  # The replacement was received and used.
     with pytest.raises(AuthError, match="invalid_session"):
         service.refresh(tokens.refresh_token)
 

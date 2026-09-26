@@ -5,7 +5,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from farmable_backend.models import AuthIdentity, AuthSession, Farm, Section
@@ -46,15 +46,6 @@ def authenticate(session: Session, authorization: str | None) -> UUID:
     )
     if auth_session is None or utc(auth_session.created_at) + ACCESS_TOKEN_TTL <= datetime.now(UTC):
         raise ApiError(401, "invalid_session")
-    if auth_session.used_at is None:
-        # Once per session, so ordinary requests never write. Refresh reads it
-        # to tell a lost-response retry from a replayed stolen token.
-        session.execute(
-            update(AuthSession)
-            .where(AuthSession.id == auth_session.id, AuthSession.used_at.is_(None))
-            .values(used_at=func.now())
-            .execution_options(synchronize_session=False)
-        )
     return auth_session.user_id
 
 

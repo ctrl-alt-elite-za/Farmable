@@ -106,7 +106,7 @@ def test_auth_parallel_failures_preserve_count_and_fence_success(engine):
             )
 
 
-def test_concurrent_refreshes_leave_one_live_session(engine):
+def test_refresh_token_can_only_be_rotated_once_concurrently(engine):
     suffix = uuid4().hex
     sessions = sessionmaker(engine, expire_on_commit=False)
     service = AuthService(sessions, DeterministicFakeOtpProvider())
@@ -134,17 +134,10 @@ def test_concurrent_refreshes_leave_one_live_session(engine):
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = list(executor.map(lambda _index: rotate(), range(2)))
 
-        # The row lock serializes them. The second sees an unused successor,
-        # treats it as a lost-response retry and replaces it, so both callers
-        # get tokens but only one session is left live.
-        assert all(isinstance(result, SessionTokens) for result in results)
-        with Session(engine) as session:
-            live = session.scalars(
-                select(AuthSession).where(
-                    AuthSession.user_id == user.id, AuthSession.revoked_at.is_(None)
-                )
-            ).all()
-            assert len(live) == 1
+        assert sum(isinstance(result, SessionTokens) for result in results) == 1
+        failures = [result for result in results if isinstance(result, AuthError)]
+        assert len(failures) == 1
+        assert failures[0].code == "invalid_session"
     finally:
         with Session(engine) as session:
             stored = session.get(User, user.id)
