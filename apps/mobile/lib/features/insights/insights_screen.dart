@@ -88,10 +88,11 @@ class InsightsScreen extends ConsumerWidget {
               detail: 'Money in and out, for the farm and each section',
               onTap: () => context.go('/insights/money'),
             ),
-            const _InsightLink(
+            _InsightLink(
               icon: LucideIcons.bell,
-              title: 'Alerts · coming',
-              detail: 'The team is deciding how farm alerts should work.',
+              title: 'Alerts',
+              detail: 'Late jobs, checks that found a problem, open harvests',
+              onTap: () => context.go('/insights/alerts'),
             ),
           ],
         ),

@@ -162,7 +162,7 @@ void main() {
     expect(find.text('Thandi Farm'), findsOneWidget);
     expect(find.textContaining('88 out of 100'), findsOneWidget);
     expect(find.text('Money'), findsOneWidget);
-    expect(find.text('Alerts · coming'), findsOneWidget);
+    expect(find.text('Alerts'), findsOneWidget);
     await tester.tap(find.text('Market'));
     await tester.pumpAndSettle();
     expect(find.text('No account outlooks yet'), findsOneWidget);
