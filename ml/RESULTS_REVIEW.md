@@ -72,6 +72,11 @@ plausibly drives the 100% tomato-switch win rate and much of the pooled gain.
 benefit** until tomato inputs are corrected or tomatoes are excluded under a
 separately registered evaluation.
 
+A [Land Bank market-tomato budget candidate](data/LANDBANK_TOMATO_REVIEW.md)
+now has original-file provenance and source arithmetic. Its 2025/26 costs and
+other assumptions require review and registration before use. It has no effect on
+this published result.
+
 The result is a retrospective fixed-2025-input simulation using current-vintage
 Joburg Market history, current-vintage CPI and frozen Western Cape production
 assumptions. It does not establish historical publication availability or observed
@@ -80,10 +85,8 @@ decision ledger and follows protocol Amendment 1's frozen seasonal ranges.
 
 ## Remaining acceptance work
 
-Code owner change requests on provenance, tomato interpretation and a backend
-test assertion are being addressed. The real snapshot has been imported only
-into a disposable test database. After the results PR merges, rerun the default protocol history gate
-to confirm the first committed result follows the independently merged protocol.
-Issue #20 cannot use its requested
+PR #85 merged as `87c903bd02cd`; the default protocol history gate passes on
+`origin/main`, finding protocol `73e2c6296a5a` before the result merge. The real
+snapshot has been imported only into a disposable test database. Issue #20 cannot use its requested
 eight-default slide sentence unless a future, separately registered evaluation
 actually yields defined switch statistics for every default.

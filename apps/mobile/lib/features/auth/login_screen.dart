@@ -85,7 +85,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _busy = false;
       _failure = failure;
     });
-    if (failure == null) context.go('/home');
+    // `/setup` sends an account with no sections yet through first farm
+    // setup, and everyone else on to Home.
+    if (failure == null) context.go('/setup');
   }
 
   @override

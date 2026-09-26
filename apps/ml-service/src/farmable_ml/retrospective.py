@@ -7,7 +7,7 @@ fabricated observations only. No files, database connections or network calls
 are made here.
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date
 from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
@@ -35,7 +35,7 @@ from farmable_ml.reports import HISTORICAL_MONTHS
 D = Decimal
 POLICY = ObservationPolicy.RETROSPECTIVE
 ORIGINAL_PROTOCOL_SHA256 = "a090d4e9d517b2b8c0d9d5009b5b9c5c9a827386e178f6e265052270923ea99d"
-PROTOCOL_SHA256 = "5fddc3d1f26f4b558c39224f3ffc0f317bae0d281e8ca3a16e781116bd944e15"
+PROTOCOL_SHA256 = "f16d5090a2aa6560082ba2e9d582b39076223cb44811b1f42047d8d392378e3c"
 LAST_REALIZED_MONTH = date(2024, 12, 1)
 
 
@@ -118,10 +118,15 @@ class Simulation:
     decisions: tuple[Decision, ...]
 
 
-def choose(forecasts: tuple[ForecastAudit, ...], *, origin: date) -> FrozenChoice:
+def choose(
+    forecasts: tuple[ForecastAudit, ...],
+    *,
+    origin: date,
+    assumptions: Mapping[Crop, ProductionAssumptions] = ASSUMPTIONS,
+) -> FrozenChoice:
     """Freeze a choice with no access to realized prices, even if all margins lose."""
     eligible = {
-        crop for crop, inputs in ASSUMPTIONS.items() if origin.month in inputs.planting_months
+        crop for crop, inputs in assumptions.items() if origin.month in inputs.planting_months
     }
     if origin.day != 1:
         raise ValueError("planting origin must use day one")
@@ -129,7 +134,7 @@ def choose(forecasts: tuple[ForecastAudit, ...], *, origin: date) -> FrozenChoic
         raise ValueError("exactly one forecast audit per in-season crop is required")
     ordered = tuple(sorted(forecasts, key=lambda row: row.crop))
     for row in ordered:
-        expected_target = shift_month(origin, ASSUMPTIONS[row.crop].harvest_months)
+        expected_target = shift_month(origin, assumptions[row.crop].harvest_months)
         if row.origin != origin or row.target != expected_target:
             raise ValueError("forecast audit does not match the registered crop horizon")
         if row.selected is not None:
@@ -148,7 +153,7 @@ def choose(forecasts: tuple[ForecastAudit, ...], *, origin: date) -> FrozenChoic
     if any(row.selected is None for row in ordered):
         return FrozenChoice(origin, None, ordered, "missing_forecast")
     margins = {
-        row.crop: ASSUMPTIONS[row.crop].margin(row.selected.p50)
+        row.crop: assumptions[row.crop].margin(row.selected.p50)
         for row in ordered
         if row.selected is not None
     }
@@ -164,13 +169,23 @@ class RetrospectiveSimulation:
     cache never crosses datasets or runs, and every fit reconstructs its origin.
     """
 
-    def __init__(self, records: tuple[PriceObservation, ...], cpi: CpiSeries, *, market: str):
+    def __init__(
+        self,
+        records: tuple[PriceObservation, ...],
+        cpi: CpiSeries,
+        *,
+        market: str,
+        assumptions: Mapping[Crop, ProductionAssumptions] = ASSUMPTIONS,
+    ):
         if not records or any(row.market != market for row in records):
             raise ValueError("one explicit nonempty market series is required")
+        if not assumptions or not set(assumptions) <= set(Crop):
+            raise ValueError("nonempty canonical crop assumptions are required")
         keys = [(row.crop, row.observation_month) for row in records]
         if len(set(keys)) != len(keys):
             raise ValueError("duplicate crop/observation month")
         self.market = market
+        self.assumptions = MappingProxyType(dict(assumptions))
         self._records = tuple(
             replace(
                 row,
@@ -218,7 +233,7 @@ class RetrospectiveSimulation:
         return predict
 
     def forecast(self, crop: Crop, origin: date) -> ForecastAudit:
-        target = shift_month(origin, ASSUMPTIONS[crop].harvest_months)
+        target = shift_month(origin, self.assumptions[crop].harvest_months)
         records = self._by_crop[crop]
         diagnostic, diagnostic_failure = None, None
         try:
@@ -236,7 +251,7 @@ class RetrospectiveSimulation:
                     crop=crop,
                     market=self.market,
                     cutoff=origin,
-                    horizon_months=ASSUMPTIONS[crop].harvest_months,
+                    horizon_months=self.assumptions[crop].harvest_months,
                     methods=methods,
                     tie_order=("historical_range", "lightgbm"),
                     policy=POLICY,
@@ -270,10 +285,11 @@ class RetrospectiveSimulation:
             choose(
                 tuple(
                     self.forecast(crop, origin)
-                    for crop, inputs in ASSUMPTIONS.items()
+                    for crop, inputs in self.assumptions.items()
                     if origin.month in inputs.planting_months
                 ),
                 origin=origin,
+                assumptions=self.assumptions,
             )
             for origin in sorted(origins)
         )
@@ -287,7 +303,9 @@ class RetrospectiveSimulation:
         if len({choice.origin for choice in choices}) != len(choices):
             raise ValueError("duplicate frozen planting origins")
         for choice in choices:
-            if choice != choose(choice.forecasts, origin=choice.origin):
+            if choice != choose(
+                choice.forecasts, origin=choice.origin, assumptions=self.assumptions
+            ):
                 raise ValueError("frozen choice does not match its forecast evidence")
         actual = {
             (row.crop, row.observation_month): row.price_rand_per_kg
@@ -296,17 +314,17 @@ class RetrospectiveSimulation:
         }
         rows = []
         for choice in choices:
-            for default in Crop:
+            for default in self.assumptions:
                 selected = choice.recommended or default
                 reason = (
                     "out_of_season"
-                    if choice.origin.month not in ASSUMPTIONS[default].planting_months
+                    if choice.origin.month not in self.assumptions[default].planting_months
                     else choice.skip_reason
                 )
                 margins = {}
                 if reason is None:
                     for crop in {default, selected}:
-                        inputs = ASSUMPTIONS[crop]
+                        inputs = self.assumptions[crop]
                         key = (crop, shift_month(choice.origin, inputs.harvest_months))
                         if key not in actual:
                             reason = "missing_realized_price"

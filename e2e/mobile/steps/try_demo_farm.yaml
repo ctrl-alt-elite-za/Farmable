@@ -1,0 +1,18 @@
+# From a fresh install to the demo farm, with no account: past the brand
+# intro, Skip onboarding, then "Try the demo farm" on Auth Choice (issue #89).
+#
+# A fresh install - launchApp with clearState - now opens on the launch
+# journey rather than on Home. Every flow that starts from a fresh install and
+# wants the demo farm runs this first. The link is matched with '.*...*'
+# because its two halves are one merged accessibility string ("Not ready yet?
+# Try the demo farm") and Maestro matches the WHOLE string.
+appId: za.co.almanac.app
+---
+- extendedWaitUntil:
+    visible: 'Skip'
+    timeout: 60000
+- tapOn: 'Skip'
+- extendedWaitUntil:
+    visible: '.*Try the demo farm.*'
+    timeout: 10000
+- tapOn: '.*Try the demo farm.*'

@@ -103,6 +103,59 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     db.plantings,
   ], _pendingChanges);
 
+  @override
+  Stream<DateTime?> watchLastPulled() => _watch([db.syncCursors], () async {
+    final rows = await (db.select(
+      db.syncCursors,
+    )..where((t) => _mine(t.ownerId))).get();
+    DateTime? latest;
+    for (final row in rows) {
+      final at = row.pulledAt;
+      if (at != null && (latest == null || at.isAfter(latest))) latest = at;
+    }
+    return latest;
+  });
+
+  @override
+  Future<void> clearPlanting(
+    String sectionId, {
+    required String mutationId,
+  }) async {
+    if (await _mutation(mutationId) != null) return;
+    final section = await _requireSection(sectionId);
+    final at = now();
+    await db.transaction(() async {
+      final current =
+          await (db.select(db.plantings)..where(
+                (t) =>
+                    t.sectionId.equals(section.id) &
+                    t.isCurrent.equals(true) &
+                    t.deletedAt.isNull(),
+              ))
+              .getSingleOrNull();
+      if (current == null) return;
+      await (db.update(
+        db.plantings,
+      )..where((t) => t.id.equals(current.id))).write(
+        PlantingsCompanion(
+          isCurrent: const Value(false),
+          version: Value(current.version + 1),
+          syncState: const Value('pending'),
+          updatedAt: Value(at),
+        ),
+      );
+      await _enqueueWithId(
+        mutationId: mutationId,
+        farmId: current.farmId,
+        ownerId: current.ownerId,
+        operation: 'update',
+        recordType: 'planting',
+        recordId: current.id,
+        at: at,
+      );
+    });
+  }
+
   Future<rec.FarmSnapshot?> _loadFarm() async {
     final farmRow = await _farmRow();
     if (farmRow == null) return null;

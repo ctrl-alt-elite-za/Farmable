@@ -36,6 +36,18 @@ abstract interface class FarmRecordsRepository {
   /// Records waiting to reach the server. Drives "3 changes waiting".
   Stream<int> watchPendingChanges();
 
+  /// When this farm last read the server's changes to the end (#12). Null
+  /// for the demo farm, which no server knows, and before the first pull.
+  Stream<DateTime?> watchLastPulled();
+
+  /// The farmer says the section's crop is harvested and the land is clear.
+  ///
+  /// Stands the current planting down and queues that change. [mutationId] is
+  /// the idempotency key: a second call with the same key — a double tap, or
+  /// a retry after the app was killed — writes and queues nothing more. A
+  /// section with no current planting is left as it is.
+  Future<void> clearPlanting(String sectionId, {required String mutationId});
+
   Future<Observation> createObservation({
     required String sectionId,
     required String type,
@@ -93,6 +105,24 @@ abstract interface class FarmRecordsRepository {
   Future<FarmTask> setTaskStatus(String taskId, TaskStatus status);
 
   Future<void> deleteTask(String taskId);
+
+  /// Renames or re-measures a section. [expectedRevision] is the version the
+  /// farmer was looking at when they started editing; if the section has
+  /// moved since, this throws `RevisionConflict` rather than overwrite it.
+  ///
+  /// [mutationId] is minted once when the edit opens and reused for every
+  /// retry, so a second tap on Save is the same change, never a second one.
+  Future<void> updateSection({
+    required String mutationId,
+    required String sectionId,
+    required int expectedRevision,
+    required String name,
+    required String areaM2,
+  });
+
+  /// A soft delete, like every other record's. The section's planting, plan,
+  /// tasks and observations stop showing with it.
+  Future<void> deleteSection(String sectionId, {required String mutationId});
 
   /// Commits an accepted recommendation to its section.
   ///

@@ -141,10 +141,21 @@ bash "$1" mobile
     flows = [call for call in calls if call.startswith("maestro ")]
     expected = ["online_launch", "signup", "login", "scan_pan"]
     if not scan_fails:
-        expected += ["voice_fallback", "offline_launch"]
+        expected += [
+            "voice_fallback",
+            "first_launch_setup",
+            "dashboard_degraded",
+            "dashboard_offline",
+            "offline_launch",
+        ]
     assert flows == [f"maestro test e2e/mobile/{name}.yaml" for name in expected]
     assert result.returncode == (23 if scan_fails else 0), result.stdout + result.stderr
     scan = calls.index("maestro test e2e/mobile/scan_pan.yaml")
     assert calls[scan - 1] == "adb shell getprop sys.boot_completed"
+    # The first-launch journey (#89) gets its own device check too. It runs
+    # after the scan, so a failed scan stops the run before it.
+    if not scan_fails:
+        first_launch = calls.index("maestro test e2e/mobile/first_launch_setup.yaml")
+        assert calls[first_launch - 1] == "adb shell getprop sys.boot_completed"
     assert calls[-1].endswith("down --volumes --remove-orphans")
     assert any(call.endswith("stop api") for call in calls) is not scan_fails

@@ -34,10 +34,15 @@ import '../features/crop_scan/crop_scan_screen.dart';
 import '../features/farm/farm_map_screen.dart';
 import '../features/farm/farm_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/insights/insights_screen.dart';
+import '../features/insights/market_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
 import '../features/recommendations/recommendation_detail_screen.dart';
 import '../features/recommendations/recommendations_screen.dart';
 import '../features/self_test/self_test_screen.dart';
+import '../features/setup/farm_setup_screen.dart';
+import '../features/setup/section_setup_screen.dart';
+import '../features/setup/setup_gate_screen.dart';
 import '../features/shell/bottom_nav_island.dart';
 import '../features/status/status_screen.dart';
 import '../features/zone/zone_screen.dart';
@@ -45,12 +50,33 @@ import 'config.dart';
 
 /// [initialLocation] is for tests, which pump a screen directly rather than
 /// tapping their way to it. A build overrides the same thing with
-/// `INITIAL_ROUTE` — see [initialRoute] for why a cold launch still opens on
-/// Home.
-GoRouter buildRouter({String? initialLocation}) => GoRouter(
+/// `INITIAL_ROUTE` — see [initialRoute] for how a cold launch is decided.
+///
+/// [introSeen] answers whether this install has been through the first-launch
+/// journey (issue #89). Null — every test that pumps a screen directly —
+/// means it has, so `/` goes to Home as it always did.
+GoRouter buildRouter({
+  String? initialLocation,
+  Future<bool> Function()? introSeen,
+}) => GoRouter(
   initialLocation: initialLocation ?? initialRoute,
   routes: [
-    GoRoute(path: '/', redirect: (_, _) => '/home'),
+    // A cold launch. A fresh install sees the brand intro, onboarding and
+    // auth choice once; every launch after that opens on Home with no taps.
+    // Anything that goes wrong reading the answer lands on Home too — the
+    // farm opening is the promise, the intro is not.
+    GoRoute(
+      path: '/',
+      redirect: (_, _) async {
+        try {
+          return await (introSeen?.call() ?? Future.value(true))
+              ? '/home'
+              : '/splash';
+        } on Object {
+          return '/home';
+        }
+      },
+    ),
 
     // ---------------------------------------------------------------- auth
     //
@@ -131,16 +157,7 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
       ],
     ),
 
-    GoRoute(
-      path: '/insights',
-      builder: (_, _) => const NotBuiltYetScreen(
-        destination: NavDestination.insights,
-        title: 'Insights',
-        body:
-            'Health, money and market prices over time. Every record you '
-            'add now is what these will be built from.',
-      ),
-    ),
+    GoRoute(path: '/insights', builder: (_, _) => const InsightsScreen()),
     // Who is signed in, and Log out. Never a gate: it reads the session, it
     // does not require one.
     GoRoute(
@@ -176,6 +193,11 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
     GoRoute(path: '/health', builder: (_, _) => const HealthScreen()),
     // ----------------------------------------------------------- end health
 
+    // ------------------------------------------------------ insights market
+    // Issue #93 first slice: crop outlooks for this account's planted land.
+    GoRoute(path: '/insights/market', builder: (_, _) => const MarketScreen()),
+    // -------------------------------------------------- end insights market
+
     // ------------------------------------------------------- issue 94 profile
     GoRoute(
       path: '/profile/security',
@@ -183,6 +205,27 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
     ),
     GoRoute(path: '/profile/help', builder: (_, _) => const HelpScreen()),
     // --------------------------------------------------- end issue 94 profile
+
+    // ---------------------------------------------------------------- setup
+    //
+    // Issue #89: first farm and first section setup, design 14 and 16. Its own
+    // block at the end of the table, like the two above. Sign-up
+    // and login land on `/setup`, which sends an account whose farm has no
+    // sections through setup and everyone else to Home. `/setup/section` is
+    // also the one place a section is added, so the Farm tab can open it —
+    // `?next=/farm` says where to return. Nothing here gates the farm.
+    //
+    // Siblings, not children of `/setup`: a child route would build the gate
+    // beneath it, and the gate navigates as soon as it has an answer.
+    GoRoute(path: '/setup', builder: (_, _) => const SetupGateScreen()),
+    GoRoute(path: '/setup/farm', builder: (_, _) => const FarmSetupScreen()),
+    GoRoute(
+      path: '/setup/section',
+      builder: (_, state) => SectionSetupScreen(
+        next: _internalPath(state.uri.queryParameters['next']),
+      ),
+    ),
+    // ------------------------------------------------------------ end setup
   ],
   errorBuilder: (context, state) => NotBuiltYetScreen(
     destination: NavDestination.home,
@@ -191,3 +234,10 @@ GoRouter buildRouter({String? initialLocation}) => GoRouter(
     onBack: () => GoRouter.of(context).go('/home'),
   ),
 );
+
+/// [path] if it names a screen in this app, otherwise null. A `next` from a
+/// link is never allowed to point anywhere but a route here.
+String? _internalPath(String? path) =>
+    path != null && path.startsWith('/') && !path.startsWith('//')
+    ? path
+    : null;

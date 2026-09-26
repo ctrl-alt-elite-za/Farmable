@@ -238,7 +238,7 @@ class _NothingToDraw extends StatelessWidget {
             icon: hasSections ? LucideIcons.crosshair : LucideIcons.plus,
             onPressed: () => hasSections
                 ? showBoundaryWalking(context)
-                : showAddSection(context),
+                : showAddSection(context, returnTo: '/farm/map'),
           ),
         ],
       ),

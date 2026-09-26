@@ -75,7 +75,18 @@ elif [ "$mode" = mobile ]; then
   maestro test e2e/mobile/scan_pan.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/voice_fallback.yaml
+  # A fresh install's whole first launch (#89): intro, onboarding, sign-up,
+  # first farm and first section, Home, and a second launch that skips it all.
+  # Last before the API stops, because it leaves an account signed in for the
+  # two dashboard flows below.
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/first_launch_setup.yaml
   "${compose[@]}" stop api
+  # Home with the API down, then a cold start in airplane mode (#12).
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/dashboard_degraded.yaml
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/dashboard_offline.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/offline_launch.yaml
 fi
