@@ -329,6 +329,31 @@ class PlanPreview {
 
 final _hex64 = RegExp(r'^[0-9a-f]{64}$');
 
+/// One constraint that differs between two plan previews, as the farmer
+/// would name it. [before] and [after] are raw request values; the card
+/// words them.
+class PlanChange {
+  final String field;
+  final Object? before;
+  final Object? after;
+
+  const PlanChange(this.field, this.before, this.after);
+}
+
+/// What the farmer changed between [before] and [after]: the planner's own
+/// normalised requests, compared key by key, plus the section's area. Nested
+/// values are compared whole and reported under their key.
+List<PlanChange> planChanges(PlanPreview before, PlanPreview after) {
+  final keys = {...before.request.keys, ...after.request.keys};
+  return [
+    for (final key in keys)
+      if ('${before.request[key]}' != '${after.request[key]}')
+        PlanChange(key, before.request[key], after.request[key]),
+    if (before.sectionId == after.sectionId && before.areaM2 != after.areaM2)
+      PlanChange('area_m2', before.areaM2, after.areaM2),
+  ];
+}
+
 class PlanCandidate {
   final String id;
   final List<PlanAllocation> allocations;

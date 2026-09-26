@@ -154,14 +154,27 @@ class VoiceExchange {
   /// The provider has finished answering (or was talked over).
   final bool done;
 
-  const VoiceExchange({this.heard = '', this.reply = '', this.done = false});
+  /// The farmer cut this reply off; what is shown is all that was said.
+  final bool interrupted;
 
-  VoiceExchange copyWith({String? heard, String? reply, bool? done}) =>
-      VoiceExchange(
-        heard: heard ?? this.heard,
-        reply: reply ?? this.reply,
-        done: done ?? this.done,
-      );
+  const VoiceExchange({
+    this.heard = '',
+    this.reply = '',
+    this.done = false,
+    this.interrupted = false,
+  });
+
+  VoiceExchange copyWith({
+    String? heard,
+    String? reply,
+    bool? done,
+    bool? interrupted,
+  }) => VoiceExchange(
+    heard: heard ?? this.heard,
+    reply: reply ?? this.reply,
+    done: done ?? this.done,
+    interrupted: interrupted ?? this.interrupted,
+  );
 }
 
 class VoiceState {
@@ -233,6 +246,10 @@ class VoiceController extends Notifier<VoiceState> {
 
   /// Bumped by every ending, so late callbacks from an ended session drop.
   int _epoch = 0;
+
+  /// The farmer cut off a reply the provider is still sending. Its remaining
+  /// words and audio are dropped until the provider closes that reply.
+  bool _silenced = false;
 
   VoiceTiming get _timing => ref.read(voiceTimingProvider);
 
@@ -358,6 +375,54 @@ class VoiceController extends Notifier<VoiceState> {
       consent: () => null,
       consentBusy: false,
     );
+  }
+
+  /// The mic tap while the assistant is talking: silence it at once and keep
+  /// listening. With nothing playing, the same tap starts listening.
+  ///
+  /// Only the speaker is local, so it stops first, in this frame. The session
+  /// and the microphone stay open, and the provider is told once; repeated
+  /// taps before it answers do nothing more.
+  Future<void> interrupt() async {
+    if (!ref.mounted) return;
+    if (state.phase == VoicePhase.off) return start();
+    if (state.phase != VoicePhase.listening) return;
+    final replying =
+        state.exchanges.isNotEmpty &&
+        !state.exchanges.last.done &&
+        state.exchanges.last.reply.isNotEmpty;
+    if (!state.speaking && !replying) return;
+    if (_silenced) return;
+    _audio.clear();
+    unawaited(_quietly(_player?.stop() ?? Future.value()));
+    if (replying) {
+      _silenced = true;
+      _connection?.send(LiveMessages.note(_interruptNote));
+    }
+    final exchanges = [...state.exchanges];
+    if (exchanges.isNotEmpty && exchanges.last.reply.isNotEmpty) {
+      exchanges.add(
+        exchanges.removeLast().copyWith(done: true, interrupted: true),
+      );
+    }
+    state = state.copyWith(speaking: false, exchanges: exchanges);
+  }
+
+  /// Everything the farmer said this time, corrections included, as one
+  /// message for the planner. Ends voice and clears the spoken bubbles, since
+  /// the typed conversation carries the words from here; nothing goes back
+  /// to the typing box. Null when nothing was said.
+  Future<String?> takeWords() async {
+    if (!ref.mounted) return null;
+    final said = [
+      for (final e in state.exchanges)
+        if (e.heard.trim().isNotEmpty)
+          e.heard.trim().replaceFirst(RegExp(r'[.!?…,;\s]+$'), ''),
+    ];
+    if (said.isEmpty) return null;
+    state = state.copyWith(exchanges: const []);
+    if (state.phase != VoicePhase.off) await _end(null);
+    return '${said.join('. ')}.';
   }
 
   /// Stop, leaving the sheet, or the app going to the background.
@@ -500,6 +565,8 @@ class VoiceController extends Notifier<VoiceState> {
     if (state.phase != VoicePhase.listening) return;
     _connection = null;
     _audio.clear();
+    // A resumed session does not finish the reply that was cut off.
+    _silenced = false;
     unawaited(_player?.stop());
     state = state.copyWith(phase: VoicePhase.reconnecting, speaking: false);
     final handle = _resumeHandle;
@@ -522,6 +589,17 @@ class VoiceController extends Notifier<VoiceState> {
   }
 
   void _onEvent(LiveEvent event, int epoch) {
+    if (_silenced) {
+      switch (event) {
+        // The rest of the reply the farmer cut off.
+        case ReplyText() || ReplyAudio():
+          return;
+        case ReplyDone() || ReplyInterrupted():
+          _silenced = false;
+          return;
+        default:
+      }
+    }
     switch (event) {
       case HeardText(:final text):
         _heard(text);
@@ -712,8 +790,13 @@ class VoiceController extends Notifier<VoiceState> {
     }
     _credential = null;
     _resumeHandle = null;
+    _silenced = false;
     _cancelledTools.clear();
   }
+
+  static const _interruptNote =
+      'The farmer interrupted you. Stop that answer and wait for what they '
+      'say next; it may change what they asked for.';
 
   static String _languageNote(ReplyLanguage language) =>
       'The farmer has chosen replies in ${language.instruction}. Reply in '

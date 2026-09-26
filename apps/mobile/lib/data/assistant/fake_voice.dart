@@ -106,6 +106,9 @@ class FakeLiveConnection implements LiveConnection {
   /// Answers the setup message with `setupComplete`, as the provider does.
   final bool autoReady;
 
+  /// Sees every message the app sends, as the provider would.
+  void Function(Map<String, Object?> message)? onSent;
+
   FakeLiveConnection({this.autoReady = true});
 
   @override
@@ -115,6 +118,7 @@ class FakeLiveConnection implements LiveConnection {
   void send(Map<String, Object?> message) {
     if (closed) return;
     sent.add(message);
+    onSent?.call(message);
     if (autoReady && message.containsKey('setup')) {
       scheduleMicrotask(() => receive({'setupComplete': <String, Object?>{}}));
     }
@@ -293,20 +297,80 @@ class FakeVoice {
        microphone = microphone ?? FakeMicrophone(),
        player = player ?? FakeSpeechPlayer();
 
-  /// For the `TEST_MODE` build: consent already given, the provider hears
-  /// "Plant cabbages in the north plot" and then the connection is lost and
-  /// cannot be resumed — so the words land in the typing box.
+  /// For the `TEST_MODE` build: consent already given.
+  ///
+  /// The first session is the fallback (#24): the provider hears "Plant
+  /// cabbages in the north plot", then the connection drops with no way to
+  /// resume, so the words land in the typing box.
+  ///
+  /// Every later session is the interruption (#25): the provider hears a
+  /// question and answers at length, a sentence at a time, until the app
+  /// says the farmer interrupted. Then it closes that reply, hears the new
+  /// constraint and answers it. The sentences it had queued keep arriving
+  /// for a moment after the tap, as a real provider's can, and must not play.
   factory FakeVoice.fallbackDemo() {
-    final link = FakeLiveLink(failAfter: 1);
+    final link = FakeLiveLink();
     link.onConnect = (connection) {
-      Future<void>.delayed(const Duration(milliseconds: 600), () {
-        connection.receive(FakeProvider.heard('Plant cabbages'));
-      });
-      Future<void>.delayed(const Duration(milliseconds: 1200), () {
-        connection.receive(FakeProvider.heard(' in the north plot'));
-      });
-      Future<void>.delayed(const Duration(milliseconds: 2000), connection.drop);
+      if (link.connections.length == 1) {
+        _fallbackScript(connection);
+      } else {
+        _interruptScript(connection);
+      }
     };
     return FakeVoice(api: FakeLiveVoiceApi(granted: true), link: link);
+  }
+
+  static void _fallbackScript(FakeLiveConnection connection) {
+    Future<void>.delayed(const Duration(milliseconds: 600), () {
+      connection.receive(FakeProvider.heard('Plant cabbages'));
+    });
+    Future<void>.delayed(const Duration(milliseconds: 1200), () {
+      connection.receive(FakeProvider.heard(' in the north plot'));
+    });
+    Future<void>.delayed(const Duration(milliseconds: 2000), connection.drop);
+  }
+
+  static const _longAnswer = [
+    'Cabbages suit the north plot this season. ',
+    'Plant them forty centimetres apart in rows. ',
+    'Water deeply twice a week until they head. ',
+    'Expect about three tonnes from that plot. ',
+    'Seedlings and fertiliser come to about R5 000. ',
+    'You would harvest in roughly ninety days. ',
+  ];
+
+  static void _interruptScript(FakeLiveConnection connection) {
+    var cutOff = false;
+    var replyClosed = false;
+    Future<void>.delayed(const Duration(milliseconds: 500), () {
+      connection.receive(FakeProvider.heard('Plan the north plot for me'));
+    });
+    for (final (i, sentence) in _longAnswer.indexed) {
+      Future<void>.delayed(Duration(milliseconds: 1200 + i * 900), () {
+        // Until the provider closes the reply, sentences keep coming even
+        // after the tap, as a real provider's can; the app drops them.
+        if (connection.closed || replyClosed) return;
+        connection.receive(FakeProvider.audio());
+        connection.receive(FakeProvider.said(sentence));
+      });
+    }
+    connection.onSent = (message) {
+      if (cutOff || !'$message'.contains('interrupted you')) return;
+      cutOff = true;
+      Future<void>.delayed(const Duration(milliseconds: 400), () {
+        replyClosed = true;
+        connection.receive(FakeProvider.interrupted);
+      });
+      Future<void>.delayed(const Duration(milliseconds: 900), () {
+        connection.receive(FakeProvider.heard('Only R3 000 though'));
+      });
+      Future<void>.delayed(const Duration(milliseconds: 1600), () {
+        connection.receive(FakeProvider.audio());
+        connection.receive(
+          FakeProvider.said('Then spinach fits your R3 000 budget. '),
+        );
+        connection.receive(FakeProvider.done);
+      });
+    };
   }
 }

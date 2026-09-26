@@ -1,0 +1,53 @@
+# Tapping while the assistant talks stops it at once and keeps listening (#25).
+#
+# The TEST_MODE build replaces the microphone, the backend's voice routes and
+# the Gemini Live socket with FakeVoice.fallbackDemo (lib/data/assistant/
+# fake_voice.dart). Its first session is the voice_fallback flow; every later
+# session answers at length until the app says the farmer interrupted, then
+# hears "Only R3 000 though" and answers that. The sentences it had queued
+# keep arriving briefly after the tap and must not play or show.
+#
+#   maestro test e2e/mobile/tap_interrupt.yaml
+appId: za.co.almanac.app
+name: A farmer cuts the assistant off mid-answer and gives a new budget
+---
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+- tapOn:
+    id: 'assistant-open'
+- extendedWaitUntil:
+    visible:
+      id: 'voice-start'
+    timeout: 20000
+# The first session in a run is the fallback script; let it end.
+- tapOn:
+    id: 'voice-start'
+- extendedWaitUntil:
+    visible: '.*voice connection was lost.*'
+    timeout: 15000
+# The second is the long answer.
+- tapOn:
+    id: 'voice-start'
+- extendedWaitUntil:
+    visible:
+      id: 'voice-interrupt'
+    timeout: 15000
+- tapOn:
+    id: 'voice-interrupt'
+# Stopped and listening within 300 ms of the tap.
+- extendedWaitUntil:
+    visible: 'Listening'
+    timeout: 300
+- assertNotVisible:
+    id: 'voice-interrupt'
+- assertVisible: '.*Interrupted.*'
+# The new constraint is heard and answered; the rest of the old answer never
+# appears.
+- extendedWaitUntil:
+    visible: '.*Then spinach fits your R3 000 budget.*'
+    timeout: 10000
+- assertNotVisible: '.*harvest in roughly.*'
+- tapOn:
+    id: 'voice-stop'
