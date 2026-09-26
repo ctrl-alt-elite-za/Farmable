@@ -1,0 +1,79 @@
+# Fills in "Create your account" and proves the phone, then the email.
+#
+# Starts on the sign-up screen, however it was reached; ends the moment the
+# email code is accepted. Uses ${output.suffix}, which the calling flow sets,
+# so a rerun against the same stack never collides with an earlier account.
+#
+# Every field is found by the semantics identifier AppTextField derives from
+# its label (field-name, field-confirm-password, ...). Each field: keyboard
+# down, scrolled into view, then typed into - the keyboard left up by the
+# previous field covers the next one on the CI emulator's screen, and a
+# covered field is not in the tree Maestro searches.
+#
+# The codes are the CI stack's fake OTP provider's: 111111 for the phone,
+# 222222 for email. See signup.yaml.
+appId: za.co.almanac.app
+---
+- extendedWaitUntil:
+    visible: '.*Create your account.*'
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: 'field-name'
+- tapOn:
+    id: 'field-name'
+- inputText: 'Thandi'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-surname'
+- tapOn:
+    id: 'field-surname'
+- inputText: 'Mokoena'
+- hideKeyboard
+# 82 plus seven digits: a nine-digit South African mobile, +2782xxxxxxx.
+- scrollUntilVisible:
+    element:
+      id: 'field-phone-number'
+- tapOn:
+    id: 'field-phone-number'
+- inputText: '82${output.suffix}'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-email'
+- tapOn:
+    id: 'field-email'
+- inputText: 'farmer${output.suffix}@example.com'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-password'
+- tapOn:
+    id: 'field-password'
+- inputText: 'three blind field mice'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-confirm-password'
+- tapOn:
+    id: 'field-confirm-password'
+- inputText: 'three blind field mice'
+- hideKeyboard
+- scrollUntilVisible:
+    element: 'Create account'
+- tapOn: 'Create account'
+# Phone step.
+- extendedWaitUntil:
+    visible: '.*Verify your account.*'
+    timeout: 20000
+- tapOn:
+    id: 'verification-code'
+- inputText: '111111'
+# Email step, on the same screen: it names the masked address the code went to.
+- extendedWaitUntil:
+    visible: '.*@example\.com.*'
+    timeout: 20000
+- tapOn:
+    id: 'verification-code'
+- inputText: '222222'

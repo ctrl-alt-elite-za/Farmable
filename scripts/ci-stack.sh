@@ -71,6 +71,10 @@ elif [ "$mode" = mobile ]; then
   maestro test e2e/mobile/signup.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/login.yaml
+  # A fresh install's whole first launch (#89): intro, onboarding, sign-up,
+  # first farm and first section, Home, and a second launch that skips it all.
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/first_launch_setup.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/scan_pan.yaml
   "${compose[@]}" stop api

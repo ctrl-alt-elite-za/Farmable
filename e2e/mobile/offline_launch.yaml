@@ -9,6 +9,10 @@ name: App launches into Home from local storage with no API reachable
 ---
 - launchApp:
     clearState: true
+# A fresh install opens on the launch journey (issue #89); the demo farm is one
+# Skip and one "Try the demo farm" away, with no account and - in
+# offline_launch.yaml - no API.
+- runFlow: steps/try_demo_farm.yaml
 # clearState wipes app data, so the local database is created and seeded before
 # anything renders — work the old status screen never did.
 #
@@ -31,3 +35,11 @@ name: App launches into Home from local storage with no API reachable
 # proves the app reports its sync standing on launch.
 - assertVisible:
     id: 'sync-status'
+# A second launch, WITHOUT clearing state, skips the intro and onboarding: Home
+# with no taps at all, straight from local storage.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+- assertNotVisible: 'Skip'

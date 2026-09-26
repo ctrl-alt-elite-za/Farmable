@@ -135,7 +135,9 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
 
     final after = ref.read(authViewModelProvider).value;
     if (after is SignedIn) {
-      context.go('/home');
+      // A new account's farm has no sections yet; `/setup` takes the farmer
+      // through first farm setup, or to Home where there is nothing to set up.
+      context.go('/setup');
       return;
     }
 

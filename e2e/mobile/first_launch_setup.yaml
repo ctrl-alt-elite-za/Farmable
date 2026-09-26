@@ -1,0 +1,51 @@
+# Issue #89: a new farmer, from a fresh install to their own farm on Home.
+#
+# Brand intro, onboarding, Auth Choice, sign-up against the real API, first
+# farm setup, first section setup - then Home shows the farmer's own farm
+# and that section, never the demo farm. A second launch then skips the
+# intro and onboarding and opens straight on that farm.
+#
+# Needs the isolated CI stack (scripts/ci-stack.sh mobile) - see signup.yaml
+# for its fake OTP provider.
+#
+#   maestro test e2e/mobile/first_launch_setup.yaml
+appId: za.co.almanac.app
+name: A new farmer goes from a fresh install to their own farm and first section
+---
+- launchApp:
+    clearState: true
+- evalScript: ${output.suffix = output.suffix || String(Date.now()).slice(-7)}
+# The brand intro hands over to onboarding on its own. No Home, no demo farm.
+- extendedWaitUntil:
+    visible: 'Skip'
+    timeout: 60000
+- assertNotVisible: '.*Hello, Sipho.*'
+- tapOn: 'Skip'
+# Auth Choice.
+- extendedWaitUntil:
+    visible: 'Sign up'
+    timeout: 10000
+- assertVisible: '.*Try the demo farm.*'
+- tapOn: 'Sign up'
+- runFlow: steps/create_account.yaml
+- runFlow: steps/first_setup.yaml
+# Home: the account's own farm, by the farmer's name, the farm's new name and
+# the section just added. The regexes are required - Maestro matches the
+# WHOLE accessibility string, and Android merges sibling Texts into one.
+- extendedWaitUntil:
+    visible: '.*Hello, Thandi.*'
+    timeout: 30000
+- assertVisible: '.*Ubuhle Farm.*'
+- assertNotVisible: '.*Siyakhula Farm.*'
+- scrollUntilVisible:
+    element: '.*Riverside beds.*'
+    direction: DOWN
+# A second launch, WITHOUT clearing state: no intro, no onboarding, straight
+# to the farmer's farm.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '.*Hello, Thandi.*'
+    timeout: 60000
+- assertNotVisible: 'Skip'
+- assertVisible: '.*Ubuhle Farm.*'

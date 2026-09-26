@@ -24,6 +24,8 @@
 /// write it makes is refused once either has changed.
 library;
 
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 
 import '../../domain/account/account_models.dart';
@@ -354,7 +356,31 @@ class ApiAccountService implements AccountService {
   /// Each part is cleared from the pending set once the server accepts it;
   /// one the server rejects as invalid is cleared too - it will never be
   /// accepted - and the rejection is reported so the farmer knows.
+  ///
+  /// One flush at a time, and a part is only cleared if it still holds the
+  /// value that was sent. Sends can start from several places - saving an
+  /// edit, launch, the signal coming back - and without both rules a flush
+  /// that read an older name could finish last and clear the newer one,
+  /// leaving the server with the older name and nothing waiting to fix it.
   Future<void> _flush(_Op op) async {
+    final previous = _flushing;
+    final done = Completer<void>();
+    _flushing = done.future;
+    // Waited on only while one is running: even a finished future hands its
+    // continuation to the zone it was made in.
+    if (previous != null) await previous;
+    try {
+      await _flushOnce(op);
+    } finally {
+      if (identical(_flushing, done.future)) _flushing = null;
+      done.complete();
+    }
+  }
+
+  /// The flush in progress, if any. Never completes with an error.
+  Future<void>? _flushing;
+
+  Future<void> _flushOnce(_Op op) async {
     final pending = _pending(await _record(op.user));
     if (pending.isEmpty) return;
 
@@ -368,7 +394,7 @@ class ApiAccountService implements AccountService {
         profile = await _patch(op, '/account/profile', profilePatch);
       } on AuthException catch (e) {
         if (e.failure == AuthFailure.rejected) {
-          await _drop(op, profilePatch.keys);
+          await _drop(op, profilePatch);
         }
         rethrow;
       }
@@ -377,13 +403,13 @@ class ApiAccountService implements AccountService {
         (record) => {
           ...record,
           'profile': profile,
-          'pending': {..._pending(record)}
-            ..removeWhere((k, _) => profilePatch.containsKey(k)),
+          'pending': _without(_pending(record), profilePatch),
         },
       );
     }
 
     if (pending.containsKey('farm_name')) {
+      final sent = {'farm_name': pending['farm_name']};
       final Map<String, Object?> farm;
       try {
         farm = await _patch(op, '/account/farm', {
@@ -392,7 +418,7 @@ class ApiAccountService implements AccountService {
       } on AuthException catch (e) {
         if (e.failure == AuthFailure.rejected ||
             e.failure == AuthFailure.gone) {
-          await _drop(op, const ['farm_name']);
+          await _drop(op, sent);
         }
         rethrow;
       }
@@ -401,19 +427,23 @@ class ApiAccountService implements AccountService {
         (record) => {
           ...record,
           'farm': farm,
-          'pending': {..._pending(record)}..remove('farm_name'),
+          'pending': _without(_pending(record), sent),
         },
       );
     }
   }
 
-  Future<void> _drop(_Op op, Iterable<String> keys) => _update(
+  Future<void> _drop(_Op op, Map<String, Object?> sent) => _update(
     op,
-    (record) => {
-      ...record,
-      'pending': {..._pending(record)}..removeWhere((k, _) => keys.contains(k)),
-    },
+    (record) => {...record, 'pending': _without(_pending(record), sent)},
   );
+
+  /// [pending] less every part of [sent] it still holds unchanged. A part
+  /// edited again since it was sent stays, to go out next.
+  Map<String, Object?> _without(
+    Map<String, Object?> pending,
+    Map<String, Object?> sent,
+  ) => {...pending}..removeWhere((k, v) => sent.containsKey(k) && sent[k] == v);
 
   Future<Map<String, Object?>> _get(_Op op, String path) async =>
       _body(await _auth.authorized('GET', path, generation: op.generation));

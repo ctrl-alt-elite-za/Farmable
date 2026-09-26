@@ -32,13 +32,18 @@ const demoMode = bool.fromEnvironment('DEMO_MODE');
 /// Stamped by CI so a report can be traced back to the build that produced it.
 const buildSha = String.fromEnvironment('BUILD_SHA', defaultValue: 'unknown');
 
-/// Where the app opens. `/home` for every build anyone will ever install.
+/// Where the app opens. `/` for every build anyone will ever install, and `/`
+/// decides: a fresh install goes through the brand intro, onboarding and
+/// auth choice once (issue #89); every launch after that opens on Home.
 ///
-/// **The default is a product decision, not a tidying-up.** The seeded demo
-/// farm has no user attached to it, `e2e/mobile/*.yaml` assert that a freshly
-/// installed app reaches Home with no taps, and Home and Zone Detail are
-/// required to work without a session. Putting onboarding in front of a cold
-/// launch breaks all three at once.
+/// **What does not change is a product decision, not a tidying-up.** The seeded
+/// demo farm has no user attached to it, and Home and Zone Detail are required
+/// to work without a session and without a signal. The intro is shown once and
+/// never again, reaching Home from it needs no account (Skip, then "Try the
+/// demo farm"), and the answer to "has this phone seen it" lives on the phone
+/// (`data/launch/launch_record.dart`) — a launch that cannot read it opens
+/// Home. `e2e/mobile/*.yaml` walk the intro on a fresh install and then assert
+/// that a second launch reaches Home with no taps.
 ///
 /// Overridden only to photograph or drive a screen that sits several taps
 /// down, so a capture is a build flag rather than a sequence of blind
@@ -60,10 +65,7 @@ const buildSha = String.fromEnvironment('BUILD_SHA', defaultValue: 'unknown');
 /// added a setting for this under a different name, and git merged both in
 /// without reporting a conflict — two build flags doing one job, either of
 /// which could have been the one nobody wired up.
-const initialRoute = String.fromEnvironment(
-  'INITIAL_ROUTE',
-  defaultValue: '/home',
-);
+const initialRoute = String.fromEnvironment('INITIAL_ROUTE', defaultValue: '/');
 
 /// True when the app has no usable API and should present itself as offline
 /// rather than appearing broken.
