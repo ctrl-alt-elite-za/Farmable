@@ -741,6 +741,74 @@ void main() {
       expect(box(), 'Will it rain?');
     });
 
+    String box(WidgetTester tester) => tester
+        .widget<TextField>(find.byKey(const Key('assistant-input')))
+        .controller!
+        .text;
+
+    testWidgets('off while the crop question waits: the message goes back '
+        'in the box', (tester) async {
+      var allowed = true;
+      final api = FakeAssistantApi(granted: true);
+      final container = await pumpAssistant(
+        tester,
+        api: api,
+        outsideServicesNow: () => allowed,
+      );
+      const message = 'Can I plant tatoes in the north plot?';
+      await _ask(tester, message);
+      expect(find.text('Which crop did you mean by “tatoes”?'), findsOne);
+
+      await turnOff(tester, container, () => allowed = false);
+
+      expect(api.sent, isEmpty);
+      expect(find.byKey(const Key('crop-choice-potatoes')), findsNothing);
+      expect(box(tester), message);
+    });
+
+    testWidgets('off just before a crop is tapped: the message goes back in '
+        'the box', (tester) async {
+      // Kea's review of bf2ff7f.
+      var allowed = true;
+      final api = FakeAssistantApi(granted: true);
+      final container = await pumpAssistant(
+        tester,
+        api: api,
+        outsideServicesNow: () => allowed,
+      );
+      const message = 'Can I plant tatoes in the north plot?';
+      await _ask(tester, message);
+
+      // Turned off on another screen; the sheet has not heard yet.
+      allowed = false;
+      container.invalidate(externalProcessingConsentProvider);
+      await tester.tap(find.byKey(const Key('crop-choice-potatoes')));
+      await settle(tester);
+
+      expect(api.sent, isEmpty);
+      // The crop choice, if it got as far as being made; the words either way.
+      expect(
+        box(tester),
+        anyOf(message, message.replaceAll('tatoes', 'potatoes')),
+      );
+    });
+
+    testWidgets('a crop name that takes the message past the limit gives it '
+        'back', (tester) async {
+      // Kea's review of bf2ff7f.
+      final api = FakeAssistantApi(granted: true);
+      await pumpAssistant(tester, api: api);
+      const start = 'Plant tatoes ';
+      final message = start + 'x' * (maxMessageLength - start.length);
+      await _ask(tester, message);
+      expect(find.text('Which crop did you mean by “tatoes”?'), findsOne);
+
+      await _tapKey(tester, const Key('crop-choice-potatoes'));
+
+      expect(api.sent, isEmpty);
+      expect(box(tester), message, reason: 'as typed, since it still fits');
+    });
+
     testWidgets('off during an answer: interrupted on the server, and no '
         'more words are shown', (tester) async {
       var allowed = true;

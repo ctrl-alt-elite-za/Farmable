@@ -296,6 +296,10 @@ class AssistantChatState {
   final CropQuestion? cropQuestion;
   final String? pendingMessage;
 
+  /// Words the controller took from the box but could not send. The sheet
+  /// puts them back where the farmer typed them ([takeReturnedDraft]).
+  final String? returnedDraft;
+
   /// A consent change is on its way to the server.
   final bool consentBusy;
 
@@ -317,6 +321,7 @@ class AssistantChatState {
     this.decisions = const {},
     this.cropQuestion,
     this.pendingMessage,
+    this.returnedDraft,
     this.consentBusy = false,
     this.withdrawn = false,
     this.consentProblem,
@@ -334,6 +339,7 @@ class AssistantChatState {
     Map<String, PlanDecision>? decisions,
     CropQuestion? Function()? cropQuestion,
     String? Function()? pendingMessage,
+    String? Function()? returnedDraft,
     bool? consentBusy,
     bool? withdrawn,
     AssistantProblem? Function()? consentProblem,
@@ -348,6 +354,7 @@ class AssistantChatState {
     pendingMessage: pendingMessage != null
         ? pendingMessage()
         : this.pendingMessage,
+    returnedDraft: returnedDraft != null ? returnedDraft() : this.returnedDraft,
     consentBusy: consentBusy ?? this.consentBusy,
     withdrawn: withdrawn ?? this.withdrawn,
     consentProblem: consentProblem != null
@@ -359,6 +366,9 @@ class AssistantChatState {
 }
 
 // --------------------------------------------------------------- controller
+
+/// The longest message the server takes (`TurnCreate.message`).
+const maxMessageLength = 4000;
 
 /// The ending code of a turn stopped because outside services were turned off.
 const outsideServicesOffCode = 'outside_services_off';
@@ -646,12 +656,15 @@ class AssistantController extends Notifier<AssistantChatState> {
       unawaited(_interruptOnServer(run.turnId));
       _end(run.turnId, const TurnInterrupted(outsideServicesOffCode));
     }
+    final pending = state.pendingMessage;
     state = state.copyWith(
       stage: AssistantStage.outsideServicesOff,
       outsideServicesTurnedOff: wasOpen || state.outsideServicesTurnedOff,
       cropQuestion: () => null,
       pendingMessage: () => null,
     );
+    // A message held for the crop question goes back in the box.
+    if (pending != null) _giveBack(pending);
   }
 
   Future<void> _interruptOnServer(String turnId) async {
@@ -775,7 +788,7 @@ class AssistantController extends Notifier<AssistantChatState> {
   /// they typed them. It does not wait for the answer.
   Future<bool> send(String raw) async {
     final message = raw.trim();
-    if (message.isEmpty || message.length > 4000) return false;
+    if (message.isEmpty || message.length > maxMessageLength) return false;
     if (state.stage != AssistantStage.ready || state.writing) return false;
     final question = cropQuestionFor(message);
     if (question != null) {
@@ -802,11 +815,30 @@ class AssistantController extends Notifier<AssistantChatState> {
         ? pending
         : resolveCropQuestion(pending, question, crop);
     // Unchanged words would only ask the same question again.
-    if (resolved == pending) {
-      await _admit(newUuid(), pending);
-    } else {
-      await send(resolved);
+    final taken = resolved == pending
+        ? await _admit(newUuid(), pending)
+        : await send(resolved);
+    // The box was cleared when the question was asked. Not sent after all
+    // (outside services turned off meanwhile, or the crop's name took it past
+    // the limit): the words go back, with the choice made if they still fit.
+    if (!taken) {
+      _giveBack(resolved.length <= maxMessageLength ? resolved : pending);
     }
+  }
+
+  /// Hands [words] back to the box — see [AssistantChatState.returnedDraft].
+  void _giveBack(String words) {
+    final earlier = state.returnedDraft;
+    state = state.copyWith(
+      returnedDraft: () => earlier == null ? words : '$earlier\n$words',
+    );
+  }
+
+  /// The words to put back in the box, once; null when there are none.
+  String? takeReturnedDraft() {
+    final words = state.returnedDraft;
+    if (words != null) state = state.copyWith(returnedDraft: () => null);
+    return words;
   }
 
   /// Drops the crop question and hands the message back for editing.

@@ -55,8 +55,20 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(assistantControllerProvider.notifier).open();
+      if (!mounted) return;
+      final controller = ref.read(assistantControllerProvider.notifier);
+      // Words handed back while the sheet was closed.
+      _restore(controller.takeReturnedDraft());
+      controller.open();
     });
+  }
+
+  /// Puts words the controller could not send back in the box, ahead of
+  /// anything typed since.
+  void _restore(String? words) {
+    if (words == null) return;
+    final typed = _draft.text;
+    _draft.text = typed.trim().isEmpty ? words : '$words\n$typed';
   }
 
   @override
@@ -91,6 +103,16 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
     final c = context.semantic;
     final state = ref.watch(assistantControllerProvider);
     AppMotion.of(context);
+
+    ref.listen(assistantControllerProvider.select((s) => s.returnedDraft), (
+      _,
+      words,
+    ) {
+      if (words == null) return;
+      _restore(
+        ref.read(assistantControllerProvider.notifier).takeReturnedDraft(),
+      );
+    });
 
     // Keep the newest line in view as the answer grows. Only new words move
     // the view: choosing on an older plan card must not scroll it away.
@@ -746,7 +768,7 @@ class _Composer extends StatelessWidget {
                   controller: draft,
                   minLines: 1,
                   maxLines: 4,
-                  maxLength: 4000,
+                  maxLength: maxMessageLength,
                   textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.send,
                   onSubmitted: (_) {
