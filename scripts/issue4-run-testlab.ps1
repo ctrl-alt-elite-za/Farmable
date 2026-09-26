@@ -27,6 +27,9 @@ try {
     $env:TEST_MODE = 'false'
     $env:DEMO_MODE = 'false'
     $env:MOBILE_API_BASE_URL = 'https://api.invalid'
+    if ($env:TEST_MODE -ne 'false' -or $env:DEMO_MODE -ne 'false') {
+        throw 'Issue #4 requires TEST_MODE=false and DEMO_MODE=false'
+    }
 
     Push-Location $mobile
     try {
@@ -43,7 +46,8 @@ try {
           --dart-define=API_URL=$env:MOBILE_API_BASE_URL `
           --dart-define=BUILD_SHA=$buildSha `
           --dart-define=TEST_MODE=$env:TEST_MODE `
-          --dart-define=DEMO_MODE=$env:DEMO_MODE
+          --dart-define=DEMO_MODE=$env:DEMO_MODE `
+          --dart-define=INITIAL_ROUTE=/status
         if ($LASTEXITCODE -ne 0) { throw 'Debug app APK build failed' }
 
         $gradlew = Join-Path (Get-Location) 'android/gradlew.bat'
@@ -77,9 +81,17 @@ try {
     $reportLine = Select-String -Path $runLog -Pattern 'ISSUE4_REPORT_JSON=' | Select-Object -Last 1
     if (-not $reportLine) { throw 'Test Lab output did not contain ISSUE4_REPORT_JSON=' }
     ($reportLine.Line -replace '^.*ISSUE4_REPORT_JSON=', '') | Set-Content (Join-Path $evidence 'android-report.json')
+    $detailsLine = Select-String -Path $runLog -Pattern 'ISSUE4_DETAILS_JSON=' | Select-Object -Last 1
+    if (-not $detailsLine) { throw 'Test Lab output did not contain ISSUE4_DETAILS_JSON=' }
+    ($detailsLine.Line -replace '^.*ISSUE4_DETAILS_JSON=', '') | Set-Content (Join-Path $evidence 'android-report-details.json')
     $report = Get-Content (Join-Path $evidence 'android-report.json') -Raw | ConvertFrom-Json
     if ($report.build_sha -ne $buildSha) {
         throw "Report build_sha $($report.build_sha) does not match APK build $buildSha"
+    }
+    if ($report.platform -ne 'android' -or $report.camera_preview -ne 'pass' -or
+        $report.ar_plane -ne 'pass' -or $report.mic_record -ne 'pass' -or
+        [int]$report.detector_ms -le 0 -or $report.overall -ne 'pass') {
+        throw 'Android report did not satisfy the required self-test outcomes'
     }
 } finally {
     Pop-Location

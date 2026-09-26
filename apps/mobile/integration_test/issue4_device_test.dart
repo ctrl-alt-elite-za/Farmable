@@ -11,9 +11,12 @@ import 'package:almanac/features/self_test/self_test_controller.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  test('issue 4 physical device self-test', () async {
+  testWidgets('issue 4 physical device self-test', (tester) async {
     expect(testMode, isFalse);
     expect(demoMode, isFalse);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('api-status')), findsOneWidget);
+    expect(find.text('Offline'), findsOneWidget);
 
     final controller = SelfTestController(SelfTestDevices.onDevice());
     try {
