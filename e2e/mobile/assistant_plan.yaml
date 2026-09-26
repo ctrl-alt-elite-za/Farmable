@@ -55,9 +55,15 @@ env:
 - inputText: 'Plan cabbage on Plan test beds'
 - hideKeyboard
 - tapOn: 'Send'
+# The card arrives with its options; nothing is chosen yet.
 - extendedWaitUntil:
-    visible: '.*Plan option 1 of.*'
+    visible: 'Choose a plan first'
     timeout: 60000
+# The chat follows the newest line, so the first option is above the view.
+- scrollUntilVisible:
+    element: '.*Plan option 1 of.*'
+    direction: UP
+    centerElement: true
 # Nothing is saved until the farmer chooses, reviews and confirms.
 - tapOn: '.*Plan option 1 of.*'
 - scrollUntilVisible:
