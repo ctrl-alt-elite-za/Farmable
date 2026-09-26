@@ -26,6 +26,16 @@ from test_retrospective_simulation import cpi, prices
 from validate_seven_default import validate as validate_result
 
 
+def test_committed_amendment_two_artifacts_validate():
+    """CI checks the published bytes, not only temporary synthetic outputs."""
+    output = runner.ROOT / "ml"
+    runs = sorted((output / "forecast/price_only_results").iterdir())
+    assert runs, "the amended real run must be published alongside version 1"
+    for directory in runs:
+        if directory.is_dir():
+            validate_result(output, directory.name)
+
+
 def test_gate_precedes_real_data_access(tmp_path, monkeypatch):
     def reject(**kwargs):
         raise ProtocolGateError("amendment not merged")
