@@ -854,6 +854,42 @@ void main() {
       );
     });
 
+    testWidgets('the composer sits above the system navigation bar', (
+      tester,
+    ) async {
+      tester.view.padding = const FakeViewPadding(bottom: 48);
+      addTearDown(tester.view.resetPadding);
+      await pumpAssistant(tester, api: FakeAssistantApi(granted: true));
+
+      final field = tester.getRect(find.byType(TextField).last);
+      expect(
+        field.bottom,
+        lessThanOrEqualTo(tester.view.physicalSize.height - 48),
+      );
+    });
+
+    testWidgets('an account change while the sheet is open starts it again, '
+        'never a spinner that stays', (tester) async {
+      final auth = _SwitchableAuth(signedIn);
+      final container = await pumpAssistant(
+        tester,
+        api: FakeAssistantApi(granted: true),
+        authOverride: auth,
+      );
+      expect(
+        container.read(assistantControllerProvider).stage,
+        isNot(AssistantStage.starting),
+      );
+
+      auth.switchTo(_otherSignedIn);
+      await settle(tester);
+
+      expect(
+        container.read(assistantControllerProvider).stage,
+        isNot(AssistantStage.starting),
+      );
+    });
+
     testWidgets('a crop answer from the old account is not returned to the '
         'new account', (tester) async {
       final auth = _SwitchableAuth(signedIn);

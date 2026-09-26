@@ -282,10 +282,19 @@ void main() {
             'section_id': sectionId,
             'origin': 'planner_confirmation',
             'recorded_at': '2026-09-20T00:00:00Z',
+            // As planning/history.py preserves it: the saved_plans row,
+            // with the planner result under `plan`.
             'snapshot': {
-              'schema_version': 1,
-              'snapshot_hash': hex('a'),
-              'candidate': {'id': hex('1')},
+              'status': 'approved',
+              'plan': {
+                'schema_version': 1,
+                'snapshot_hash': hex('a'),
+                'candidate': {'id': hex('1')},
+              },
+              'approved_at': '2026-09-20T00:00:00+00:00',
+              'deleted_at': null,
+              'created_at': '2026-09-20T00:00:00+00:00',
+              'updated_at': '2026-09-20T00:00:00+00:00',
             },
           },
         ],

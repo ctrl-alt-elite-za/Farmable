@@ -148,7 +148,24 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
       (_, _) => toBottom(),
     );
 
+    // Back to the start while open (the account changed under the sheet):
+    // work out where the farmer stands again, rather than leaving the
+    // "getting ready" spinner up until the sheet is closed.
+    ref.listen(assistantControllerProvider.select((s) => s.stage), (
+      previous,
+      stage,
+    ) {
+      if (stage == AssistantStage.starting &&
+          previous != null &&
+          previous != AssistantStage.starting) {
+        ref.read(assistantControllerProvider.notifier).open();
+      }
+    });
+
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    // The system navigation bar, when the keyboard is not covering it: the
+    // app draws edge to edge, so without this the composer sits under it.
+    final navigationBar = MediaQuery.paddingOf(context).bottom;
 
     return Padding(
       padding: EdgeInsets.only(bottom: keyboard),
@@ -206,7 +223,7 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
                     onStop: () =>
                         ref.read(assistantControllerProvider.notifier).stop(),
                   ),
-                const SizedBox(height: AlmanacDimens.sp4),
+                SizedBox(height: AlmanacDimens.sp4 + navigationBar),
               ],
             ),
           ),
