@@ -76,18 +76,18 @@ gcloud sql users set-password postgres \
 ```
 
 Then enable PostGIS once on the `farmable` database. The migrations do not run
-handwritten SQL, so this stays outside Alembic:
-
-```bash
-gcloud sql connect farmable-staging --user=postgres --project=almanac-staging-za
-```
+handwritten SQL, so this stays outside Alembic. Use **Cloud SQL Studio** in the
+console: open **SQL → farmable-staging → Cloud SQL Studio**, choose the `farmable`
+database, sign in as `postgres` with the password you just set, and run:
 
 ```sql
-\c farmable
 CREATE EXTENSION postgis;
 ```
 
-`gcloud sql connect` needs a local `psql`. Without one, use Cloud Shell in the browser.
+Don't use `gcloud sql connect`. It temporarily allowlists your IP, which needs
+`cloudsql.instances.update`, and that same permission can resize the instance, so
+only the owner holds it. Team members have Cloud SQL Studio for this. See
+[`CLOUD_RULES.md`](CLOUD_RULES.md) for exactly what each person can do.
 
 ### Phase 3 — secret values
 

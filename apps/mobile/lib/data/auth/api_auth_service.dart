@@ -359,6 +359,21 @@ class ApiAuthService implements AuthService {
     await _write(record, session: null, pending: null, signupAttempt: null);
   }
 
+  /// Asks the server to end every session after this phone has already
+  /// forgotten its own. The captured token is only used for this one request;
+  /// a refusal cannot restore access on this phone.
+  Future<void> revokeAllWithToken(String accessToken) async {
+    final response = await _send(
+      'POST',
+      '/auth/revoke-all',
+      accessToken,
+      null,
+      null,
+      null,
+    );
+    throwUnlessSuccess(response);
+  }
+
   /// Forgets the half-finished signup on this phone.
   ///
   /// Only on this phone. The backend has no route to discard an unverified

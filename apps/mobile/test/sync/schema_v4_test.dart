@@ -44,6 +44,8 @@ void main() {
           'ALTER TABLE local_photos DROP COLUMN $column',
         );
       }
+      // Nor had the v5 change-feed cursor arrived.
+      await db.customStatement('DROP TABLE sync_cursors');
       await db.customStatement('PRAGMA user_version = 3');
       await db.close();
 
@@ -60,7 +62,7 @@ void main() {
         (await db.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        4,
+        db.schemaVersion,
       );
     },
   );

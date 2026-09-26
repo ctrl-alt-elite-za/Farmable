@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/auth_view_model.dart';
 import '../features/auth/auth_challenge_host.dart';
+import '../features/setup/farm_name_keeper.dart';
+import '../features/setup/setup_providers.dart';
+import '../features/setup/setup_resumer.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
@@ -17,7 +20,9 @@ class AlmanacApp extends ConsumerStatefulWidget {
 class _AlmanacAppState extends ConsumerState<AlmanacApp> {
   // Built once. A router rebuilt on every frame loses its navigation stack,
   // which shows up as a back button that sometimes does nothing.
-  late final _router = buildRouter();
+  late final _router = buildRouter(
+    introSeen: () => ref.read(launchRecordProvider).introSeen(),
+  );
 
   // The sync queue only sends while the app is in front. `inactive` counts
   // as in front: it is a permission dialog or the notification shade, and
@@ -48,6 +53,8 @@ class _AlmanacAppState extends ConsumerState<AlmanacApp> {
     ref.watch(seedProvider);
     keepSessionFresh(ref);
     keepFarmSynced(ref);
+    keepFarmNameSent(ref);
+    keepSetupResumable(ref, _router);
     _lifecycle;
 
     return MaterialApp.router(

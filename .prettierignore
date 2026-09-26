@@ -1,6 +1,9 @@
 pnpm-lock.yaml
 uv.lock
 apps/ml-service/data/
+# Audited run artifacts must retain the exact bytes recorded by their manifests.
+/ml/forecast/results/
+/ml/backtest/results/
 # The mobile app is Flutter; `dart format` owns its formatting.
 apps/mobile/
 **/dist/

@@ -1,8 +1,41 @@
 # Issue #20 acceptance evidence
 
-Updated 2026-09-24. This is implementation evidence for the senior-review
-follow-up and retrospective-scenario registration, **not a completed issue**. No
-complete real decision backtest was written.
+Updated 2026-09-25. This is implementation and real-run evidence for the
+retrospective scenario, **not a completed issue**. The real result is reproducible,
+but the registered eight-default slide sentence is withheld because tomatoes have
+no scorable switches. See `RESULTS_REVIEW.md`.
+
+PR #85 merged on `main` at `87c903bd02cd`. The default
+`python ml/backtest/check_protocol_first.py` gate passes against fetched
+`origin/main`: protocol `73e2c6296a5a` precedes the first result merge
+`87c903bd02cd`. Source and assumption cleanup is tracked separately from the
+frozen version 1 artifacts.
+
+### Real result after PR #83
+
+Amendment 1 merged in PR #83. The protocol readiness gate passed on the resulting
+`main`. All 17 original workbooks matched the committed hashes, and the runner
+produced run `c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f`
+from the LF source bytes committed in Git. The earlier Windows CRLF provenance
+run was removed from the result folders after code owner review.
+An independent repeat produced the same ID and byte-identical copies of all ten
+artifact files. The 96-row Parquet snapshot passed its validator, and its JSON
+counterpart passed the backend's retrospective consumer quality checks.
+
+The 1,248-key decision ledger has 444 scorable rows, 326 switches and 316 positive
+switch gains. Tomatoes have 42 scorable rows, all no-switch; their switch win rate
+and gain statistics are correctly null. `slide_sentence.txt` therefore reports
+`INSUFFICIENT EVIDENCE`. This result must not be converted into an eight-default
+pitch claim. Another 174 of the 326 switches recommend tomatoes, and all 174
+have positive gains under the processing-tomato budget paired with fresh-market
+prices. None of the gain figures should be quoted as evidence of forecast skill
+or farmer benefit until tomato inputs are corrected or tomatoes are excluded
+in a separately registered evaluation. The real snapshot imports and serves an
+outlook in a disposable ORM test database. Colab execution at the committed code
+revision passed; production deployment and a separately registered evaluation
+with defined tomato switch outcomes remain open.
+
+The sections below retain earlier implementation checkpoints as historical records.
 
 ### First real-input run after PR #82
 
@@ -12,8 +45,8 @@ result files: a later 2025 deployment-snapshot forecast lacked the 2025 lag mont
 required by its selected LightGBM method. No decision scores were inspected. A
 dated Amendment 1 in `backtest/PROTOCOL.md` defines that snapshot from frozen
 pre-2025 seasonal ranges, leaving the historical decision simulation unchanged.
-The amendment and code must merge before another real run; its results belong in a
-separate PR.
+The amendment and code merged before the successful real run; its results belong in
+a separate PR.
 
 The project owner selected the retrospective fixed-2025-input scenario so code and
 artifacts can be completed before historical data cleanup. `backtest/PROTOCOL.md`
@@ -24,8 +57,7 @@ prohibits the historical publication-availability claim.
 
 Protocol-only PR #77 merged on `main` at `73e2c6296a5a`. Its original protocol
 has SHA-256 `a090d4e9d517b2b8c0d9d5009b5b9c5c9a827386e178f6e265052270923ea99d`.
-The proposed amendment cannot pass `check_protocol_first.py --check-ready` until
-it is merged on `main`. Kea's issue-20 follow-up
+The amendment later merged in PR #83. Kea's issue-20 follow-up
 simulation core is integrated into the local runner for frozen recommendations and
 decision scoring. The runner retains its audited workbook loader, ORM import work,
 forecast evaluation, snapshot export and deterministic artifact packaging.

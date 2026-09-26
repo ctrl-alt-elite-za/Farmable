@@ -78,3 +78,76 @@ bash "$1" "$2"
         assert any("stop worker" in call for call in calls)
         assert any("stop database" in call for call in calls)
         assert any("--no-deps tests" in call for call in calls)
+
+
+@pytest.mark.parametrize("scan_fails", [False, True])
+def test_mobile_runner_executes_scan_and_propagates_failure(
+    tmp_path: Path, scan_fails: bool
+) -> None:
+    bash = os.environ.get("FARMABLE_TEST_BASH") or shutil.which("bash")
+    if bash is None:
+        pytest.skip("Bash is required")
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    for name in ("ci-stack.sh", "await-device.sh"):
+        shutil.copyfile(REPO / "scripts" / name, scripts / name)
+    log = tmp_path / "calls.log"
+    result = subprocess.run(  # noqa: S603
+        [
+            bash,
+            "-c",
+            """
+docker() { printf 'docker %s\n' "$*" >> "$TASK_LOG"; }
+uv() {
+  case "$*" in
+    *token_hex*) printf 'fake-password\n' ;;
+    *URL.create*) printf 'postgresql+psycopg://test:fake-password@database/test\n' ;;
+    *uuid*) printf 'mobile-test-id\n' ;;
+  esac
+}
+git() { printf 'test-sha\n'; }
+adb() {
+  printf 'adb %s\n' "$*" >> "$TASK_LOG"
+  if [ "$*" = 'shell getprop sys.boot_completed' ]; then printf '1\n'; fi
+  return 0
+}
+timeout() { shift; "$@"; }
+maestro() {
+  printf 'maestro %s\n' "$*" >> "$TASK_LOG"
+  if [ "$*" = 'test e2e/mobile/scan_pan.yaml' ] && [ "$TASK_SCAN_FAILS" = true ]; then
+    return 23
+  fi
+  return 0
+}
+export -f docker uv git adb timeout maestro
+bash "$1" mobile
+""",
+            "test",
+            (scripts / "ci-stack.sh").as_posix(),
+        ],
+        env={
+            **os.environ,
+            "TASK_LOG": log.as_posix(),
+            "TASK_SCAN_FAILS": str(scan_fails).lower(),
+            "APK": "test-mode.apk",
+            "GITHUB_ACTIONS": "false",
+        },
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    calls = log.read_text(encoding="utf-8").splitlines()
+    flows = [call for call in calls if call.startswith("maestro ")]
+    expected = ["online_launch", "signup", "login", "first_launch_setup", "scan_pan"]
+    if not scan_fails:
+        expected.append("offline_launch")
+    assert flows == [f"maestro test e2e/mobile/{name}.yaml" for name in expected]
+    assert result.returncode == (23 if scan_fails else 0), result.stdout + result.stderr
+    scan = calls.index("maestro test e2e/mobile/scan_pan.yaml")
+    assert calls[scan - 1] == "adb shell getprop sys.boot_completed"
+    # The first-launch journey (#89) gets its own device check too.
+    first_launch = calls.index("maestro test e2e/mobile/first_launch_setup.yaml")
+    assert calls[first_launch - 1] == "adb shell getprop sys.boot_completed"
+    assert calls[-1].endswith("down --volumes --remove-orphans")
+    assert any(call.endswith("stop api") for call in calls) is not scan_fails

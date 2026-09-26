@@ -1,0 +1,51 @@
+# Use the standard TEST_MODE=true CI build; enter through the existing UI.
+# This exercises the labelled synthetic replay, not detector accuracy or speed.
+appId: za.co.almanac.app
+name: Recorded crop pan keeps warning boxes tappable
+---
+- launchApp:
+    clearState: true
+# Past the first-launch journey to the demo farm (issue #89).
+- runFlow: steps/try_demo_farm.yaml
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+- scrollUntilVisible:
+    element: 'Cabbage Field\..*'
+    direction: DOWN
+- tapOn:
+    text: 'Cabbage Field\..*'
+    # The carousel card extends under the persistent assistant button. Maestro
+    # taps the centre of a matched element by default, which opens that
+    # button instead of the card on the emulator. Keep the selector semantic,
+    # but tap the card's visible upper area.
+    point: '50%,20%'
+- tapOn:
+    id: 'zone-scan'
+- assertVisible: '.*Test replay.*synthetic crop boxes.*'
+- scrollUntilVisible:
+    element:
+      id: 'crop-scan-start'
+    direction: DOWN
+- tapOn:
+    id: 'crop-scan-start'
+- scrollUntilVisible:
+    element:
+      id: 'crop-2'
+    direction: UP
+    timeout: 10000
+- assertVisible: '.*Test replay.*synthetic boxes.*'
+- assertNotVisible: '.*[Hh]old still.*'
+- tapOn:
+    id: 'crop-2'
+- scrollUntilVisible:
+    element: '.*Tomato selected.*'
+    direction: DOWN
+- assertVisible: '.*Tomato selected.*'
+- assertVisible: '.*Orange box: check suggested.*'
+- scrollUntilVisible:
+    element: '.*Stop replay.*'
+    direction: DOWN
+- tapOn: '.*Stop replay.*'
+- assertNotVisible:
+    id: 'crop-2'

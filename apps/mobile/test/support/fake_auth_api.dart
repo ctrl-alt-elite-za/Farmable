@@ -118,6 +118,10 @@ class FakeAuthApi implements HttpClientAdapter {
   /// else's (`403`) or gone (`404 not_found`).
   (int, String)? accountOverride;
 
+  /// When set, [accountOverride] answers only this path, and every other
+  /// `/account/*` request is served as normal.
+  String? accountOverridePath;
+
   /// Holds the response to a request for a path until completed — the
   /// request is recorded as sent, and its answer arrives when the test says.
   /// How a test lets a farmer log out, or another log in, mid-request.
@@ -235,6 +239,7 @@ class FakeAuthApi implements HttpClientAdapter {
       ('POST', '/auth/login') => _login(body),
       ('POST', '/auth/refresh') => await _refresh(body),
       ('POST', '/auth/logout') => _logout(auth),
+      ('POST', '/auth/revoke-all') => _revokeAll(auth),
       (_, final String p) when p.startsWith('/farms') && farms != null =>
         await _farms(options.method, p, body, auth),
       (_, final String p) when p.startsWith('/account') => _account(
@@ -356,6 +361,15 @@ class FakeAuthApi implements HttpClientAdapter {
     return _empty(204);
   }
 
+  ResponseBody _revokeAll(String? authorization) {
+    final session = _live(authorization);
+    if (session == null) return _error(401, 'invalid_session');
+    for (final other in _byAccess.values) {
+      if (other.userId == session.userId) other.revoked = true;
+    }
+    return _empty(204);
+  }
+
   /// The account routes, as `account.py` answers them: ownership comes from
   /// the session, never from the request, and unknown fields are refused.
   ResponseBody _account(
@@ -368,7 +382,10 @@ class FakeAuthApi implements HttpClientAdapter {
     final session = _live(authorization);
     if (session == null) return _error(401, 'invalid_session');
     final override = accountOverride;
-    if (override != null) return _error(override.$1, override.$2);
+    final only = accountOverridePath;
+    if (override != null && (only == null || only == path)) {
+      return _error(override.$1, override.$2);
+    }
     final account = _accounts[session.userId]!;
 
     bool valid(Object? value, int max) =>

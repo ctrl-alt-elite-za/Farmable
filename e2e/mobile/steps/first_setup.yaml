@@ -1,0 +1,43 @@
+# First farm setup (design 14) and first section setup (design 16), issue #89.
+#
+# Starts the moment a new account is verified: the server gave it a farm with
+# a default name and no sections, so the app takes the farmer through setup.
+# The farm name and language go through PATCH /account/farm and
+# /account/profile; the section through the sync queue. Ends on Home.
+#
+# The area is typed - walking the boundary is #15 and not needed for this.
+appId: za.co.almanac.app
+---
+# "Getting your farm ready" can show for a moment first, while the phone
+# fetches the new account's farm.
+- extendedWaitUntil:
+    visible: ".*Let's set up your farm.*"
+    timeout: 30000
+- tapOn:
+    id: 'field-farm-name'
+- inputText: 'Ubuhle Farm'
+- hideKeyboard
+- scrollUntilVisible:
+    element: 'isiZulu'
+- tapOn: 'isiZulu'
+- scrollUntilVisible:
+    element: 'Continue'
+- tapOn: 'Continue'
+- extendedWaitUntil:
+    visible: '.*Add your first section.*'
+    timeout: 20000
+- tapOn:
+    id: 'field-section-name'
+- inputText: 'Riverside beds'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'field-area'
+- tapOn:
+    id: 'field-area'
+# Hectares is the default unit.
+- inputText: '0.5'
+- hideKeyboard
+- scrollUntilVisible:
+    element: 'Add section'
+- tapOn: 'Add section'

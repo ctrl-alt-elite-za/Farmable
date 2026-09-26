@@ -180,6 +180,10 @@ class ZoneActions {
   Future<void> retrySync(String observationId) =>
       _records.retryObservationSync(observationId);
 
+  /// The same, for the section or a timeline step.
+  Future<void> retryRecordSync(String recordId) =>
+      _records.retryRecordSync(recordId);
+
   Future<void> addObservation({
     required String type,
     required String note,

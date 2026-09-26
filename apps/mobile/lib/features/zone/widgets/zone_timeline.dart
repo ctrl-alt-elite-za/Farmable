@@ -6,6 +6,7 @@ import '../../../app/theme/tokens.g.dart';
 import '../../../core/ui/layout.dart';
 import '../../../core/utils/dates.dart';
 import '../zone_view_model.dart';
+import 'observation_list.dart' show RecordDeliveryRow;
 
 /// The season, read top to bottom.
 ///
@@ -19,11 +20,15 @@ class ZoneTimeline extends StatelessWidget {
   final DateTime today;
   final void Function(TimelineEntry entry) onTap;
 
+  /// The farmer's "try again" on a step whose send stopped.
+  final void Function(TimelineEntry entry)? onRetry;
+
   const ZoneTimeline({
     super.key,
     required this.entries,
     required this.today,
     required this.onTap,
+    this.onRetry,
   });
 
   @override
@@ -49,6 +54,7 @@ class ZoneTimeline extends StatelessWidget {
               today: today,
               last: entry == entries.last,
               onTap: () => onTap(entry),
+              onRetry: onRetry == null ? null : () => onRetry!(entry),
             ),
         ],
       ),
@@ -61,12 +67,14 @@ class _TimelineItem extends StatelessWidget {
   final DateTime today;
   final bool last;
   final VoidCallback onTap;
+  final VoidCallback? onRetry;
 
   const _TimelineItem({
     required this.entry,
     required this.today,
     required this.last,
     required this.onTap,
+    this.onRetry,
   });
 
   @override
@@ -185,6 +193,14 @@ class _TimelineItem extends StatelessWidget {
                             ),
                           ),
                         ],
+                      ),
+                    ],
+                    if (task.delivery case final delivery?) ...[
+                      const SizedBox(height: AlmanacDimens.sp2),
+                      RecordDeliveryRow(
+                        delivery: delivery,
+                        onRetry: onRetry,
+                        retryKey: ValueKey('retry-${task.id}'),
                       ),
                     ],
                   ],

@@ -7,8 +7,14 @@ Parquet validation, a staged-data inventory and a protocol-history checker. The 
 lives in `apps/ml-service/src/farmable_ml`; public checks and artifacts use `ml/`.
 
 These components and the integrated retrospective runner are exercised on synthetic
-fixtures. No real decision simulation or production forecast snapshot is included
-yet. The registered retrospective fixed-input rules in `ml/backtest/PROTOCOL.md`
+fixtures. A reproducible real retrospective result and 96-row snapshot are now
+included under `ml/backtest/results/` and `ml/forecast/results/`; see
+`ml/RESULTS_REVIEW.md` before using any number. The published run ID is
+`c67c0ad8d791c19ad711a8aeaf90a8dad26e60b5bec127c75fe422f63f78429f`,
+generated from the LF source bytes committed in Git. The switch gains depend
+strongly on pairing a processing-tomato budget with fresh-market prices, so
+they are not a pitch statistic. The registered retrospective fixed-input rules
+in `ml/backtest/PROTOCOL.md`
 merged independently in PR #77 before any result run. NumPy, PyArrow
 and LightGBM are pinned in the package manifest and workspace lockfile. Reporting
 CPI data and extraction provenance are in `ml/data/SOURCES.md`. Proposed statistical
@@ -122,7 +128,7 @@ protocol Amendment 1, its 96 rows use frozen pre-2025 historical ranges for the
 harvest target calendar month. The decision simulation retains per-origin model
 selection. The snapshot exports gross market prices and separate costs/yields;
 decision scoring additionally deducts the registered marketing rates. Real-artifact
-consumer import, Colab execution and real-run reproducibility remain outstanding. ORM
+production deployment and Colab execution remain outstanding. ORM
 models and a bounded explicit importer now cover market prices, crop calendars and
 costs. Identical canonical bundles are no-ops; changed identities and invalid
 bundles fail without partial rows. After migration, import one with
@@ -145,18 +151,18 @@ contract. Real-artifact integration remains gated by protocol registration.
 requires an exact 40-character commit SHA, installs the locked project plus the
 two pinned workbook readers, runs the shared ML tests and protocol gate, and calls
 the same runner. It contains no source data, credentials, copied model logic or
-saved outputs. A real Colab execution and cross-environment artifact comparison
-still require the independently merged protocol and audited workbook files.
+saved outputs. The real Colab execution and artifact comparison are recorded in
+`RESULTS_REVIEW.md`.
 
 ### Remaining issue work
 
-1. Verify sufficient monthly Joburg history; staged FAOSTAT data is a different
-   price source and the combined pumpkin/butternut series remains unresolved.
-2. Verify source calendars, budget subtotals and the CPI transcription against the original PDF.
-3. Preserve the registered retrospective fixed-input caveats during source cleanup.
-4. Separately merge the protocol before real decision evaluation.
-5. Verify the gated runner on real inputs after protocol merge, add the reference
-   schema migration on current main, and verify the Colab workflow.
+1. Review the real artifacts, especially the zero-switch tomato default. The
+   registered eight-default slide sentence remains unavailable.
+2. Review the disposable-database import test, then plan any production rollout
+   separately.
+3. Complete deferred source and assumption cleanup, including the
+   [market-tomato budget candidate](data/LANDBANK_TOMATO_REVIEW.md), without
+   weakening the registered retrospective caveats.
 
 ## Acceptance evidence boundaries
 

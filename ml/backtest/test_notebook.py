@@ -20,4 +20,8 @@ def test_colab_notebook_is_clean_and_uses_registered_runner():
     assert "run_retrospective.py" in code
     assert "pytest" in code
     assert "--workbooks" in code
+    assert "--output" in code
+    assert "/content/issue20-colab-results" in code
+    assert "--python" in code
+    assert code.count("--no-sync") == 3
     assert not any(token in code.lower() for token in ("password=", "api_key", "access_token"))

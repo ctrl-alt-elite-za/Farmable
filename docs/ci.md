@@ -162,9 +162,15 @@ required check is reported as success, so failing open on a broken scopes job
 would let mobile changes bypass the gate.
 
 The emulator-level proof stays in `e2e-mobile`: `scripts/ci-stack.sh` runs
-`e2e/mobile/online_launch.yaml`, then `signup.yaml` and `login.yaml` against
-the stack's real API (its fake OTP provider accepts `111111` for the phone and
-`222222` for email), stops the API container, then runs
+`e2e/mobile/online_launch.yaml`, then `signup.yaml`, `login.yaml` and
+`first_launch_setup.yaml` against the stack's real API (its fake OTP provider
+accepts `111111` for the phone and `222222` for email). A fresh install opens
+on the launch journey, so the flows that want the demo farm pass it through
+`e2e/mobile/steps/try_demo_farm.yaml`; shared steps live in `steps/` and are
+never run on their own. It then runs `scan_pan.yaml` from Home through the
+existing section scan action in the same test-mode APK, with a fresh device-readiness
+check. This verifies labelled synthetic replay, not live crop inference. It
+stops the API container, then runs
 `e2e/mobile/offline_launch.yaml` against the stopped backend.
 
 ### Demo regression
