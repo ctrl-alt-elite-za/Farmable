@@ -22,6 +22,7 @@ import 'package:almanac/features/assistant/assistant_sheet.dart';
 import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
@@ -400,6 +401,9 @@ Future<ProviderContainer> pumpAssistant(
   bool outsideServices = true,
   bool Function()? outsideServicesNow,
   AssistantTiming timing = fastTiming,
+  AuthViewModel? authOverride,
+  Override? consentOverride,
+  List<Override> overrides = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = phoneSize;
@@ -418,11 +422,13 @@ Future<ProviderContainer> pumpAssistant(
       assistantStorageProvider.overrideWithValue(InMemorySessionStorage()),
       assistantTimingProvider.overrideWithValue(timing),
       authViewModelProvider.overrideWith(
-        () => _FixedAuth(standing ?? signedIn),
+        () => authOverride ?? _FixedAuth(standing ?? signedIn),
       ),
-      externalProcessingConsentProvider.overrideWith(
-        (ref) async => outsideServicesNow?.call() ?? outsideServices,
-      ),
+      consentOverride ??
+          externalProcessingConsentProvider.overrideWith(
+            (ref) async => outsideServicesNow?.call() ?? outsideServices,
+          ),
+      ...overrides,
     ],
   );
 

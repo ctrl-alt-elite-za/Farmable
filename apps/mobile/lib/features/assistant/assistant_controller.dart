@@ -807,6 +807,7 @@ class AssistantController extends Notifier<AssistantChatState> {
     final question = state.cropQuestion;
     final pending = state.pendingMessage;
     if (question == null || pending == null) return;
+    final epoch = _epoch;
     state = state.copyWith(
       cropQuestion: () => null,
       pendingMessage: () => null,
@@ -821,7 +822,7 @@ class AssistantController extends Notifier<AssistantChatState> {
     // The box was cleared when the question was asked. Not sent after all
     // (outside services turned off meanwhile, or the crop's name took it past
     // the limit): the words go back, with the choice made if they still fit.
-    if (!taken) {
+    if (!taken && epoch == _epoch) {
       _giveBack(resolved.length <= maxMessageLength ? resolved : pending);
     }
   }

@@ -8,6 +8,7 @@ import 'package:almanac/app/providers.dart';
 import 'package:almanac/domain/assistant/assistant_models.dart';
 import 'package:almanac/domain/auth/auth_models.dart';
 import 'package:almanac/core/ui/buttons.dart';
+import 'package:almanac/features/auth/auth_view_model.dart';
 import 'package:almanac/features/assistant/assistant_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,6 +47,36 @@ String _statusText(WidgetTester tester, SentTurn turn) => tester
     )
     .map((t) => t.data)
     .join(' ');
+
+class _SwitchableAuth extends AuthViewModel {
+  AuthStanding standing;
+
+  _SwitchableAuth(this.standing);
+
+  @override
+  Future<AuthStanding> build() async => standing;
+
+  void switchTo(AuthStanding next) {
+    standing = next;
+    state = AsyncData(next);
+  }
+}
+
+final _otherSignedIn = SignedIn(
+  AuthSession(
+    token: 'other-account-token',
+    expiresAt: DateTime.utc(2026, 10, 20),
+    user: const AuthUser(
+      id: 'user-2',
+      firstName: 'Kea',
+      surname: 'Nhlapo',
+      phone: '+27820000001',
+      email: 'kea@example.com',
+      phoneVerified: true,
+      emailVerified: true,
+    ),
+  ),
+);
 
 void main() {
   group('consent', () {
@@ -791,6 +822,44 @@ void main() {
         box(tester),
         anyOf(message, message.replaceAll('tatoes', 'potatoes')),
       );
+    });
+
+    testWidgets('a crop answer from the old account is not returned to the '
+        'new account', (tester) async {
+      final auth = _SwitchableAuth(signedIn);
+      final consentGate = Completer<bool>();
+      var holdAdmission = false;
+      final api = FakeAssistantApi(granted: true);
+      final container = await pumpAssistant(
+        tester,
+        api: api,
+        authOverride: auth,
+        consentOverride: externalProcessingConsentProvider.overrideWith((
+          ref,
+        ) async {
+          if (!holdAdmission) return true;
+          await ref.read(authViewModelProvider.future);
+          return consentGate.future;
+        }),
+      );
+      final controller = container.read(assistantControllerProvider.notifier);
+      await _ask(tester, 'Can I plant tatoes here?');
+
+      holdAdmission = true;
+      container.invalidate(externalProcessingConsentProvider);
+      final answer = controller.answerCrop(null);
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      auth.switchTo(_otherSignedIn);
+      consentGate.complete(false);
+      await answer;
+      await settle(tester);
+
+      expect(
+        container.read(assistantControllerProvider).returnedDraft,
+        isNull,
+        reason: 'the old account message must not enter the new account state',
+      );
+      expect(api.sent, isEmpty);
     });
 
     testWidgets('a crop name that takes the message past the limit gives it '
