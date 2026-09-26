@@ -640,11 +640,34 @@ class AuthService:
                 .where(AuthSession.refresh_token_hash == token_hash)
                 .with_for_update()
             )
+            successor = (
+                session.get(AuthSession, existing.replaced_by_id, with_for_update=True)
+                if existing is not None and existing.replaced_by_id is not None
+                else None
+            )
             if existing is None:
                 failure = AuthError("invalid_session", 401)
+            elif (
+                existing.revoked_at is not None
+                and successor is not None
+                and successor.revoked_at is None
+                and successor.used_at is None
+                and _as_utc(existing.expires_at) > _now()
+            ):
+                # The rotated-into session was never used, neither refreshed
+                # nor presented as an access token: the client most likely
+                # lost the refresh response on a weak signal. Replace that
+                # unused successor instead of signing out every device.
+                successor.revoked_at = _now()
+                user = session.get(AuthIdentity, existing.user_id)
+                if user is None or not (user.phone_verified and user.email_verified):
+                    failure = AuthError("invalid_session", 401)
+                else:
+                    result = self._new_session(session, user, replaces=(existing, successor))
             elif existing.revoked_at is not None:
-                # Reuse of an already-rotated/revoked refresh token: treat as
-                # theft and revoke every live session for this user.
+                # Reuse of a token whose successor has already been used (or
+                # that was revoked by logout): treat as theft and revoke every
+                # live session for this user.
                 session.execute(
                     update(AuthSession)
                     .where(
@@ -662,7 +685,7 @@ class AuthService:
                 if user is None or not (user.phone_verified and user.email_verified):
                     failure = AuthError("invalid_session", 401)
                 else:
-                    result = self._new_session(session, user)
+                    result = self._new_session(session, user, replaces=(existing,))
         if failure is not None:
             raise failure
         if result is None:  # Defensive: every successful branch assigns a result.
@@ -731,19 +754,31 @@ class AuthService:
         )
         return None
 
-    def _new_session(self, session: Session, user: AuthIdentity) -> SessionTokens:
+    def _new_session(
+        self,
+        session: Session,
+        user: AuthIdentity,
+        *,
+        replaces: tuple[AuthSession, ...] = (),
+    ) -> SessionTokens:
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
         issued_at = _now()
         access_expires_at = issued_at + ACCESS_TTL
         refresh_expires_at = issued_at + SESSION_TTL
+        session_id = uuid4()
         session.add(
             AuthSession(
+                id=session_id,
                 user_id=user.id,
                 access_token_hash=_hash_token(access),
                 refresh_token_hash=_hash_token(refresh),
                 expires_at=refresh_expires_at,
             )
         )
+        # Point every rotated predecessor at the newest session, so a retried
+        # predecessor is checked against the session its client should hold.
+        for predecessor in replaces:
+            predecessor.replaced_by_id = session_id
         return SessionTokens(access, refresh, access_expires_at, refresh_expires_at, _user(user))
 
     @staticmethod

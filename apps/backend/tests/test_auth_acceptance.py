@@ -244,6 +244,74 @@ def _hash(value: str) -> str:
     return hash_subject(value)
 
 
+def test_lost_refresh_response_can_be_retried(settings):
+    app, _, _, sessions = _app(settings)
+    with TestClient(app) as client:
+        signup = _signup_request(client)
+        user_id = signup.json()["user_id"]
+        client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
+        granted = client.post(
+            "/auth/verify/email", json={"user_id": user_id, "code": "222222"}
+        ).json()
+        other_device = client.post(
+            "/auth/login",
+            json={
+                "identifier": "sipho@example.com",
+                "password": PASSWORD,
+                "turnstile_token": "fixture-token",
+            },
+        ).json()
+        # The server rotates, but the response never reaches the phone.
+        lost = client.post("/auth/refresh", json={"refresh_token": granted["refresh_token"]})
+        assert lost.status_code == 200
+
+        retried = client.post("/auth/refresh", json={"refresh_token": granted["refresh_token"]})
+        assert retried.status_code == 200
+
+        # The unreceived replacement is dead; the retry's session and the
+        # other device are not.
+        with sessions.begin() as session:
+            with pytest.raises(ApiError, match="invalid_session"):
+                authenticate(session, f"Bearer {lost.json()['access_token']}")
+        with sessions.begin() as session:
+            authenticate(session, f"Bearer {retried.json()['access_token']}")
+            authenticate(session, f"Bearer {other_device['access_token']}")
+
+        # Once the retried session has been used, the original token is spent.
+        replayed = client.post("/auth/refresh", json={"refresh_token": granted["refresh_token"]})
+        assert replayed.status_code == 401
+        with sessions.begin() as session:
+            with pytest.raises(ApiError, match="invalid_session"):
+                authenticate(session, f"Bearer {other_device['access_token']}")
+
+
+def test_refresh_after_logout_revokes_all(settings):
+    app, _, _, sessions = _app(settings)
+    with TestClient(app) as client:
+        signup = _signup_request(client)
+        user_id = signup.json()["user_id"]
+        client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
+        granted = client.post(
+            "/auth/verify/email", json={"user_id": user_id, "code": "222222"}
+        ).json()
+        with sessions.begin() as session:
+            stored = session.scalar(select(AuthSession))
+            assert stored is not None
+            stored.revoked_at = datetime.now(UTC)  # Logged out: never rotated.
+        other_device = client.post(
+            "/auth/login",
+            json={
+                "identifier": "sipho@example.com",
+                "password": PASSWORD,
+                "turnstile_token": "fixture-token",
+            },
+        ).json()
+        reused = client.post("/auth/refresh", json={"refresh_token": granted["refresh_token"]})
+        assert reused.status_code == 401
+        other = client.post("/auth/refresh", json={"refresh_token": other_device["refresh_token"]})
+        assert other.status_code == 401
+
+
 def test_refresh_reuse_revokes_all(settings):
     app, _, _, sessions = _app(settings)
     with TestClient(app) as client:
@@ -263,6 +331,10 @@ def test_refresh_reuse_revokes_all(settings):
         ).json()
         rotated = client.post("/auth/refresh", json={"refresh_token": session_a["refresh_token"]})
         assert rotated.status_code == 200
+        # The legitimate client received and used the replacement, so a later
+        # replay of the old token can only be a copy.
+        with sessions.begin() as session:
+            authenticate(session, f"Bearer {rotated.json()['access_token']}")
         reused = client.post("/auth/refresh", json={"refresh_token": session_a["refresh_token"]})
         assert reused.status_code == 401
         # Every session for the user, including the unrelated session_b and
