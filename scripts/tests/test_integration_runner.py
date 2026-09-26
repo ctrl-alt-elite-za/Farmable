@@ -141,7 +141,7 @@ bash "$1" mobile
     flows = [call for call in calls if call.startswith("maestro ")]
     expected = ["online_launch", "signup", "login", "first_launch_setup", "scan_pan"]
     if not scan_fails:
-        expected.append("offline_launch")
+        expected += ["offline_launch", "map_section_replay"]
     assert flows == [f"maestro test e2e/mobile/{name}.yaml" for name in expected]
     assert result.returncode == (23 if scan_fails else 0), result.stdout + result.stderr
     scan = calls.index("maestro test e2e/mobile/scan_pan.yaml")

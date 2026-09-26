@@ -83,23 +83,28 @@ Future<void> showBoundaryWalking(
                   shrinkWrap: true,
                   children: [
                     for (final s in candidates)
-                      ListTile(
-                        key: Key('walk-pick-${s.id}'),
-                        contentPadding: EdgeInsets.zero,
-                        minTileHeight: AlmanacDimens.touchMin,
-                        leading: Icon(
-                          mapped.containsKey(s.id)
-                              ? LucideIcons.map
-                              : LucideIcons.mapPinOff,
-                          color: c.primary,
+                      // The identifier lets Maestro pick a section by id; the
+                      // tile's merged label is the name and its status.
+                      Semantics(
+                        identifier: 'walk-pick-${s.id}',
+                        child: ListTile(
+                          key: Key('walk-pick-${s.id}'),
+                          contentPadding: EdgeInsets.zero,
+                          minTileHeight: AlmanacDimens.touchMin,
+                          leading: Icon(
+                            mapped.containsKey(s.id)
+                                ? LucideIcons.map
+                                : LucideIcons.mapPinOff,
+                            color: c.primary,
+                          ),
+                          title: Text(s.name),
+                          subtitle: Text(
+                            mapped.containsKey(s.id)
+                                ? 'Walked — walking again replaces the shape'
+                                : 'Not mapped yet',
+                          ),
+                          onTap: () => Navigator.of(context).pop(s),
                         ),
-                        title: Text(s.name),
-                        subtitle: Text(
-                          mapped.containsKey(s.id)
-                              ? 'Walked — walking again replaces the shape'
-                              : 'Not mapped yet',
-                        ),
-                        onTap: () => Navigator.of(context).pop(s),
                       ),
                   ],
                 ),

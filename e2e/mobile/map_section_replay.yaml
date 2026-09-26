@@ -25,7 +25,9 @@ name: Recorded walk maps North Plot within 1% and saves offline
     element: 'Map farm'
     direction: DOWN
 - tapOn: 'Map farm'
-- tapOn: 'North Plot'
+# North Plot (DemoSeed.northPlotId); its label also carries "Not mapped yet".
+- tapOn:
+    id: 'walk-pick-8b1b6c6e-0f47-4f6a-9f84-3f1d1a1c0012'
 - assertVisible: '.*recorded walk, played back.*'
 - tapOn:
     id: 'boundary-start'

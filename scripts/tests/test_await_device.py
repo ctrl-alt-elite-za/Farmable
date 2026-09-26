@@ -201,7 +201,7 @@ def test_the_stack_waits_after_stopping_the_api() -> None:
     stack = (ROOT / "scripts" / "ci-stack.sh").read_text(encoding="utf-8")
     stop = stack.index('"${compose[@]}" stop api')
     offline = stack.index("maestro test e2e/mobile/offline_launch.yaml")
-    recovery = stack.rindex("bash scripts/await-device.sh")
+    recovery = stack.rindex("bash scripts/await-device.sh", 0, offline)
     assert stop < recovery < offline
 
 
