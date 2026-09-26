@@ -12,11 +12,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:almanac/data/local/database.dart';
+import 'package:almanac/core/ui/buttons.dart';
+import 'package:almanac/core/ui/fields.dart';
 import 'package:almanac/data/local/seed.dart';
 import 'package:almanac/features/farm/farm_map_data.dart';
 import 'package:almanac/features/farm/farm_map_screen.dart';
 import 'package:almanac/features/farm/farm_screen.dart';
 import 'package:almanac/features/home/home_screen.dart';
+import 'package:almanac/features/setup/section_setup_screen.dart';
 import 'package:almanac/features/zone/zone_screen.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -112,6 +115,31 @@ Future<void> tapOnPage(WidgetTester tester, Finder finder) async {
   await Scrollable.ensureVisible(tester.element(finder.first), alignment: 0.5);
   await tester.pumpAndSettle();
   await tester.tap(finder.first);
+  await tester.pumpAndSettle();
+}
+
+/// Fills in section setup and saves, the way a farmer does.
+Future<void> addSectionNamed(
+  WidgetTester tester,
+  String name,
+  String area, {
+  bool hectares = true,
+}) async {
+  Finder field(String label) => find.descendant(
+    of: find.widgetWithText(AppTextField, label),
+    matching: find.byType(EditableText),
+  );
+  await tester.enterText(field('Section name'), name);
+  if (!hectares) {
+    await tester.tap(find.text('Square metres'));
+    await tester.pumpAndSettle();
+  }
+  await tester.enterText(field('Area'), area);
+  await tester.pumpAndSettle();
+  final save = find.widgetWithText(AppPrimaryButton, 'Add section');
+  await tester.ensureVisible(save);
+  await tester.pumpAndSettle();
+  await tester.tap(save);
   await tester.pumpAndSettle();
 }
 
@@ -214,8 +242,8 @@ void main() {
       expect(find.text('Add section'), findsOneWidget);
     });
 
-    testWidgets('no sections: says what a section is, and that adding one '
-        'is coming — never as a failure', (tester) async {
+    testWidgets('no sections: says what a section is, and its action adds '
+        'the first one — never as a failure', (tester) async {
       final app = await pumpFarmApp(tester, location: '/farm');
       await removeSections(app.db, [
         DemoSeed.cabbageFieldId,
@@ -227,10 +255,14 @@ void main() {
 
       expect(find.text('Your farm has no sections yet'), findsOneWidget);
       expect(find.text('0 sections · KwaMashu'), findsOneWidget);
-      await tapOnPage(tester, find.text('Add a section'));
-
-      expect(find.text('Adding a section is coming'), findsOneWidget);
       expectNoFailureLanguage(tester);
+      await tapOnPage(tester, find.text('Add a section'));
+      expect(find.byType(SectionSetupScreen), findsOneWidget);
+      await addSectionNamed(tester, 'First Bed', '400', hectares: false);
+
+      expect(find.byType(FarmScreen), findsOneWidget);
+      expect(find.text('Your farm has no sections yet'), findsNothing);
+      await revealOnPage(tester, find.text('First Bed'));
     });
 
     testWidgets('no farm on the phone is a state, not an error', (
@@ -250,12 +282,43 @@ void main() {
       expect(zone.sectionId, DemoSeed.spinachBedsId);
     });
 
-    testWidgets('"Add section" says it is coming', (tester) async {
-      await pumpFarmApp(tester, location: '/farm');
+    testWidgets('"Add section" opens section setup and comes back to the '
+        'Farm tab with the new section in it — with no signal', (tester) async {
+      final app = await pumpFarmApp(tester, location: '/farm');
       await tapOnPage(tester, find.text('Add section'));
 
-      expect(find.text('Adding a section is coming'), findsOneWidget);
-      expectNoFailureLanguage(tester);
+      expect(find.byType(SectionSetupScreen), findsOneWidget);
+      expect(find.text('Add a section'), findsOneWidget);
+      await addSectionNamed(tester, 'River Beds', '0,5');
+
+      expect(find.byType(SectionSetupScreen), findsNothing);
+      expect(find.byType(FarmScreen), findsOneWidget);
+      // The tab keeps its scroll position at the button the farmer tapped.
+      tester.state<ScrollableState>(pageScrollable().first).position.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('2.9 ha · 5 sections · KwaMashu'), findsOneWidget);
+      await revealOnPage(tester, find.text('River Beds'));
+      final saved = await (app.db.select(
+        app.db.sections,
+      )..where((t) => t.name.equals('River Beds'))).getSingle();
+      expect(saved.farmId, DemoSeed.farmId);
+      expect(saved.areaM2, '5000.00');
+    });
+
+    testWidgets('Back from section setup returns to the Farm tab and adds '
+        'nothing', (tester) async {
+      await pumpFarmApp(tester, location: '/farm');
+      await tapOnPage(tester, find.text('Add section'));
+      expect(find.byType(SectionSetupScreen), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Back'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FarmScreen), findsOneWidget);
+      // The tab keeps its scroll position at the button the farmer tapped.
+      tester.state<ScrollableState>(pageScrollable().first).position.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(find.text('2.4 ha · 4 sections · KwaMashu'), findsOneWidget);
     });
 
     testWidgets('queued work and no signal are calm facts', (tester) async {
@@ -466,6 +529,31 @@ void main() {
       expect(tiles.requests, isEmpty);
       expectNoFailureLanguage(tester);
     });
+
+    testWidgets(
+      'with no sections, "Add a section" comes back to the full map',
+      (tester) async {
+        final app = await pumpFarmApp(
+          tester,
+          location: '/farm/map',
+          overrides: mapSeams(RecordingTiles()),
+        );
+        await removeSections(app.db, [
+          DemoSeed.cabbageFieldId,
+          DemoSeed.tomatoSectionId,
+          DemoSeed.northPlotId,
+          DemoSeed.spinachBedsId,
+        ]);
+        await tester.pumpAndSettle();
+
+        await tapOnPage(tester, find.text('Add a section'));
+        expect(find.byType(SectionSetupScreen), findsOneWidget);
+        await addSectionNamed(tester, 'River Beds', '0,5');
+
+        expect(find.byType(FarmMapScreen), findsOneWidget);
+        expect(find.text('Not mapped yet · 1 section'), findsOneWidget);
+      },
+    );
 
     testWidgets('an unmapped section opens its Zone Detail', (tester) async {
       await pumpFarmApp(

@@ -1,23 +1,24 @@
-/// The Farm tab's two actions whose screens belong to other issues.
+/// The Farm tab's two actions whose screens live outside the tab.
 ///
-/// Both are in the approved design, so both are on screen, and both say
-/// plainly what they will do once built — never a control that does nothing,
-/// and never failure language, because nothing has failed.
+/// Adding a section opens section setup (#89). Walking a boundary is #15 and
+/// not built yet, so it says plainly what it will do — never a control that
+/// does nothing, and never failure language, because nothing has failed.
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/ui/not_built_yet_sheet.dart';
 
-/// Section setup is issue #89. When it lands, this opens it instead.
-Future<void> showAddSection(BuildContext context) => showNotBuiltYetSheet(
-  context,
-  title: 'Adding a section is coming',
-  body:
-      'A section is one piece of land you use for one thing — a bed, a row, '
-      'a field. Naming one and saying what grows there comes next, and it '
-      'will work on this phone with no signal.',
-);
+/// Opens section setup, which comes back to [returnTo] once the section is
+/// saved — so the farmer lands where they tapped, with the new section in it.
+void showAddSection(BuildContext context, {String returnTo = '/farm'}) =>
+    context.push(
+      Uri(
+        path: '/setup/section',
+        queryParameters: {'next': returnTo},
+      ).toString(),
+    );
 
 /// Walking and editing boundaries is issue #15.
 Future<void> showBoundaryWalking(BuildContext context) => showNotBuiltYetSheet(
