@@ -7,6 +7,7 @@ import '../../app/providers.dart';
 import '../../app/theme/tokens.g.dart';
 import '../../core/ui/layout.dart';
 import '../../domain/farm_records.dart';
+import '../insights/market_view_model.dart';
 import '../shell/almanac_scaffold.dart';
 import '../shell/bottom_nav_island.dart';
 import 'home_view_model.dart';
@@ -16,6 +17,7 @@ import '../zone/zone_view_model.dart';
 import 'widgets/carousel_caption.dart';
 import 'widgets/farm_hero_card.dart';
 import 'widgets/health_summary_card.dart';
+import 'widgets/home_panels.dart';
 import 'widgets/home_sections.dart';
 import 'widgets/zone_carousel.dart';
 
@@ -67,6 +69,41 @@ class _DashboardState extends ConsumerState<_Dashboard> {
   /// is the only defensible answer.
   String? _centreId;
 
+  /// One idempotency key per section's "Cleared" answer, kept for the life
+  /// of the screen so a double tap or a retry is the same change.
+  final _clearKeys = <String, String>{};
+
+  /// Sections the farmer said are still growing. Asked again next launch:
+  /// the answer is about today, not a setting.
+  final _stillGrowing = <String>{};
+  final _clearing = <String>{};
+
+  Future<void> _cleared(SectionSummary section) async {
+    final actions = ref.read(harvestActionsProvider);
+    final key = _clearKeys.putIfAbsent(section.id, actions.newKey);
+    setState(() => _clearing.add(section.id));
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await actions.cleared(section.id, key);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '${section.name} marked cleared. '
+            '${widget.view.offline ? 'It will be sent when you have signal.' : ''}',
+          ),
+        ),
+      );
+    } on Object {
+      if (!mounted) return;
+      setState(() => _clearing.remove(section.id));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('That could not be saved on this phone. Try again.'),
+        ),
+      );
+    }
+  }
+
   SectionSummary? get _centre {
     final sections = widget.view.farm.sections;
     if (sections.isEmpty) return null;
@@ -99,6 +136,14 @@ class _DashboardState extends ConsumerState<_Dashboard> {
               today: view.today,
               pendingChanges: farm.pendingChanges,
               offline: view.offline,
+            ),
+          ),
+          _Gutter(
+            child: SyncAgeLine(
+              lastPulled: ref.watch(homeLastPulledProvider),
+              isAccount: view.isAccount,
+              offline: view.offline,
+              now: view.today,
             ),
           ),
           const SizedBox(height: AlmanacDimens.sp5),
@@ -151,7 +196,45 @@ class _DashboardState extends ConsumerState<_Dashboard> {
             _Gutter(
               child: CarouselCaption(section: centre, today: view.today),
             ),
+            if (!_stillGrowing.contains(centre.id)) ...[
+              const SizedBox(height: AlmanacDimens.sp3),
+              _Gutter(
+                child: HarvestPanel(
+                  section: centre,
+                  today: view.today,
+                  clearing: _clearing.contains(centre.id),
+                  onCleared: () => _cleared(centre),
+                  onStillGrowing: () =>
+                      setState(() => _stillGrowing.add(centre.id)),
+                ),
+              ),
+            ],
           ],
+
+          const _Gutter(
+            child: SectionHeader(
+              title: 'Crop analytics',
+              subtitle: 'From your own records',
+            ),
+          ),
+          _Gutter(
+            child: CropAnalyticsCard(farm: farm, today: view.today),
+          ),
+
+          _Gutter(
+            child: SectionHeader(
+              title: 'Market outlook',
+              actionLabel: 'See prices',
+              onAction: () => context.push('/insights/market'),
+            ),
+          ),
+          _Gutter(
+            child: MarketOutlookPanel(
+              market: ref.watch(marketViewProvider),
+              onRetry: () => ref.invalidate(marketViewProvider),
+              onOpen: () => context.push('/insights/market'),
+            ),
+          ),
 
           _Gutter(
             child: SectionHeader(
@@ -187,6 +270,12 @@ class _DashboardState extends ConsumerState<_Dashboard> {
           ),
 
           const _Gutter(child: SectionHeader(title: 'Next up')),
+          _Gutter(
+            child: AttendNext(
+              farm: farm,
+              onOpen: (section) => context.push('/farm/zone/${section.id}'),
+            ),
+          ),
           _Gutter(
             child: NextUpList(
               tasks: farm.upcoming,

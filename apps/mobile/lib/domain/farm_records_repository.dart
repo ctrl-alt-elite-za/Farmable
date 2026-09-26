@@ -36,6 +36,18 @@ abstract interface class FarmRecordsRepository {
   /// Records waiting to reach the server. Drives "3 changes waiting".
   Stream<int> watchPendingChanges();
 
+  /// When this farm last read the server's changes to the end (#12). Null
+  /// for the demo farm, which no server knows, and before the first pull.
+  Stream<DateTime?> watchLastPulled();
+
+  /// The farmer says the section's crop is harvested and the land is clear.
+  ///
+  /// Stands the current planting down and queues that change. [mutationId] is
+  /// the idempotency key: a second call with the same key — a double tap, or
+  /// a retry after the app was killed — writes and queues nothing more. A
+  /// section with no current planting is left as it is.
+  Future<void> clearPlanting(String sectionId, {required String mutationId});
+
   Future<Observation> createObservation({
     required String sectionId,
     required String type,

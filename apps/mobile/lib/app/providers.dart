@@ -27,6 +27,7 @@ import '../data/local/offline_photos.dart';
 import '../data/local/seed.dart';
 import '../data/local/sync_outbox.dart';
 import '../data/outlook/outlook_repository.dart';
+import '../data/planning/planning_repository.dart';
 import '../data/sync/account_workspace.dart';
 import '../data/sync/sync_controller.dart';
 import '../domain/account/account_service.dart';
@@ -159,6 +160,7 @@ final deviceDirectoriesProvider = Provider<List<Future<Directory> Function()>>(
         Directory('${(await getApplicationDocumentsDirectory()).path}/photos'),
     exportsDirectory,
     outlookCacheDirectory,
+    planningCacheDirectory,
   ],
 );
 
@@ -272,6 +274,20 @@ final offlineObservationsProvider = FutureProvider<OfflineObservations>((
   return OfflineObservations(
     SyncOutbox(db, ownerId: scope.ownerId, farmId: scope.farmId),
     store,
+    now: ref.watch(clockProvider),
+  );
+});
+
+// ------------------------------------------------------------- planning
+
+/// The account planner's repository (#22). Null for builds that authenticate against the local demo: there is no
+/// server to ask, and the screen falls back to the bundled planner.
+final planningRepositoryProvider = Provider<PlanningRepository?>((ref) {
+  final auth = ref.watch(authServiceProvider);
+  if (auth is! ApiAuthService) return null;
+  return PlanningRepository(
+    ApiPlanningClient(auth),
+    FilePlanningStore(),
     now: ref.watch(clockProvider),
   );
 });

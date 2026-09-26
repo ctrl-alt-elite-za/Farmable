@@ -8360,8 +8360,19 @@ class $SyncCursorsTable extends SyncCursors
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _pulledAtMeta = const VerificationMeta(
+    'pulledAt',
+  );
   @override
-  List<GeneratedColumn> get $columns => [ownerId, farmId, cursor];
+  late final GeneratedColumn<DateTime> pulledAt = GeneratedColumn<DateTime>(
+    'pulled_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [ownerId, farmId, cursor, pulledAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -8398,6 +8409,12 @@ class $SyncCursorsTable extends SyncCursors
     } else if (isInserting) {
       context.missing(_cursorMeta);
     }
+    if (data.containsKey('pulled_at')) {
+      context.handle(
+        _pulledAtMeta,
+        pulledAt.isAcceptableOrUnknown(data['pulled_at']!, _pulledAtMeta),
+      );
+    }
     return context;
   }
 
@@ -8419,6 +8436,10 @@ class $SyncCursorsTable extends SyncCursors
         DriftSqlType.int,
         data['${effectivePrefix}cursor'],
       )!,
+      pulledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}pulled_at'],
+      ),
     );
   }
 
@@ -8432,10 +8453,15 @@ class SyncCursor extends DataClass implements Insertable<SyncCursor> {
   final String ownerId;
   final String farmId;
   final int cursor;
+
+  /// When a pull last read the feed to its end (v6). What Home's "Updated 3
+  /// hours ago" is measured from; null until the first complete pull.
+  final DateTime? pulledAt;
   const SyncCursor({
     required this.ownerId,
     required this.farmId,
     required this.cursor,
+    this.pulledAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8443,6 +8469,9 @@ class SyncCursor extends DataClass implements Insertable<SyncCursor> {
     map['owner_id'] = Variable<String>(ownerId);
     map['farm_id'] = Variable<String>(farmId);
     map['cursor'] = Variable<int>(cursor);
+    if (!nullToAbsent || pulledAt != null) {
+      map['pulled_at'] = Variable<DateTime>(pulledAt);
+    }
     return map;
   }
 
@@ -8451,6 +8480,9 @@ class SyncCursor extends DataClass implements Insertable<SyncCursor> {
       ownerId: Value(ownerId),
       farmId: Value(farmId),
       cursor: Value(cursor),
+      pulledAt: pulledAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pulledAt),
     );
   }
 
@@ -8463,6 +8495,7 @@ class SyncCursor extends DataClass implements Insertable<SyncCursor> {
       ownerId: serializer.fromJson<String>(json['ownerId']),
       farmId: serializer.fromJson<String>(json['farmId']),
       cursor: serializer.fromJson<int>(json['cursor']),
+      pulledAt: serializer.fromJson<DateTime?>(json['pulledAt']),
     );
   }
   @override
@@ -8472,20 +8505,27 @@ class SyncCursor extends DataClass implements Insertable<SyncCursor> {
       'ownerId': serializer.toJson<String>(ownerId),
       'farmId': serializer.toJson<String>(farmId),
       'cursor': serializer.toJson<int>(cursor),
+      'pulledAt': serializer.toJson<DateTime?>(pulledAt),
     };
   }
 
-  SyncCursor copyWith({String? ownerId, String? farmId, int? cursor}) =>
-      SyncCursor(
-        ownerId: ownerId ?? this.ownerId,
-        farmId: farmId ?? this.farmId,
-        cursor: cursor ?? this.cursor,
-      );
+  SyncCursor copyWith({
+    String? ownerId,
+    String? farmId,
+    int? cursor,
+    Value<DateTime?> pulledAt = const Value.absent(),
+  }) => SyncCursor(
+    ownerId: ownerId ?? this.ownerId,
+    farmId: farmId ?? this.farmId,
+    cursor: cursor ?? this.cursor,
+    pulledAt: pulledAt.present ? pulledAt.value : this.pulledAt,
+  );
   SyncCursor copyWithCompanion(SyncCursorsCompanion data) {
     return SyncCursor(
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       farmId: data.farmId.present ? data.farmId.value : this.farmId,
       cursor: data.cursor.present ? data.cursor.value : this.cursor,
+      pulledAt: data.pulledAt.present ? data.pulledAt.value : this.pulledAt,
     );
   }
 
@@ -8494,37 +8534,42 @@ class SyncCursor extends DataClass implements Insertable<SyncCursor> {
     return (StringBuffer('SyncCursor(')
           ..write('ownerId: $ownerId, ')
           ..write('farmId: $farmId, ')
-          ..write('cursor: $cursor')
+          ..write('cursor: $cursor, ')
+          ..write('pulledAt: $pulledAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(ownerId, farmId, cursor);
+  int get hashCode => Object.hash(ownerId, farmId, cursor, pulledAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is SyncCursor &&
           other.ownerId == this.ownerId &&
           other.farmId == this.farmId &&
-          other.cursor == this.cursor);
+          other.cursor == this.cursor &&
+          other.pulledAt == this.pulledAt);
 }
 
 class SyncCursorsCompanion extends UpdateCompanion<SyncCursor> {
   final Value<String> ownerId;
   final Value<String> farmId;
   final Value<int> cursor;
+  final Value<DateTime?> pulledAt;
   final Value<int> rowid;
   const SyncCursorsCompanion({
     this.ownerId = const Value.absent(),
     this.farmId = const Value.absent(),
     this.cursor = const Value.absent(),
+    this.pulledAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SyncCursorsCompanion.insert({
     required String ownerId,
     required String farmId,
     required int cursor,
+    this.pulledAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : ownerId = Value(ownerId),
        farmId = Value(farmId),
@@ -8533,12 +8578,14 @@ class SyncCursorsCompanion extends UpdateCompanion<SyncCursor> {
     Expression<String>? ownerId,
     Expression<String>? farmId,
     Expression<int>? cursor,
+    Expression<DateTime>? pulledAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (ownerId != null) 'owner_id': ownerId,
       if (farmId != null) 'farm_id': farmId,
       if (cursor != null) 'cursor': cursor,
+      if (pulledAt != null) 'pulled_at': pulledAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -8547,12 +8594,14 @@ class SyncCursorsCompanion extends UpdateCompanion<SyncCursor> {
     Value<String>? ownerId,
     Value<String>? farmId,
     Value<int>? cursor,
+    Value<DateTime?>? pulledAt,
     Value<int>? rowid,
   }) {
     return SyncCursorsCompanion(
       ownerId: ownerId ?? this.ownerId,
       farmId: farmId ?? this.farmId,
       cursor: cursor ?? this.cursor,
+      pulledAt: pulledAt ?? this.pulledAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -8569,6 +8618,9 @@ class SyncCursorsCompanion extends UpdateCompanion<SyncCursor> {
     if (cursor.present) {
       map['cursor'] = Variable<int>(cursor.value);
     }
+    if (pulledAt.present) {
+      map['pulled_at'] = Variable<DateTime>(pulledAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -8581,6 +8633,7 @@ class SyncCursorsCompanion extends UpdateCompanion<SyncCursor> {
           ..write('ownerId: $ownerId, ')
           ..write('farmId: $farmId, ')
           ..write('cursor: $cursor, ')
+          ..write('pulledAt: $pulledAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -12757,6 +12810,7 @@ typedef $$SyncCursorsTableCreateCompanionBuilder =
       required String ownerId,
       required String farmId,
       required int cursor,
+      Value<DateTime?> pulledAt,
       Value<int> rowid,
     });
 typedef $$SyncCursorsTableUpdateCompanionBuilder =
@@ -12764,6 +12818,7 @@ typedef $$SyncCursorsTableUpdateCompanionBuilder =
       Value<String> ownerId,
       Value<String> farmId,
       Value<int> cursor,
+      Value<DateTime?> pulledAt,
       Value<int> rowid,
     });
 
@@ -12788,6 +12843,11 @@ class $$SyncCursorsTableFilterComposer
 
   ColumnFilters<int> get cursor => $composableBuilder(
     column: $table.cursor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get pulledAt => $composableBuilder(
+    column: $table.pulledAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -12815,6 +12875,11 @@ class $$SyncCursorsTableOrderingComposer
     column: $table.cursor,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get pulledAt => $composableBuilder(
+    column: $table.pulledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SyncCursorsTableAnnotationComposer
@@ -12834,6 +12899,9 @@ class $$SyncCursorsTableAnnotationComposer
 
   GeneratedColumn<int> get cursor =>
       $composableBuilder(column: $table.cursor, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get pulledAt =>
+      $composableBuilder(column: $table.pulledAt, builder: (column) => column);
 }
 
 class $$SyncCursorsTableTableManager
@@ -12870,11 +12938,13 @@ class $$SyncCursorsTableTableManager
                 Value<String> ownerId = const Value.absent(),
                 Value<String> farmId = const Value.absent(),
                 Value<int> cursor = const Value.absent(),
+                Value<DateTime?> pulledAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncCursorsCompanion(
                 ownerId: ownerId,
                 farmId: farmId,
                 cursor: cursor,
+                pulledAt: pulledAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -12882,11 +12952,13 @@ class $$SyncCursorsTableTableManager
                 required String ownerId,
                 required String farmId,
                 required int cursor,
+                Value<DateTime?> pulledAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncCursorsCompanion.insert(
                 ownerId: ownerId,
                 farmId: farmId,
                 cursor: cursor,
+                pulledAt: pulledAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
