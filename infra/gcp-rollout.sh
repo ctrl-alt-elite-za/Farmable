@@ -112,6 +112,9 @@ trap rollback ERR
 # referencing, and the team can add keys incrementally instead of needing all of them
 # before the first deploy.
 INTEGRATIONS_MODE="${INTEGRATIONS_MODE:-live}"
+# Live sign-up codes are refused until a human confirms Twilio Fraud Guard (SMS pumping
+# protection) is on for the account. Set the repository variable only after checking.
+TWILIO_FRAUD_GUARD_CONFIRMED="${TWILIO_FRAUD_GUARD_CONFIRMED:-false}"
 # Terraform names every secret "${name_prefix}-<id>", so the prefix is recoverable from
 # the database secret rather than needing a separate repository variable to drift.
 SECRET_PREFIX="${SECRET_PREFIX:-${DATABASE_SECRET%-database-url}}"
@@ -173,7 +176,7 @@ gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="$TRAFFIC_TAG" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
-  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \
+  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},TWILIO_FRAUD_GUARD_CONFIRMED=${TWILIO_FRAUD_GUARD_CONFIRMED},FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \
   --set-secrets="$secret_args" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null

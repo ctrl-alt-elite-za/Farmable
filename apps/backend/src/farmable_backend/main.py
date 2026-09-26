@@ -56,6 +56,7 @@ from farmable_backend.schemas import (
     UserResponse,
     VerifyOtpRequest,
 )
+from farmable_backend.twilio_otp import create_live_otp_provider
 from farmable_backend.voice_api import router as voice_router
 
 
@@ -113,10 +114,12 @@ def create_app(
                 app.state.readiness = readiness
             elif database is not None:
                 app.state.readiness = database.readiness
+                # Fake: fixed codes for CI. Live: Twilio Verify sends real SMS and
+                # email codes. Anything else fails closed with provider_unavailable.
                 provider = (
                     DeterministicFakeOtpProvider()
                     if integration_config.integrations_mode == "fake"
-                    else None
+                    else create_live_otp_provider(integration_config)
                 )
                 app.state.auth = AuthService(database.sessions, provider)
                 app.state.records = RecordRuntime(

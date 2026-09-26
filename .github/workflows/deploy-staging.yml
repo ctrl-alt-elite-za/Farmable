@@ -125,6 +125,9 @@ jobs:
           # The backend holds the provider keys so the mobile app never ships them.
           # Override to `disabled` to deploy without calling any provider.
           INTEGRATIONS_MODE: ${{ vars.INTEGRATIONS_MODE || 'live' }}
+          # `true` only once Twilio Fraud Guard is confirmed on; until then live
+          # sign-up codes stay off rather than risk SMS pumping on the demo credit.
+          TWILIO_FRAUD_GUARD_CONFIRMED: ${{ vars.TWILIO_FRAUD_GUARD_CONFIRMED || 'false' }}
           # Optional. Empty falls back to the prefix implied by GCP_DATABASE_SECRET,
           # which Terraform guarantees is "${name_prefix}-database-url".
           SECRET_PREFIX: ${{ vars.GCP_SECRET_PREFIX }}

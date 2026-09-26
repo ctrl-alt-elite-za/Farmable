@@ -7,7 +7,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Protocol, TypedDict
+from typing import Protocol, TypedDict, runtime_checkable
 from uuid import UUID, uuid4
 
 from argon2 import PasswordHasher
@@ -65,6 +65,13 @@ class OtpProvider(Protocol):
     def create_code(self, channel: Channel) -> str: ...
 
     def deliver(self, channel: Channel, destination: str, code: str) -> None: ...
+
+
+@runtime_checkable
+class CheckingOtpProvider(OtpProvider, Protocol):
+    """A provider that owns its codes (Twilio Verify) and checks them itself."""
+
+    def check(self, channel: Channel, destination: str, code: str) -> bool: ...
 
 
 class DeterministicFakeOtpProvider:
@@ -201,7 +208,7 @@ class AuthService:
                 or challenge.attempts >= MAX_OTP_ATTEMPTS
             ):
                 raise AuthError("invalid_verification", 400)
-            if not self._verify_code(challenge.code_hash, code):
+            if not self._check(challenge, user, channel, code):
                 challenge.attempts += 1
                 failure = AuthError("invalid_verification", 400)
             else:
@@ -325,6 +332,14 @@ class AuthService:
             return PASSWORD_HASHER.verify(password_hash, password)
         except (VerificationError, InvalidHashError):
             return False
+
+    def _check(
+        self, challenge: VerificationChallenge, user: AuthIdentity, channel: Channel, code: str
+    ) -> bool:
+        if isinstance(self.provider, CheckingOtpProvider):
+            destination = user.phone if channel is Channel.PHONE else user.email
+            return self.provider.check(channel, destination, code)
+        return self._verify_code(challenge.code_hash, code)
 
     @staticmethod
     def _verify_code(code_hash: str, code: str) -> bool:
