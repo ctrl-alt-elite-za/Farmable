@@ -27,6 +27,8 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Runs integration_test/ on Test Lab (issue #4); see MainActivityTest.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -59,4 +61,9 @@ dependencies {
     // without ARCore still install the app. No maintained Flutter plugin
     // wraps ARCore planes and depth, which is why the app calls it directly.
     implementation("com.google.ar:core:1.56.0")
+
+    // Only in the instrumentation APK that Test Lab runs, never in the app.
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }

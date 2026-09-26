@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmable — Insights &amp; Profile</title>
+<link rel="stylesheet" href="tokens.css?v=5">
+<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app-forms.css?v=5">
+<link rel="stylesheet" href="screens.css?v=5">
+</head>
+<body data-theme="light" data-size="standard">
+
+<header class="topbar">
+  <div class="brand">Insights &amp; Profile<span>items 31–40, plus permission and offline states</span></div>
+  <nav class="inline">
+    <a class="btn btn-tonal" href="index.html">Overview</a>
+    <a class="btn btn-tonal" href="screens.html">Core</a>
+    <a class="btn btn-tonal" href="screens-auth.html">Auth</a>
+    <a class="btn btn-tonal" href="screens-farm.html">Farm</a>
+    <a class="btn btn-tonal" href="screens-insights.html">Insights</a>
+  </nav>
+  <div class="seg">
+    <button data-font-set="system" aria-pressed="true">System (SF on Apple)</button>
+    <button data-font-set="android" aria-pressed="false">Android (Roboto)</button>
+  </div>
+  <div class="seg">
+    <button data-size-set="standard" aria-pressed="true">390 × 844</button>
+    <button data-size-set="compact" aria-pressed="false">360 × 640</button>
+  </div>
+  <button class="btn btn-secondary" data-toggle-theme>
+    <i data-icon="moon" style="display:contents"></i><span data-theme-label>Light</span>
+  </button>
+</header>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Insights &amp; Profile</h1>
+    <p>Insights (health, money, market, alerts), the full profile cluster including POPIA data
+       controls, the permission primer pattern, and the offline and empty states. Money uses
+       plain words — projected revenue, costs, profit — never accountant terminology.</p>
+  </div>
+  <nav class="scroll-index" id="screen-index"></nav>
+  <div id="screens"></div>
+</main>
+
+<script src="farmable.js?v=5"></script>
+<script src="screens-lib.js?v=5"></script>
+<script>
+function head(title, sub, back) {
+  return '<div style="padding:var(--sp-2) 0 var(--sp-5)">' +
+    (back === false ? '' : '<button class="btn-icon" aria-label="Back" style="margin-bottom:var(--sp-4)">' + I('arrowLeft') + '</button>') +
+    '<h1 style="margin:0 0 4px;font:var(--type-headline-m);letter-spacing:var(--tracking-tight)">' + title + '</h1>' +
+    (sub ? '<p class="muted" style="margin:0;font:var(--type-body-m)">' + sub + '</p>' : '') + '</div>';
+}
+function setRow(ico, t, s2, v, opts) {
+  opts = opts || {};
+  return '<button class="set-row' + (opts.danger ? ' danger' : '') + '">' +
+    '<span class="sr-ico">' + I(ico) + '</span>' +
+    '<span><span class="sr-t" style="display:block">' + t + '</span>' +
+      (s2 ? '<span class="sr-s" style="display:block">' + s2 + '</span>' : '') + '</span>' +
+    (opts.toggle !== undefined
+      ? '<span class="switch" role="switch" aria-checked="' + opts.toggle + '"></span>'
+      : '<span class="sr-v">' + (v ? v + ' ' : '') + I('chevronRight') + '</span>') +
+    '</button>';
+}
+function insightsTabs(active) {
+  const t = [['health', 'Health', 'gauge'], ['money', 'Money', 'coins'],
+             ['market', 'Market', 'trendUp'], ['alerts', 'Alerts', 'bell']];
+  return '<div class="seg-full" style="margin-bottom:var(--sp-4)">' + t.map(function (x) {
+    return '<button aria-selected="' + (x[0] === active) + '">' + I(x[2]) + x[1] + '</button>';
+  }).join('') + '</div>';
+}
+
+/* ================================================== 31 · insights home */
+function screenInsights() {
+  return '<div class="device-screen">' + '<div class="glow-top"></div>' +
+    statusbar(sync('offline', 'cloudOff', 'Offline')) +
+    '<div class="screen-scroll"><div class="pad">' +
+      '<div class="greet"><div><h1 style="font:var(--type-headline-m)">Insights</h1>' +
+        '<div class="g-date">Siyakhula Farm · this season</div></div></div>' +
+      insightsTabs('health') +
+      '<div class="card health-card">' +
+        '<div class="health-top">' +
+          '<div class="gauge"><svg viewBox="0 0 100 100" width="86" height="86">' +
+            '<circle cx="50" cy="50" r="40" stroke="var(--surface-container-high)" stroke-width="10" fill="none"/>' +
+            '<circle cx="50" cy="50" r="40" stroke="var(--status-on-track)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="45.2"/>' +
+          '</svg><div class="g-num"><b>82</b><i>/ 100</i></div></div>' +
+          '<div><div style="font:var(--type-title-m);margin-bottom:6px">Farm health</div>' +
+            badge('on-track', 'checkCircle', 'On track') +
+            '<div class="muted" style="font:var(--type-body-s);margin-top:8px">1 section needs attention</div></div>' +
+        '</div></div>' +
+      sectionHeader('This season at a glance') +
+      '<div class="metric-row">' +
+        metric('trendUp', 'Projected profit', 'R48,100', 'across 3 planted sections', 'profit') +
+        metric('wallet', 'Spent so far', 'R18,240', 'of R29,500 planned', '') +
+        metric('sprout', 'Sections planted', '3 of 4', 'North Plot is free', '') +
+        metric('calendar', 'Next harvest', '28 Oct', 'Spinach Beds', '') +
+      '</div>' +
+      sectionHeader('Needs a decision', '', 'All alerts') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        alertRow('leaf', 'attention', 'Leaf curl on tomatoes', 'Scan it to find out whether it is heat or aphids.', '2 days ago') +
+        alertRow('sprout', 'primary', 'North Plot is still empty', 'Planting cabbage now would land the harvest before the January heat.', 'This week') +
+      '</div>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div>' + navbar('insights') + aiDock('idle') + '</div>';
+}
+function alertRow(ico, tone, t, s2, time) {
+  const bg = tone === 'action' ? 'var(--status-action-required-container)'
+          : tone === 'attention' ? 'var(--status-needs-attention-container)'
+          : 'var(--primary-container)';
+  const fg = tone === 'action' ? 'var(--on-status-action-required-container)'
+          : tone === 'attention' ? 'var(--on-status-needs-attention-container)'
+          : 'var(--on-primary-container)';
+  return '<div class="alert-row"><span class="ar-ico" style="background:' + bg + ';color:' + fg + '">' + I(ico) + '</span>' +
+    '<div><div class="ar-t">' + t + '</div><div class="ar-s">' + s2 + '</div>' +
+    '<div class="ar-time">' + time + '</div></div></div>';
+}
+
+/* ================================================= 32 · financial insights */
+function screenFinance() {
+  const bars = [
+    { m: 'Aug', cost: 38, rev: 0 }, { m: 'Sep', cost: 54, rev: 12 },
+    { m: 'Oct', cost: 30, rev: 46 }, { m: 'Nov', cost: 22, rev: 68 },
+    { m: 'Dec', cost: 18, rev: 100 },
+  ];
+  return '<div class="device-screen">' + '<div class="glow-top"></div>' +
+    statusbar(sync('offline', 'cloudOff', 'Offline')) +
+    '<div class="screen-scroll"><div class="pad">' +
+      '<div class="greet"><div><h1 style="font:var(--type-headline-m)">Money</h1>' +
+        '<div class="g-date">Siyakhula Farm · this season</div></div></div>' +
+      insightsTabs('money') +
+      '<div class="card" style="padding:var(--sp-5)">' +
+        '<div class="money-row"><span class="mr-k">Projected revenue</span><span class="mr-v">R66,340</span></div>' +
+        '<div class="money-row"><span class="mr-k">Projected costs</span><span class="mr-v">R29,500</span></div>' +
+        '<div class="money-row total"><span class="mr-k">Projected profit</span><span class="mr-v">R36,840</span></div>' +
+        '<div class="inline" style="margin-top:var(--sp-3)">' + badge('on-track', 'checkCircle', 'On track') +
+          '<span class="muted" style="font:var(--type-label-s)">if prices hold through December</span></div>' +
+      '</div>' +
+      sectionHeader('Money in and out', 'by month') +
+      '<div class="card" style="padding:var(--sp-5)">' +
+        '<div class="fin-bars">' + bars.map(function (b) {
+          return '<div class="fb">' +
+            '<div class="fb-col" style="height:' + b.rev + '%;background:var(--status-on-track)"></div>' +
+            '<div class="fb-col" style="height:' + b.cost + '%;background:var(--secondary);border-radius:0 0 6px 6px;margin-top:2px"></div>' +
+            '<div class="fb-lab">' + b.m + '</div></div>';
+        }).join('') + '</div>' +
+        '<div class="legend"><span><i style="background:var(--status-on-track)"></i>Money in</span>' +
+          '<span><i style="background:var(--secondary)"></i>Money out</span></div>' +
+      '</div>' +
+      sectionHeader('Where the money went', '', 'Add expense') +
+      '<div class="card" style="padding:var(--sp-4) var(--sp-5)">' +
+        costRow('sprout', 'Seeds and seedlings', 'R6,400') +
+        costRow('flask', 'Fertiliser', 'R5,180') +
+        costRow('shield', 'Pest control', 'R1,240') +
+        costRow('users', 'Labour', 'R4,200') +
+        costRow('truck', 'Transport', 'R1,220') +
+        '<div class="money-row total"><span class="mr-k">Spent so far</span><span class="mr-v" style="color:var(--on-surface)">R18,240</span></div>' +
+      '</div>' +
+      sectionHeader('Recent') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('receipt', 'Fertiliser — LAN 28', 'Cabbage Field · 18 Sep', 'R680') +
+        setRow('tag', 'Spinach sold at KwaMashu market', '14 Sep · 40 bunches', '+R1,120') +
+        setRow('receipt', 'Transport to market', '14 Sep', 'R180') +
+      '</div>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div>' + navbar('insights') + aiDock('idle') + '</div>';
+}
+function costRow(ico, k, v) {
+  return '<div class="money-row"><span class="mr-k" style="display:flex;align-items:center;gap:var(--sp-3)">' +
+    '<span class="muted" style="display:flex">' + I(ico) + '</span>' + k + '</span>' +
+    '<span class="mr-v">' + v + '</span></div>';
+}
+
+/* ==================================================== 33 · market insights */
+function screenMarket() {
+  return '<div class="device-screen">' + '<div class="glow-top"></div>' +
+    statusbar(sync('pending', 'upload', 'Prices 2 days old')) +
+    '<div class="screen-scroll"><div class="pad">' +
+      '<div class="greet"><div><h1 style="font:var(--type-headline-m)">Market</h1>' +
+        '<div class="g-date">Near KwaMashu · updated 2 days ago</div></div></div>' +
+      insightsTabs('market') +
+      '<div class="card" style="padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-4);display:flex;gap:var(--sp-3)">' +
+        '<span class="muted">' + I('cloudOff') + '</span>' +
+        '<div class="muted" style="font:var(--type-body-s)">You are offline. These are the last prices your phone saved — they will update when you connect.</div></div>' +
+      sectionHeader('What your crops are fetching') +
+      '<div class="card" style="padding:var(--sp-4) var(--sp-5)">' +
+        priceRow('Cabbage', 'R4.60', 'per head', 'up', '+8% since August', [12, 14, 13, 16, 18, 17, 21]) +
+        priceRow('Tomatoes', 'R12.40', 'per kg', 'down', '−6% since August', [22, 21, 23, 19, 18, 17, 16]) +
+        priceRow('Spinach', 'R8.10', 'per bunch', 'up', '+3% since August', [14, 15, 14, 16, 16, 17, 18]) +
+      '</div>' +
+      sectionHeader('Where to sell', 'within 15 km') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        marketRow('KwaMashu fresh produce market', 'Saturday mornings are busiest', 'Best price', 'on-track', '3.2 km') +
+        marketRow('Bridge City taxi rank', 'Steady all week, smaller volumes', 'Quick sale', 'neutral', '5.8 km') +
+        marketRow('Spaza shops — Inanda', 'Buys spinach in small lots', 'Low volume', 'neutral', '7.4 km') +
+      '</div>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div>' + navbar('insights') + aiDock('idle') + '</div>';
+}
+function priceRow(crop, price, unit, dir, note, pts) {
+  const up = dir === 'up';
+  const col = up ? 'var(--status-on-track)' : 'var(--status-needs-attention)';
+  const max = Math.max.apply(null, pts), min = Math.min.apply(null, pts);
+  const d = pts.map(function (p, i) {
+    const x = (i / (pts.length - 1)) * 100;
+    const y = 30 - ((p - min) / Math.max(1, max - min)) * 26;
+    return (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+  }).join(' ');
+  return '<div class="price-card">' +
+    '<div><div style="font:var(--type-title-s)">' + crop + '</div>' +
+      '<div class="muted" style="font:var(--type-label-s);margin-top:2px">' + note + '</div></div>' +
+    '<div style="text-align:right"><div style="font:var(--type-numeric-m);font-variant-numeric:tabular-nums">' + price + '</div>' +
+      '<div class="muted" style="font:var(--type-label-s)">' + unit + '</div></div>' +
+    '<div class="spark"><svg viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">' +
+      '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2" vector-effect="non-scaling-stroke"/></svg></div>' +
+    '</div>';
+}
+function marketRow(name, sub, tag, tone, dist) {
+  return '<button class="set-row"><span class="sr-ico">' + I('pin') + '</span>' +
+    '<span><span class="sr-t" style="display:block">' + name + '</span>' +
+    '<span class="sr-s" style="display:block">' + sub + '</span>' +
+    '<span style="display:block;margin-top:6px">' +
+      (tone === 'on-track' ? badge('on-track', 'trendUp', tag) : badge('neutral', 'clock', tag)) + '</span></span>' +
+    '<span class="sr-v">' + dist + '</span></button>';
+}
+
+/* ============================================================ 34 · alerts */
+function screenAlerts() {
+  return '<div class="device-screen">' + '<div class="glow-top"></div>' +
+    statusbar(sync('offline', 'cloudOff', 'Offline')) +
+    '<div class="screen-scroll"><div class="pad">' +
+      '<div class="greet"><div><h1 style="font:var(--type-headline-m)">Alerts</h1>' +
+        '<div class="g-date">4 things worth knowing</div></div>' +
+        '<button class="btn-icon" aria-label="Notification settings">' + I('sliders') + '</button></div>' +
+      insightsTabs('alerts') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        alertRow('alert', 'action', 'Weeding is overdue', 'Cabbage Field · was due 16 Sep. Weeds compete hardest in the first six weeks.', 'Overdue by 4 days') +
+        alertRow('leaf', 'attention', 'Leaf curl on tomatoes', 'Tomato Section · seen 18 Sep. A scan will tell you whether it is heat or aphids.', '2 days ago') +
+        alertRow('cloud', 'primary', 'Rain expected Thursday', '18 mm near KwaMashu. Good window to apply fertiliser just after.', 'In 4 days') +
+        alertRow('trendUp', 'primary', 'Cabbage price is climbing', 'Up 8% since August at KwaMashu market.', '2 days ago') +
+      '</div>' +
+      '<div class="card" style="padding:var(--sp-3) var(--sp-4);margin-top:var(--sp-4);display:flex;gap:var(--sp-3)">' +
+        '<span class="muted">' + I('info') + '</span>' +
+        '<div class="muted" style="font:var(--type-body-s)">Anything urgent also shows on Home and on the section it affects — you should never have to come here to find out.</div></div>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div>' + navbar('insights') + aiDock('idle') + '</div>';
+}
+
+/* =========================================================== 35 · profile */
+function screenProfile() {
+  return '<div class="device-screen">' + '<div class="glow-top"></div>' +
+    statusbar(sync('pending', 'upload', '3')) +
+    '<div class="screen-scroll"><div class="pad">' +
+      '<div style="display:flex;gap:var(--sp-4);align-items:center;padding:var(--sp-4) 0 var(--sp-5)">' +
+        '<div class="avatar-lg">SD</div>' +
+        '<div><div style="font:var(--type-headline-s);letter-spacing:var(--tracking-tight)">Sipho Dlamini</div>' +
+          '<div class="muted" style="font:var(--type-body-s);margin-top:2px">Siyakhula Farm · KwaMashu</div>' +
+          '<div class="inline" style="margin-top:var(--sp-2)">' +
+            badge('on-track', 'checkCircle', 'Phone verified') +
+            badge('on-track', 'checkCircle', 'Email verified') + '</div></div>' +
+      '</div>' +
+      '<button class="btn btn-secondary btn-block">' + I('edit') + 'Edit profile</button>' +
+      sectionHeader('Your farm') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('globe', 'Language', 'How the app speaks to you', 'English') +
+        setRow('map', 'Default farm', '', 'Siyakhula') +
+        setRow('bell', 'Notifications', 'Weather, prices, overdue tasks') +
+      '</div>' +
+      sectionHeader('Security') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('key', 'Change password', '') +
+        setRow('fingerprint', 'Unlock with fingerprint', '', '', { toggle: true }) +
+        setRow('smartphone', 'Devices signed in', '2 devices') +
+      '</div>' +
+      sectionHeader('Privacy and your data') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('shield', 'Privacy and data', 'See, correct, export or delete') +
+        setRow('camera', 'App permissions', 'Camera, microphone, location') +
+        setRow('cloud', 'Offline data and sync', '3 changes waiting') +
+      '</div>' +
+      sectionHeader('Support') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('helpCircle', 'Help', '') +
+        setRow('message', 'Contact support', '') +
+        setRow('fileText', 'Terms and Privacy Notice', '') +
+      '</div>' +
+      '<button class="btn btn-tonal btn-block" style="margin-top:var(--sp-5)">' + I('logOut') + 'Sign out</button>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div>' + navbar('profile') + aiDock('idle') + '</div>';
+}
+
+/* ====================================================== 36 · edit profile */
+function screenEditProfile() {
+  const f = function (label, value, icon) {
+    return '<label class="field"><span class="f-label">' + label + '</span>' +
+      '<span class="f-input">' + (icon ? '<span class="f-ico">' + I(icon) + '</span>' : '') +
+      '<span class="f-text">' + value + '</span></span></label>';
+  };
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll" style="padding-bottom:140px"><div class="pad">' +
+      head('Edit profile', '') +
+      '<div style="display:grid;place-items:center;gap:var(--sp-3);margin-bottom:var(--sp-6)">' +
+        '<div class="avatar-lg">SD</div>' +
+        '<button class="btn btn-tonal" style="min-height:40px">' + I('camera') + 'Change photo</button></div>' +
+      f('Name', 'Sipho') + f('Surname', 'Dlamini') +
+      f('Phone number', '+27 82 555 0123', 'phone') +
+      '<div class="f-help ok" style="margin:-12px 0 var(--sp-4)">' + I('checkCircle') + 'Verified</div>' +
+      f('Email', 'sipho.dlamini@gmail.com', 'mail') +
+      '<div class="f-help ok" style="margin:-12px 0 var(--sp-4)">' + I('checkCircle') + 'Verified</div>' +
+      '<div class="card" style="padding:var(--sp-3) var(--sp-4);display:flex;gap:var(--sp-3)">' +
+        '<span class="muted">' + I('info') + '</span>' +
+        '<div class="muted" style="font:var(--type-body-s)">Changing your phone or email means verifying it again.</div></div>' +
+    '</div></div>' +
+    '<div class="action-bar"><button class="btn btn-primary btn-block">' + I('save') + 'Save changes</button></div>' +
+    '</div>';
+}
+
+/* ========================================================= 37 · security */
+function screenSecurity() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      head('Security', '') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('key', 'Change password', 'Last changed 3 months ago') +
+        setRow('fingerprint', 'Unlock with fingerprint', 'Faster than typing a passphrase', '', { toggle: true }) +
+      '</div>' +
+      sectionHeader('Verified') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        '<div class="set-row"><span class="sr-ico">' + I('phone') + '</span>' +
+          '<span><span class="sr-t" style="display:block">+27 82 555 0123</span></span>' +
+          badge('on-track', 'checkCircle', 'Verified') + '</div>' +
+        '<div class="set-row"><span class="sr-ico">' + I('mail') + '</span>' +
+          '<span><span class="sr-t" style="display:block">sipho.dlamini@gmail.com</span></span>' +
+          badge('on-track', 'checkCircle', 'Verified') + '</div>' +
+      '</div>' +
+      sectionHeader('Where you are signed in') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('smartphone', 'Tecno Spark 10', 'This phone · KwaMashu · now', 'Active') +
+        setRow('smartphone', 'Samsung A13', 'Last used 12 Sep · Durban') +
+      '</div>' +
+      '<button class="btn btn-danger btn-block" style="margin-top:var(--sp-4)">' + I('logOut') + 'Sign out everywhere else</button>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div></div>';
+}
+
+/* ====================================================== 38 · permissions */
+function screenPermissions() {
+  const perm = function (ico, name, why, state) {
+    const b = state === 'on' ? badge('on-track', 'checkCircle', 'Allowed')
+            : state === 'off' ? badge('neutral', 'circleDash', 'Not allowed')
+            : badge('attention', 'alert', 'Only while using');
+    return '<div class="set-row" style="align-items:flex-start;padding:var(--sp-4) 0">' +
+      '<span class="sr-ico">' + I(ico) + '</span>' +
+      '<span><span class="sr-t" style="display:block">' + name + '</span>' +
+        '<span class="sr-s" style="display:block">' + why + '</span>' +
+        '<span style="display:block;margin-top:8px">' + b + '</span></span>' +
+      '<span class="sr-v">' + I('chevronRight') + '</span></div>';
+  };
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      head('App permissions', 'What the app uses, and why. You can change any of these.') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        perm('camera', 'Camera', 'Used to scan crops and record farm observations.', 'on') +
+        perm('mic', 'Microphone', 'Used only when you choose to speak to the farm assistant.', 'while') +
+        perm('pin', 'Location', 'Used for your farm map, local weather and nearby market prices.', 'while') +
+        perm('bell', 'Notifications', 'Used for overdue tasks, weather warnings and price changes.', 'off') +
+      '</div>' +
+      '<div class="card" style="padding:var(--sp-3) var(--sp-4);margin-top:var(--sp-4);display:flex;gap:var(--sp-3)">' +
+        '<span class="muted">' + I('info') + '</span>' +
+        '<div class="muted" style="font:var(--type-body-s)">Photos and voice notes stay on your phone unless you choose to sync them.</div></div>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div></div>';
+}
+
+/* ================================================ 38b · permission primer */
+function screenPrimer() {
+  return '<div class="device-screen">' +
+    '<div class="glow-top"></div>' + statusbar('') +
+    '<div class="screen-scroll" style="padding-bottom:0"><div class="pad" style="opacity:.35">' +
+      '<div class="greet"><div><h1 style="font:var(--type-headline-m)">Cabbage Field</h1></div></div>' +
+      '<div class="card" style="height:180px"></div>' +
+    '</div></div>' +
+    '<div class="backdrop" style="opacity:1;pointer-events:auto"></div>' +
+    '<div class="menu-sheet">' +
+      '<div class="handle" style="width:40px;height:4px;border-radius:2px;background:var(--outline-variant);margin:var(--sp-2) auto"></div>' +
+      '<div class="primer">' +
+        '<div class="p-ico">' + I('camera') + '</div>' +
+        '<h3>Use your camera to check crop health</h3>' +
+        '<p>Camera access is needed only while you are scanning. Photos stay on your phone.</p>' +
+        '<div class="stack">' +
+          '<button class="btn btn-primary btn-block">Continue</button>' +
+          '<button class="btn btn-tonal btn-block">Not now</button>' +
+        '</div>' +
+      '</div>' +
+    '</div></div>';
+}
+
+/* ==================================================== 39 · privacy & data */
+function screenPrivacy() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      head('Privacy and your data', 'Plain language, and nothing hidden behind a menu.') +
+      sectionHeader('What we hold') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('user', 'See my information', 'Name, phone, email, farm records') +
+        setRow('edit', 'Correct my information', '') +
+        setRow('download', 'Export my data', 'A file you can keep or take elsewhere') +
+      '</div>' +
+      sectionHeader('Choices') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('cloud', 'Sync photos and voice notes', 'Off means they never leave this phone', '', { toggle: false }) +
+        setRow('sparkles', 'Help improve crop detection', 'Share scans, without your name attached', '', { toggle: false }) +
+        setRow('message', 'Price and weather messages', '', '', { toggle: true }) +
+        setRow('bell', 'News about the app', '', '', { toggle: false }) +
+      '</div>' +
+      sectionHeader('Documents') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('fileText', 'Privacy Notice', '') +
+        setRow('fileText', 'Terms of Use', '') +
+      '</div>' +
+      sectionHeader('Leaving') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('trash', 'Delete my account', 'Removes your farm records. This cannot be undone.', '', { danger: true }) +
+      '</div>' +
+      '<div class="card" style="padding:var(--sp-3) var(--sp-4);margin-top:var(--sp-4);display:flex;gap:var(--sp-3)">' +
+        '<span class="muted">' + I('shield') + '</span>' +
+        '<div class="muted" style="font:var(--type-body-s)">Deleting asks you to confirm and to enter your password first.</div></div>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div></div>';
+}
+
+/* ============================================================== 40 · help */
+function screenHelp() {
+  return '<div class="device-screen">' + '<div class="glow-top"></div>' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      head('Help', '') +
+      '<label class="field"><span class="f-input">' +
+        '<span class="f-ico">' + I('search') + '</span>' +
+        '<span class="f-placeholder">Search help</span></span></label>' +
+      sectionHeader('Common questions') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('cloudOff', 'Does this work without airtime?', 'Yes — here is what needs data and what does not') +
+        setRow('map', 'How do I map my farm?', '') +
+        setRow('camera', 'Why is my scan unsure?', '') +
+        setRow('mic', 'Talking to the assistant', '') +
+        setRow('coins', 'How are profit numbers worked out?', '') +
+      '</div>' +
+      sectionHeader('Still stuck') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        setRow('message', 'Send us a message', 'We reply in about a day') +
+        setRow('phone', 'Call support', 'Weekdays, 08:00–17:00') +
+        setRow('alert', 'Report a problem', 'Sends a log so we can see what happened') +
+      '</div>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div>' + navbar('profile') + aiDock('idle') + '</div>';
+}
+
+/* ================================================ 44/45 · states */
+function screenOfflineStates() {
+  return '<div class="device-screen">' + statusbar(sync('pending', 'upload', '3')) +
+    '<div class="screen-scroll"><div class="pad">' +
+      head('Offline and sync states', '', false) +
+      '<div class="stack-4">' +
+        '<div class="card" style="padding:var(--sp-4)">' +
+          '<div style="font:var(--type-title-s);margin-bottom:var(--sp-2)">You are offline</div>' +
+          '<div class="muted" style="font:var(--type-body-s)">Your farm data is still available. Latest market prices will update when you are connected.</div>' +
+          '<div class="inline" style="margin-top:var(--sp-3)">' + '<span class="sync sync-offline">' + I('cloudOff') + 'Offline</span></div></div>' +
+        '<div class="card" style="padding:var(--sp-4)">' +
+          '<div style="font:var(--type-title-s);margin-bottom:var(--sp-2)">3 changes waiting</div>' +
+          '<div class="muted" style="font:var(--type-body-s)">Two observations and one expense are saved on this phone. They will send themselves on any connection.</div>' +
+          '<div class="inline" style="margin-top:var(--sp-3)">' + '<span class="sync sync-pending">' + I('upload') + '3 changes waiting</span></div></div>' +
+        '<div class="card" style="padding:var(--sp-4)">' +
+          '<div style="font:var(--type-title-s);margin-bottom:var(--sp-2)">Syncing</div>' +
+          '<div class="muted" style="font:var(--type-body-s)">Happens in the background. Nothing is blocked while it runs.</div>' +
+          '<div class="inline" style="margin-top:var(--sp-3)"><span class="sync sync-syncing">' +
+            I('refresh').replace('<svg', '<svg class="spin"') + 'Syncing</span></div></div>' +
+        '<div class="card" style="padding:var(--sp-4)">' +
+          '<div style="font:var(--type-title-s);margin-bottom:var(--sp-2)">Voice did not catch that</div>' +
+          '<div class="muted" style="font:var(--type-body-s)">I did not catch that. Try again or enter it manually.</div>' +
+          '<div class="inline" style="margin-top:var(--sp-3)">' +
+            '<button class="btn btn-secondary" style="min-height:40px">' + I('mic') + 'Try again</button>' +
+            '<button class="btn btn-tonal" style="min-height:40px">Type it</button></div></div>' +
+        '<div class="card" style="padding:var(--sp-4)">' +
+          '<div style="font:var(--type-title-s);margin-bottom:var(--sp-2)">Assistant is unsure</div>' +
+          '<div class="muted" style="font:var(--type-body-s)">Do you mean the Cabbage Field or the North Plot?</div>' +
+          '<div class="inline" style="margin-top:var(--sp-3)">' +
+            '<button class="btn btn-secondary" style="min-height:40px">Cabbage Field</button>' +
+            '<button class="btn btn-secondary" style="min-height:40px">North Plot</button></div></div>' +
+      '</div><div style="height:var(--sp-6)"></div>' +
+    '</div></div></div>';
+}
+
+function screenEmptyStates() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      head('Empty states', '', false) +
+      '<div class="stack-4">' +
+        emptyBlock('layers', 'Your farm has no sections yet', 'A section is one piece of land you use for one thing — a bed, a row, a field.', 'plus', 'Add a section') +
+        emptyBlock('notebook', 'No observations yet', 'Record what you see here so you can track changes over time.', 'mic', 'Add observation') +
+        emptyBlock('sprout', 'Ask what could grow here', 'North Plot is empty. Tell the assistant your budget and water and it will compare crops.', 'mic', 'Ask assistant') +
+        emptyBlock('camera', 'No health checks yet', 'Point your camera at a plant to check it. This works without airtime or data.', 'camera', 'Scan crop') +
+      '</div><div style="height:var(--sp-6)"></div>' +
+    '</div></div></div>';
+}
+function emptyBlock(ico, h, p, bIco, bLabel) {
+  return '<div class="empty"><div class="e-ico">' + I(ico) + '</div><h4>' + h + '</h4><p>' + p + '</p>' +
+    '<button class="btn btn-primary">' + I(bIco) + bLabel + '</button></div>';
+}
+
+/* ================================================================ render */
+renderScreens([
+  { id: 'insights', title: '31 · Insights home', render: screenInsights },
+  { id: 'finance', title: '32 · Financial insights',
+    note: 'Projected revenue, costs, profit — the three words the farmer uses. The bar chart ' +
+          'earns its place because it answers one decision: when does money start coming back in.',
+    render: screenFinance },
+  { id: 'market', title: '33 · Market insights',
+    note: 'Prices carry their age honestly. The sparklines are direction-only, and the sell ' +
+          'locations are the informal channels where this revenue actually flows (report §7).',
+    render: screenMarket },
+  { id: 'alerts', title: '34 · Alerts',
+    note: 'Every alert says what it is, why it matters and what to do. Nothing here is the only ' +
+          'place a warning appears.',
+    render: screenAlerts },
+  { id: 'profile', title: '35 · Profile', render: screenProfile },
+  { id: 'edit-profile', title: '36 · Edit profile', render: screenEditProfile },
+  { id: 'security', title: '37 · Security', render: screenSecurity },
+  { id: 'permissions', title: '38 · App permissions',
+    note: 'Each permission states its purpose in one plain sentence, per POPIA §42 of the guide.',
+    render: screenPermissions },
+  { id: 'primer', title: '38b · Permission primer',
+    note: 'Shown before the OS dialog, at the moment the farmer taps Scan — never four system ' +
+          'prompts at signup. "Not now" is a real option, not a dark pattern.',
+    render: screenPrimer },
+  { id: 'privacy', title: '39 · Privacy and data',
+    note: 'POPIA in plain words: see, correct, export, delete. Optional consents default OFF, ' +
+          'and each says what turning it on actually shares.',
+    render: screenPrivacy },
+  { id: 'help', title: '40 · Help', render: screenHelp },
+  { id: 'offline-states', title: '44 · Offline, sync and error states',
+    note: 'No "Something went wrong" anywhere. Each state says what is true and what to do.',
+    render: screenOfflineStates },
+  { id: 'empty-states', title: '45 · Empty states', render: screenEmptyStates },
+]);
+</script>
+</body>
+</html>
