@@ -23,7 +23,7 @@ for the steps below. Local emulator development can explicitly set its separate
 
 1. Open the repository's **Actions** tab and pick the most recent green **mobile** run.
 2. Download the artifact for the phone you are installing on:
-   - iPhone 12 Pro: `almanac-ios-unsigned-device` (contains `Almanac-unsigned.ipa`)
+   - iPhone 13: `almanac-ios-unsigned-device` (contains `Almanac-unsigned.ipa`)
    - ARM64 Android phone: `almanac-android-arm64-apk-device` (contains `app-release.apk`)
 
 Both come from `.github/workflows/mobile.yml`.
@@ -31,7 +31,7 @@ The Android artifact targets ARM64 phones only. CI separately builds an x86_64
 release APK for the emulator, avoiding four-architecture native builds within
 the 30-minute job budget.
 
-## 2. iPhone 12 Pro, with Sideloadly and a free Apple ID
+## 2. iPhone 13, with Sideloadly and a free Apple ID
 
 You need a Windows or macOS computer, a USB cable, and an Apple ID (a free one is
 fine - do not use one with two-factor prompts you cannot answer).
