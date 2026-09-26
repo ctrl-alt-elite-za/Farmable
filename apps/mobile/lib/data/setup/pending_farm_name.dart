@@ -23,3 +23,21 @@ Future<String?> pendingFarmName(
     return null;
   }
 }
+
+/// The farm name in the server's last answer on the account record — written
+/// only when `PATCH /account/farm` or `GET /account/farm` succeeds, so it is
+/// the name the server itself returned, never one the farmer typed.
+Future<String?> recordedFarmName(
+  SessionStorage accountRecord,
+  String userId,
+) async {
+  try {
+    final record = await accountRecord.read();
+    if (record == null || record['owner'] != userId) return null;
+    final farm = record['farm'];
+    final name = farm is Map ? farm['name'] : null;
+    return name is String ? name : null;
+  } on Object {
+    return null;
+  }
+}

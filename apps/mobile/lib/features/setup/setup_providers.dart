@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../data/launch/launch_record.dart';
+import '../../data/setup/setup_owed.dart';
 import '../../domain/auth/auth_models.dart';
 import '../auth/auth_view_model.dart';
 
@@ -17,6 +18,10 @@ import '../auth/auth_view_model.dart';
 final launchRecordProvider = Provider<LaunchRecord>(
   (ref) => LaunchRecord.onDevice(),
 );
+
+/// Whether first farm setup is still owed to an account. See
+/// `data/setup/setup_owed.dart`.
+final setupOwedProvider = Provider<SetupOwed>((ref) => SetupOwed.onDevice());
 
 /// A signed-in farmer whose own farm has not reached this phone yet.
 ///

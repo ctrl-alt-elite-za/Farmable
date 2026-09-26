@@ -106,6 +106,10 @@ class FakeAuthApi implements HttpClientAdapter {
   /// else's (`403`) or gone (`404 not_found`).
   (int, String)? accountOverride;
 
+  /// When set, [accountOverride] answers only this path, and every other
+  /// `/account/*` request is served as normal.
+  String? accountOverridePath;
+
   /// Holds the response to a request for a path until completed — the
   /// request is recorded as sent, and its answer arrives when the test says.
   /// How a test lets a farmer log out, or another log in, mid-request.
@@ -326,7 +330,10 @@ class FakeAuthApi implements HttpClientAdapter {
     final session = _live(authorization);
     if (session == null) return _error(401, 'invalid_session');
     final override = accountOverride;
-    if (override != null) return _error(override.$1, override.$2);
+    final only = accountOverridePath;
+    if (override != null && (only == null || only == path)) {
+      return _error(override.$1, override.$2);
+    }
     final account = _accounts[session.userId]!;
 
     bool valid(Object? value, int max) =>

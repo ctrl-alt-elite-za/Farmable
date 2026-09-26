@@ -30,16 +30,20 @@ abstract interface class LaunchFile {
   Future<void> write(String contents);
 }
 
-/// `almanac_launch.json` in the app's documents directory.
+/// A small file of its own in the app's documents directory —
+/// `almanac_launch.json` unless told otherwise.
 class DeviceLaunchFile implements LaunchFile {
-  DeviceLaunchFile({Future<Directory> Function()? directory})
-    : _directory = directory ?? getApplicationDocumentsDirectory;
+  DeviceLaunchFile({
+    Future<Directory> Function()? directory,
+    this.name = fileName,
+  }) : _directory = directory ?? getApplicationDocumentsDirectory;
 
   final Future<Directory> Function() _directory;
+  final String name;
 
   static const fileName = 'almanac_launch.json';
 
-  Future<File> _file() async => File('${(await _directory()).path}/$fileName');
+  Future<File> _file() async => File('${(await _directory()).path}/$name');
 
   /// Throws if the file exists and cannot be read. Only a file that is not
   /// there at all is null.

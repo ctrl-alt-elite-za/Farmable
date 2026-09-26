@@ -1,5 +1,5 @@
 /// Keeps a farm name chosen offline on the phone until the server has it,
-/// and sends it as soon as there is a signal.
+/// and sends it when the signal comes back.
 ///
 /// First farm setup saves the name as a pending account edit and writes it
 /// onto the phone's copy of the farm. Two things would otherwise undo that:
@@ -9,15 +9,22 @@
 ///   default name, because the pending edit has not been sent.
 /// * Pending account edits are otherwise only sent at the next launch.
 ///
-/// So whenever the account's farm on the phone changes — which includes that
-/// re-read — this puts a still-pending name back, and, if the phone has a
-/// network, sends the pending edits. Once the server accepts them the name
-/// from its reply is written, and there is nothing pending left to keep.
+/// So when the farm's **name** on the phone changes to something this did
+/// not write — which is what that re-read does — a still-pending name is put
+/// back, and, with a network, the pending edits are sent. Other changes to
+/// the farm (a record saved, a queued send moving on) do not wake it, and
+/// neither do its own writes: one attempt per re-read, never a retry storm.
 ///
-/// Only a pending name, or the server's own reply to a send made here, is
-/// ever written: never an older cached copy, which could undo a rename made
-/// on another phone. Builds without the real API have no account farm, and
-/// this does nothing there.
+/// What it writes, and nothing else:
+///
+/// * the pending name, while it waits;
+/// * nothing more once the server's reply carries that same name — the
+///   phone already shows it;
+/// * if the name was refused or the farm has gone, what the server calls the
+///   farm now, read fresh from `GET /farms`. Never a cached copy: that could
+///   be older than a rename made on another phone.
+///
+/// Builds without the real API have no account farm; this does nothing there.
 library;
 
 import 'dart:async';
@@ -25,12 +32,17 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../data/auth/api_auth_service.dart';
 import '../../data/setup/account_farm_name.dart';
 import '../../data/setup/pending_farm_name.dart';
+import '../../data/setup/server_sections.dart';
 
 final farmNameKeeperProvider = Provider<void>((ref) {
   if (ref.watch(syncControllerProvider) == null) return;
 
+  /// The name this last put on the phone, so its own write is not mistaken
+  /// for a re-read.
+  String? written;
   var running = false;
   var again = false;
 
@@ -39,24 +51,31 @@ final farmNameKeeperProvider = Provider<void>((ref) {
     if (!scope.isAccount) return;
     final db = ref.read(databaseProvider);
     final records = ref.read(accountStorageProvider);
+    bool current() => ref.mounted && ref.read(farmScopeProvider) == scope;
+    Future<void> show(String name) async {
+      written = name;
+      await nameAccountFarmLocally(db, scope, name);
+    }
 
-    var pending = await pendingFarmName(records, scope.ownerId);
+    final pending = await pendingFarmName(records, scope.ownerId);
     if (pending == null) return;
     // Put it back first, so Home never shows the default in between.
-    await nameAccountFarmLocally(db, scope, pending);
+    await show(pending);
 
     if (!await ref.read(networkStatusProvider).current()) return;
-    final account = ref.read(accountServiceProvider);
-    await account.syncPending();
-    if (ref.read(farmScopeProvider) != scope) return;
+    await ref.read(accountServiceProvider).syncPending();
+    if (!current()) return;
 
-    pending = await pendingFarmName(records, scope.ownerId);
-    if (pending != null) return; // Still not accepted; kept above.
-    // Accepted: the server's reply is the freshest name there is.
-    final sent = await account.cached();
-    final name = sent?.farmName;
-    if (sent == null || sent.userId != scope.ownerId || name == null) return;
-    await nameAccountFarmLocally(db, scope, name);
+    // Still waiting — not sent, or edited again meanwhile: shown above.
+    if (await pendingFarmName(records, scope.ownerId) != null) return;
+    // Accepted: the server answered with this very name.
+    if (await recordedFarmName(records, scope.ownerId) == pending) return;
+
+    // Refused, or the farm is gone: put back what the server really has.
+    final auth = ref.read(authServiceProvider);
+    if (auth is! ApiAuthService) return;
+    final actual = await serverFarmName(auth, scope.farmId);
+    if (actual != null && current()) await show(actual);
   }
 
   Future<void> settle() async {
@@ -71,7 +90,7 @@ final farmNameKeeperProvider = Provider<void>((ref) {
         try {
           await once();
         } on Object {
-          // Tried again the next time the farm changes.
+          // Tried again the next time the farm is re-read.
         }
       } while (again && ref.mounted);
     } finally {
@@ -79,8 +98,9 @@ final farmNameKeeperProvider = Provider<void>((ref) {
     }
   }
 
-  ref.listen(farmProvider, (_, next) {
-    if (next.hasValue) unawaited(settle());
+  ref.listen(farmProvider.select((farm) => farm.value?.farm.name), (_, name) {
+    if (name == null || name == written) return;
+    unawaited(settle());
   }, fireImmediately: true);
 });
 

@@ -16,6 +16,8 @@
 /// recorded from the section once it exists.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -82,7 +84,17 @@ class _SectionSetupScreenState extends ConsumerState<SectionSetupScreen> {
     super.dispose();
   }
 
-  void _leave() => context.go(widget.next ?? '/home');
+  /// Leaves for [SectionSetupScreen.next] — and, whether a section was
+  /// added or the farmer chose to skip, first setup is no longer owed.
+  void _leave() {
+    final scope = ref.read(farmScopeProvider);
+    if (scope.isAccount) {
+      unawaited(
+        ref.read(setupOwedProvider).settle(scope.ownerId, scope.farmId),
+      );
+    }
+    context.go(widget.next ?? '/home');
+  }
 
   Future<void> _add() async {
     if (_busy) return;

@@ -56,8 +56,18 @@ class _SetupGateScreenState extends ConsumerState<SetupGateScreen> {
     final asking = auth is ApiAuthService
         ? serverFarmHasNoSections(auth, farmId)
         : Future<bool?>.value();
+    final scope = ref.read(farmScopeProvider);
+    final owed = ref.read(setupOwedProvider);
     unawaited(
-      asking.then((empty) {
+      asking.then((empty) async {
+        // Owed unless the server said there are sections: confirmed empty
+        // goes to setup now, and no answer is asked again on a later launch
+        // (setup_resumer.dart) rather than never.
+        if (empty == false) {
+          await owed.settle(scope.ownerId, farmId);
+        } else {
+          await owed.owe(scope.ownerId, farmId);
+        }
         if (!mounted || _askedFor != farmId) return;
         setState(() {
           _serverEmpty = empty;

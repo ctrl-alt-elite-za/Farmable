@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/auth_view_model.dart';
 import '../features/setup/farm_name_keeper.dart';
 import '../features/setup/setup_providers.dart';
+import '../features/setup/setup_resumer.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
@@ -52,6 +53,7 @@ class _AlmanacAppState extends ConsumerState<AlmanacApp> {
     keepSessionFresh(ref);
     keepFarmSynced(ref);
     keepFarmNameSent(ref);
+    keepSetupResumable(ref, _router);
     _lifecycle;
 
     return MaterialApp.router(
