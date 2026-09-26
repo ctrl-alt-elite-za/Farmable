@@ -48,14 +48,20 @@ abstract interface class OutlookStore {
   Future<void> write(String accountId, OutlookQuery query, SavedOutlook saved);
 }
 
-class FileOutlookStore implements OutlookStore {
-  final Future<Directory> Function() root;
+/// Where saved outlooks live: `outlook/` under the app's support directory.
+/// Also what account deletion empties, so it is listed in
+/// `deviceDirectoriesProvider`.
+Future<Directory> outlookCacheDirectory() async =>
+    Directory('${(await getApplicationSupportDirectory()).path}/outlook');
 
-  FileOutlookStore({Future<Directory> Function()? root})
-    : root = root ?? getApplicationSupportDirectory;
+class FileOutlookStore implements OutlookStore {
+  final Future<Directory> Function() _directory;
+
+  FileOutlookStore({Future<Directory> Function()? directory})
+    : _directory = directory ?? outlookCacheDirectory;
 
   Future<File> _file(String accountId, OutlookQuery query) async {
-    final directory = Directory('${(await root()).path}/outlook');
+    final directory = await _directory();
     final key = sha256.convert(utf8.encode('$accountId|${query.cacheKey}'));
     return File('${directory.path}/$key.json');
   }

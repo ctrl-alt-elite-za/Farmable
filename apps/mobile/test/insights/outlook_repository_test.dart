@@ -1,12 +1,16 @@
 import 'dart:io';
 
+import 'package:almanac/app/providers.dart';
 import 'package:almanac/data/auth/api_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
+import 'package:almanac/data/device_wipe.dart';
+import 'package:almanac/data/local/database.dart' show AlmanacDatabase;
 import 'package:almanac/data/outlook/outlook_repository.dart';
 import 'package:almanac/domain/farm_records.dart';
 import 'package:almanac/domain/money.dart';
 import 'package:almanac/domain/outlook.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const query = OutlookQuery(
@@ -126,7 +130,7 @@ void main() {
   test('exact wire decimals survive a phone-cache round trip', () async {
     final directory = await Directory.systemTemp.createTemp('outlook-test-');
     addTearDown(() => directory.delete(recursive: true));
-    final store = FileOutlookStore(root: () async => directory);
+    final store = FileOutlookStore(directory: () async => directory);
     final client = FakeOutlookClient()..value = CropOutlook.fromJson(wire);
     final fetchedAt = DateTime.utc(2026, 9, 25, 9);
     final repository = OutlookRepository(client, store, now: () => fetchedAt);
@@ -173,7 +177,7 @@ void main() {
       var now = DateTime.utc(2026, 9, 25, 9);
       final repository = OutlookRepository(
         client,
-        FileOutlookStore(root: () async => directory),
+        FileOutlookStore(directory: () async => directory),
         now: () => now,
       );
       await repository.load(accountId: 'farmer-a', query: query, online: true);
@@ -208,5 +212,41 @@ void main() {
       () => CropOutlook.fromJson({...wire, 'currency': 'USD'}),
       throwsFormatException,
     );
+  });
+
+  test('account deletion empties the outlook cache folder', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    expect(
+      container.read(deviceDirectoriesProvider),
+      contains(outlookCacheDirectory),
+    );
+  });
+
+  test('a device wipe leaves no saved outlook behind', () async {
+    final parent = await Directory.systemTemp.createTemp('outlook-wipe-');
+    addTearDown(() async {
+      if (parent.existsSync()) await parent.delete(recursive: true);
+    });
+    final directory = Directory('${parent.path}/outlook');
+    final store = FileOutlookStore(directory: () async => directory);
+    final saved = SavedOutlook(
+      CropOutlook.fromJson(wire),
+      DateTime.utc(2026, 9, 25, 9),
+    );
+    await store.write('farmer-a', query, saved);
+    expect(await store.read('farmer-a', query), isNotNull);
+
+    final db = AlmanacDatabase.memory();
+    addTearDown(db.close);
+    final clean = await DeviceWipe(
+      db: db,
+      stores: const [],
+      directories: [() async => directory],
+      reseed: () async {},
+    ).run();
+
+    expect(clean, isTrue);
+    expect(await store.read('farmer-a', query), isNull);
   });
 }
