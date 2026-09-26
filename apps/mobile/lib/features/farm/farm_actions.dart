@@ -1,9 +1,7 @@
-/// The Farm tab's two actions that open their own flows: adding a section,
-/// and walking one's boundary.
+/// The Farm tab's two actions whose screens live outside the tab.
 ///
-/// Adding a section still says plainly what it will do once built — never a
-/// control that does nothing, and never failure language, because nothing
-/// has failed.
+/// Adding a section opens section setup (#89). Walking a boundary (#15) asks
+/// which section, then opens the walk.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,19 +12,18 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../app/providers.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.g.dart';
-import '../../core/ui/not_built_yet_sheet.dart';
 import '../../domain/farm_records.dart';
 import 'farm_map_data.dart';
 
-/// Section setup is issue #89. When it lands, this opens it instead.
-Future<void> showAddSection(BuildContext context) => showNotBuiltYetSheet(
-  context,
-  title: 'Adding a section is coming',
-  body:
-      'A section is one piece of land you use for one thing — a bed, a row, '
-      'a field. Naming one and saying what grows there comes next, and it '
-      'will work on this phone with no signal.',
-);
+/// Opens section setup, which comes back to [returnTo] once the section is
+/// saved — so the farmer lands where they tapped, with the new section in it.
+void showAddSection(BuildContext context, {String returnTo = '/farm'}) =>
+    context.push(
+      Uri(
+        path: '/setup/section',
+        queryParameters: {'next': returnTo},
+      ).toString(),
+    );
 
 /// Walking a boundary (#15): asks which section, then opens the walk. With
 /// [edit], only sections that already have a shape are offered, and the
@@ -45,7 +42,10 @@ Future<void> showBoundaryWalking(
   ];
   void open(SectionSummary s) =>
       context.push('/farm/zone/${s.id}/boundary${edit ? '?edit=1' : ''}');
-  if (candidates.isEmpty) return showAddSection(context);
+  if (candidates.isEmpty) {
+    showAddSection(context);
+    return;
+  }
   if (candidates.length == 1) return open(candidates.single);
 
   final picked = await showModalBottomSheet<SectionSummary>(
