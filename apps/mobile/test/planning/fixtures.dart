@@ -117,6 +117,9 @@ class FakePlanningClient implements PlanningClient {
   Map<String, Object?>? Function(PlanInputs inputs)? previews;
   Object? previewError;
   Object? confirmError;
+
+  /// When set, a confirmation waits for it before answering.
+  Future<void>? confirmGate;
   final confirmed = <String>[];
   var version = 0;
 
@@ -130,6 +133,7 @@ class FakePlanningClient implements PlanningClient {
 
   @override
   Future<PlanReceipt> confirm(String farmId, PlanVersion v) async {
+    if (confirmGate != null) await confirmGate;
     if (confirmError != null) throw confirmError!;
     final replayed = confirmed.contains(v.mutationId);
     confirmed.add(v.mutationId);

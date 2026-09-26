@@ -700,7 +700,11 @@ class _InputsSheetState extends State<_InputsSheet> {
       crops.add(
         crop.copyWith(
           minimumPercent: share,
-          promisedKg: promised.isEmpty ? '0' : promised,
+          // Leading zeros dropped: the server echoes the decimal it parsed
+          // ("0500" comes back as "500"), and the echo must match.
+          promisedKg: promised.isEmpty
+              ? '0'
+              : promised.replaceFirst(RegExp(r'^0+(?=\d)'), ''),
         ),
       );
     }

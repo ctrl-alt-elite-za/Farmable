@@ -1,6 +1,7 @@
 /// The account planner's cache and confirmation queue (#22), against fakes.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:almanac/data/planning/planning_repository.dart';
@@ -169,6 +170,44 @@ void main() {
       final history = await repository.history(account, sectionId);
       expect(history.map((v) => v.mutationId), ['m-2', 'm-1']);
     });
+
+    test(
+      'a confirmation made while an earlier one is being sent is kept',
+      () async {
+        await confirm('m-1', online: false);
+        final gate = Completer<void>();
+        client.confirmGate = gate.future;
+        final sending = repository.send(
+          accountId: account,
+          farmId: farm,
+          online: true,
+        );
+        await confirm('m-2', online: false);
+        gate.complete();
+        await sending;
+
+        final history = await repository.history(account, sectionId);
+        expect(history.map((v) => v.mutationId), ['m-2', 'm-1']);
+        expect(history.last.state, PlanVersionState.saved);
+        expect(history.first.state, PlanVersionState.waiting);
+      },
+    );
+
+    test(
+      'with no version of its own, the phone revises the synced plan',
+      () async {
+        repository = PlanningRepository(
+          client,
+          store,
+          now: () => now,
+          knownPlan: (section) async =>
+              section == sectionId ? (planId: 'server-plan', version: 3) : null,
+        );
+        final version = await confirm('m-1', online: false);
+        expect(version.planId, 'server-plan');
+        expect(version.expectedVersion, 3);
+      },
+    );
 
     test('sign-out keeps unsent work and drops everything else', () async {
       client.previews = (_) => feasibleWire();

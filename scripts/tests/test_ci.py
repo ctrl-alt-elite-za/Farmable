@@ -407,8 +407,11 @@ def test_mobile_maestro_flows_wait_for_release_app_startup():
         assert "id: 'sync-status'" in flow
 
     scan = (repo / "e2e/mobile/scan_pan.yaml").read_text()
-    assert "text: 'Cabbage Field\\..*'" in scan
-    assert "point: '50%,20%'" in scan
+    # The section is opened from the Farm tab's list, centred first, so the
+    # tap cannot land on the persistent assistant button over Home's cards.
+    assert "id: 'nav-farm'" in scan
+    assert "centerElement: true" in scan
+    assert "- tapOn: 'Cabbage Field.*'" in scan
 
 
 def test_release_manifest_grants_network_access_and_scopes_cleartext():

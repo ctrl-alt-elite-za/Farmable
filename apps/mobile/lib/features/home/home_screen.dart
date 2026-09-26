@@ -69,19 +69,24 @@ class _DashboardState extends ConsumerState<_Dashboard> {
   /// is the only defensible answer.
   String? _centreId;
 
-  /// One idempotency key per section's "Cleared" answer, kept for the life
-  /// of the screen so a double tap or a retry is the same change.
+  /// One idempotency key per planting's "Cleared" answer, kept for the life
+  /// of the screen so a double tap or a retry is the same change. Keyed by
+  /// planting, not section: a section replanted while Home stays open asks
+  /// again, with a new key.
   final _clearKeys = <String, String>{};
 
-  /// Sections the farmer said are still growing. Asked again next launch:
+  /// Plantings the farmer said are still growing. Asked again next launch:
   /// the answer is about today, not a setting.
   final _stillGrowing = <String>{};
   final _clearing = <String>{};
 
+  static String _harvestKey(SectionSummary s) => s.planting?.id ?? s.id;
+
   Future<void> _cleared(SectionSummary section) async {
     final actions = ref.read(harvestActionsProvider);
-    final key = _clearKeys.putIfAbsent(section.id, actions.newKey);
-    setState(() => _clearing.add(section.id));
+    final harvest = _harvestKey(section);
+    final key = _clearKeys.putIfAbsent(harvest, actions.newKey);
+    setState(() => _clearing.add(harvest));
     final messenger = ScaffoldMessenger.of(context);
     try {
       await actions.cleared(section.id, key);
@@ -95,7 +100,7 @@ class _DashboardState extends ConsumerState<_Dashboard> {
       );
     } on Object {
       if (!mounted) return;
-      setState(() => _clearing.remove(section.id));
+      setState(() => _clearing.remove(harvest));
       messenger.showSnackBar(
         const SnackBar(
           content: Text('That could not be saved on this phone. Try again.'),
@@ -196,16 +201,16 @@ class _DashboardState extends ConsumerState<_Dashboard> {
             _Gutter(
               child: CarouselCaption(section: centre, today: view.today),
             ),
-            if (!_stillGrowing.contains(centre.id)) ...[
+            if (!_stillGrowing.contains(_harvestKey(centre))) ...[
               const SizedBox(height: AlmanacDimens.sp3),
               _Gutter(
                 child: HarvestPanel(
                   section: centre,
                   today: view.today,
-                  clearing: _clearing.contains(centre.id),
+                  clearing: _clearing.contains(_harvestKey(centre)),
                   onCleared: () => _cleared(centre),
                   onStillGrowing: () =>
-                      setState(() => _stillGrowing.add(centre.id)),
+                      setState(() => _stillGrowing.add(_harvestKey(centre))),
                 ),
               ),
             ],

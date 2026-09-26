@@ -349,7 +349,40 @@ class PlanningRepository {
   final PlanningStore store;
   final DateTime Function() now;
 
-  PlanningRepository(this.client, this.store, {required this.now});
+  /// The section's plan as last synced from the server, if the phone has
+  /// one: its id and version. Used when this phone holds no version of its
+  /// own for the section — after sign-out, or on a new phone — so a
+  /// confirmation revises that plan instead of starting a second one.
+  final Future<({String planId, int version})?> Function(String sectionId)?
+  knownPlan;
+
+  PlanningRepository(
+    this.client,
+    this.store, {
+    required this.now,
+    this.knownPlan,
+  });
+
+  /// Every read-modify-write of the version list runs here, one at a time.
+  /// A send waits on the network between reading the list and writing it;
+  /// without this, a confirmation made meanwhile would be overwritten.
+  Future<void> _versionWrites = Future.value();
+
+  Future<T> _exclusive<T>(Future<T> Function() body) {
+    final result = _versionWrites.then((_) => body());
+    _versionWrites = result.then((_) {}, onError: (Object _) {});
+    return result;
+  }
+
+  Future<void> _replace(String accountId, PlanVersion settled) => _exclusive(
+    () async {
+      final versions = [...await store.readVersions(accountId)];
+      final i = versions.indexWhere((v) => v.mutationId == settled.mutationId);
+      if (i < 0) return;
+      versions[i] = settled;
+      await store.writeVersions(accountId, versions);
+    },
+  );
 
   Future<PreviewResult> preview({
     required String accountId,
@@ -404,10 +437,12 @@ class PlanningRepository {
     required String summary,
     required bool online,
   }) async {
-    final versions = [...await store.readVersions(accountId)];
-    final existing = versions.where((v) => v.mutationId == mutationId);
-    if (existing.isEmpty) {
-      final sectionId = preview.request.sectionId;
+    final sectionId = preview.request.sectionId;
+    // Read before taking the lock: the synced plan never depends on it.
+    final known = knownPlan == null ? null : await knownPlan!(sectionId);
+    await _exclusive(() async {
+      final versions = [...await store.readVersions(accountId)];
+      if (versions.any((v) => v.mutationId == mutationId)) return;
       final previous = versions.reversed
           .where(
             (v) =>
@@ -415,15 +450,16 @@ class PlanningRepository {
                 v.state != PlanVersionState.rejected,
           )
           .firstOrNull;
-      // The version this one replaces: the server's number once known, or
-      // the number a still-waiting predecessor will get when it lands.
+      // The version this one replaces: the server's number once known, the
+      // number a still-waiting predecessor will get when it lands, or the
+      // synced plan's version when this phone has none of its own.
       final expected = previous == null
-          ? 0
+          ? known?.version ?? 0
           : previous.savedVersion ?? previous.expectedVersion + 1;
       versions.add(
         PlanVersion(
           mutationId: mutationId,
-          planId: previous?.planId ?? newUuid(),
+          planId: previous?.planId ?? known?.planId ?? newUuid(),
           sectionId: sectionId,
           expectedVersion: expected,
           request: preview.request,
@@ -434,7 +470,7 @@ class PlanningRepository {
         ),
       );
       await store.writeVersions(accountId, versions);
-    }
+    });
     await send(accountId: accountId, farmId: farmId, online: online);
     return (await store.readVersions(accountId))
         .firstWhere((v) => v.mutationId == mutationId);
@@ -448,20 +484,24 @@ class PlanningRepository {
     required bool online,
   }) async {
     if (!online) return;
-    final versions = [...await store.readVersions(accountId)];
-    for (var i = 0; i < versions.length; i++) {
-      final version = versions[i];
-      if (version.state != PlanVersionState.waiting) continue;
+    final waiting = [
+      for (final v in await store.readVersions(accountId))
+        if (v.state == PlanVersionState.waiting) v,
+    ];
+    for (final version in waiting) {
+      PlanVersion settled;
       try {
         final receipt = await client.confirm(farmId, version);
-        versions[i] = version.settled(savedVersion: receipt.version);
+        settled = version.settled(savedVersion: receipt.version);
       } on PlanningFailure catch (error) {
         if (!error.isRejection) break;
-        versions[i] = version.settled(rejection: error.code);
+        settled = version.settled(rejection: error.code);
       } on Object {
         break;
       }
-      await store.writeVersions(accountId, versions);
+      // Only this version's entry changes; anything confirmed while the
+      // request was out stays in the list.
+      await _replace(accountId, settled);
     }
   }
 
@@ -475,12 +515,12 @@ class PlanningRepository {
   /// [accountId]. Versions still waiting to be sent are the farmer's unsent
   /// work, kept like the rest of their queue (#17) and sent when they next
   /// sign in; nothing of theirs is ever shown to another account.
-  Future<void> signedOut(String accountId) async {
+  Future<void> signedOut(String accountId) => _exclusive(() async {
     final waiting = [
       for (final v in await store.readVersions(accountId))
         if (v.state == PlanVersionState.waiting) v,
     ];
     await store.forget(accountId);
     if (waiting.isNotEmpty) await store.writeVersions(accountId, waiting);
-  }
+  });
 }
