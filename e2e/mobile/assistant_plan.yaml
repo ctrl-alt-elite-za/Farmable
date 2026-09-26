@@ -24,11 +24,13 @@ env:
       SECTION: Plan test beds
       AREA_M2: '400.00'
 # Outside services stay off until the farmer allows them.
+# signup.yaml leaves Profile scrolled down to Log out; the row's label is its
+# title and subtitle together, so match the title as a prefix.
 - scrollUntilVisible:
-    element: 'Privacy and consent'
-    direction: DOWN
+    element: 'Privacy and consent.*'
+    direction: UP
     centerElement: true
-- tapOn: 'Privacy and consent'
+- tapOn: 'Privacy and consent.*'
 - tapOn: '.*Allow outside services.*'
 - back
 - tapOn:
