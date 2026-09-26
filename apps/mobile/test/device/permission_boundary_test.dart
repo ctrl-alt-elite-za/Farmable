@@ -32,6 +32,9 @@ const _allowedDeviceCallers = [
   // Profile's permission controls (#84): read on open, ask only on a tap.
   'lib/features/permissions/',
   'lib/features/crop_scan/',
+  // Talking to the assistant (#24): the microphone is asked for only when the
+  // mic is tapped, after the voice notice has been accepted.
+  'lib/features/assistant/',
 ];
 
 Iterable<File> _dartFiles(String dir) =>
