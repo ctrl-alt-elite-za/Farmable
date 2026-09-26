@@ -31,6 +31,10 @@ env:
     direction: UP
     centerElement: true
 - tapOn: 'Privacy and consent.*'
+- scrollUntilVisible:
+    element: '.*Allow outside services.*'
+    direction: DOWN
+    centerElement: true
 - tapOn: '.*Allow outside services.*'
 - back
 - tapOn:
