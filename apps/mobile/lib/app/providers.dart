@@ -27,6 +27,7 @@ import '../data/local/local_farm_repository.dart';
 import '../data/local/offline_photos.dart';
 import '../data/local/seed.dart';
 import '../data/local/sync_outbox.dart';
+import '../data/outlook/outlook_repository.dart';
 import '../data/sync/account_workspace.dart';
 import '../data/sync/sync_controller.dart';
 import '../domain/account/account_service.dart';
@@ -169,6 +170,7 @@ final deviceDirectoriesProvider = Provider<List<Future<Directory> Function()>>(
     () async =>
         Directory('${(await getApplicationDocumentsDirectory()).path}/photos'),
     exportsDirectory,
+    outlookCacheDirectory,
   ],
 );
 

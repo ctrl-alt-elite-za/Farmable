@@ -34,6 +34,8 @@ import '../features/crop_scan/crop_scan_screen.dart';
 import '../features/farm/farm_map_screen.dart';
 import '../features/farm/farm_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/insights/insights_screen.dart';
+import '../features/insights/market_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
 import '../features/recommendations/recommendation_detail_screen.dart';
 import '../features/recommendations/recommendations_screen.dart';
@@ -155,16 +157,7 @@ GoRouter buildRouter({
       ],
     ),
 
-    GoRoute(
-      path: '/insights',
-      builder: (_, _) => const NotBuiltYetScreen(
-        destination: NavDestination.insights,
-        title: 'Insights',
-        body:
-            'Health, money and market prices over time. Every record you '
-            'add now is what these will be built from.',
-      ),
-    ),
+    GoRoute(path: '/insights', builder: (_, _) => const InsightsScreen()),
     // Who is signed in, and Log out. Never a gate: it reads the session, it
     // does not require one.
     GoRoute(
@@ -199,6 +192,11 @@ GoRouter buildRouter({
     // "Review health"; reads the farm from disk, so it opens with no signal.
     GoRoute(path: '/health', builder: (_, _) => const HealthScreen()),
     // ----------------------------------------------------------- end health
+
+    // ------------------------------------------------------ insights market
+    // Issue #93 first slice: crop outlooks for this account's planted land.
+    GoRoute(path: '/insights/market', builder: (_, _) => const MarketScreen()),
+    // -------------------------------------------------- end insights market
 
     // ------------------------------------------------------- issue 94 profile
     GoRoute(
