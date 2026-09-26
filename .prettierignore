@@ -19,3 +19,5 @@ node_modules/
 /.ci-tmp/
 # Local agent scratch, not part of the project.
 .claude/
+# Design reference, copied verbatim from the design source.
+docs/design/

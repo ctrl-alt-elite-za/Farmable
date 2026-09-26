@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmable — Foundations</title>
+<link rel="stylesheet" href="tokens.css?v=5">
+<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app-forms.css?v=5">
+</head>
+<body data-theme="light">
+
+<header class="topbar">
+  <div class="brand">Farmable — Foundations<span>v1 · Warm Paper direction</span></div>
+  <nav class="inline">
+    <a class="btn btn-tonal" href="index.html">Overview</a>
+    <a class="btn btn-tonal" href="components.html">Components</a>
+    <a class="btn btn-tonal" href="screens.html">Screens</a>
+  </nav>
+  <div class="seg">
+    <button data-font-set="system" aria-pressed="true">System (SF on Apple)</button>
+    <button data-font-set="android" aria-pressed="false">Android (Roboto)</button>
+  </div>
+  <button class="btn btn-secondary" data-toggle-theme>
+    <i data-icon="moon" style="display:contents"></i><span data-theme-label>Light</span>
+  </button>
+</header>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Foundations</h1>
+    <p>Colour roles, type, spacing, radii, elevation and motion for Farmable. Every contrast
+       ratio on this page is computed in your browser from the live token values using the
+       WCAG 2.1 relative-luminance formula — nothing here is eyeballed or transcribed.</p>
+  </div>
+
+  <!-- ============================================================ COLOUR -->
+  <h2 class="section-rule">Colour roles — light</h2>
+  <p class="note">Material 3 role names. The substrate is warm paper rather than white:
+     outdoors, a pure-white surface in direct sun is the brightest thing in the farmer's
+     field of view and forces a squint. Paper drops roughly 4% luminance without touching
+     legibility.</p>
+  <div class="swatch-grid" id="sw-light"></div>
+
+  <h2 class="section-rule">Colour roles — dark</h2>
+  <p class="note">The dark <b>page is pitch black</b>; the surfaces on it are not. They stay warm
+     charcoal and float, which is what carries depth now that shadows are invisible against
+     <code>#000</code>. Black also costs no backlight on the OLED panels these devices
+     increasingly ship, which matters to someone rationing charge on a farm.</p>
+  <div class="swatch-grid" id="sw-dark" data-theme="dark" style="background:var(--background);padding:var(--sp-4);border-radius:var(--r-lg)"></div>
+
+  <!-- ====================================================== STATUS SEMANTIC -->
+  <h2 class="section-rule">Status and connectivity — the two ramps that must not touch</h2>
+  <p class="note"><b>status/needsAttention is amber</b> (hue ≈ 40°) and <b>connectivity/offline is a
+     neutral slate</b> (hue ≈ 210°, chroma near zero). Neither is reachable from the red ramp,
+     so "the farmer is offline" cannot be rendered as an error by accident. Offline is a normal
+     operating state for this user, not a fault. Every status below carries an icon and a word
+     as well as a colour.</p>
+  <div class="demo-grid">
+    <div class="demo-tile">
+      <div class="demo-label">Crop / farm status</div>
+      <div class="stack">
+        <div class="inline"><span class="badge badge-on-track"><i data-icon="checkCircle" style="display:contents"></i>On track</span>
+          <code class="muted" style="font:var(--type-label-s)">status/onTrack</code></div>
+        <div class="inline"><span class="badge badge-attention"><i data-icon="alert" style="display:contents"></i>Needs attention</span>
+          <code class="muted" style="font:var(--type-label-s)">status/needsAttention — AMBER</code></div>
+        <div class="inline"><span class="badge badge-action"><i data-icon="alert" style="display:contents"></i>Action required</span>
+          <code class="muted" style="font:var(--type-label-s)">status/actionRequired</code></div>
+      </div>
+    </div>
+    <div class="demo-tile">
+      <div class="demo-label">Connectivity</div>
+      <div class="stack">
+        <div class="inline"><span class="sync sync-synced"><i data-icon="checkCircle" style="display:contents"></i>Synced</span>
+          <code class="muted" style="font:var(--type-label-s)">connectivity/synced</code></div>
+        <div class="inline"><span class="sync sync-syncing"><i data-icon="refresh" style="display:contents"></i>Syncing</span>
+          <code class="muted" style="font:var(--type-label-s)">connectivity/syncing</code></div>
+        <div class="inline"><span class="sync sync-offline"><i data-icon="cloudOff" style="display:contents"></i>Offline</span>
+          <code class="muted" style="font:var(--type-label-s)">connectivity/offline — SLATE</code></div>
+        <div class="inline"><span class="sync sync-pending"><i data-icon="upload" style="display:contents"></i>3 changes waiting</span>
+          <code class="muted" style="font:var(--type-label-s)">connectivity/offline</code></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================== CONTRAST TABLE -->
+  <h2 class="section-rule">Computed contrast — WCAG 2.1 relative luminance</h2>
+  <p class="note">Threshold is 4.5:1 for every pair in both themes, including large text and
+     icon-bearing status chips, because this product is read in direct sunlight on a cheap
+     LCD panel. <b id="contrast-summary"></b></p>
+  <div style="overflow-x:auto">
+    <table class="pair-table" id="contrast-table">
+      <thead><tr><th>Theme</th><th>Foreground</th><th>Background</th><th>Hex</th><th>Ratio</th><th>4.5:1</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- =============================================================== TYPE -->
+  <h2 class="section-rule">Type — San Francisco (system stack)</h2>
+  <p class="note">The app face is <b>San Francisco</b>, wired as a system-font stack. On iOS and
+     macOS it resolves to SF from the OS's own copy; on <b>Android — the target device — it
+     resolves to Roboto</b>; elsewhere to Inter, the closest freely-licensed face to SF.
+     <b>Floor: 14px body, 13px meta.</b>
+     <br><br><b>SF Pro is not bundled and cannot be.</b> Apple's Font Licence forbids embedding
+     it in software, and forbids using it even to design mock-ups for a non-Apple OS — and this
+     product ships on Android. No SF files are in this repo. Asking the OS for its own UI font
+     is a different thing and is fine, which is what the stack does.
+     <br><br><b>So Sipho never sees San Francisco.</b> Use the <b>System / Android</b> switch in
+     the top bar to see what his Galaxy A13 actually renders. If the SF look matters on the
+     device that matters, the answer is to bundle Inter.</p>
+  <div id="type-specimen"></div>
+
+  <h2 class="section-rule">Currency, units and names</h2>
+  <div class="demo-grid">
+    <div class="demo-tile">
+      <div class="demo-label">Money — R, no decimals, thousands comma</div>
+      <div style="font:var(--type-numeric-xl);font-variant-numeric:tabular-nums;letter-spacing:var(--tracking-tight)">R17,400</div>
+      <div style="font:var(--type-numeric-m);font-variant-numeric:tabular-nums" class="muted">R10,600 · R22,100 · R8,600 · R450</div>
+    </div>
+    <div class="demo-tile">
+      <div class="demo-label">Units — metric</div>
+      <div style="font:var(--type-numeric-m)">2.4 ha · 0.6 ha · 92 days · 35 days · 12 mm rain</div>
+    </div>
+    <div class="demo-tile">
+      <div class="demo-label">Names — South African, never placeholder</div>
+      <div style="font:var(--type-body-m)">Sipho Dlamini · Siyakhula Farm · Cabbage Field ·
+        Tomato Section · North Plot · Spinach Beds · KwaMashu</div>
+    </div>
+  </div>
+
+  <!-- ============================================================ SPACING -->
+  <h2 class="section-rule">Spacing — 4px base</h2>
+  <div id="spacing-scale" class="stack"></div>
+
+  <h2 class="section-rule">Radii</h2>
+  <p class="note">Large radii are inherited from the reference. They also serve the target device:
+     a 28px corner reads as a distinct object at arm's length in sun, where a 4px corner does not.</p>
+  <div class="demo-grid" id="radii-scale"></div>
+
+  <h2 class="section-rule">Elevation</h2>
+  <p class="note">Five levels, all single-shadow and low-opacity. Depth comes from surface tint
+     plus one diffuse shadow.</p>
+  <div class="demo-grid" id="elevation-scale"></div>
+
+  <h2 class="section-rule">Glass</h2>
+  <p class="note">Three blur strengths and nothing outside them. Scroll the strip below — the
+     glass surfaces sit over moving content, which is the point. Every glass fill is high-alpha
+     because the contrast check composites it over both black and white and demands 4.5:1 at
+     both extremes; the first run failed three times and the alphas were raised until it passed.
+     Each surface also carries a <code>@supports not (backdrop-filter)</code> fallback to solid,
+     so nothing is legible only because of the blur.</p>
+  <div id="glass-demo"></div>
+  <div style="overflow-x:auto;margin-top:var(--sp-5)">
+    <table class="pair-table" id="glass-table">
+      <thead><tr><th>Theme</th><th>Foreground</th><th>Glass fill</th><th>Over</th><th>Composite</th><th>Ratio</th><th>4.5:1</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- ============================================================= MOTION -->
+  <h2 class="section-rule">Motion</h2>
+  <p class="note">Tap a tile to play the duration. All motion collapses to 1ms under
+     <code>prefers-reduced-motion</code>.</p>
+  <div class="demo-grid" id="motion-scale"></div>
+
+  <h2 class="section-rule">Icons</h2>
+  <p class="note">Lucide (ISC licence), 24×24 grid, 2px stroke, inlined into
+     <code>farmable.js</code> rather than loaded from a CDN — the mockup must open with no
+     network, for the same reason the product must run with no network. In Flutter these map
+     to <code>lucide_icons</code> or hand-exported SVG assets. <b>An icon never appears without
+     a word next to it in a core action.</b></p>
+  <div class="inline" id="icon-sheet" style="gap:var(--sp-4)"></div>
+</main>
+
+<script src="farmable.js?v=5"></script>
+<script>
+/* ---------------------------------------------------------------------------
+   Live WCAG computation. Reads the actual token values out of the stylesheet
+   in both themes and computes relative luminance, so the table cannot drift
+   from the tokens.
+--------------------------------------------------------------------------- */
+(function () {
+  const ROLES = [
+    'background','surface','surface-container','surface-container-high',
+    'on-surface','on-surface-variant','outline','outline-variant',
+    'primary','on-primary','primary-container','on-primary-container',
+    'secondary','on-secondary','secondary-container','on-secondary-container',
+    'tertiary','on-tertiary','tertiary-container','on-tertiary-container',
+    'ink-surface','on-ink-surface','on-ink-surface-variant',
+    'status-on-track','status-on-track-container','on-status-on-track-container',
+    'status-needs-attention','status-needs-attention-container','on-status-needs-attention-container',
+    'status-action-required','status-action-required-container','on-status-action-required-container',
+    'conn-offline','conn-offline-container','on-conn-offline-container',
+    'conn-syncing','conn-synced',
+  ];
+
+  function readTheme(theme) {
+    const probe = document.createElement('div');
+    probe.setAttribute('data-theme', theme);
+    probe.style.display = 'none';
+    document.body.appendChild(probe);
+    const cs = getComputedStyle(probe);
+    const out = {};
+    ROLES.forEach(function (r) { out[r] = cs.getPropertyValue('--' + r).trim(); });
+    document.body.removeChild(probe);
+    return out;
+  }
+
+  function toRgb(c) {
+    if (c.charAt(0) === '#') {
+      const h = c.slice(1);
+      const f = h.length === 3 ? h.split('').map(function (x) { return x + x; }).join('') : h;
+      return [parseInt(f.slice(0,2),16), parseInt(f.slice(2,4),16), parseInt(f.slice(4,6),16)];
+    }
+    const m = c.match(/-?\d+\.?\d*/g);
+    return [+m[0], +m[1], +m[2]];
+  }
+  function lum(c) {
+    return toRgb(c).map(function (v) {
+      v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    }).reduce(function (a, v, i) { return a + [0.2126, 0.7152, 0.0722][i] * v; }, 0);
+  }
+  function ratio(a, b) {
+    const l1 = lum(a), l2 = lum(b), hi = Math.max(l1, l2), lo = Math.min(l1, l2);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  const PAIRS = [
+    ['on-surface','surface'],['on-surface','background'],['on-surface','surface-container'],['on-surface','surface-container-high'],
+    ['on-surface-variant','surface'],['on-surface-variant','background'],['on-surface-variant','surface-container'],['on-surface-variant','surface-container-high'],
+    ['outline','surface'],['outline','background'],
+    ['on-primary','primary'],['on-primary-container','primary-container'],['primary','surface'],['primary','background'],
+    ['on-secondary','secondary'],['on-secondary-container','secondary-container'],['secondary','surface'],
+    ['on-tertiary','tertiary'],['on-tertiary-container','tertiary-container'],['tertiary','surface'],
+    ['on-ink-surface','ink-surface'],['on-ink-surface-variant','ink-surface'],
+    ['status-on-track','surface'],['status-on-track','background'],['status-on-track','surface-container'],
+    ['on-status-on-track-container','status-on-track-container'],
+    ['status-needs-attention','surface'],['status-needs-attention','background'],['status-needs-attention','surface-container'],
+    ['on-status-needs-attention-container','status-needs-attention-container'],
+    ['status-action-required','surface'],['status-action-required','background'],['status-action-required','surface-container'],
+    ['on-status-action-required-container','status-action-required-container'],
+    ['conn-offline','surface'],['conn-offline','background'],['conn-offline','surface-container'],
+    ['on-conn-offline-container','conn-offline-container'],
+    ['conn-syncing','surface'],['conn-synced','surface'],
+  ];
+
+  const themes = { light: readTheme('light'), dark: readTheme('dark') };
+
+  /* swatches */
+  function swatches(host, t, theme) {
+    host.innerHTML = ROLES.map(function (r) {
+      const v = t[r];
+      const onIt = /^on-/.test(r) ? (t[r.replace(/^on-/, '')] || t.surface) : null;
+      const fg = onIt ? onIt : (ratio(v, '#FFFFFF') > ratio(v, '#111111') ? '#FFFFFF' : '#111111');
+      return '<div class="swatch">' +
+        '<div class="sw-chip" style="background:' + v + ';color:' + fg + '">Aa</div>' +
+        '<div class="sw-meta"><div class="sw-name">' + r + '</div>' +
+        '<div class="sw-hex">' + v + '</div></div></div>';
+    }).join('');
+  }
+  swatches(document.getElementById('sw-light'), themes.light, 'light');
+  swatches(document.getElementById('sw-dark'), themes.dark, 'dark');
+
+  /* contrast table */
+  const tb = document.querySelector('#contrast-table tbody');
+  let rows = '', fails = 0, min = 99;
+  ['light','dark'].forEach(function (theme) {
+    const t = themes[theme];
+    PAIRS.forEach(function (p) {
+      const r = ratio(t[p[0]], t[p[1]]);
+      const ok = r >= 4.5;
+      if (!ok) fails++;
+      if (r < min) min = r;
+      rows += '<tr><td>' + theme + '</td><td>' + p[0] + '</td><td>' + p[1] + '</td>' +
+        '<td class="sw-hex">' + t[p[0]] + ' on ' + t[p[1]] + '</td>' +
+        '<td class="ratio">' + r.toFixed(2) + ':1</td>' +
+        '<td class="' + (ok ? 'pass' : '') + '" style="' + (ok ? '' : 'color:var(--status-action-required);font-weight:700') + '">' +
+        (ok ? 'PASS' : 'FAIL') + '</td></tr>';
+    });
+  });
+  tb.innerHTML = rows;
+  document.getElementById('contrast-summary').textContent =
+    PAIRS.length * 2 + ' pairs checked · ' + fails + ' failures · lowest ratio ' + min.toFixed(2) + ':1';
+
+  /* type specimen */
+  const TYPE = [
+    ['display-l','Display L','36/40 SF Pro Display 400','Siyakhula Farm'],
+    ['headline-l','Headline L','30/36 SF Pro Display 600','Hello, Sipho'],
+    ['headline-m','Headline M','26/32 SF Pro Display 600','Cabbage Field'],
+    ['headline-s','Headline S','22/28 SF Pro Display 600','Farm health'],
+    ['title-l','Title L','20/26 SF Pro Display 600','Your farm'],
+    ['title-m','Title M','17/24 SF Pro Text 600','Proposed observation'],
+    ['title-s','Title S','15/20 SF Pro Text 600','Fertiliser application'],
+    ['body-l','Body L','16/24 SF Pro Text 400','Compare crops using your land, costs and water.'],
+    ['body-m','Body M','15/22 SF Pro Text 400','Yellowing leaves observed on the southern side.'],
+    ['body-s','Body S','14/20 SF Pro Text 400 — BODY FLOOR','Record what you see here so you can track changes over time.'],
+    ['label-l','Label L','15/20 SF Pro Text 600','Review health'],
+    ['label-m','Label M','14/18 SF Pro Text 600','Add observation'],
+    ['label-s','Label S','13/16 SF Pro Text 600 — META FLOOR','Today, 09:42 · Pending sync'],
+    ['numeric-xl','Numeric XL','34/38 system 600 tnum','R17,400'],
+    ['numeric-l','Numeric L','24/28 system 600 tnum','82 / 100'],
+    ['numeric-m','Numeric M','18/22 system 600 tnum','R10,600'],
+  ];
+  document.getElementById('type-specimen').innerHTML = TYPE.map(function (t) {
+    return '<div class="specimen-row"><div><div class="sw-name">' + t[1] + '</div>' +
+      '<div class="sp-meta">' + t[2] + '</div><div class="sp-meta">--type-' + t[0] + '</div></div>' +
+      '<div style="font:var(--type-' + t[0] + ');letter-spacing:var(--tracking-tight)">' + t[3] + '</div></div>';
+  }).join('');
+
+  /* spacing */
+  document.getElementById('spacing-scale').innerHTML = [1,2,3,4,5,6,7,8,9].map(function (i) {
+    const px = [4,8,12,16,20,24,32,40,48][i-1];
+    return '<div style="display:grid;grid-template-columns:120px 1fr;gap:var(--sp-4);align-items:center">' +
+      '<div class="sp-meta">--sp-' + i + ' · ' + px + 'px</div>' +
+      '<div style="height:20px;width:' + px + 'px;background:var(--primary);border-radius:3px"></div></div>';
+  }).join('');
+
+  /* radii */
+  document.getElementById('radii-scale').innerHTML =
+    [['xs',8],['sm',12],['md',16],['lg',20],['xl',28],['2xl',32],['pill','999']].map(function (r) {
+      return '<div class="demo-tile" style="text-align:center">' +
+        '<div style="height:70px;background:var(--primary-container);border-radius:' +
+        (r[1] === '999' ? '999px' : r[1] + 'px') + ';margin-bottom:var(--sp-2)"></div>' +
+        '<div class="sw-name">--r-' + r[0] + '</div><div class="sp-meta">' + r[1] + (r[1]==='999'?'':'px') + '</div></div>';
+    }).join('');
+
+  /* elevation */
+  document.getElementById('elevation-scale').innerHTML =
+    [['0','--elev-0','flat surfaces, list rows'],
+     ['1','--elev-1','cards resting on paper'],
+     ['2','--elev-2','zone cards, hero, ink card'],
+     ['3','--elev-3','raised cards'],
+     ['4','--elev-4','nav island, AI button']].map(function (e) {
+      return '<div class="demo-tile" style="text-align:center;background:var(--background)">' +
+        '<div style="height:76px;background:var(--surface);border:1px solid var(--outline-variant);' +
+        'border-radius:var(--r-lg);box-shadow:var(' + e[1] + ');margin-bottom:var(--sp-3)"></div>' +
+        '<div class="sw-name">Elevation ' + e[0] + '</div><div class="sp-meta">' + e[2] + '</div></div>';
+    }).join('');
+
+  /* motion */
+  const MOT = [['micro','180ms','tap feedback, chip toggle, badge change'],
+               ['screen','300ms','route push / pop'],
+               ['sheet','380ms','assistant sheet, camera panel'],
+               ['hero','400ms','zone card image → zone detail hero']];
+  document.getElementById('motion-scale').innerHTML = MOT.map(function (m) {
+    return '<button class="demo-tile" style="text-align:left;width:100%" data-motion="' + m[0] + '">' +
+      '<div class="sw-name">--dur-' + m[0] + ' · ' + m[1] + '</div>' +
+      '<div class="sp-meta" style="margin-bottom:var(--sp-3)">' + m[2] + '</div>' +
+      '<div style="height:10px;background:var(--surface-container-high);border-radius:5px;overflow:hidden">' +
+      '<div class="mo-bar" style="height:100%;width:14px;background:var(--primary);border-radius:5px;' +
+      'transition:transform var(--dur-' + m[0] + ') var(--ease-emphasised)"></div></div>' +
+      '<div class="sp-meta" style="margin-top:6px">ease-emphasised · cubic-bezier(.05,.7,.1,1)</div></button>';
+  }).join('');
+  document.querySelectorAll('[data-motion]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      const bar = b.querySelector('.mo-bar');
+      const w = b.querySelector('div[style*="border-radius:5px"]').clientWidth;
+      bar.style.transform = bar.style.transform ? '' : 'translateX(' + (w - 14) + 'px)';
+    });
+  });
+
+  /* glass demo: three blur strengths over scrolling content */
+  const GLASS_DEMO = [
+    ['--blur-sm', 'blur(10px)', 'controls and badges on photography'],
+    ['--blur-md', 'blur(18px)', 'bottom nav island, sticky top bars'],
+    ['--blur-lg', 'blur(28px)', 'assistant sheet, camera panel'],
+  ];
+  document.getElementById('glass-demo').innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--sp-4)">' +
+    GLASS_DEMO.map(function (g) {
+      return '<div style="position:relative;height:190px;border-radius:var(--r-lg);overflow:hidden;' +
+        'border:1px solid var(--outline-variant)">' +
+        '<div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,' +
+        'var(--on-surface) 0 18px, var(--surface) 18px 36px);opacity:.85"></div>' +
+        '<div style="position:absolute;left:0;right:0;bottom:0;padding:var(--sp-4);' +
+        'background:var(--glass-surface);-webkit-backdrop-filter:var(' + g[0] + ');' +
+        'backdrop-filter:var(' + g[0] + ');border-top:1px solid var(--glass-hairline-strong)">' +
+        '<div class="sw-name">' + g[0] + ' · ' + g[1] + '</div>' +
+        '<div class="sp-meta">' + g[2] + '</div>' +
+        '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">' +
+        '<span class="badge badge-attention">Needs attention</span>' +
+        '<span class="sync sync-offline">Offline</span></div></div></div>';
+    }).join('') + '</div>';
+
+  /* live glass composite contrast */
+  const GLASS_FILLS = {
+    'glass-surface':           ['onSurface','onSurfaceVariant','primary','statusOnTrack','statusNeedsAttention','statusActionRequired','connOffline'],
+    'glass-surface-high':      ['onSurface','onSurfaceVariant','primary'],
+    'glass-on-imagery':        ['scrimText'],
+    'glass-on-imagery-strong': ['scrimText'],
+  };
+  const ROLE_ALIAS = {
+    onSurface:'on-surface', onSurfaceVariant:'on-surface-variant', primary:'primary',
+    statusOnTrack:'status-on-track', statusNeedsAttention:'status-needs-attention',
+    statusActionRequired:'status-action-required', connOffline:'conn-offline',
+  };
+  function composite(rgbaStr, base) {
+    const m = rgbaStr.match(/-?\d+\.?\d*/g).map(Number);
+    const a = m.length > 3 ? m[3] : 1;
+    const b = toRgb(base);
+    return '#' + [0,1,2].map(function (i) {
+      return Math.round(m[i] * a + b[i] * (1 - a)).toString(16).padStart(2,'0');
+    }).join('').toUpperCase();
+  }
+  const gtb = document.querySelector('#glass-table tbody');
+  let grows = '', gfails = 0, gmin = 99;
+  ['light','dark'].forEach(function (theme) {
+    const probe = document.createElement('div');
+    probe.setAttribute('data-theme', theme); probe.style.display = 'none';
+    document.body.appendChild(probe);
+    const cs = getComputedStyle(probe);
+    Object.keys(GLASS_FILLS).forEach(function (fill) {
+      const fillVal = cs.getPropertyValue('--' + fill).trim();
+      ['#000000','#FFFFFF'].forEach(function (base) {
+        const comp = composite(fillVal, base);
+        GLASS_FILLS[fill].forEach(function (role) {
+          const fg = role === 'scrimText' ? '#FFFFFF' : cs.getPropertyValue('--' + ROLE_ALIAS[role]).trim();
+          const r = ratio(fg, comp);
+          const ok = r >= 4.5;
+          if (!ok) gfails++;
+          if (r < gmin) gmin = r;
+          grows += '<tr><td>' + theme + '</td><td>' + role + '</td><td>' + fill + '</td>' +
+            '<td class="sw-hex">' + base + '</td><td class="sw-hex">' + comp + '</td>' +
+            '<td class="ratio">' + r.toFixed(2) + ':1</td>' +
+            '<td class="' + (ok ? 'pass' : '') + '"' + (ok ? '' : ' style="color:var(--status-action-required);font-weight:700"') + '>' +
+            (ok ? 'PASS' : 'FAIL') + '</td></tr>';
+        });
+      });
+    });
+    document.body.removeChild(probe);
+  });
+  gtb.innerHTML = grows;
+  document.getElementById('contrast-summary').textContent +=
+    ' · plus ' + gtb.children.length + ' glass composites, ' + gfails + ' failures, lowest ' + gmin.toFixed(2) + ':1';
+
+  /* icon sheet */
+  const names = Object.keys(ICONS);
+  document.getElementById('icon-sheet').innerHTML = names.map(function (n) {
+    return '<div style="text-align:center;width:74px">' +
+      '<div style="width:44px;height:44px;margin:0 auto 4px;display:grid;place-items:center;' +
+      'background:var(--surface);border:1px solid var(--outline-variant);border-radius:var(--r-sm)">' +
+      icon(n) + '</div><div class="sp-meta" style="font-size:13px">' + n + '</div></div>';
+  }).join('');
+  document.querySelectorAll('#icon-sheet svg').forEach(function (s) { s.style.width = '22px'; s.style.height = '22px'; });
+})();
+</script>
+</body>
+</html>

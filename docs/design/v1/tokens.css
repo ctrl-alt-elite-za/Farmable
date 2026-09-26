@@ -1,0 +1,282 @@
+/* ============================================================================
+   Farmable — Design Tokens  v1
+   Direction: "Warm Paper" — derived from the Kernwerk reference (paper-stone
+   substrate, very large radii, near-flat depth, pill language, ink counterpoint
+   surface) and re-pitched for an outdoor, low-literacy, entry-level-Android
+   South African smallholder context.
+
+   Every on* / status / connectivity pair in this file is verified >= 4.5:1 by
+   contrast.mjs. See TOKENS.md for the computed table.
+   ========================================================================== */
+
+/* Inter is the cross-platform stand-in for San Francisco (it is the closest
+   freely-licensed neo-grotesque); Roboto backs the Android-preview mode. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
+
+/* ---------------------------------------------------------------------------
+   SAN FRANCISCO — requested as the app face, wired the only legitimate way.
+
+   SF Pro is NOT bundled and NOT loaded as a webfont, because Apple's Font
+   Licence forbids both for this product:
+
+     "...do not permit you to ... install, use or run the Apple Font for the
+      purpose of creating mock-ups of user interfaces to be used in software
+      products running on any non-Apple operating system"
+     "You may not embed the Apple Font in any software programs or other
+      products"
+
+   Farmable targets Android (Tecno Spark / Infinix Hot / Galaxy A13), so
+   shipping SF in the APK, or even designing these screens in it, is outside
+   the licence.
+
+   What the stack below does instead is ask the operating system for its own
+   UI face. On iOS/macOS that resolves to San Francisco, rendered by Apple's
+   own OS from Apple's own copy — the standard, licence-clean way to "use SF"
+   on the web. On Android it resolves to Roboto. Everywhere else it falls to
+   Inter, which is the closest freely-licensed face to SF and keeps the design
+   consistent off-Apple.
+--------------------------------------------------------------------------- */
+:root {
+  /* --- Type families -------------------------------------------------- */
+  /* SF Pro Display / SF Pro Text are named so that a designer who has their
+     own licensed copy installed sees the real optical sizes locally. Nothing
+     is downloaded, and no non-Apple user ever receives the font. */
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter',
+                  'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-text: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter',
+               'Segoe UI', Roboto, system-ui, sans-serif;
+  /* One family for numerals too — SF, Inter and Roboto all carry tabular
+     figures, so R17,400 and R8,600 stay on a grid in every fallback. */
+  --font-numeric: var(--font-text);
+
+  /* --- Type scale (Material 3 roles). Floor: 14px body / 13px meta. ----- */
+  --type-display-l:   400 36px/40px var(--font-display);
+  --type-headline-l:  600 30px/36px var(--font-display);
+  --type-headline-m:  600 26px/32px var(--font-display);
+  --type-headline-s:  600 22px/28px var(--font-display);
+  --type-title-l:     600 20px/26px var(--font-display);
+  --type-title-m:     600 17px/24px var(--font-text);
+  --type-title-s:     600 15px/20px var(--font-text);
+  --type-body-l:      400 16px/24px var(--font-text);
+  --type-body-m:      400 15px/22px var(--font-text);
+  --type-body-s:      400 14px/20px var(--font-text);   /* body floor */
+  --type-label-l:     600 15px/20px var(--font-text);
+  --type-label-m:     600 14px/18px var(--font-text);
+  --type-label-s:     600 13px/16px var(--font-text);   /* meta floor */
+  --type-numeric-xl:  600 34px/38px var(--font-numeric);
+  --type-numeric-l:   600 24px/28px var(--font-numeric);
+  --type-numeric-m:   600 18px/22px var(--font-numeric);
+
+  /* Android-reality preview: set data-font="android" on <body>. */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-caps: 0.08em;
+
+  /* --- Spacing (4px base) ---------------------------------------------- */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px; --sp-9: 48px;
+
+  /* --- Radii ------------------------------------------------------------ */
+  --r-xs: 8px;   --r-sm: 12px; --r-md: 16px;
+  --r-lg: 20px;  --r-xl: 28px; --r-2xl: 32px;
+  --r-pill: 999px;
+  --r-frame-inset: 8px;   /* card "mat" around an image, per reference */
+
+  /* --- Elevation -------------------------------------------------------- */
+  --elev-0: none;
+  --elev-1: 0 1px 2px rgba(28, 27, 22, 0.05);
+  --elev-2: 0 6px 16px -10px rgba(28, 27, 22, 0.22);
+  --elev-3: 0 12px 28px -16px rgba(28, 27, 22, 0.30);
+  --elev-4: 0 18px 44px -20px rgba(28, 27, 22, 0.40);
+  --elev-sheet: 0 -8px 28px -12px rgba(28, 27, 22, 0.35);
+
+  /* --- Glass ------------------------------------------------------------
+     Three blur strengths, no more. Every glass surface is high-alpha, so the
+     composite stays in a narrow band whatever passes beneath it, and
+     contrast.mjs checks each on* role against the composite over BOTH black
+     and white rather than against the nominal surface colour. -------------*/
+  --blur-sm: blur(10px) saturate(115%);   /* controls and chips on imagery */
+  --blur-md: blur(18px) saturate(120%);   /* nav island, sticky top bars   */
+  --blur-lg: blur(28px) saturate(125%);   /* assistant sheet, camera panel */
+
+  /* --- Motion ----------------------------------------------------------- */
+  --dur-micro: 180ms;      /* 150-250 */
+  --dur-screen: 300ms;     /* 250-350 */
+  --dur-sheet: 380ms;      /* 300-450 */
+  --dur-hero: 400ms;       /* 350-450 */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasised: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+
+  /* --- Layout ----------------------------------------------------------- */
+  --touch-min: 48px;
+  --gutter: 20px;
+  --navbar-h: 64px;
+
+  /* --- Scrim (text over farm photography, bright-sun safe) -------------- */
+  --scrim-strong: linear-gradient(to top, rgba(18,17,14,0.88) 0%, rgba(18,17,14,0.62) 34%, rgba(18,17,14,0.12) 68%, rgba(18,17,14,0) 100%);
+  --scrim-full:   linear-gradient(to top, rgba(18,17,14,0.80) 0%, rgba(18,17,14,0.35) 55%, rgba(18,17,14,0.22) 100%);
+  --scrim-top:    linear-gradient(to bottom, rgba(18,17,14,0.60) 0%, rgba(18,17,14,0) 100%);
+  --on-scrim: #FFFFFF;
+  --on-scrim-variant: #E4E1D8;
+}
+
+/* ============================ LIGHT ======================================= */
+:root, [data-theme="light"] {
+  color-scheme: light;
+
+  --background: #F4F1EA;
+  --surface: #FBFAF6;
+  --surface-container: #EDE9DF;
+  --surface-container-high: #E4DFD2;
+  --on-surface: #1C1B16;
+  --on-surface-variant: #4A473E;
+  --outline: #6F6B5F;
+  --outline-variant: #CFC9BA;
+
+  --primary: #1D5233;
+  --on-primary: #FFFFFF;
+  --primary-container: #C7E7D1;
+  --on-primary-container: #0A2C18;
+
+  --secondary: #5A4630;
+  --on-secondary: #FFFFFF;
+  --secondary-container: #EDDFC8;
+  --on-secondary-container: #2B2012;
+
+  --tertiary: #1A4E72;
+  --on-tertiary: #FFFFFF;
+  --tertiary-container: #CFE4F3;
+  --on-tertiary-container: #082D44;
+
+  /* Ink counterpoint surface (reference's dark card) */
+  --ink-surface: #1E1F1A;
+  --on-ink-surface: #EFECE1;
+  --on-ink-surface-variant: #B7B2A3;
+  --ink-hairline: rgba(239, 236, 225, 0.14);
+
+  /* Status — icon + text + colour, never colour alone */
+  --status-on-track: #18663A;
+  --status-on-track-container: #C7E7D1;
+  --on-status-on-track-container: #0A2C18;
+  --status-needs-attention: #8A5300;            /* AMBER ramp, not red */
+  --status-needs-attention-container: #FAE3BC;
+  --on-status-needs-attention-container: #432700;
+  --status-action-required: #A31C12;
+  --status-action-required-container: #FBD9D4;
+  --on-status-action-required-container: #4C0B06;
+
+  /* Connectivity — offline is a NEUTRAL SLATE, unreachable from the red ramp */
+  --conn-offline: #455360;
+  --conn-offline-container: #DCE3EA;
+  --on-conn-offline-container: #1C2831;
+  --conn-syncing: #1A4E72;
+  --conn-synced: #18663A;
+
+  --backdrop: rgba(28, 27, 22, 0.52);
+  --swatch-ring: rgba(28, 27, 22, 0.14);
+  --device-bezel: #0C0D0A;
+  --lockup-light: block;
+  --lockup-dark: none;
+
+  /* Glass fills. Alpha chosen so the composite over black and over white
+     both keep every on* role above 4.5:1 — see TOKENS.md section 2.2. */
+  --glass-surface: rgba(251, 250, 246, 0.90);
+  --glass-surface-high: rgba(237, 233, 223, 0.92);
+  --glass-hairline: rgba(28, 27, 22, 0.10);
+  --glass-hairline-strong: rgba(28, 27, 22, 0.16);
+  --glass-on-imagery: rgba(18, 17, 14, 0.62);
+  --glass-on-imagery-strong: rgba(18, 17, 14, 0.74);
+  --glow-warm: radial-gradient(60% 80% at 82% 0%, rgba(240, 184, 85, 0.16) 0%, rgba(240, 184, 85, 0) 70%);
+  --glow-cool: radial-gradient(70% 90% at 0% 0%, rgba(29, 82, 51, 0.10) 0%, rgba(29, 82, 51, 0) 70%);
+}
+
+/* ============================ DARK ======================================== */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #000000;          /* pitch black — OLED, and surfaces float on it */
+  --surface: #1A1B16;
+  --surface-container: #232420;
+  --surface-container-high: #2C2E28;
+  --on-surface: #ECE9DE;
+  --on-surface-variant: #C2BEAF;
+  --outline: #928D7E;
+  --outline-variant: #4A4840;
+
+  --primary: #8ED3A3;
+  --on-primary: #032E17;
+  --primary-container: #2A5740;
+  --on-primary-container: #CAEFD6;
+
+  --secondary: #DCC49E;
+  --on-secondary: #2E2113;
+  --secondary-container: #4C3A25;
+  --on-secondary-container: #F0DEC2;
+
+  --tertiary: #8FCBEC;
+  --on-tertiary: #032F48;
+  --tertiary-container: #22506E;
+  --on-tertiary-container: #CBE6F7;
+
+  /* On a pitch-black page the ink counterpoint cannot be the darkest thing in
+     the room, so in dark mode it inverts its role and lifts instead. */
+  --ink-surface: #23241E;
+  --on-ink-surface: #ECE9DE;
+  --on-ink-surface-variant: #C2BEAF;
+  --ink-hairline: rgba(236, 233, 222, 0.14);
+
+  --status-on-track: #7ACB95;
+  --status-on-track-container: #22503A;
+  --on-status-on-track-container: #C3EBD1;
+  --status-needs-attention: #F0B855;
+  --status-needs-attention-container: #5A3E0B;
+  --on-status-needs-attention-container: #FBDFAE;
+  --status-action-required: #FF9186;
+  --status-action-required-container: #6B1C14;
+  --on-status-action-required-container: #FFD8D2;
+
+  --conn-offline: #A9B7C5;
+  --conn-offline-container: #333C45;
+  --on-conn-offline-container: #D5DFE8;
+  --conn-syncing: #8FCBEC;
+  --conn-synced: #7ACB95;
+
+  --backdrop: rgba(0, 0, 0, 0.68);
+  --swatch-ring: rgba(236, 233, 222, 0.18);
+  --device-bezel: #1C1D18;
+  --lockup-light: none;
+  --lockup-dark: block;
+
+  --glass-surface: rgba(26, 27, 22, 0.88);
+  --glass-surface-high: rgba(35, 36, 32, 0.92);
+  --glass-hairline: rgba(236, 233, 222, 0.12);
+  --glass-hairline-strong: rgba(236, 233, 222, 0.20);
+  --glass-on-imagery: rgba(10, 11, 8, 0.62);
+  --glass-on-imagery-strong: rgba(10, 11, 8, 0.74);
+  --glow-warm: radial-gradient(60% 80% at 82% 0%, rgba(240, 184, 85, 0.10) 0%, rgba(240, 184, 85, 0) 70%);
+  --glow-cool: radial-gradient(70% 90% at 0% 0%, rgba(142, 211, 163, 0.08) 0%, rgba(142, 211, 163, 0) 70%);
+
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --elev-2: 0 6px 16px -10px rgba(0, 0, 0, 0.75);
+  --elev-3: 0 12px 28px -16px rgba(0, 0, 0, 0.85);
+  --elev-sheet: 0 -8px 28px -12px rgba(0, 0, 0, 0.8);
+}
+
+/* What a Galaxy A13 actually renders. The target device never sees San
+   Francisco, so the design has to hold up in Roboto — this mode forces it. */
+[data-font="android"] {
+  --font-display: Roboto, 'Noto Sans', system-ui, sans-serif;
+  --font-text: Roboto, 'Noto Sans', system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-micro: 1ms; --dur-screen: 1ms; --dur-sheet: 1ms; --dur-hero: 1ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 1ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important; scroll-behavior: auto !important;
+  }
+}

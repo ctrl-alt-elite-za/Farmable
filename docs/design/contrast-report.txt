@@ -1,0 +1,135 @@
+   LIGHT onSurface                          on surface                  #1C1B16 / #FBFAF6  16.51:1
+   LIGHT onSurface                          on background               #1C1B16 / #F4F1EA  15.29:1
+   LIGHT onSurface                          on surfaceContainer         #1C1B16 / #EDE9DF  14.22:1
+   LIGHT onSurface                          on surfaceContainerHigh     #1C1B16 / #E4DFD2  12.96:1
+   LIGHT onSurfaceVariant                   on surface                  #4A473E / #FBFAF6  8.89:1
+   LIGHT onSurfaceVariant                   on background               #4A473E / #F4F1EA  8.23:1
+   LIGHT onSurfaceVariant                   on surfaceContainer         #4A473E / #EDE9DF  7.66:1
+   LIGHT onSurfaceVariant                   on surfaceContainerHigh     #4A473E / #E4DFD2  6.98:1
+   LIGHT outline                            on surface                  #6F6B5F / #FBFAF6  5.10:1
+   LIGHT outline                            on background               #6F6B5F / #F4F1EA  4.72:1
+   LIGHT onPrimary                          on primary                  #FFFFFF / #1D5233  9.10:1
+   LIGHT onPrimaryContainer                 on primaryContainer         #0A2C18 / #C7E7D1  11.38:1
+   LIGHT primary                            on surface                  #1D5233 / #FBFAF6  8.72:1
+   LIGHT primary                            on background               #1D5233 / #F4F1EA  8.07:1
+   LIGHT onSecondary                        on secondary                #FFFFFF / #5A4630  8.92:1
+   LIGHT onSecondaryContainer               on secondaryContainer       #2B2012 / #EDDFC8  12.13:1
+   LIGHT secondary                          on surface                  #5A4630 / #FBFAF6  8.54:1
+   LIGHT onTertiary                         on tertiary                 #FFFFFF / #1A4E72  8.84:1
+   LIGHT onTertiaryContainer                on tertiaryContainer        #082D44 / #CFE4F3  10.92:1
+   LIGHT tertiary                           on surface                  #1A4E72 / #FBFAF6  8.46:1
+   LIGHT onInkSurface                       on inkSurface               #EFECE1 / #1E1F1A  14.02:1
+   LIGHT onInkSurfaceVariant                on inkSurface               #B7B2A3 / #1E1F1A  7.83:1
+   LIGHT statusOnTrack                      on surface                  #18663A / #FBFAF6  6.70:1
+   LIGHT statusOnTrack                      on background               #18663A / #F4F1EA  6.20:1
+   LIGHT statusOnTrack                      on surfaceContainer         #18663A / #EDE9DF  5.77:1
+   LIGHT onStatusOnTrackContainer           on statusOnTrackContainer   #0A2C18 / #C7E7D1  11.38:1
+   LIGHT statusNeedsAttention               on surface                  #8A5300 / #FBFAF6  6.06:1
+   LIGHT statusNeedsAttention               on background               #8A5300 / #F4F1EA  5.61:1
+   LIGHT statusNeedsAttention               on surfaceContainer         #8A5300 / #EDE9DF  5.22:1
+   LIGHT onStatusNeedsAttentionContainer    on statusNeedsAttentionContainer #432700 / #FAE3BC  10.97:1
+   LIGHT statusActionRequired               on surface                  #A31C12 / #FBFAF6  7.36:1
+   LIGHT statusActionRequired               on background               #A31C12 / #F4F1EA  6.81:1
+   LIGHT statusActionRequired               on surfaceContainer         #A31C12 / #EDE9DF  6.34:1
+   LIGHT onStatusActionRequiredContainer    on statusActionRequiredContainer #4C0B06 / #FBD9D4  11.77:1
+   LIGHT connOffline                        on surface                  #455360 / #FBFAF6  7.56:1
+   LIGHT connOffline                        on background               #455360 / #F4F1EA  7.00:1
+   LIGHT connOffline                        on surfaceContainer         #455360 / #EDE9DF  6.51:1
+   LIGHT onConnOfflineContainer             on connOfflineContainer     #1C2831 / #DCE3EA  11.61:1
+   LIGHT connSyncing                        on surface                  #1A4E72 / #FBFAF6  8.46:1
+   LIGHT connSynced                         on surface                  #18663A / #FBFAF6  6.70:1
+   LIGHT scrimText                          on scrimBase                #FFFFFF / #2B2B26  14.23:1
+   DARK  onSurface                          on surface                  #ECE9DE / #1A1B16  14.25:1
+   DARK  onSurface                          on background               #ECE9DE / #000000  17.28:1
+   DARK  onSurface                          on surfaceContainer         #ECE9DE / #232420  12.85:1
+   DARK  onSurface                          on surfaceContainerHigh     #ECE9DE / #2C2E28  11.30:1
+   DARK  onSurfaceVariant                   on surface                  #C2BEAF / #1A1B16  9.30:1
+   DARK  onSurfaceVariant                   on background               #C2BEAF / #000000  11.28:1
+   DARK  onSurfaceVariant                   on surfaceContainer         #C2BEAF / #232420  8.39:1
+   DARK  onSurfaceVariant                   on surfaceContainerHigh     #C2BEAF / #2C2E28  7.38:1
+   DARK  outline                            on surface                  #928D7E / #1A1B16  5.22:1
+   DARK  outline                            on background               #928D7E / #000000  6.33:1
+   DARK  onPrimary                          on primary                  #032E17 / #8ED3A3  8.53:1
+   DARK  onPrimaryContainer                 on primaryContainer         #CAEFD6 / #2A5740  6.64:1
+   DARK  primary                            on surface                  #8ED3A3 / #1A1B16  9.90:1
+   DARK  primary                            on background               #8ED3A3 / #000000  12.00:1
+   DARK  onSecondary                        on secondary                #2E2113 / #DCC49E  9.26:1
+   DARK  onSecondaryContainer               on secondaryContainer       #F0DEC2 / #4C3A25  8.22:1
+   DARK  secondary                          on surface                  #DCC49E / #1A1B16  10.26:1
+   DARK  onTertiary                         on tertiary                 #032F48 / #8FCBEC  7.93:1
+   DARK  onTertiaryContainer                on tertiaryContainer        #CBE6F7 / #22506E  6.64:1
+   DARK  tertiary                           on surface                  #8FCBEC / #1A1B16  9.83:1
+   DARK  onInkSurface                       on inkSurface               #ECE9DE / #23241E  12.87:1
+   DARK  onInkSurfaceVariant                on inkSurface               #C2BEAF / #23241E  8.40:1
+   DARK  statusOnTrack                      on surface                  #7ACB95 / #1A1B16  8.91:1
+   DARK  statusOnTrack                      on background               #7ACB95 / #000000  10.80:1
+   DARK  statusOnTrack                      on surfaceContainer         #7ACB95 / #232420  8.03:1
+   DARK  onStatusOnTrackContainer           on statusOnTrackContainer   #C3EBD1 / #22503A  7.08:1
+   DARK  statusNeedsAttention               on surface                  #F0B855 / #1A1B16  9.64:1
+   DARK  statusNeedsAttention               on background               #F0B855 / #000000  11.69:1
+   DARK  statusNeedsAttention               on surfaceContainer         #F0B855 / #232420  8.70:1
+   DARK  onStatusNeedsAttentionContainer    on statusNeedsAttentionContainer #FBDFAE / #5A3E0B  7.64:1
+   DARK  statusActionRequired               on surface                  #FF9186 / #1A1B16  7.96:1
+   DARK  statusActionRequired               on background               #FF9186 / #000000  9.65:1
+   DARK  statusActionRequired               on surfaceContainer         #FF9186 / #232420  7.17:1
+   DARK  onStatusActionRequiredContainer    on statusActionRequiredContainer #FFD8D2 / #6B1C14  8.88:1
+   DARK  connOffline                        on surface                  #A9B7C5 / #1A1B16  8.47:1
+   DARK  connOffline                        on background               #A9B7C5 / #000000  10.27:1
+   DARK  connOffline                        on surfaceContainer         #A9B7C5 / #232420  7.64:1
+   DARK  onConnOfflineContainer             on connOfflineContainer     #D5DFE8 / #333C45  8.30:1
+   DARK  connSyncing                        on surface                  #8FCBEC / #1A1B16  9.83:1
+   DARK  connSynced                         on surface                  #7ACB95 / #1A1B16  8.91:1
+   DARK  scrimText                          on scrimBase                #FFFFFF / #000000  21.00:1
+
+--- GLASS composites (worst case: over pure black and pure white) ---
+   LIGHT onSurface              on glass-surface            over #000000 -> #E2E1DD  13.18:1
+   LIGHT onSurfaceVariant       on glass-surface            over #000000 -> #E2E1DD  7.09:1
+   LIGHT primary                on glass-surface            over #000000 -> #E2E1DD  6.96:1
+   LIGHT statusOnTrack          on glass-surface            over #000000 -> #E2E1DD  5.35:1
+   LIGHT statusNeedsAttention   on glass-surface            over #000000 -> #E2E1DD  4.84:1
+   LIGHT statusActionRequired   on glass-surface            over #000000 -> #E2E1DD  5.87:1
+   LIGHT connOffline            on glass-surface            over #000000 -> #E2E1DD  6.03:1
+   LIGHT onSurface              on glass-surface            over #FFFFFF -> #FBFBF7  16.62:1
+   LIGHT onSurfaceVariant       on glass-surface            over #FFFFFF -> #FBFBF7  8.95:1
+   LIGHT primary                on glass-surface            over #FFFFFF -> #FBFBF7  8.78:1
+   LIGHT statusOnTrack          on glass-surface            over #FFFFFF -> #FBFBF7  6.75:1
+   LIGHT statusNeedsAttention   on glass-surface            over #FFFFFF -> #FBFBF7  6.10:1
+   LIGHT statusActionRequired   on glass-surface            over #FFFFFF -> #FBFBF7  7.41:1
+   LIGHT connOffline            on glass-surface            over #FFFFFF -> #FBFBF7  7.61:1
+   LIGHT onSurface              on glass-surface-high       over #000000 -> #DAD6CD  11.89:1
+   LIGHT onSurfaceVariant       on glass-surface-high       over #000000 -> #DAD6CD  6.40:1
+   LIGHT primary                on glass-surface-high       over #000000 -> #DAD6CD  6.28:1
+   LIGHT onSurface              on glass-surface-high       over #FFFFFF -> #EEEBE2  14.47:1
+   LIGHT onSurfaceVariant       on glass-surface-high       over #FFFFFF -> #EEEBE2  7.79:1
+   LIGHT primary                on glass-surface-high       over #FFFFFF -> #EEEBE2  7.64:1
+   LIGHT scrimText              on glass-on-imagery         over #000000 -> #0B0B09  19.70:1
+   LIGHT scrimText              on glass-on-imagery         over #FFFFFF -> #6C6B6A  5.32:1
+   LIGHT scrimText              on glass-on-imagery-strong  over #000000 -> #0D0D0A  19.46:1
+   LIGHT scrimText              on glass-on-imagery-strong  over #FFFFFF -> #504F4D  8.18:1
+   DARK  onSurface              on glass-surface            over #000000 -> #171813  14.69:1
+   DARK  onSurfaceVariant       on glass-surface            over #000000 -> #171813  9.59:1
+   DARK  primary                on glass-surface            over #000000 -> #171813  10.20:1
+   DARK  statusOnTrack          on glass-surface            over #000000 -> #171813  9.18:1
+   DARK  statusNeedsAttention   on glass-surface            over #000000 -> #171813  9.94:1
+   DARK  statusActionRequired   on glass-surface            over #000000 -> #171813  8.20:1
+   DARK  connOffline            on glass-surface            over #000000 -> #171813  8.73:1
+   DARK  onSurface              on glass-surface            over #FFFFFF -> #353632  10.02:1
+   DARK  onSurfaceVariant       on glass-surface            over #FFFFFF -> #353632  6.54:1
+   DARK  primary                on glass-surface            over #FFFFFF -> #353632  6.95:1
+   DARK  statusOnTrack          on glass-surface            over #FFFFFF -> #353632  6.26:1
+   DARK  statusNeedsAttention   on glass-surface            over #FFFFFF -> #353632  6.78:1
+   DARK  statusActionRequired   on glass-surface            over #FFFFFF -> #353632  5.59:1
+   DARK  connOffline            on glass-surface            over #FFFFFF -> #353632  5.95:1
+   DARK  onSurface              on glass-surface-high       over #000000 -> #20211D  13.32:1
+   DARK  onSurfaceVariant       on glass-surface-high       over #000000 -> #20211D  8.70:1
+   DARK  primary                on glass-surface-high       over #000000 -> #20211D  9.25:1
+   DARK  onSurface              on glass-surface-high       over #FFFFFF -> #353632  10.02:1
+   DARK  onSurfaceVariant       on glass-surface-high       over #FFFFFF -> #353632  6.54:1
+   DARK  primary                on glass-surface-high       over #FFFFFF -> #353632  6.95:1
+   DARK  scrimText              on glass-on-imagery         over #000000 -> #060705  20.19:1
+   DARK  scrimText              on glass-on-imagery         over #FFFFFF -> #676866  5.60:1
+   DARK  scrimText              on glass-on-imagery-strong  over #000000 -> #070806  20.07:1
+   DARK  scrimText              on glass-on-imagery-strong  over #FFFFFF -> #4A4A48  8.88:1
+
+SOLID pairs: 82   GLASS pairs: 48   glass failures: 0
+FAILURES: 0 / 130

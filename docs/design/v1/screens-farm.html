@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmable — Setup, Farm &amp; Health</title>
+<link rel="stylesheet" href="tokens.css?v=5">
+<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app-forms.css?v=5">
+<link rel="stylesheet" href="screens.css?v=5">
+</head>
+<body data-theme="light" data-size="standard">
+
+<header class="topbar">
+  <div class="brand">Setup, Farm &amp; Health<span>items 14–16, 18–28</span></div>
+  <nav class="inline">
+    <a class="btn btn-tonal" href="index.html">Overview</a>
+    <a class="btn btn-tonal" href="screens.html">Core</a>
+    <a class="btn btn-tonal" href="screens-auth.html">Auth</a>
+    <a class="btn btn-tonal" href="screens-farm.html">Farm</a>
+    <a class="btn btn-tonal" href="screens-insights.html">Insights</a>
+  </nav>
+  <div class="seg">
+    <button data-font-set="system" aria-pressed="true">System (SF on Apple)</button>
+    <button data-font-set="android" aria-pressed="false">Android (Roboto)</button>
+  </div>
+  <div class="seg">
+    <button data-size-set="standard" aria-pressed="true">390 × 844</button>
+    <button data-size-set="compact" aria-pressed="false">360 × 640</button>
+  </div>
+  <button class="btn btn-secondary" data-toggle-theme>
+    <i data-icon="moon" style="display:contents"></i><span data-theme-label>Light</span>
+  </button>
+</header>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Setup, Farm &amp; Health</h1>
+    <p>First-run setup, the Farm tab and its map, zone editing and observations, the timeline
+       editor, and the health flow including the camera mapping mode. Permissions are always
+       asked for with a primer first, at the moment of relevance.</p>
+  </div>
+  <nav class="scroll-index" id="screen-index"></nav>
+  <div id="screens"></div>
+</main>
+
+<script src="farmable.js?v=5"></script>
+<script src="screens-lib.js?v=5"></script>
+<script>
+function field(label, opts) {
+  opts = opts || {};
+  return '<label class="field' + (opts.state ? ' is-' + opts.state : '') + '">' +
+    '<span class="f-label">' + label + '</span><span class="f-input">' +
+      (opts.icon ? '<span class="f-ico">' + I(opts.icon) + '</span>' : '') +
+      '<span class="' + (opts.placeholder ? 'f-placeholder' : 'f-text') + '">' +
+        (opts.value || opts.placeholder || '') + '</span>' +
+      (opts.suffix ? '<span class="f-suffix">' + I(opts.suffix) + '</span>' : '') +
+    '</span>' +
+    (opts.help ? '<span class="f-help">' + opts.help + '</span>' : '') + '</label>';
+}
+function head(title, sub, back) {
+  return '<div style="padding:var(--sp-2) 0 var(--sp-5)">' +
+    (back === false ? '' : '<button class="btn-icon" aria-label="Back" style="margin-bottom:var(--sp-4)">' + I('arrowLeft') + '</button>') +
+    '<h1 style="margin:0 0 4px;font:var(--type-headline-m);letter-spacing:var(--tracking-tight)">' + title + '</h1>' +
+    (sub ? '<p class="muted" style="margin:0;font:var(--type-body-m)">' + sub + '</p>' : '') + '</div>';
+}
+function setRow(ico, t, s2, v, opts) {
+  opts = opts || {};
+  return '<button class="set-row' + (opts.danger ? ' danger' : '') + '">' +
+    '<span class="sr-ico">' + I(ico) + '</span>' +
+    '<span><span class="sr-t" style="display:block">' + t + '</span>' +
+      (s2 ? '<span class="sr-s" style="display:block">' + s2 + '</span>' : '') + '</span>' +
+    (opts.toggle !== undefined
+      ? '<span class="switch" role="switch" aria-checked="' + opts.toggle + '"></span>'
+      : '<span class="sr-v">' + (v ? v + ' ' : '') + I('chevronRight') + '</span>') +
+    '</button>';
+}
+
+/* ================================================== 14 · first farm setup */
+function screenFarmSetup() {
+  return '<div class="device-screen">' + '<div class="glow-top"></div>' + statusbar('') +
+    '<div class="screen-scroll" style="padding-bottom:var(--sp-7)"><div class="pad">' +
+      head("Let's set up your farm", 'Two things now. Everything else can wait.', false) +
+      field('Farm name', { value: 'Siyakhula Farm' }) +
+      '<div class="field"><span class="f-label">Farm photo (optional)</span>' +
+        '<button class="empty" style="padding:var(--sp-5);width:100%">' +
+          '<span class="e-ico">' + I('camera') + '</span>' +
+          '<span style="display:block;font:var(--type-label-m)">Take a photo</span>' +
+          '<span style="display:block;font:var(--type-label-s);color:var(--on-surface-variant);margin-top:4px">or choose one from your phone</span>' +
+        '</button></div>' +
+      '<div class="stack" style="margin-top:var(--sp-5)">' +
+        '<button class="btn btn-primary btn-block">' + I('map') + 'Map my farm now</button>' +
+        '<button class="btn btn-tonal btn-block">I&rsquo;ll do this later</button>' +
+      '</div>' +
+      '<div class="card" style="padding:var(--sp-3) var(--sp-4);margin-top:var(--sp-5);display:flex;gap:var(--sp-3)">' +
+        '<span class="muted">' + I('info') + '</span>' +
+        '<div class="muted" style="font:var(--type-body-s)">Mapping works by walking your boundary. You do not need a title deed or an internet connection.</div>' +
+      '</div>' +
+    '</div></div></div>';
+}
+
+/* ================================================= 15 · farm mapping setup */
+function screenFarmMapping() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div style="position:relative;flex:1;overflow:hidden">' +
+      '<div class="map-full"><div data-scene="mapSetup" style="display:contents"></div></div>' +
+      '<div class="map-toolbar">' +
+        '<button class="btn-icon on-scrim" aria-label="Back">' + I('arrowLeft') + '</button>' +
+        '<span class="badge badge-scrim">' + I('crosshair') + 'GPS: good</span>' +
+        '<span style="flex:1"></span>' +
+        '<span class="badge badge-offline">' + I('cloudOff') + 'Offline map</span>' +
+      '</div>' +
+      '<div class="map-sheet">' +
+        '<div style="font:var(--type-title-m);margin-bottom:4px">Walk your boundary</div>' +
+        '<p class="muted" style="margin:0 0 var(--sp-3);font:var(--type-body-s)">Walk the edge of your land. Tap a corner each time you turn.</p>' +
+        '<div class="inline" style="margin-bottom:var(--sp-3)">' +
+          '<span class="chip chip-ok">' + I('pin') + '4 corners marked</span>' +
+          '<span class="chip">' + I('ruler') + '2.4 ha so far</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr auto;gap:var(--sp-2)">' +
+          '<button class="btn btn-primary">' + I('pin') + 'Mark corner</button>' +
+          '<button class="btn btn-tonal" aria-label="Undo last corner">' + I('undo') + '</button>' +
+        '</div>' +
+        '<button class="btn btn-secondary btn-block" style="margin-top:var(--sp-2)">' + I('check') + 'Finish boundary</button>' +
+      '</div>' +
+    '</div></div>';
+}
+
+/* =================================================== 16 · first zone setup */
+function screenZoneSetup() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll" style="padding-bottom:var(--sp-7)"><div class="pad">' +
+      head('Add your first section', 'A section is one piece of land you use for one thing.') +
+      field('Section name', { value: 'Cabbage Field' }) +
+      '<div class="field"><span class="f-label">What is this section used for?</span>' +
+        '<div class="chip-row">' +
+          '<span class="chip chip-ok">' + I('leaf') + 'Vegetables</span>' +
+          '<span class="chip">' + I('sprout') + 'Maize</span>' +
+          '<span class="chip">' + I('droplet') + 'Fruit trees</span>' +
+          '<span class="chip">' + I('users') + 'Livestock</span>' +
+          '<span class="chip">' + I('circleDash') + 'Not used yet</span>' +
+        '</div></div>' +
+      field('Current crop', { value: 'Cabbage · Star 3306', suffix: 'chevronDown' }) +
+      '<div class="field"><span class="f-label">Photo (optional)</span>' +
+        '<div class="zone-card" style="max-width:190px">' +
+          '<div class="zc-media" style="aspect-ratio:1/1"><div data-scene="cabbage" style="display:contents"></div></div>' +
+        '</div></div>' +
+      '<div class="stack" style="margin-top:var(--sp-6)">' +
+        '<button class="btn btn-primary btn-block">' + I('check') + 'Add section</button>' +
+        '<button class="btn btn-tonal btn-block">Skip for now</button>' +
+      '</div>' +
+    '</div></div></div>';
+}
+
+/* ================================================= 18 · full farm page */
+function screenFarm(mode) {
+  const sections = mode === 'sections';
+  let h = '<div class="device-screen">' + statusbar(sync('offline', 'cloudOff', 'Offline')) +
+    '<div class="screen-scroll"><div class="pad">' +
+    '<div class="greet" style="padding-bottom:var(--sp-3)"><div>' +
+      '<h1 style="font:var(--type-headline-m)">Siyakhula Farm</h1>' +
+      '<div class="g-date">2.4 ha · 4 sections · KwaMashu</div></div>' +
+      '<button class="btn-icon" aria-label="Farm settings">' + I('sliders') + '</button></div>' +
+    '<div class="seg-full" style="margin-bottom:var(--sp-4)">' +
+      '<button aria-selected="' + (!sections) + '">' + I('map') + 'Map</button>' +
+      '<button aria-selected="' + sections + '">' + I('layers') + 'Sections</button>' +
+    '</div>';
+
+  if (!sections) {
+    h += '<div class="map-card" style="height:300px"><div data-scene="mapTall" style="display:contents"></div>' +
+      '<span class="badge badge-offline map-chip">' + I('cloudOff') + 'Offline map</span></div>' +
+      '<div class="card" style="padding:var(--sp-4);margin-top:var(--sp-3)">' +
+        '<div class="inline" style="justify-content:space-between">' +
+          '<div><div style="font:var(--type-title-s)">Tomato Section</div>' +
+          '<div class="muted" style="font:var(--type-label-s);margin-top:2px">0.5 ha · tapped on map</div></div>' +
+          badge('attention', 'alert', 'Needs attention') + '</div>' +
+        '<button class="btn btn-secondary btn-block" style="margin-top:var(--sp-3)">Open section</button>' +
+      '</div>' +
+      '<div class="inline" style="margin-top:var(--sp-3)">' +
+        '<button class="btn btn-tonal">' + I('crosshair') + 'Map farm</button>' +
+        '<button class="btn btn-tonal">' + I('edit') + 'Edit boundaries</button></div>';
+  } else {
+    h += '<div class="stack">' + ZONES.map(function (z) {
+      return '<button class="card" style="padding:var(--sp-2);display:grid;grid-template-columns:84px 1fr auto;gap:var(--sp-3);align-items:center;text-align:left;width:100%">' +
+        '<span style="border-radius:var(--r-md);overflow:hidden;height:74px;display:block">' +
+          '<span data-scene="' + z.scene + '" style="display:contents"></span></span>' +
+        '<span><span style="display:block;font:var(--type-title-s)">' + z.name + '</span>' +
+          '<span style="display:block;font:var(--type-label-s);color:var(--on-surface-variant);margin-top:3px">' +
+            z.crop + ' · ' + z.area + '</span>' +
+          '<span style="display:block;margin-top:6px">' +
+            (z.st === 'attention' ? badge('attention', 'alert', 'Needs attention')
+             : z.st === 'idle' ? badge('neutral', 'circleDash', 'Not planted')
+             : badge('on-track', 'checkCircle', 'On track')) + '</span></span>' +
+        '<span class="muted" style="padding-right:var(--sp-2)">' + I('chevronRight') + '</span>' +
+        '</button>';
+    }).join('') + '</div>' +
+    '<button class="btn btn-primary btn-block" style="margin-top:var(--sp-4)">' + I('plus') + 'Add section</button>';
+  }
+  h += '</div></div>' + navbar('farm') + aiDock('idle') + '</div>';
+  return h;
+}
+
+/* ================================================== 19 · full farm map */
+function screenFarmMap() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div style="position:relative;flex:1;overflow:hidden">' +
+      '<div class="map-full"><div data-scene="mapFull" style="display:contents"></div></div>' +
+      '<div class="map-toolbar">' +
+        '<button class="btn-icon on-scrim" aria-label="Back">' + I('arrowLeft') + '</button>' +
+        '<span style="flex:1"></span>' +
+        '<button class="btn-icon on-scrim" aria-label="Map layers">' + I('layers') + '</button>' +
+        '<button class="btn-icon on-scrim" aria-label="Find my location">' + I('crosshair') + '</button>' +
+      '</div>' +
+      '<div style="position:absolute;left:var(--gutter);bottom:110px;display:flex;gap:var(--sp-2);flex-wrap:wrap">' +
+        '<span class="badge badge-offline">' + I('cloudOff') + 'Offline map</span>' +
+        '<span class="badge badge-scrim">' + I('ruler') + '2.4 ha</span></div>' +
+    '</div>' + navbar('farm') + aiDock('idle') + '</div>';
+}
+
+/* ==================================================== 21 · zone edit */
+function screenZoneEdit() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll" style="padding-bottom:140px"><div class="pad">' +
+      head('Edit section', 'Cabbage Field') +
+      field('Section name', { value: 'Cabbage Field' }) +
+      field('Description', { value: 'The flat section below the water tank.' }) +
+      field('Crop', { value: 'Cabbage · Star 3306', suffix: 'chevronDown' }) +
+      field('Planting date', { icon: 'calendar', value: '8 August 2026' }) +
+      field('Area', { value: '0.6', suffix: 'ruler', help: 'Measured by walking the boundary on 8 August.' }) +
+      '<div class="field"><span class="f-label">Water source</span>' +
+        '<div class="chip-row">' +
+          '<span class="chip chip-ok">' + I('droplet') + 'Tank + hose</span>' +
+          '<span class="chip">' + I('cloud') + 'Rain only</span>' +
+          '<span class="chip">' + I('crosshair') + 'Borehole</span>' +
+        '</div></div>' +
+      '<button class="set-row danger" style="margin-top:var(--sp-4)">' +
+        '<span class="sr-ico">' + I('trash') + '</span>' +
+        '<span><span class="sr-t" style="display:block">Delete this section</span>' +
+        '<span class="sr-s" style="display:block">Its observations and history go too</span></span>' +
+        '<span class="sr-v">' + I('chevronRight') + '</span></button>' +
+    '</div></div>' +
+    '<div class="action-bar">' +
+      '<button class="btn btn-primary btn-block">' + I('save') + 'Save changes</button></div>' +
+    '</div>';
+}
+
+/* ============================================= 22 · observation detail */
+function screenObsDetail() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll" style="padding-top:0">' +
+      '<div class="zone-hero" style="height:34%"><div data-scene="cabbageWide"></div>' +
+        '<div class="zh-scrim"></div><div class="zh-bottom-scrim"></div>' +
+        '<div class="zh-top"><button class="btn-icon on-scrim" aria-label="Back">' + I('arrowLeft') + '</button>' +
+          '<span style="flex:1"></span>' +
+          '<button class="btn-icon on-scrim" aria-label="More options">' + I('more') + '</button></div>' +
+        '<div class="zh-title"><h1 style="font:var(--type-headline-s)">Leaf yellowing</h1>' +
+          '<div style="font:var(--type-label-m);color:var(--on-scrim-variant);margin-top:2px">Cabbage Field · Today, 09:42</div></div>' +
+      '</div>' +
+      '<div class="pad" style="padding-top:var(--sp-4)">' +
+        '<div class="inline" style="margin-bottom:var(--sp-4)">' +
+          chip('', 'mic', 'By voice') + chip('warn', 'scan', 'CV: 81%') +
+          '<span class="sync sync-pending">' + I('upload') + 'Waiting to sync</span></div>' +
+        '<div class="card" style="padding:var(--sp-4)">' +
+          '<div class="pf-k" style="font:var(--type-label-s);text-transform:uppercase;letter-spacing:var(--tracking-wide);color:var(--on-surface-variant);margin-bottom:4px">Observation</div>' +
+          '<p style="margin:0 0 var(--sp-4);font:var(--type-body-m)">Yellowing leaves observed on the southern side.</p>' +
+          '<div class="pf-k" style="font:var(--type-label-s);text-transform:uppercase;letter-spacing:var(--tracking-wide);color:var(--on-surface-variant);margin-bottom:4px">Action recorded</div>' +
+          '<p style="margin:0;font:var(--type-body-m)">Watered this morning.</p>' +
+        '</div>' +
+        sectionHeader('What the scan found') +
+        '<div class="card" style="padding:var(--sp-4)">' +
+          '<div class="metric-row" style="border:0">' +
+            metric('scan', 'Possible issue', 'Nitrogen', 'deficiency', '') +
+            metric('target', 'Confidence', '81%', 'moderate', '') +
+          '</div>' +
+          '<p class="muted" style="margin:var(--sp-3) 0 0;font:var(--type-body-s)">Yellowing appears across older leaves first, which usually points to nitrogen rather than disease. Keep watching for a week.</p>' +
+        '</div>' +
+        sectionHeader('Photos') +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2)">' +
+          '<div style="border-radius:var(--r-md);overflow:hidden;height:110px"><div data-scene="thumbCabbage" style="display:contents"></div></div>' +
+          '<div style="border-radius:var(--r-md);overflow:hidden;height:110px"><div data-scene="cropCabbage" style="display:contents"></div></div>' +
+        '</div>' +
+        '<div class="inline" style="margin-top:var(--sp-5)">' +
+          '<button class="btn btn-secondary">' + I('edit') + 'Edit</button>' +
+          '<button class="btn btn-tonal">' + I('check') + 'Add follow-up</button></div>' +
+        '<div style="height:var(--sp-6)"></div>' +
+      '</div>' +
+    '</div>' + navbar('farm') + aiDock('idle') + '</div>';
+}
+
+/* ================================================= 23 · add observation */
+function screenAddObs() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll" style="padding-bottom:140px"><div class="pad">' +
+      head('Record what you see', 'Cabbage Field') +
+      '<div class="field"><span class="f-label">What did you notice?</span>' +
+        '<div class="qa-grid">' +
+          '<button class="qa-tile"><span class="qa-ico">' + I('leaf') + '</span><span>Leaf problem</span></button>' +
+          '<button class="qa-tile"><span class="qa-ico">' + I('alert') + '</span><span>Pests</span></button>' +
+          '<button class="qa-tile"><span class="qa-ico">' + I('droplet') + '</span><span>Water</span></button>' +
+          '<button class="qa-tile"><span class="qa-ico">' + I('sprout') + '</span><span>Growth</span></button>' +
+          '<button class="qa-tile"><span class="qa-ico">' + I('checkCircle') + '</span><span>All fine</span></button>' +
+          '<button class="qa-tile"><span class="qa-ico">' + I('more') + '</span><span>Something else</span></button>' +
+        '</div></div>' +
+      '<div class="field"><span class="f-label">Add a photo or say it out loud</span>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2)">' +
+          '<button class="btn btn-secondary">' + I('camera') + 'Photo</button>' +
+          '<button class="btn btn-secondary">' + I('mic') + 'Speak</button></div></div>' +
+      field('Note (optional)', { placeholder: 'Type only if you want to' }) +
+      '<div class="card" style="padding:var(--sp-3) var(--sp-4);display:flex;gap:var(--sp-3)">' +
+        '<span class="muted">' + I('cloudOff') + '</span>' +
+        '<div class="muted" style="font:var(--type-body-s)">You are offline. This will save on your phone and send itself later.</div></div>' +
+    '</div></div>' +
+    '<div class="action-bar"><button class="btn btn-primary btn-block">' + I('check') + 'Save observation</button></div>' +
+    '</div>';
+}
+
+/* ================================================== 24 · timeline editor */
+function screenTimelineEdit() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      head('Timeline', 'Cabbage Field · tap a step to change it') +
+      '<div class="card" style="padding:var(--sp-5)">' + timeline() + '</div>' +
+      '<button class="btn btn-secondary btn-block" style="margin-top:var(--sp-4)">' + I('plus') + 'Add a step</button>' +
+      '<div style="height:var(--sp-7)"></div>' +
+    '</div></div>' +
+    '<div class="backdrop" style="opacity:1;pointer-events:auto"></div>' +
+    '<div class="menu-sheet">' +
+      '<div class="handle" style="width:40px;height:4px;border-radius:2px;background:var(--outline-variant);margin:var(--sp-2) auto"></div>' +
+      '<div class="ms-title">Fertiliser application</div>' +
+      '<div class="muted" style="font:var(--type-label-s);margin-bottom:var(--sp-3)">This week · by Friday 26 Sep · about R680</div>' +
+      '<button class="menu-item">' + I('check') + 'Mark complete</button>' +
+      '<button class="menu-item">' + I('calendar') + 'Reschedule</button>' +
+      '<button class="menu-item">' + I('edit') + 'Edit details</button>' +
+      '<button class="menu-item danger">' + I('trash') + 'Delete step</button>' +
+    '</div></div>';
+}
+
+/* ============================================== 25 · farm health overview */
+function screenHealth() {
+  return '<div class="device-screen">' + '<div class="glow-top"></div>' + statusbar(sync('offline', 'cloudOff', 'Offline')) +
+    '<div class="screen-scroll"><div class="pad">' +
+      '<div class="greet"><div><h1 style="font:var(--type-headline-m)">Farm health</h1>' +
+        '<div class="g-date">Updated 2 hours ago</div></div></div>' +
+      '<div class="card health-card">' +
+        '<div class="health-top">' +
+          '<div class="gauge"><svg viewBox="0 0 100 100" width="86" height="86">' +
+            '<circle cx="50" cy="50" r="40" stroke="var(--surface-container-high)" stroke-width="10" fill="none"/>' +
+            '<circle cx="50" cy="50" r="40" stroke="var(--status-on-track)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="45.2"/>' +
+          '</svg><div class="g-num"><b>82</b><i>/ 100</i></div></div>' +
+          '<div><div style="font:var(--type-title-m);margin-bottom:6px">On track</div>' +
+            '<div class="muted" style="font:var(--type-body-s)">1 of 4 sections needs a look this week.</div></div>' +
+        '</div></div>' +
+      sectionHeader('Section by section') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        healthRow('Cabbage Field', 'Good', 'on-track', 'Scanned 3 days ago') +
+        healthRow('Tomato Section', 'Needs attention', 'attention', 'Leaf curl seen 18 Sep') +
+        healthRow('Spinach Beds', 'Good', 'on-track', 'Scanned 6 days ago') +
+        healthRow('North Plot', 'Not planted', 'neutral', 'Nothing growing yet') +
+      '</div>' +
+      sectionHeader('Needs a look', '', 'All alerts') +
+      '<div class="card" style="padding:0 var(--sp-4)">' +
+        '<div class="alert-row"><span class="ar-ico" style="background:var(--status-needs-attention-container);color:var(--on-status-needs-attention-container)">' + I('leaf') + '</span>' +
+          '<div><div class="ar-t">Leaf curl on tomatoes</div>' +
+          '<div class="ar-s">Seen on the north row. Could be heat or aphids — a scan will tell you which.</div>' +
+          '<div class="inline" style="margin-top:var(--sp-3)"><button class="btn btn-secondary" style="min-height:40px">' + I('camera') + 'Scan now</button></div></div></div>' +
+      '</div>' +
+      sectionHeader('Recent scans') +
+      '<div class="card" style="padding:0 var(--sp-4)">' + observations() + '</div>' +
+      '<div style="height:var(--sp-6)"></div>' +
+    '</div></div>' + navbar('insights') + aiDock('idle') + '</div>';
+}
+function healthRow(name, label, tone, sub) {
+  const b = tone === 'on-track' ? badge('on-track', 'checkCircle', label)
+          : tone === 'attention' ? badge('attention', 'alert', label)
+          : badge('neutral', 'circleDash', label);
+  return '<button class="set-row"><span class="sr-ico">' + I('sprout') + '</span>' +
+    '<span><span class="sr-t" style="display:block">' + name + '</span>' +
+    '<span class="sr-s" style="display:block">' + sub + '</span></span>' +
+    '<span>' + b + '</span></button>';
+}
+
+/* ==================================================== 27 · health result */
+function screenHealthResult() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll" style="padding-top:0;padding-bottom:150px">' +
+      '<div class="zone-hero" style="height:30%"><div data-scene="cabbageWide"></div>' +
+        '<div class="zh-scrim"></div><div class="zh-bottom-scrim"></div>' +
+        '<div class="zh-top"><button class="btn-icon on-scrim" aria-label="Back">' + I('arrowLeft') + '</button></div>' +
+        '<div class="zh-title"><div class="inline">' + badge('scrim', 'scan', 'Scanned just now') + '</div></div></div>' +
+      '<div class="pad" style="padding-top:var(--sp-4)">' +
+        '<h1 style="margin:0 0 var(--sp-2);font:var(--type-headline-s);letter-spacing:var(--tracking-tight)">Possible nitrogen deficiency</h1>' +
+        '<p class="muted" style="margin:0 0 var(--sp-4);font:var(--type-body-m)">This is not a diagnosis. It is what the scan noticed, so you can decide.</p>' +
+        '<div class="metric-row">' +
+          metric('target', 'Confidence', '81%', 'moderate', '') +
+          metric('alert', 'Severity', 'Moderate', 'not urgent today', '') +
+        '</div>' +
+        '<div class="card" style="padding:var(--sp-4);margin-top:var(--sp-3)">' +
+          '<p style="margin:0;font:var(--type-body-m)">Yellowing appears across the older leaves first, which usually points to nitrogen rather than disease. Record this observation and watch it for a week.</p></div>' +
+        sectionHeader('What you could do') +
+        '<div class="card" style="padding:0 var(--sp-4)">' +
+          '<div class="alert-row"><span class="ar-ico" style="background:var(--primary-container);color:var(--on-primary-container)">' + I('flask') + '</span>' +
+            '<div><div class="ar-t">Top-dress with LAN 28</div>' +
+            '<div class="ar-s">2 bags for this section. About R680 at the co-op in KwaMashu.</div>' +
+            '<div class="ar-time">Best after the next rain</div></div></div>' +
+          '<div class="alert-row"><span class="ar-ico" style="background:var(--surface-container-high);color:var(--on-surface-variant)">' + I('clock') + '</span>' +
+            '<div><div class="ar-t">Or wait and watch</div>' +
+            '<div class="ar-s">If only a few leaves are affected, another scan in 7 days will tell you if it is spreading.</div></div></div>' +
+        '</div>' +
+        '<div style="height:var(--sp-6)"></div>' +
+      '</div></div>' +
+    '<div class="action-bar">' +
+      '<button class="btn btn-primary btn-block">' + I('check') + 'Save as observation</button>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2)">' +
+        '<button class="btn btn-secondary">' + I('camera') + 'Scan again</button>' +
+        '<button class="btn btn-tonal">Discard</button></div></div>' +
+    '</div>';
+}
+
+/* =============================================== 28 · camera farm mapping */
+function screenCameraMapping() {
+  return '<div class="device-screen camera-screen">' +
+    '<div class="cam-feed"><div data-scene="camera" style="display:contents"></div></div>' +
+    '<div class="statusbar" style="color:#fff;position:relative;z-index:21"><span>09:42</span><span class="sb-right"></span></div>' +
+    '<div class="cam-top"><button class="btn-icon on-scrim" aria-label="Back">' + I('arrowLeft') + '</button>' +
+      '<span class="cam-title" style="white-space:nowrap">Map section</span>' +
+      '<span class="badge badge-scrim">' + I('crosshair') + 'GPS good</span></div>' +
+    /* corner markers */
+    '<div style="position:absolute;inset:0;z-index:15">' +
+      cornerMark(18, 42) + cornerMark(72, 36) + cornerMark(80, 70) +
+      '<svg style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">' +
+        '<polyline points="70,354 281,303 312,590" fill="none" stroke="#A8F0C0" stroke-width="3" stroke-dasharray="7 6"/>' +
+      '</svg>' +
+    '</div>' +
+    '<div class="cam-bottom">' +
+      '<div class="cam-hint" style="margin-bottom:var(--sp-8)">Mark the corners of this section. Walk to each one and tap.</div>' +
+      '<button class="btn-icon on-scrim" aria-label="Undo last corner">' + I('undo') + '</button>' +
+      '<div style="width:64px"></div>' +
+      '<button class="btn-icon on-scrim" aria-label="Finish and preview">' + I('check') + '</button>' +
+    '</div>' +
+    '<div class="ai-dock" data-ai="idle" style="bottom:22px">' +
+      '<button class="ai-btn" aria-label="Farm assistant. Hold to speak, or tap to start and stop.">' +
+      '<span class="ring"></span><span class="ring"></span><span class="ring"></span>' + I('sprout') + '</button></div>' +
+    '</div>';
+}
+function cornerMark(xPct, yPct) {
+  return '<div style="position:absolute;left:' + xPct + '%;top:' + yPct + '%;transform:translate(-50%,-50%)">' +
+    '<div style="width:26px;height:26px;border-radius:50%;border:3px solid #A8F0C0;background:rgba(10,11,8,.45)"></div></div>';
+}
+
+/* ================================================================ render */
+renderScreens([
+  { id: 'farm-setup', title: '14 · First farm setup',
+    note: 'Two fields and a choice. The reassurance about title deeds is there because informal ' +
+          'tenure is the norm for this user (report §1.2) and "map my farm" sounds legal.',
+    render: screenFarmSetup },
+  { id: 'farm-mapping', title: '15 · Farm mapping setup',
+    note: 'Walk-the-boundary GPS trace. Area accumulates live so the farmer can see it working. ' +
+          'Undo is a peer of Mark corner, because walking a boundary is error-prone.',
+    render: screenFarmMapping },
+  { id: 'zone-setup', title: '16 · First zone setup', render: screenZoneSetup },
+  { id: 'farm-map-mode', title: '18a · Farm tab — Map mode',
+    note: 'Tapping a zone raises a small preview card rather than navigating away.',
+    render: function () { return screenFarm('map'); } },
+  { id: 'farm-sections', title: '18b · Farm tab — Sections mode',
+    render: function () { return screenFarm('sections'); } },
+  { id: 'farm-map-full', title: '19 · Full farm map', render: screenFarmMap },
+  { id: 'zone-edit', title: '21 · Zone edit',
+    note: 'Delete is present but outline-only and last, under an explicit consequence line.',
+    render: screenZoneEdit },
+  { id: 'obs-detail', title: '22 · Observation detail', render: screenObsDetail },
+  { id: 'add-obs', title: '23 · Add observation',
+    note: 'Icon-first: the farmer picks what they saw before any typing is offered, and the ' +
+          'note field is explicitly optional. Camera and voice sit above the keyboard path.',
+    render: screenAddObs },
+  { id: 'timeline-edit', title: '24 · Timeline editor',
+    note: 'Tapping a step opens this sheet. Same component the AI writes into — there is no ' +
+          'separate "AI timeline".',
+    render: screenTimelineEdit },
+  { id: 'health', title: '25 · Farm health overview', render: screenHealth },
+  { id: 'health-result', title: '27 · Health result',
+    note: 'Never opens with a frightening diagnosis. Observation, confidence, severity, then ' +
+          'options — including the option to do nothing and look again in a week.',
+    render: screenHealthResult },
+  { id: 'camera-mapping', title: '28 · Camera farm mapping', render: screenCameraMapping },
+]);
+</script>
+</body>
+</html>

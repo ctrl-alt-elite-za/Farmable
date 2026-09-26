@@ -21,6 +21,8 @@ export default tseslint.config(
       'packages/api-client/**',
       // The mobile app is Flutter; nothing under it is linted by ESLint.
       'apps/mobile/**',
+      // Design reference pages: browser scripts, not project source.
+      'docs/design/**',
     ],
   },
   {

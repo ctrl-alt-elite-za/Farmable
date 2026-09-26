@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmable — Launch &amp; Auth</title>
+<link rel="stylesheet" href="tokens.css?v=5">
+<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app-forms.css?v=5">
+<link rel="stylesheet" href="screens.css?v=5">
+</head>
+<body data-theme="light" data-size="standard">
+
+<header class="topbar">
+  <div class="brand">Launch &amp; Auth<span>items 1–13 of the guide inventory</span></div>
+  <nav class="inline">
+    <a class="btn btn-tonal" href="index.html">Overview</a>
+    <a class="btn btn-tonal" href="screens.html">Core</a>
+    <a class="btn btn-tonal" href="screens-auth.html">Auth</a>
+    <a class="btn btn-tonal" href="screens-farm.html">Farm</a>
+    <a class="btn btn-tonal" href="screens-insights.html">Insights</a>
+  </nav>
+  <div class="seg">
+    <button data-font-set="system" aria-pressed="true">System (SF on Apple)</button>
+    <button data-font-set="android" aria-pressed="false">Android (Roboto)</button>
+  </div>
+  <div class="seg">
+    <button data-size-set="standard" aria-pressed="true">390 × 844</button>
+    <button data-size-set="compact" aria-pressed="false">360 × 640</button>
+  </div>
+  <button class="btn btn-secondary" data-toggle-theme>
+    <i data-icon="moon" style="display:contents"></i><span data-theme-label>Light</span>
+  </button>
+</header>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Launch &amp; Auth</h1>
+    <p>Native launch screen through to reset password — items 1–13 of the guide's inventory.
+       Password rules follow §8: long passphrases, no character-class theatre. OTP is one
+       verification flow with two steps, never two fields side by side.</p>
+  </div>
+  <nav class="scroll-index" id="screen-index"></nav>
+  <div id="screens"></div>
+</main>
+
+<script src="farmable.js?v=5"></script>
+<script src="screens-lib.js?v=5"></script>
+<script>
+/* ======================================================= 1 · launch screen */
+/* Rebuilt from the kit's own parts (the photo extracted from App kit.svg, plus
+   the supplied lockup) so it FILLS any aspect ratio. The flat 9:16 artwork
+   could only letterbox or crop the wordmark on a 19.5:9 phone.
+   A native splash is a fixed asset: it does not theme-switch. */
+function screenLaunch() {
+  return '<div class="device-screen launch">' +
+    '<div class="launch-photo">' +
+      '<img src="assets/brand/launch-photo.jpeg" alt="">' +
+      '<img class="launch-lockup" src="assets/brand/lockup-dark.svg" alt="Almanac">' +
+    '</div>' +
+    '<div class="launch-panel">' +
+      '<h1>Farm Smarter<br><span class="off">Offline</span>' +
+        '<span class="arrow">&#8599;</span></h1>' +
+      '<p class="launch-legal">Every function runs with zero connectivity.</p>' +
+    '</div></div>';
+}
+
+/* ==================================================== 2 · animated brand intro */
+function screenIntro() {
+  return '<div class="device-screen" style="background:#012120">' +
+    '<div class="intro-art">' +
+      '<img class="intro-motion" src="assets/brand/launch-photo.jpeg" alt="Almanac">' +
+      '<img class="intro-static" src="assets/brand/launch-photo.jpeg" alt="Almanac">' +
+    '</div></div>';
+}
+
+/* ================================================================ onboarding */
+function screenOnboard(n) {
+  const cards = [
+    { art: 'artZones',   h: 'See your farm clearly',
+      p: 'Keep every section, crop, task and observation connected to the land it belongs to.' },
+    { art: 'artScan',    h: 'Check crop health with your camera',
+      p: 'Scan crops, record observations and keep a history for every section of your farm.' },
+    { art: 'artCompare', h: 'Make better planting decisions',
+      p: 'Compare crops using your land, costs, available water and expected market conditions.' },
+    { art: 'artVoice',   h: 'Run your farm by voice',
+      p: 'Record notes, update farm records and ask questions without stopping your work.' },
+  ];
+  const c = cards[n - 1];
+  const last = n === 4;
+  return '<div class="device-screen">' +
+    '<div class="glow-top"></div>' + statusbar('') +
+    '<div class="onboard">' +
+      '<div class="pad" style="display:flex;justify-content:flex-start">' +
+        '<button class="btn btn-tonal" style="min-height:40px;padding:0 var(--sp-4)">Skip</button>' +
+      '</div>' +
+      '<div class="onboard-art"><div data-scene="' + c.art + '" style="display:contents"></div></div>' +
+      '<div class="onboard-copy"><h2>' + c.h + '</h2><p>' + c.p + '</p></div>' +
+      '<div class="onboard-foot">' +
+        '<div class="progress"><i style="width:' + (n * 25) + '%"></i></div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span class="muted" style="font:var(--type-label-s)">' + n + ' of 4</span>' +
+          '<button class="btn btn-primary">' + (last ? 'Get started' : 'Next') +
+          I(last ? 'check' : 'arrowRight') + '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div></div>';
+}
+
+/* ============================================================== auth choice */
+function screenAuthChoice() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll" style="padding-bottom:var(--sp-5);display:flex;flex-direction:column">' +
+      '<div class="pad" style="padding-top:var(--sp-6);display:grid;place-items:center">' +
+        '<img class="brand-lockup on-light" style="height:42px" src="assets/brand/lockup-light.svg" alt="Almanac">' +'<img class="brand-lockup on-dark" style="height:42px" src="assets/brand/lockup-dark.svg" alt="Almanac">' +
+      '</div>' +
+      '<div class="pad" style="flex:1;padding-top:var(--sp-5)">' +
+        '<div class="hero-card" style="aspect-ratio:4/3">' +
+          '<div data-scene="farm" style="display:contents"></div><div class="hc-scrim"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pad" style="padding-top:var(--sp-6)">' +
+        '<h1 style="margin:0 0 var(--sp-2);font:var(--type-headline-l);letter-spacing:var(--tracking-tight)">Your farm.<br>Better understood.</h1>' +
+        '<p class="muted" style="margin:0 0 var(--sp-5);font:var(--type-body-m)">Works without airtime or data. Your records stay on your phone.</p>' +
+        '<div class="stack">' +
+          '<button class="btn btn-primary btn-block">Sign up</button>' +
+          '<button class="btn btn-secondary btn-block">Log in</button>' +
+        '</div>' +
+        '<p class="legal" style="margin-top:var(--sp-4)">By continuing you agree to the <a href="#">Terms of Use</a> and acknowledge the <a href="#">Privacy Notice</a>.</p>' +
+      '</div>' +
+    '</div></div>';
+}
+
+/* ================================================================== sign up */
+function field(label, opts) {
+  opts = opts || {};
+  return '<label class="field' + (opts.state ? ' is-' + opts.state : '') + '">' +
+    '<span class="f-label">' + label + '</span>' +
+    '<span class="f-input">' +
+      (opts.country ? '<span class="f-country">' + opts.country + I('chevronDown') + '</span>' : '') +
+      (opts.icon ? '<span class="f-ico">' + I(opts.icon) + '</span>' : '') +
+      '<span class="' + (opts.placeholder ? 'f-placeholder' : 'f-text') + '">' +
+        (opts.value || opts.placeholder || '') + '</span>' +
+      (opts.suffix ? '<span class="f-suffix">' + I(opts.suffix) + '</span>' : '') +
+    '</span>' +
+    (opts.help ? '<span class="f-help' + (opts.helpTone ? ' ' + opts.helpTone : '') + '">' +
+      (opts.helpIcon ? I(opts.helpIcon) : '') + opts.help + '</span>' : '') +
+    '</label>';
+}
+
+function screenSignUp() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll" style="padding-bottom:var(--sp-7)"><div class="pad">' +
+      authHead('Create your account', 'You only need these six things.') +
+      field('Name', { value: 'Sipho' }) +
+      field('Surname', { value: 'Dlamini' }) +
+      field('Phone number', { country: '🇿🇦 +27', value: '82 555 0123' }) +
+      field('Email', { icon: 'mail', value: 'sipho.dlamini@gmail.com' }) +
+      field('Password', { icon: 'lock', value: '••••••••••••••••', suffix: 'eye', state: 'focus' }) +
+      '<div style="margin:-8px 0 var(--sp-4)">' +
+        '<div class="strength strong"><i></i><i></i><i></i></div>' +
+        '<div class="strength-label" style="color:var(--status-on-track)">Strong — a passphrase you can remember is best</div>' +
+      '</div>' +
+      field('Confirm password', { icon: 'lock', value: '••••••••••••••••', suffix: 'eye',
+        state: 'valid', help: 'Passwords match', helpTone: 'ok', helpIcon: 'checkCircle' }) +
+      '<button class="btn btn-primary btn-block" style="margin-top:var(--sp-2)">Create account</button>' +
+      '<p class="legal" style="margin-top:var(--sp-4)">Already have an account? <a href="#">Log in</a></p>' +
+    '</div></div></div>';
+}
+function authHead(title, sub) {
+  return '<div style="padding:var(--sp-2) 0 var(--sp-5)">' +
+    '<button class="btn-icon" aria-label="Back" style="margin-bottom:var(--sp-4)">' + I('arrowLeft') + '</button>' +
+    '<h1 style="margin:0 0 4px;font:var(--type-headline-m);letter-spacing:var(--tracking-tight)">' + title + '</h1>' +
+    (sub ? '<p class="muted" style="margin:0;font:var(--type-body-m)">' + sub + '</p>' : '') +
+    '</div>';
+}
+
+/* ====================================================================== OTP */
+function screenOtp(which) {
+  const phone = which === 'phone';
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      authHead('Verify your account', '') +
+      '<div class="stepper">' +
+        '<span class="st ' + (phone ? 'now' : 'done') + '"><b>' + (phone ? '1' : '✓') + '</b>Phone</span>' +
+        '<span class="st-line"></span>' +
+        '<span class="st ' + (phone ? '' : 'now') + '"><b>2</b>Email</span>' +
+      '</div>' +
+      '<p style="font:var(--type-body-m);margin:0 0 var(--sp-5)">' +
+        (phone ? 'Enter the 6-digit code sent to <b>+27 •• ••• •123</b>'
+               : 'Enter the code sent to <b>s••••@gmail.com</b>') + '</p>' +
+      '<div class="otp">' +
+        (phone
+          ? '<i class="filled">4</i><i class="filled">9</i><i class="filled">2</i><i class="caret"></i><i></i><i></i>'
+          : '<i class="filled">7</i><i class="filled">1</i><i class="caret"></i><i></i><i></i><i></i>') +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--sp-5)">' +
+        '<span class="muted" style="font:var(--type-label-m)">Resend code in 00:42</span>' +
+        '<button class="btn btn-tonal" style="min-height:40px" disabled>Resend</button>' +
+      '</div>' +
+      '<div class="card" style="padding:var(--sp-3) var(--sp-4);margin-top:var(--sp-6);display:flex;gap:var(--sp-3)">' +
+        '<span class="muted">' + I('info') + '</span>' +
+        '<div class="muted" style="font:var(--type-body-s)">' +
+        (phone ? 'The code expires in 10 minutes and can be used once.'
+               : 'Didn\'t get it? Check spam, or verify by phone only for now.') + '</div>' +
+      '</div>' +
+      (phone ? '' : '<button class="btn btn-primary btn-block" style="margin-top:var(--sp-5)">Verify and continue</button>') +
+    '</div></div></div>';
+}
+
+/* ==================================================================== login */
+function screenLogin() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      authHead('Welcome back', 'Log in with whichever you remember.') +
+      '<div class="seg-full" style="margin-bottom:var(--sp-5)">' +
+        '<button aria-selected="true">' + I('mail') + 'Email</button>' +
+        '<button aria-selected="false">' + I('phone') + 'Phone</button>' +
+      '</div>' +
+      field('Email', { icon: 'mail', value: 'sipho.dlamini@gmail.com' }) +
+      field('Password', { icon: 'lock', value: '••••••••••••', suffix: 'eye' }) +
+      '<div style="display:flex;justify-content:flex-end;margin:-8px 0 var(--sp-5)">' +
+        '<a href="#" style="font:var(--type-label-m);color:var(--primary)">Forgot password?</a></div>' +
+      '<button class="btn btn-primary btn-block">Log in</button>' +
+      '<div class="inline" style="justify-content:center;margin-top:var(--sp-5)">' +
+        '<span class="sync sync-offline">' + I('cloudOff') + 'Offline — you can still open your farm</span></div>' +
+    '</div></div></div>';
+}
+
+/* ========================================================= forgot / reset */
+function screenForgot() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      authHead('Reset your password', 'We will send you a code.') +
+      '<div class="seg-full" style="margin-bottom:var(--sp-5)">' +
+        '<button aria-selected="false">' + I('mail') + 'Email</button>' +
+        '<button aria-selected="true">' + I('phone') + 'Phone</button>' +
+      '</div>' +
+      field('Phone number', { country: '🇿🇦 +27', value: '82 555 0123' }) +
+      '<button class="btn btn-primary btn-block" style="margin-top:var(--sp-2)">Send code</button>' +
+      '<p class="legal" style="margin-top:var(--sp-4)">Remembered it? <a href="#">Back to log in</a></p>' +
+    '</div></div></div>';
+}
+
+function screenReset() {
+  return '<div class="device-screen">' + statusbar('') +
+    '<div class="screen-scroll"><div class="pad">' +
+      authHead('Choose a new password', 'Long is stronger than complicated.') +
+      field('New password', { icon: 'lock', value: '••••••••••', suffix: 'eye', state: 'focus' }) +
+      '<div style="margin:-8px 0 var(--sp-4)">' +
+        '<div class="strength fair"><i></i><i></i><i></i></div>' +
+        '<div class="strength-label" style="color:var(--status-needs-attention)">Fair — try three words you will remember</div>' +
+      '</div>' +
+      field('Confirm new password', { icon: 'lock', value: '••••••••', suffix: 'eye',
+        state: 'error', help: 'Passwords do not match', helpTone: 'err', helpIcon: 'alert' }) +
+      '<button class="btn btn-primary btn-block" style="margin-top:var(--sp-2)" disabled>Save new password</button>' +
+    '</div></div></div>';
+}
+
+/* ================================================================== render */
+renderScreens([
+  { id: 'launch', title: '1 · Native launch screen',
+    note: 'FILLS the screen at any aspect. Rebuilt from the kit\'s own parts — the photograph ' +
+          'extracted from App kit.svg, plus the supplied lockup — because a single flat 9:16 ' +
+          'artwork can only letterbox or crop the wordmark on a 19.5:9 phone. Photo covers, mark ' +
+          'and headline sit in safe insets. Does not theme-switch: a native splash is a fixed ' +
+          'asset, so both frames are identical on purpose. NOTE: headline set as live text and ' +
+          'spelled \'Offline\' — the supplied artwork reads \'Offiline\'.',
+    render: screenLaunch },
+  { id: 'intro', title: '2 · Animated brand intro',
+    note: 'The supplied GIF, filling the screen. Its composition is centred, so cover crops ' +
+          'evenly off the sides and loses nothing. Under prefers-reduced-motion it falls back to ' +
+          'a still rather than a frozen first frame. NOTE: the supplied file is 1080×1920, 192 ' +
+          'frames, 44.6 MB — it needs re-exporting before it can ship; see the report.',
+    render: screenIntro },
+  { id: 'onboard1', title: '3 · Onboarding 1 — your farm in one place',
+    note: 'Skip is top LEFT. Progress is a single bar that animates with the swipe, not dots.',
+    render: function () { return screenOnboard(1); } },
+  { id: 'onboard2', title: '4 · Onboarding 2 — see problems early', render: function () { return screenOnboard(2); } },
+  { id: 'onboard3', title: '5 · Onboarding 3 — know what to plant', render: function () { return screenOnboard(3); } },
+  { id: 'onboard4', title: '6 · Onboarding 4 — speak instead of writing',
+    note: 'Final card swaps Next for Get started.', render: function () { return screenOnboard(4); } },
+  { id: 'authchoice', title: '7 · Auth choice',
+    note: 'Not another onboarding page. Logo, one warm image, a headline, two buttons and the ' +
+          'legal line. The offline promise is made here because it is the objection that stops signup.',
+    render: screenAuthChoice },
+  { id: 'signup', title: '8 · Sign up',
+    note: 'Six fields in the order the guide specifies. South Africa preselected. Strength is ' +
+          'Weak / Fair / Strong with advice, never "must contain one uppercase and one symbol".',
+    render: screenSignUp },
+  { id: 'otp-phone', title: '9 · Phone OTP',
+    note: 'Six visual slots backed by one logical input, so paste and SMS autofill work. ' +
+          'Two steps in one flow — never two OTP fields side by side.',
+    render: function () { return screenOtp('phone'); } },
+  { id: 'otp-email', title: '10 · Email OTP', render: function () { return screenOtp('email'); } },
+  { id: 'login', title: '11 · Login',
+    note: 'Segmented Email / Phone so the farmer never has to supply both.', render: screenLogin },
+  { id: 'forgot', title: '12 · Forgot password', render: screenForgot },
+  { id: 'reset', title: '13 · Reset password',
+    note: 'Showing the mismatch state: inline, specific, and the button stays disabled.',
+    render: screenReset },
+]);
+</script>
+</body>
+</html>
