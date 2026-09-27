@@ -7,6 +7,7 @@ Revises: 0017
 # Seed copy is kept close to the official source wording for reviewability.
 # ruff: noqa: E501
 
+import json
 from collections.abc import Sequence
 from datetime import date
 from uuid import UUID
@@ -23,6 +24,19 @@ depends_on: str | Sequence[str] | None = None
 
 JSON_DOCUMENT = sa.JSON().with_variant(postgresql.JSONB(), "postgresql")
 VERIFIED_ON = date(2026, 9, 27)
+
+
+SEED_LISTS = {"farmer_types", "business_statuses", "crops", "strategy_steps"}
+
+
+class SeedJson(sa.types.TypeDecorator):
+    """JSONB that can also render as a SQL literal, for offline (--sql) migration runs."""
+
+    impl = postgresql.JSONB
+    cache_ok = True
+
+    def process_literal_param(self, value, dialect):
+        return "'" + json.dumps(value).replace("'", "''") + "'::jsonb"
 
 
 def upgrade() -> None:
@@ -172,7 +186,15 @@ def upgrade() -> None:
             "verified_on": VERIFIED_ON,
         },
     ]
-    op.bulk_insert(opportunities_table, opportunities)
+    # Same table, but the list columns use SeedJson so offline SQL can render them.
+    seed_table = sa.table(
+        "advisory_opportunities",
+        *(
+            sa.column(column.name, SeedJson() if column.name in SEED_LISTS else column.type)
+            for column in opportunities_table.columns
+        ),
+    )
+    op.bulk_insert(seed_table, opportunities)
 
 
 def downgrade() -> None:
