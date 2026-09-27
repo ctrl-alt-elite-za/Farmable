@@ -1347,6 +1347,16 @@ def test_set_secret_sends_the_value_on_stdin_never_as_an_argument(tmp_path: Path
     assert "infobip.com" not in result.stdout + result.stderr
 
 
+def test_set_secret_joins_a_gmail_app_password_as_google_shows_it(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    _set_secret_gcloud(tmp_path, log, secrets="", versions="none")
+    result = _set_secret(tmp_path, "smtp-password", value="abcd efgh ijkl mnop\r\n")
+    assert result.returncode == 0, result.stderr
+    assert "secrets versions add farmable-staging-smtp-password" in log.read_text(encoding="utf-8")
+    assert (tmp_path / "stdin").read_text(encoding="utf-8") == "abcdefghijklmnop"
+    assert "abcd" not in result.stdout + result.stderr
+
+
 @pytest.mark.parametrize(
     ("name", "value"),
     [
@@ -1354,6 +1364,8 @@ def test_set_secret_sends_the_value_on_stdin_never_as_an_argument(tmp_path: Path
         ("twilio-account-sid", "not-a-sid-super-secret"),
         ("infobip-api-key", ""),
         ("infobip-api-key", " padded-super-secret"),
+        ("smtp-user", "not-an-address"),
+        ("email-from-address", "Almanac <codes@example.com>"),
     ],
 )
 def test_set_secret_refuses_a_value_that_would_stop_the_backend(

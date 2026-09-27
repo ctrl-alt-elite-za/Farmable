@@ -148,6 +148,9 @@ optional_secrets=(
   "INFOBIP_BASE_URL:infobip-base-url"
   "INFOBIP_SMS_SENDER:infobip-sms-sender"
   "INFOBIP_EMAIL_SENDER:infobip-email-sender"
+  "SMTP_USER:smtp-user"
+  "SMTP_PASSWORD:smtp-password"
+  "EMAIL_FROM_ADDRESS:email-from-address"
 )
 
 # One listing call decides existence for every candidate. Probing each secret
