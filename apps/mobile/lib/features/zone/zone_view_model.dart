@@ -98,6 +98,32 @@ final zoneViewProvider = Provider.family<AsyncValue<ZoneView?>, String>((
   );
 });
 
+/// What deleting this section takes with it, said in the farmer's terms.
+///
+/// Counted from what the screen is showing, so the dialog never names a crop
+/// or a number the farmer cannot see behind it. Anything there is none of is
+/// left out rather than read aloud as "0 observations".
+String sectionDeleteConsequence(ZoneView view) {
+  String count(int n, String one, String many) => '$n ${n == 1 ? one : many}';
+
+  final crop = view.section.planting?.crop;
+  final goes = [
+    if (crop != null) 'its ${crop.toLowerCase()} planting',
+    if (view.timeline.isNotEmpty) count(view.timeline.length, 'job', 'jobs'),
+    if (view.observations.isNotEmpty)
+      count(view.observations.length, 'observation', 'observations'),
+  ];
+  final list = switch (goes.length) {
+    0 => null,
+    1 => goes.single,
+    _ => '${goes.sublist(0, goes.length - 1).join(', ')} and ${goes.last}',
+  };
+  final what = list == null
+      ? 'It will be taken off your farm.'
+      : 'It will be taken off your farm, with $list.';
+  return '$what This can’t be undone.';
+}
+
 /// Assigns each task its timeline state.
 ///
 /// "Current" is the single soonest open task that is not already late — the
@@ -250,6 +276,23 @@ class ZoneActions {
       _records.setTaskStatus(id, TaskStatus.pending);
 
   Future<void> removeTask(String id) => _records.deleteTask(id);
+
+  /// Throws `RevisionConflict` if the section changed after the edit opened.
+  Future<void> editSection({
+    required String mutationId,
+    required int expectedRevision,
+    required String name,
+    required String areaM2,
+  }) => _records.updateSection(
+    mutationId: mutationId,
+    sectionId: sectionId,
+    expectedRevision: expectedRevision,
+    name: name,
+    areaM2: areaM2,
+  );
+
+  Future<void> removeSection({required String mutationId}) =>
+      _records.deleteSection(sectionId, mutationId: mutationId);
 }
 
 final zoneActionsProvider = Provider.family<ZoneActions, String>(

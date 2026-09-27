@@ -1,4 +1,4 @@
-/* global API_URL, EMAIL, PASSWORD, SECTION, http, json, output */
+/* global API_URL, EMAIL, PASSWORD, SECTION, AREA_M2, http, json, output */
 // Maestro runs this with its own JavaScript runtime: `http`, `json` and
 // `output` are Maestro globals, and the upper-case names are the flow env.
 // Runs on the host, against this stack's API (API_URL): logs in as the
@@ -25,7 +25,11 @@ var farms = json(http.get(API_URL + '/farms', { headers: auth }).body).items;
 if (farms.length !== 1) throw new Error('expected one farm, found ' + farms.length);
 var created = http.post(API_URL + '/farms/' + farms[0].id + '/sections', {
   headers: auth,
-  body: JSON.stringify({ id: uuid(), mutation_id: uuid(), name: SECTION }),
+  body: JSON.stringify(
+    typeof AREA_M2 === 'undefined'
+      ? { id: uuid(), mutation_id: uuid(), name: SECTION }
+      : { id: uuid(), mutation_id: uuid(), name: SECTION, area_m2: AREA_M2 },
+  ),
 });
 if (created.status !== 200) throw new Error('section returned ' + created.status);
 output.farmId = farms[0].id;

@@ -126,6 +126,9 @@ jobs:
           # The backend holds the provider keys so the mobile app never ships them.
           # Override to `disabled` to deploy without calling any provider.
           INTEGRATIONS_MODE: ${{ vars.INTEGRATIONS_MODE || 'live' }}
+          # Voice. Off unless both are set; the model is a plain name, not a secret.
+          GEMINI_LIVE_ENABLED: ${{ vars.GEMINI_LIVE_ENABLED || 'false' }}
+          GEMINI_LIVE_MODEL: ${{ vars.GEMINI_LIVE_MODEL }}
           # Optional. Empty falls back to the prefix implied by GCP_DATABASE_SECRET,
           # which Terraform guarantees is "${name_prefix}-database-url".
           SECRET_PREFIX: ${{ vars.GCP_SECRET_PREFIX }}

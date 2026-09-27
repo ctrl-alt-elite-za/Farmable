@@ -9,6 +9,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show BooleanExpressionOperators, OrderingTerm;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -23,11 +24,13 @@ import '../data/auth/session_storage.dart';
 import '../data/device_wipe.dart';
 import '../data/health_service.dart';
 import '../data/local/database.dart' show AlmanacDatabase;
+
 import '../data/local/local_farm_repository.dart';
 import '../data/local/offline_photos.dart';
 import '../data/local/seed.dart';
 import '../data/local/sync_outbox.dart';
 import '../data/outlook/outlook_repository.dart';
+import '../data/planning/planning_repository.dart';
 import '../data/sync/account_workspace.dart';
 import '../data/sync/sync_controller.dart';
 import '../domain/account/account_service.dart';
@@ -100,6 +103,11 @@ final timelineProvider = StreamProvider.family<List<FarmTask>, String>(
   (ref, sectionId) => ref.watch(farmRecordsProvider).watchTimeline(sectionId),
 );
 
+/// The farm's income and expense records, from disk.
+final financialsProvider = StreamProvider<List<FinancialRecord>>(
+  (ref) => ref.watch(farmRecordsProvider).watchFinancials(),
+);
+
 final pendingChangesProvider = StreamProvider<int>(
   (ref) => ref.watch(farmRecordsProvider).watchPendingChanges(),
 );
@@ -162,6 +170,14 @@ final accountStorageProvider = Provider<SessionStorage>(
       : SecureSessionStorage(key: 'almanac.account'),
 );
 
+/// Which server conversation the assistant last used, per account and farm —
+/// identifiers only, never chat text. Its own key, and wiped with the rest.
+final assistantStorageProvider = Provider<SessionStorage>(
+  (ref) => ref.watch(demoAuthProvider)
+      ? FileSessionStorage(fileName: 'almanac_demo_assistant.json')
+      : SecureSessionStorage(key: 'almanac.assistant'),
+);
+
 final exportStoreProvider = Provider<ExportStore>((ref) => FileExportStore());
 
 /// Every folder the app writes the farmer's files into. Deletion empties each.
@@ -171,6 +187,7 @@ final deviceDirectoriesProvider = Provider<List<Future<Directory> Function()>>(
         Directory('${(await getApplicationDocumentsDirectory()).path}/photos'),
     exportsDirectory,
     outlookCacheDirectory,
+    planningCacheDirectory,
   ],
 );
 
@@ -182,6 +199,7 @@ final deviceWipeProvider = Provider<DeviceWipe>((ref) {
     stores: [
       ref.watch(sessionStorageProvider),
       ref.watch(accountStorageProvider),
+      ref.watch(assistantStorageProvider),
     ],
     directories: ref.watch(deviceDirectoriesProvider),
     reseed: () => DemoSeed(db, now: now).ensureSeeded(),
@@ -285,6 +303,34 @@ final offlineObservationsProvider = FutureProvider<OfflineObservations>((
     SyncOutbox(db, ownerId: scope.ownerId, farmId: scope.farmId),
     store,
     now: ref.watch(clockProvider),
+  );
+});
+
+// ------------------------------------------------------------- planning
+
+/// The account planner's repository (#22). Null for builds that authenticate against the local demo: there is no
+/// server to ask, and the screen falls back to the bundled planner.
+final planningRepositoryProvider = Provider<PlanningRepository?>((ref) {
+  final auth = ref.watch(authServiceProvider);
+  if (auth is! ApiAuthService) return null;
+  final db = ref.watch(databaseProvider);
+  return PlanningRepository(
+    ApiPlanningClient(auth),
+    FilePlanningStore(),
+    now: ref.watch(clockProvider),
+    // The section's plan as synced from the server (#98), so a confirmation
+    // after sign-out or on a new phone revises it rather than adding one.
+    knownPlan: (sectionId) async {
+      final row =
+          await (db.select(db.savedPlans)
+                ..where(
+                  (t) => t.sectionId.equals(sectionId) & t.deletedAt.isNull(),
+                )
+                ..orderBy([(t) => OrderingTerm.desc(t.version)])
+                ..limit(1))
+              .getSingleOrNull();
+      return row == null ? null : (planId: row.id, version: row.version);
+    },
   );
 });
 

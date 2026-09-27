@@ -67,6 +67,11 @@ For a photo:
    temporary failures support explicit recovery below. An expired, never-processed reservation can be reopened by an
    exact replay, retaining its logical identity but receiving a different attempt key.
 
+In the CI mobile stack only, `compose.ci-photos.yaml` replaces GCS with a disposable
+MinIO (`ci_photos.py`): same routes and contract, forms signed for `10.0.2.2` so the
+emulator can post to them. `PHOTO_TEST_STORAGE_URL` is refused unless
+`ENVIRONMENT=ci` or `development`.
+
 Every upload response includes `attempt_id` and `retryable`. After a `failed`
 response with `retryable: true`, an explicit retry action sends
 `{"failed_attempt_id": "<that attempt_id>"}` to the retry endpoint. It returns

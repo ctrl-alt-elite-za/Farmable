@@ -22,21 +22,29 @@ abstract interface class FarmRepository {
 
   /// Persist one [mutationId] per user action and reuse it for every retry,
   /// including retries after app restart. A new action needs a new ID.
+  ///
+  /// [boundary] is a walked GeoJSON `Polygon`; with one, [areaM2] is the
+  /// area measured from it and the section's area source becomes
+  /// `boundary_estimate`.
   Future<Section> createSection({
     required String mutationId,
     required String name,
     required String areaM2,
+    Map<String, Object?>? boundary,
   });
 
   /// [expectedRevision] is required: the backend rejects a blind write. A
   /// mismatch throws [RevisionConflict] so the UI can reload rather than
   /// silently clobbering an edit.
+  ///
+  /// A null [boundary] leaves the stored one as it is.
   Future<Section> updateSection({
     required String mutationId,
     required String sectionId,
     required int expectedRevision,
     required String name,
     required String areaM2,
+    Map<String, Object?>? boundary,
   });
 
   Future<void> deleteSection(String sectionId, {required String mutationId});

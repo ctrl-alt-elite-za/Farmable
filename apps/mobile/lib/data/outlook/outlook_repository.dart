@@ -46,6 +46,9 @@ class ApiOutlookClient implements OutlookClient {
 abstract interface class OutlookStore {
   Future<SavedOutlook?> read(String accountId, OutlookQuery query);
   Future<void> write(String accountId, OutlookQuery query, SavedOutlook saved);
+
+  /// Drops every outlook saved for [accountId]. Called on sign-out.
+  Future<void> forget(String accountId);
 }
 
 /// Where saved outlooks live: `outlook/` under the app's support directory.
@@ -88,6 +91,22 @@ class FileOutlookStore implements OutlookStore {
     } on Object {
       // A partial or unreadable cache is an empty cache, never a price.
       return null;
+    }
+  }
+
+  @override
+  Future<void> forget(String accountId) async {
+    final directory = await _directory();
+    if (!await directory.exists()) return;
+    await for (final entry in directory.list()) {
+      if (entry is! File) continue;
+      try {
+        final decoded = jsonDecode(await entry.readAsString());
+        if (decoded is Map && decoded['account_id'] != accountId) continue;
+      } on Object {
+        // Unreadable is no use to anyone; it goes too.
+      }
+      await entry.delete();
     }
   }
 

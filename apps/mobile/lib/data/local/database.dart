@@ -46,7 +46,7 @@ class AlmanacDatabase extends _$AlmanacDatabase {
   AlmanacDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -93,6 +93,11 @@ class AlmanacDatabase extends _$AlmanacDatabase {
         // another phone are pulled without re-reading the farm's history.
         if (from < 5) {
           await m.createTable(syncCursors);
+        }
+        // v5 created the table without it, so only a v5 database needs the
+        // column added; an older one got it from createTable above.
+        if (from == 5) {
+          await m.addColumn(syncCursors, syncCursors.pulledAt);
         }
         // Drift normally updates this after onUpgrade. Include it in our
         // transaction so a process kill cannot leave new columns tagged old.

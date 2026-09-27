@@ -8,12 +8,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../app/providers.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.g.dart';
 import '../../../core/ui/buttons.dart';
 import '../../../core/utils/dates.dart';
+import '../../../core/utils/ids.dart';
 import '../../../domain/farm_records.dart';
+import '../../../domain/farm_repository.dart' show RevisionConflict;
 import '../observation_draft.dart';
+import '../section_draft.dart';
 import '../../../data/device/photo_capture.dart';
 import '../zone_view_model.dart';
 
@@ -166,6 +170,40 @@ Future<void> showObservationEditor({
   builder: (context) =>
       _ObservationForm(actions: actions, observation: observation),
 );
+
+/// Rename or re-measure the section.
+Future<void> showSectionEditor({
+  required BuildContext context,
+  required ZoneActions actions,
+  required FarmSection section,
+}) => showModalBottomSheet<void>(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: Colors.transparent,
+  builder: (context) => _SectionForm(actions: actions, section: section),
+);
+
+/// Asks, naming what goes with the section, and deletes it on a yes.
+///
+/// Returns whether it was deleted, so the screen can take the farmer home
+/// instead of leaving them on a section that is no longer there.
+Future<bool> deleteSectionWithConfirmation({
+  required BuildContext context,
+  required ZoneActions actions,
+  required ZoneView view,
+}) async {
+  // Minted before asking, so the one "yes" is one delete however it is
+  // retried.
+  final mutationId = newUuid();
+  final confirmed = await confirmDelete(
+    context: context,
+    what: view.section.name,
+    explanation: sectionDeleteConsequence(view),
+  );
+  if (!confirmed) return false;
+  await actions.removeSection(mutationId: mutationId);
+  return true;
+}
 
 /// Names what is being deleted and what that means.
 ///
@@ -403,12 +441,20 @@ class _Field extends StatelessWidget {
   final String? hint;
   final TextEditingController controller;
   final int maxLines;
+  final TextInputType? keyboardType;
+  final String? helper;
+  final String? error;
+  final Key? fieldKey;
 
   const _Field({
     required this.label,
     required this.controller,
     this.hint,
     this.maxLines = 1,
+    this.keyboardType,
+    this.helper,
+    this.error,
+    this.fieldKey,
   });
 
   @override
@@ -427,12 +473,16 @@ class _Field extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           TextField(
+            key: fieldKey,
             controller: controller,
             maxLines: maxLines,
+            keyboardType: keyboardType,
             textCapitalization: TextCapitalization.sentences,
             style: text.bodyLarge,
             decoration: InputDecoration(
               hintText: hint,
+              helperText: helper,
+              errorText: error,
               filled: true,
               fillColor: c.surfaceContainer,
               contentPadding: const EdgeInsets.symmetric(
@@ -814,6 +864,152 @@ class _TaskFormState extends State<_TaskForm> {
             final picked = await _pickDate(context, _due);
             if (picked != null) setState(() => _due = picked);
           },
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionForm extends ConsumerStatefulWidget {
+  final ZoneActions actions;
+  final FarmSection section;
+
+  const _SectionForm({required this.actions, required this.section});
+
+  @override
+  ConsumerState<_SectionForm> createState() => _SectionFormState();
+}
+
+class _SectionFormState extends ConsumerState<_SectionForm> {
+  /// Minted when the form opens, so a second tap on Save is the same change.
+  final _mutationId = newUuid();
+
+  /// The version the farmer was looking at when they started. Moves forward
+  /// only when they have been shown what changed underneath them.
+  late int _expectedRevision;
+
+  late final TextEditingController _name;
+  late final TextEditingController _area;
+  var _saving = false;
+  String? _conflict;
+
+  /// Validation speaks only after the farmer has touched a field, so the
+  /// form does not open already scolding them.
+  var _touchedName = false;
+  var _touchedArea = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = SectionDraft.from(widget.section);
+    _expectedRevision = widget.section.version;
+    _name = TextEditingController(text: draft.name)
+      ..addListener(() => setState(() => _touchedName = true));
+    _area = TextEditingController(text: draft.area)
+      ..addListener(() => setState(() => _touchedArea = true));
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _area.dispose();
+    super.dispose();
+  }
+
+  SectionDraft get _draft => SectionDraft(name: _name.text, area: _area.text);
+
+  Future<void> _save() async {
+    final draft = _draft;
+    if (_saving || !draft.isValid) return;
+    final navigator = Navigator.of(context);
+    setState(() => _saving = true);
+    try {
+      await widget.actions.editSection(
+        mutationId: _mutationId,
+        expectedRevision: _expectedRevision,
+        name: draft.resolvedName,
+        areaM2: draft.resolvedArea!,
+      );
+    } on RevisionConflict {
+      // Someone else's edit got there first. Say what it was, keep what the
+      // farmer typed, and let a second Save knowingly replace it.
+      final latest = ref
+          .read(sectionProvider(widget.section.id))
+          .value
+          ?.section;
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        if (latest == null) {
+          _conflict = 'This section was changed on another phone.';
+        } else {
+          _expectedRevision = latest.version;
+          final area = latest.areaM2?.asArea ?? 'no area';
+          _conflict =
+              'This section was changed on another phone while you were '
+              'editing. It is now “${latest.name}”, $area. Save again to '
+              'use your version instead.';
+        }
+      });
+      return;
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _conflict =
+            'Your changes could not be saved on this phone. They are still '
+            'here — try Save again.';
+      });
+      return;
+    }
+    navigator.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final draft = _draft;
+    final c = context.semantic;
+
+    return _FormSheet(
+      title: 'Change this section',
+      saveLabel: 'Save changes',
+      onSave: draft.isValid && !_saving ? _save : null,
+      children: [
+        if (_conflict case final message?) ...[
+          Container(
+            key: const Key('section-conflict'),
+            padding: const EdgeInsets.all(AlmanacDimens.sp3),
+            decoration: BoxDecoration(
+              color: c.surfaceContainer,
+              borderRadius: BorderRadius.circular(AlmanacDimens.rMd),
+              border: Border.all(color: c.outlineVariant),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(LucideIcons.info, size: 20, color: c.onSurface),
+                const SizedBox(width: AlmanacDimens.sp2),
+                Expanded(child: Text(message)),
+              ],
+            ),
+          ),
+          const SizedBox(height: AlmanacDimens.sp4),
+        ],
+        _Field(
+          fieldKey: const Key('section-name'),
+          label: 'Name',
+          hint: 'North Plot',
+          controller: _name,
+          error: _touchedName ? draft.nameProblem : null,
+        ),
+        _Field(
+          fieldKey: const Key('section-area'),
+          label: 'Area in square metres',
+          hint: '6000',
+          controller: _area,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          helper: draft.hectares,
+          error: _touchedArea ? draft.areaProblem : null,
         ),
       ],
     );

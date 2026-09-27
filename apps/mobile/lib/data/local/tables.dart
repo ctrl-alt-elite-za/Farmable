@@ -259,6 +259,10 @@ class SyncCursors extends Table {
   TextColumn get farmId => text()();
   IntColumn get cursor => integer()();
 
+  /// When a pull last read the feed to its end (v6). What Home's "Updated 3
+  /// hours ago" is measured from; null until the first complete pull.
+  DateTimeColumn get pulledAt => dateTime().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {ownerId, farmId};
 }

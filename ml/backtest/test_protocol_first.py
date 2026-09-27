@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from check_protocol_first import ProtocolGateError, check_amendment_two_merged
 
 CHECKER = Path(__file__).with_name("check_protocol_first.py")
 
@@ -187,3 +188,18 @@ def test_rejects_shallow_history(tmp_path: Path) -> None:
 
     assert result.returncode != 0
     assert "shallow" in result.stderr
+
+
+def test_amendment_two_requires_its_own_mainline_commit(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _add_protocol(repo)
+    _add_result(repo)
+    amendment = "### Amendment 2 — 25 September 2026: seven-default decision evaluation\n"
+    with pytest.raises(ProtocolGateError, match="not independently merged"):
+        check_amendment_two_merged(repo=repo, main_ref="main")
+    protocol = repo / "ml/backtest/PROTOCOL.md"
+    protocol.write_text("version 1\n" + amendment, encoding="utf-8")
+    with pytest.raises(ProtocolGateError, match="unmerged change"):
+        check_amendment_two_merged(repo=repo, main_ref="main")
+    merged = _commit(repo, "merge amendment 2 independently")
+    assert check_amendment_two_merged(repo=repo, main_ref="main") == merged

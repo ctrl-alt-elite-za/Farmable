@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmable — Components</title>
+<link rel="stylesheet" href="tokens.css?v=5">
+<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app-forms.css?v=5">
+<style>
+  .mini { width: 300px; }
+  .dual { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+  .dual > div { padding: var(--sp-4); border-radius: var(--r-lg); background: var(--background); border: 1px solid var(--outline-variant); }
+  .state-tag { font: var(--type-label-s); letter-spacing: var(--tracking-caps); text-transform: uppercase;
+               color: var(--on-surface-variant); margin-bottom: var(--sp-2); display: block; }
+</style>
+</head>
+<body data-theme="light">
+
+<header class="topbar">
+  <div class="brand">Farmable — Components<span>v1 · every state, real demo data</span></div>
+  <nav class="inline">
+    <a class="btn btn-tonal" href="index.html">Overview</a>
+    <a class="btn btn-tonal" href="foundations.html">Foundations</a>
+    <a class="btn btn-tonal" href="screens.html">Screens</a>
+  </nav>
+  <div class="seg">
+    <button data-font-set="system" aria-pressed="true">System (SF on Apple)</button>
+    <button data-font-set="android" aria-pressed="false">Android (Roboto)</button>
+  </div>
+  <button class="btn btn-secondary" data-toggle-theme>
+    <i data-icon="moon" style="display:contents"></i><span data-theme-label>Light</span>
+  </button>
+</header>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Components</h1>
+    <p>Section 60 of the guide, built with Sipho Dlamini's real farm data. Flip the theme in the
+       top bar — every component is defined only in tokens, so both themes come from one
+       definition. Each core action is icon + word; no icon here is load-bearing on its own.</p>
+  </div>
+
+  <!-- ===================================================== BUTTONS / CHIPS -->
+  <h2 class="section-rule">AppPrimaryButton · AppSecondaryButton</h2>
+  <p class="note">48px minimum height everywhere, pill radius, icon + label. Destructive uses the
+     red ramp and is outline-only, so a mis-tap is never the most prominent thing on screen.</p>
+  <div class="demo-grid">
+    <div class="demo-tile"><span class="state-tag">Default</span>
+      <div class="stack">
+        <button class="btn btn-primary btn-block"><i data-icon="check" style="display:contents"></i>Confirm observation</button>
+        <button class="btn btn-secondary btn-block"><i data-icon="edit" style="display:contents"></i>Edit</button>
+        <button class="btn btn-tonal btn-block"><i data-icon="scan" style="display:contents"></i>Scan crop</button>
+        <button class="btn btn-danger btn-block"><i data-icon="x" style="display:contents"></i>Delete section</button>
+      </div>
+    </div>
+    <div class="demo-tile"><span class="state-tag">Disabled · loading · icon-only</span>
+      <div class="stack">
+        <button class="btn btn-primary btn-block" disabled>Create account</button>
+        <button class="btn btn-primary btn-block"><i data-icon="refresh" class="spin" style="display:contents"></i>Saving…</button>
+        <div class="inline">
+          <button class="btn-icon" aria-label="Back"><i data-icon="arrowLeft" style="display:contents"></i></button>
+          <button class="btn-icon" aria-label="Scan crop"><i data-icon="camera" style="display:contents"></i></button>
+          <button class="btn-icon" aria-label="More options"><i data-icon="more" style="display:contents"></i></button>
+          <span class="sp-meta muted" style="font:var(--type-label-s)">icon-only controls always carry aria-label</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-rule">FarmStatusBadge · ConstraintChip</h2>
+  <p class="note">Status is icon + text + colour. ConstraintChip explains why a recommendation
+     does or does not fit — an over-budget crop is shown and explained, never silently hidden.</p>
+  <div class="demo-grid">
+    <div class="demo-tile"><span class="state-tag">FarmStatusBadge — 4 states</span>
+      <div class="inline">
+        <span class="badge badge-on-track"><i data-icon="checkCircle" style="display:contents"></i>On track</span>
+        <span class="badge badge-attention"><i data-icon="alert" style="display:contents"></i>Needs attention</span>
+        <span class="badge badge-action"><i data-icon="alert" style="display:contents"></i>Action required</span>
+        <span class="badge badge-neutral"><i data-icon="circleDash" style="display:contents"></i>Not planted</span>
+      </div>
+    </div>
+    <div class="demo-tile"><span class="state-tag">ConstraintChip — fit / caution / blocked</span>
+      <div class="chip-row">
+        <span class="chip chip-ok"><i data-icon="check" style="display:contents"></i>Within budget</span>
+        <span class="chip chip-ok"><i data-icon="flask" style="display:contents"></i>Soil fit</span>
+        <span class="chip chip-ok"><i data-icon="trendUp" style="display:contents"></i>Strong market</span>
+        <span class="chip chip-warn"><i data-icon="droplet" style="display:contents"></i>Water: medium</span>
+        <span class="chip chip-block"><i data-icon="wallet" style="display:contents"></i>R2,800 over budget</span>
+        <span class="chip"><i data-icon="clock" style="display:contents"></i>92 days</span>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-rule">OfflineBadge · SyncIndicator</h2>
+  <p class="note">Offline sits on the slate ramp and reads as a statement of fact. "Pending sync"
+     is never coloured as an error — for this user, three days offline is an ordinary week.</p>
+  <div class="demo-grid">
+    <div class="demo-tile"><span class="state-tag">SyncIndicator — 4 states</span>
+      <div class="stack">
+        <div class="inline"><span class="sync sync-synced"><i data-icon="checkCircle" style="display:contents"></i>Synced</span><span class="muted" style="font:var(--type-label-s)">all changes are on the server</span></div>
+        <div class="inline"><span class="sync sync-syncing"><i data-icon="refresh" class="spin" style="display:contents"></i>Syncing</span><span class="muted" style="font:var(--type-label-s)">background, never blocking</span></div>
+        <div class="inline"><span class="sync sync-pending"><i data-icon="upload" style="display:contents"></i>3 changes waiting</span><span class="muted" style="font:var(--type-label-s)">queued, will send on any connection</span></div>
+        <div class="inline"><span class="sync sync-offline"><i data-icon="cloudOff" style="display:contents"></i>Offline</span><span class="muted" style="font:var(--type-label-s)">farm data still fully usable</span></div>
+      </div>
+    </div>
+    <div class="demo-tile"><span class="state-tag">OfflineBadge in context</span>
+      <div class="stack">
+        <span class="badge badge-offline"><i data-icon="cloudOff" style="display:contents"></i>Offline map</span>
+        <span class="badge badge-offline"><i data-icon="scan" style="display:contents"></i>Offline vision active</span>
+        <span class="badge badge-offline"><i data-icon="mic" style="display:contents"></i>Voice saved on phone</span>
+        <div class="card" style="padding:var(--sp-4);margin-top:var(--sp-2)">
+          <div style="font:var(--type-title-s);margin-bottom:4px">You're offline</div>
+          <div class="muted" style="font:var(--type-body-s)">Your farm data is still available. Latest market prices will update when you're connected.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= HEADERS -->
+  <h2 class="section-rule">SectionHeader</h2>
+  <div class="demo-grid">
+    <div class="demo-tile mini" style="width:auto;max-width:390px">
+      <div class="section-header"><h2>Your farm</h2><a href="#">See all<i data-icon="chevronRight" style="display:contents"></i></a></div>
+      <div class="section-header"><div><h2>Farm health</h2><span class="sh-sub">Updated 2 hours ago</span></div></div>
+      <div class="section-header"><h2>Recent observations</h2><a href="#">History<i data-icon="chevronRight" style="display:contents"></i></a></div>
+    </div>
+  </div>
+
+  <!-- ============================================================ ZONECARD -->
+  <h2 class="section-rule">ZoneCard — 4 real zones, 4 statuses</h2>
+  <p class="note">Image in a mat, label chip centred and overlapping the card's bottom edge by half
+     its height, status as dot + word. Profit sits on the image under a scrim because it is the
+     number the farmer is actually scanning for.</p>
+  <div class="inline" style="gap:var(--sp-6);align-items:flex-start">
+    <div style="width:250px">
+      <div class="zone-card">
+        <div class="zc-media"><div data-scene="cabbage" style="display:contents"></div><div class="zc-scrim"></div>
+          <div class="zc-top"><span class="badge badge-scrim"><i data-icon="leaf" style="display:contents"></i>Cabbage</span></div>
+          <div class="zc-figures"><div class="zf-k">Expected profit</div><div class="zf-v">R17,400</div></div>
+        </div>
+        <div class="zc-label"><span class="dot dot-on-track"></span>Cabbage Field</div>
+      </div>
+      <div class="sp-meta muted" style="margin-top:34px;text-align:center;font:var(--type-label-s)">On track · 0.6 ha</div>
+    </div>
+    <div style="width:250px">
+      <div class="zone-card">
+        <div class="zc-media"><div data-scene="tomato" style="display:contents"></div><div class="zc-scrim"></div>
+          <div class="zc-top"><span class="badge badge-scrim"><i data-icon="leaf" style="display:contents"></i>Tomatoes</span>
+            <span class="badge badge-attention"><i data-icon="alert" style="display:contents"></i>Attention</span></div>
+          <div class="zc-figures"><div class="zf-k">Expected profit</div><div class="zf-v">R22,100</div></div>
+        </div>
+        <div class="zc-label"><span class="dot dot-attention"></span>Tomato Section</div>
+      </div>
+      <div class="sp-meta muted" style="margin-top:34px;text-align:center;font:var(--type-label-s)">Needs attention · 0.5 ha</div>
+    </div>
+    <div style="width:250px">
+      <div class="zone-card">
+        <div class="zc-media"><div data-scene="north" style="display:contents"></div><div class="zc-scrim"></div>
+          <div class="zc-top"><span class="badge badge-scrim"><i data-icon="circleDash" style="display:contents"></i>Empty</span></div>
+          <div class="zc-figures"><div class="zf-k">Available to plant</div><div class="zf-v">0.7 ha</div></div>
+        </div>
+        <div class="zc-label"><span class="dot dot-idle"></span>North Plot</div>
+      </div>
+      <div class="sp-meta muted" style="margin-top:34px;text-align:center;font:var(--type-label-s)">Not planted</div>
+    </div>
+    <div style="width:250px">
+      <div class="zone-card">
+        <div class="zc-media"><div data-scene="spinach" style="display:contents"></div><div class="zc-scrim"></div>
+          <div class="zc-top"><span class="badge badge-scrim"><i data-icon="leaf" style="display:contents"></i>Spinach</span>
+            <span class="badge badge-offline"><i data-icon="upload" style="display:contents"></i>2</span></div>
+          <div class="zc-figures"><div class="zf-k">Expected profit</div><div class="zf-v">R8,600</div></div>
+        </div>
+        <div class="zc-label"><span class="dot dot-on-track"></span>Spinach Beds</div>
+      </div>
+      <div class="sp-meta muted" style="margin-top:34px;text-align:center;font:var(--type-label-s)">On track · 2 changes waiting</div>
+    </div>
+  </div>
+
+  <!-- ======================================================== FARMHEROCARD -->
+  <h2 class="section-rule">FarmHeroCard</h2>
+  <p class="note">Text over farm photography always sits on a scrim: a three-stop gradient reaching
+     0.88 opacity at the base. White on that scrim computes to 14.2:1, which survives direct sun.</p>
+  <div class="inline" style="gap:var(--sp-5);align-items:flex-start">
+    <div style="width:350px">
+      <div class="hero-card">
+        <div data-scene="farm" style="display:contents"></div>
+        <div class="hc-scrim"></div>
+        <div class="hc-top"><span class="badge badge-scrim"><i data-icon="checkCircle" style="display:contents"></i>Health: Good</span>
+          <button class="btn-icon on-scrim" aria-label="Farm map"><i data-icon="map" style="display:contents"></i></button></div>
+        <div class="hc-body">
+          <h3>Siyakhula Farm</h3>
+          <div class="hc-loc">KwaMashu, KwaZulu-Natal</div>
+          <div class="hc-meta">
+            <span class="hm"><i data-icon="ruler" style="display:contents"></i>2.4 ha</span>
+            <span class="hm"><i data-icon="layers" style="display:contents"></i>4 sections</span>
+            <span class="hm"><i data-icon="coins" style="display:contents"></i>R48,100 projected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="demo-tile" style="max-width:320px">
+      <span class="state-tag">Scrim test</span>
+      <p class="note" style="margin:0">Same card, no scrim, for comparison. This is the failure mode
+         the scrim token exists to prevent — at midday on a 400-nit screen the name disappears
+         into the field.</p>
+      <div class="hero-card" style="margin-top:var(--sp-3)">
+        <div data-scene="farm" style="display:contents"></div>
+        <div class="hc-body"><h3 style="color:#fff">Siyakhula Farm</h3><div class="hc-loc" style="color:#fff">2.4 ha</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================================================== HEALTHSUMMARYCARD -->
+  <h2 class="section-rule">HealthSummaryCard</h2>
+  <div class="inline" style="gap:var(--sp-5);align-items:flex-start">
+    <div class="card health-card" style="width:350px">
+      <div class="health-top">
+        <div class="gauge">
+          <svg viewBox="0 0 100 100" width="86" height="86">
+            <circle cx="50" cy="50" r="40" stroke="var(--surface-container-high)" stroke-width="10" fill="none"/>
+            <circle cx="50" cy="50" r="40" stroke="var(--status-on-track)" stroke-width="10" fill="none"
+                    stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="45.2"/>
+          </svg>
+          <div class="g-num"><b>82</b><i>/ 100</i></div>
+        </div>
+        <div>
+          <div style="font:var(--type-title-m);margin-bottom:6px">Farm health</div>
+          <span class="badge badge-on-track"><i data-icon="checkCircle" style="display:contents"></i>On track</span>
+          <div class="muted" style="font:var(--type-body-s);margin-top:8px">1 section needs attention</div>
+        </div>
+      </div>
+      <div class="health-bars">
+        <div class="hbar"><span class="hb-name">Cabbage Field</span><span class="badge badge-on-track"><i data-icon="checkCircle" style="display:contents"></i>Good</span>
+          <div class="hb-track"><div class="hb-fill" style="width:88%;background:var(--status-on-track)"></div></div></div>
+        <div class="hbar"><span class="hb-name">Tomato Section</span><span class="badge badge-attention"><i data-icon="alert" style="display:contents"></i>Needs attention</span>
+          <div class="hb-track"><div class="hb-fill" style="width:54%;background:var(--status-needs-attention)"></div></div></div>
+        <div class="hbar"><span class="hb-name">Spinach Beds</span><span class="badge badge-on-track"><i data-icon="checkCircle" style="display:contents"></i>Good</span>
+          <div class="hb-track"><div class="hb-fill" style="width:91%;background:var(--status-on-track)"></div></div></div>
+      </div>
+      <button class="btn btn-secondary btn-block" style="margin-top:var(--sp-4)">
+        <i data-icon="gauge" style="display:contents"></i>Review health</button>
+    </div>
+    <div class="demo-tile" style="width:320px">
+      <span class="state-tag">FarmMetric row</span>
+      <div class="metric-row">
+        <div class="metric"><div class="m-label"><i data-icon="gauge" style="display:contents"></i>Current health</div>
+          <div class="m-value">Good</div><div class="m-sub">Scanned 3 days ago</div></div>
+        <div class="metric"><div class="m-label"><i data-icon="trendUp" style="display:contents"></i>Expected profit</div>
+          <div class="m-value profit">R17,400</div><div class="m-sub">at current prices</div></div>
+        <div class="metric"><div class="m-label"><i data-icon="wallet" style="display:contents"></i>Expected cost</div>
+          <div class="m-value">R10,600</div><div class="m-sub">R6,200 spent</div></div>
+        <div class="metric"><div class="m-label"><i data-icon="calendar" style="display:contents"></i>Harvest</div>
+          <div class="m-value">92 days</div><div class="m-sub">around 18 Dec</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================== QUICKACTIONTILE -->
+  <h2 class="section-rule">QuickActionTile</h2>
+  <p class="note">Icon plus a short verb phrase, never the icon alone, and never a term the farmer
+     has to decode. "Add expense", not "Create financial transaction".</p>
+  <div style="max-width:390px" class="demo-tile">
+    <div class="qa-grid">
+      <button class="qa-tile"><span class="qa-ico"><i data-icon="notebook" style="display:contents"></i></span><span>Add observation</span></button>
+      <button class="qa-tile"><span class="qa-ico"><i data-icon="receipt" style="display:contents"></i></span><span>Add expense</span></button>
+      <button class="qa-tile"><span class="qa-ico"><i data-icon="tag" style="display:contents"></i></span><span>Add sale</span></button>
+      <button class="qa-tile"><span class="qa-ico"><i data-icon="check" style="display:contents"></i></span><span>Add task</span></button>
+      <button class="qa-tile"><span class="qa-ico"><i data-icon="layers" style="display:contents"></i></span><span>Add section</span></button>
+      <button class="qa-tile"><span class="qa-ico"><i data-icon="camera" style="display:contents"></i></span><span>Scan crop</span></button>
+    </div>
+  </div>
+
+  <!-- ============================================================ TIMELINE -->
+  <h2 class="section-rule">Timeline · TimelineItem — completed / current / upcoming / overdue</h2>
+  <div class="inline" style="gap:var(--sp-5);align-items:flex-start">
+    <div class="card" style="width:390px;padding:var(--sp-5)">
+      <div class="timeline">
+        <div class="tl-item tl-completed">
+          <div class="tl-node"><i data-icon="check" style="display:contents"></i></div>
+          <div class="tl-head"><div><div class="tl-title">Soil preparation</div>
+            <div class="tl-when">Completed · 10 Sep</div></div>
+            <button class="tl-edit" aria-label="Edit soil preparation"><i data-icon="edit" style="display:contents"></i></button></div>
+          <div class="tl-cost"><i data-icon="wallet" style="display:contents"></i>R1,200 spent</div>
+        </div>
+        <div class="tl-item tl-current">
+          <div class="tl-node"><i data-icon="circle" style="display:contents"></i></div>
+          <div class="tl-head"><div><div class="tl-title">Fertiliser application</div>
+            <div class="tl-when">This week · by Fri 26 Sep</div></div>
+            <button class="tl-edit" aria-label="Edit fertiliser application"><i data-icon="edit" style="display:contents"></i></button></div>
+          <div class="tl-note">LAN 28 at 2 bags. Apply after the next rain so it washes in.</div>
+          <div class="tl-cost"><i data-icon="wallet" style="display:contents"></i>About R680</div>
+        </div>
+        <div class="tl-item tl-upcoming">
+          <div class="tl-node"></div>
+          <div class="tl-head"><div><div class="tl-title">Health check</div>
+            <div class="tl-when">In 7 days · 27 Sep</div></div>
+            <button class="tl-edit" aria-label="Edit health check"><i data-icon="edit" style="display:contents"></i></button></div>
+        </div>
+        <div class="tl-item tl-overdue">
+          <div class="tl-node"><i data-icon="alert" style="display:contents"></i></div>
+          <div class="tl-head"><div><div class="tl-title">Weed second row</div>
+            <div class="tl-when" style="color:var(--status-action-required)">Overdue · was due 16 Sep</div></div>
+            <button class="tl-edit" aria-label="Edit weeding task"><i data-icon="edit" style="display:contents"></i></button></div>
+        </div>
+        <div class="tl-item tl-upcoming" style="padding-bottom:0">
+          <div class="tl-node"></div>
+          <div class="tl-head"><div><div class="tl-title">Expected harvest</div>
+            <div class="tl-when">18 Dec · about 92 days</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="demo-tile" style="width:330px">
+      <span class="state-tag">ObservationTile</span>
+      <div class="obs">
+        <div class="o-thumb"><div data-scene="thumbCabbage" style="display:contents"></div></div>
+        <div><div class="o-head"><span class="o-type">Leaf yellowing</span><span class="o-date">Today, 09:42</span></div>
+          <div class="o-note">Yellowing leaves on the southern side. Watered this morning.</div>
+          <div class="o-tags"><span class="chip"><i data-icon="mic" style="display:contents"></i>By voice</span>
+            <span class="chip chip-warn"><i data-icon="scan" style="display:contents"></i>CV: 81%</span>
+            <span class="sync sync-pending"><i data-icon="upload" style="display:contents"></i>Waiting</span></div></div>
+      </div>
+      <div class="obs">
+        <div class="o-thumb"><div data-scene="thumbSpinach" style="display:contents"></div></div>
+        <div><div class="o-head"><span class="o-type">Routine check</span><span class="o-date">14 Sep</span></div>
+          <div class="o-note">Beds look strong after the rain. No pests seen.</div>
+          <div class="o-tags"><span class="sync sync-synced"><i data-icon="checkCircle" style="display:contents"></i>Synced</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================== RECOMMENDATIONCARD -->
+  <h2 class="section-rule">RecommendationCard — fits / over constraint</h2>
+  <div class="inline" style="gap:var(--sp-4);align-items:flex-start">
+    <div class="card rec-card card-mat" style="width:340px">
+      <div class="rec-media"><div data-scene="cropCabbage" style="display:contents"></div>
+        <span class="badge badge-on-track rm-badge"><i data-icon="checkCircle" style="display:contents"></i>Strong fit</span></div>
+      <div class="card-body" style="padding:var(--sp-4) var(--sp-3) var(--sp-3)">
+        <div class="rec-head"><h3>Cabbage</h3><span class="muted" style="font:var(--type-label-s)">Star 3306</span></div>
+        <div class="rec-figs">
+          <div><div class="rf-k">Expected profit</div><div class="rf-v" style="color:var(--status-on-track)">R17,400</div></div>
+          <div><div class="rf-k">Expected cost</div><div class="rf-v">R10,600</div></div>
+        </div>
+        <div class="chip-row">
+          <span class="chip chip-ok"><i data-icon="check" style="display:contents"></i>Within budget</span>
+          <span class="chip chip-ok"><i data-icon="flask" style="display:contents"></i>Soil fit</span>
+          <span class="chip chip-warn"><i data-icon="droplet" style="display:contents"></i>Water: medium</span>
+          <span class="chip"><i data-icon="clock" style="display:contents"></i>~90 days</span>
+        </div>
+        <button class="btn btn-secondary btn-block" style="margin-top:var(--sp-4)">View details</button>
+      </div>
+    </div>
+    <div class="card rec-card card-mat" style="width:340px">
+      <div class="rec-media"><div data-scene="cropTomato" style="display:contents"></div>
+        <span class="badge badge-attention rm-badge"><i data-icon="alert" style="display:contents"></i>Weak fit</span></div>
+      <div class="card-body" style="padding:var(--sp-4) var(--sp-3) var(--sp-3)">
+        <div class="rec-head"><h3>Tomatoes</h3><span class="muted" style="font:var(--type-label-s)">Roma VF</span></div>
+        <div class="rec-figs">
+          <div><div class="rf-k">Expected profit</div><div class="rf-v" style="color:var(--status-on-track)">R22,100</div></div>
+          <div><div class="rf-k">Expected cost</div><div class="rf-v">R14,800</div></div>
+        </div>
+        <div class="chip-row">
+          <span class="chip chip-block"><i data-icon="wallet" style="display:contents"></i>R2,800 over your R12,000</span>
+          <span class="chip chip-block"><i data-icon="droplet" style="display:contents"></i>Water: high</span>
+          <span class="chip"><i data-icon="clock" style="display:contents"></i>~100 days</span>
+        </div>
+        <button class="btn btn-secondary btn-block" style="margin-top:var(--sp-4)">View details</button>
+      </div>
+    </div>
+    <div class="demo-tile" style="width:300px">
+      <span class="state-tag">Why it is shown, not hidden</span>
+      <p class="note" style="margin:0">Tomatoes break both stated constraints and still appear, with
+         the breach named in rands. Hiding it would leave the farmer thinking the app has no
+         opinion about tomatoes; naming it teaches the constraint.</p>
+    </div>
+  </div>
+
+  <!-- ==================================================== PROPOSEDCHANGE -->
+  <h2 class="section-rule">ProposedChangeCard — the confirmation gate</h2>
+  <p class="note">Nothing the assistant produces is saved until the farmer taps Confirm. Two
+     variants: a new record, and a before/after edit.</p>
+  <div class="inline" style="gap:var(--sp-4);align-items:flex-start">
+    <div class="proposed" style="width:350px">
+      <div class="pp-head"><i data-icon="sparkles" style="display:contents"></i>Proposed observation · not saved yet</div>
+      <div class="pp-body">
+        <div class="pp-target">Cabbage Field</div>
+        <div class="pp-time">Today, 09:42</div>
+        <div class="pp-field"><div class="pf-k">Observation</div>
+          <div class="pf-v">Yellowing leaves observed on the southern side.</div></div>
+        <div class="pp-field"><div class="pf-k">Action recorded</div>
+          <div class="pf-v">Watered this morning.</div></div>
+        <div class="chip-row" style="margin-top:var(--sp-4)">
+          <span class="chip"><i data-icon="mic" style="display:contents"></i>From your voice note</span>
+          <span class="chip"><i data-icon="cloudOff" style="display:contents"></i>Will sync later</span>
+        </div>
+      </div>
+      <div class="confirm-bar">
+        <button class="btn btn-primary"><i data-icon="check" style="display:contents"></i>Confirm</button>
+        <button class="btn btn-tonal">Edit</button>
+        <button class="btn btn-tonal">Cancel</button>
+      </div>
+    </div>
+    <div class="proposed" style="width:350px">
+      <div class="pp-head"><i data-icon="sparkles" style="display:contents"></i>Proposed change · not saved yet</div>
+      <div class="pp-body">
+        <div class="pp-target">Watering · Cabbage Field</div>
+        <div class="pp-time">Timeline task</div>
+        <div class="pp-diff">
+          <div class="d-box"><div class="d-k">Before</div><div class="d-v">Wednesday 24 Sep</div></div>
+          <i data-icon="arrowRight" style="display:contents"></i>
+          <div class="d-box after"><div class="d-k">After</div><div class="d-v">Friday 26 Sep</div></div>
+        </div>
+      </div>
+      <div class="confirm-bar">
+        <button class="btn btn-primary"><i data-icon="check" style="display:contents"></i>Confirm</button>
+        <button class="btn btn-tonal">Change</button>
+        <button class="btn btn-tonal">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================== AIACTIONBUTTON -->
+  <h2 class="section-rule">AIActionButton — idle / listening / understanding / speaking</h2>
+  <p class="note">Rings are two 2px borders scaling and fading: no blur, no particle layer.
+     Hold to speak, or tap to start and stop — long-press is never the only way in.
+     Tap any button below to advance its state.</p>
+  <div class="demo-grid">
+    <div class="demo-tile" data-ai="idle" style="text-align:center">
+      <span class="state-tag">Idle</span>
+      <div style="position:relative;height:110px;display:grid;place-items:center">
+        <div class="ai-dock" style="position:static;transform:none">
+          <button class="ai-btn" data-ai-cycle aria-label="Farm assistant. Hold to speak, or tap to start and stop.">
+            <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+            <span class="brand-mark" aria-hidden="true"></span></button>
+          <span class="ai-label" data-ai-label>Hold to speak</span>
+        </div>
+      </div>
+    </div>
+    <div class="demo-tile" data-ai="listening" style="text-align:center">
+      <span class="state-tag">Listening</span>
+      <div style="position:relative;height:110px;display:grid;place-items:center">
+        <div class="ai-dock" style="position:static;transform:none">
+          <button class="ai-btn" data-ai-cycle aria-label="Listening. Tap to stop.">
+            <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+            <i data-icon="mic" style="display:contents"></i></button>
+          <span class="ai-label" data-ai-label>Listening…</span>
+        </div>
+      </div>
+      <div class="waveform" style="justify-content:center;color:var(--primary)">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="demo-tile" data-ai="understanding" style="text-align:center">
+      <span class="state-tag">Understanding</span>
+      <div style="position:relative;height:110px;display:grid;place-items:center">
+        <div class="ai-dock" style="position:static;transform:none">
+          <button class="ai-btn" data-ai-cycle aria-label="Working.">
+            <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+            <span class="brand-mark" aria-hidden="true"></span></button>
+          <span class="ai-label" data-ai-label>Working…</span>
+        </div>
+      </div>
+      <div class="muted" style="font:var(--type-label-s)">No spinner — the logo itself contracts</div>
+    </div>
+    <div class="demo-tile" data-ai="speaking" style="text-align:center">
+      <span class="state-tag">Speaking</span>
+      <div style="position:relative;height:110px;display:grid;place-items:center">
+        <div class="ai-dock" style="position:static;transform:none">
+          <button class="ai-btn" data-ai-cycle aria-label="Speaking. Tap to interrupt.">
+            <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+            <i data-icon="volume" style="display:contents"></i></button>
+          <span class="ai-label" data-ai-label>Speaking</span>
+        </div>
+      </div>
+      <div class="muted" style="font:var(--type-label-s)">Talking over it returns to Listening</div>
+    </div>
+  </div>
+
+  <!-- =========================================================== EMPTY -->
+  <h2 class="section-rule">EmptyState</h2>
+  <div class="demo-grid">
+    <div class="empty">
+      <div class="e-ico"><i data-icon="layers" style="display:contents"></i></div>
+      <h4>Your farm doesn't have any sections yet</h4>
+      <p>A section is one piece of land you use for one thing — a bed, a row, a field.</p>
+      <button class="btn btn-primary"><i data-icon="plus" style="display:contents"></i>Add a section</button>
+    </div>
+    <div class="empty">
+      <div class="e-ico"><i data-icon="notebook" style="display:contents"></i></div>
+      <h4>No observations yet</h4>
+      <p>Record what you see here so you can track changes over time.</p>
+      <button class="btn btn-primary"><i data-icon="mic" style="display:contents"></i>Add observation</button>
+    </div>
+    <div class="empty">
+      <div class="e-ico"><i data-icon="sprout" style="display:contents"></i></div>
+      <h4>Ask what could grow here</h4>
+      <p>North Plot is empty. Tell the assistant your budget and water and it will compare crops.</p>
+      <button class="btn btn-primary"><i data-icon="mic" style="display:contents"></i>Ask assistant</button>
+    </div>
+    <div class="empty">
+      <div class="e-ico"><i data-icon="camera" style="display:contents"></i></div>
+      <h4>No health checks yet</h4>
+      <p>Point your camera at a plant to check it. This works without airtime or data.</p>
+      <button class="btn btn-primary"><i data-icon="camera" style="display:contents"></i>Scan crop</button>
+    </div>
+  </div>
+
+  <h2 class="section-rule">FarmMapPreview</h2>
+  <div style="max-width:390px">
+    <div class="map-card">
+      <div data-scene="map" style="display:contents"></div>
+      <span class="badge badge-offline map-chip"><i data-icon="cloudOff" style="display:contents"></i>Offline map</span>
+      <button class="btn btn-tonal map-cta" style="min-height:40px"><i data-icon="map" style="display:contents"></i>Open map</button>
+    </div>
+  </div>
+</main>
+
+<script src="farmable.js?v=5"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+# Walking a section's boundary (#15) on the standard TEST_MODE=true CI build.
+#
+# TEST_MODE plays a recorded walk (WALK_REPLAY defaults to `field`: AR and GPS
+# over a 40 m x 30 m field, 1 200 m², with a stretch of lost AR tracking)
+# instead of a phone walking outdoors. This proves the flow and the maths end
+# to end — area within 1%, AR/GPS agreement, and an offline save — not AR
+# plane detection or GPS on real ground, which need the field test in
+# apps/mobile/docs/section-mapping.md.
+#
+# Run after the API is stopped (see scripts/ci-stack.sh), so the save is
+# proven with no server at all.
+appId: za.co.almanac.app
+name: Recorded walk maps North Plot within 1% and saves offline
+---
+- launchApp:
+    clearState: true
+- runFlow: steps/try_demo_farm.yaml
+- extendedWaitUntil:
+    visible: '.*Hello, Sipho.*'
+    timeout: 60000
+- tapOn:
+    id: 'nav-farm'
+- tapOn: 'Map'
+- scrollUntilVisible:
+    element: 'Map farm'
+    direction: DOWN
+- tapOn: 'Map farm'
+# North Plot (DemoSeed.northPlotId); its label also carries "Not mapped yet".
+- tapOn:
+    id: 'walk-pick-8b1b6c6e-0f47-4f6a-9f84-3f1d1a1c0012'
+- assertVisible: '.*recorded walk, played back.*'
+- tapOn:
+    id: 'boundary-start'
+# The walk replays at eight times real time: about fifteen seconds.
+- extendedWaitUntil:
+    visible: 'Check the shape'
+    timeout: 60000
+# 1 200 m² to within 1%: 1 188 to 1 212.
+- assertVisible:
+    id: 'boundary-area'
+    text: 'Area: 1.(1(8[89]|9[0-9])|20[0-9]|21[0-2]).m²'
+- assertVisible: '.*AR \(.*\) and GPS \(.*\) agree to within.*'
+- assertVisible: '.*Soil data.*'
+- tapOn:
+    id: 'boundary-save'
+- extendedWaitUntil:
+    visible: '.*North Plot saved on this phone.*'
+    timeout: 10000
+# Back on the map, North Plot is drawn rather than listed as not mapped.
+- assertVisible: 'North Plot\. .*'
+- assertNotVisible: '.*North Plot.*Not mapped yet.*'

@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../data/auth/api_auth_service.dart';
+import '../../data/outlook/outlook_repository.dart';
 import '../../domain/auth/auth_models.dart';
 import '../../domain/auth/auth_service.dart';
 import '../../domain/auth/contact_details.dart';
@@ -178,10 +179,31 @@ class AuthViewModel extends AsyncNotifier<AuthStanding> {
   /// choices, any export — go with the session, so the next person to log in
   /// here never sees the last one's.
   Future<AuthFailure?> signOut() => _attempt(() async {
+    final userId = _userId;
     await _service.signOut();
     await ref.read(accountServiceProvider).forget();
     state = const AsyncData(SignedOut());
+    unawaited(_forgetCaches(userId));
   });
+
+  String? get _userId => switch (state.value) {
+    SignedIn(:final session) => session.user.id,
+    _ => null,
+  };
+
+  /// Saved market outlooks and planner answers go with the session (#12,
+  /// #22). Run after the standing has changed and never awaited by it:
+  /// sign-out must not wait on a disk. Best-effort, because every cached
+  /// file is keyed to this account and unreadable to any other.
+  Future<void> _forgetCaches(String? userId) async {
+    if (userId == null) return;
+    try {
+      await FileOutlookStore().forget(userId);
+      await ref.read(planningRepositoryProvider)?.signedOut(userId);
+    } on Object {
+      // See above.
+    }
+  }
 
   /// Ends access here before asking the server to revoke the other devices.
   /// The server result is reported after the local standing has changed, so a
@@ -191,6 +213,7 @@ class AuthViewModel extends AsyncNotifier<AuthStanding> {
     if (current is! SignedIn) return AuthFailure.invalidSession;
     final service = _service;
     if (service is! ApiAuthService) return signOut();
+    final userId = current.session.user.id;
 
     AuthFailure? localFailure;
     try {
@@ -204,6 +227,7 @@ class AuthViewModel extends AsyncNotifier<AuthStanding> {
       localFailure ??= AuthFailure.storageUnavailable;
     }
     state = const AsyncData(SignedOut());
+    unawaited(_forgetCaches(userId));
 
     try {
       await service.revokeAllWithToken(current.session.token);

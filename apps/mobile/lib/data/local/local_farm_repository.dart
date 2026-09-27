@@ -103,6 +103,93 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     db.plantings,
   ], _pendingChanges);
 
+  @override
+  Stream<DateTime?> watchLastPulled() => _watch([db.syncCursors], () async {
+    final rows = await (db.select(
+      db.syncCursors,
+    )..where((t) => _mine(t.ownerId))).get();
+    DateTime? latest;
+    for (final row in rows) {
+      final at = row.pulledAt;
+      if (at != null && (latest == null || at.isAfter(latest))) latest = at;
+    }
+    return latest;
+  });
+
+  @override
+  Future<void> clearPlanting(
+    String sectionId, {
+    required String mutationId,
+  }) async {
+    if (await _mutation(mutationId) != null) return;
+    final section = await _requireSection(sectionId);
+    final at = now();
+    await db.transaction(() async {
+      final current =
+          await (db.select(db.plantings)..where(
+                (t) =>
+                    t.sectionId.equals(section.id) &
+                    t.isCurrent.equals(true) &
+                    t.deletedAt.isNull(),
+              ))
+              .getSingleOrNull();
+      if (current == null) return;
+      await (db.update(
+        db.plantings,
+      )..where((t) => t.id.equals(current.id))).write(
+        PlantingsCompanion(
+          isCurrent: const Value(false),
+          version: Value(current.version + 1),
+          syncState: const Value('pending'),
+          updatedAt: Value(at),
+        ),
+      );
+      await _enqueueWithId(
+        mutationId: mutationId,
+        farmId: current.farmId,
+        ownerId: current.ownerId,
+        operation: 'update',
+        recordType: 'planting',
+        recordId: current.id,
+        at: at,
+      );
+    });
+  }
+
+  @override
+  Stream<List<rec.FinancialRecord>> watchFinancials() =>
+      _watch([db.farms, db.financialRecords], _financials);
+
+  Future<List<rec.FinancialRecord>> _financials() async {
+    final farmRow = await _farmRow();
+    if (farmRow == null) return const [];
+    final rows =
+        await (db.select(db.financialRecords)
+              ..where(
+                (t) =>
+                    t.farmId.equals(farmRow.id) &
+                    t.deletedAt.isNull() &
+                    _mine(t.ownerId),
+              )
+              ..orderBy([
+                (t) =>
+                    OrderingTerm(expression: t.date, mode: OrderingMode.desc),
+              ]))
+            .get();
+    return [
+      for (final r in rows)
+        rec.FinancialRecord(
+          id: r.id,
+          sectionId: r.sectionId,
+          type: rec.FinancialType.parse(r.type),
+          category: r.category,
+          amount: Cents(r.amountCents),
+          date: r.date,
+          note: r.note,
+        ),
+    ];
+  }
+
   Future<rec.FarmSnapshot?> _loadFarm() async {
     final farmRow = await _farmRow();
     if (farmRow == null) return null;
@@ -926,6 +1013,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required String mutationId,
     required String name,
     required String areaM2,
+    Map<String, Object?>? boundary,
   }) async {
     final replayed = await _mutation(mutationId);
     if (replayed != null) {
@@ -945,7 +1033,10 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
               ownerId: farmRow.ownerId,
               name: name,
               areaM2: Value(areaM2),
-              areaSource: const Value('farmer_supplied'),
+              boundary: Value(boundary == null ? null : jsonEncode(boundary)),
+              areaSource: Value(
+                boundary == null ? 'farmer_supplied' : 'boundary_estimate',
+              ),
               createdAt: at,
               updatedAt: at,
             ),
@@ -970,6 +1061,7 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
     required int expectedRevision,
     required String name,
     required String areaM2,
+    Map<String, Object?>? boundary,
   }) async {
     if (await _mutation(mutationId) != null) {
       return _toDemoSection(await _requireSection(sectionId));
@@ -988,6 +1080,12 @@ class LocalFarmRepository implements FarmRecordsRepository, FarmRepository {
         SectionsCompanion(
           name: Value(name),
           areaM2: Value(areaM2),
+          boundary: boundary == null
+              ? const Value.absent()
+              : Value(jsonEncode(boundary)),
+          areaSource: boundary == null
+              ? const Value.absent()
+              : const Value('boundary_estimate'),
           version: Value(existing.version + 1),
           syncState: const Value('pending'),
           updatedAt: Value(at),

@@ -55,7 +55,7 @@ def test_send_whatsapp_template_without_sender_is_misconfigured():
         settings = ServiceSettings(
             environment="staging",
             integrations_mode="live",
-            infobip_base_url="example.test",
+            infobip_base_url="abc123.api.infobip.com",
             infobip_api_key="fixture-key",  # noqa: S106 - deliberately synthetic
             infobip_whatsapp_sender=None,
         )

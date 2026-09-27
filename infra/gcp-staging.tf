@@ -64,15 +64,10 @@ locals {
     "gemini-model",
     "crop-health-api-key",
     "maps-server-api-key",
-    # Live OTP delivery: SMS through Infobip, email through Gmail SMTP.
-    "infobip-base-url",
     "infobip-api-key",
+    "infobip-base-url",
     "infobip-sms-sender",
-    "smtp-host",
-    "smtp-user",
-    "smtp-password",
-    "email-from-name",
-    "email-from-address",
+    "infobip-email-sender",
   ])
 }
 

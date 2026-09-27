@@ -21,6 +21,16 @@ export COMMIT_SHA API_PORT=0
 if [ "$mode" = mobile ]; then export API_PORT=8000; fi
 project="farmable-ci-$(uv run python -c 'import uuid; print(uuid.uuid4().hex)')"
 compose=(docker compose -p "$project" -f compose.yaml)
+if [ "$mode" = mobile ]; then
+  # Disposable photo storage for uploads from the emulator (#11, #17).
+  PHOTO_TEST_STORAGE_USER="$(uv run python -c 'import secrets; print(secrets.token_hex(12))')"
+  PHOTO_TEST_STORAGE_PASSWORD="$(uv run python -c 'import secrets; print(secrets.token_hex(24))')"
+  export PHOTO_TEST_STORAGE_USER PHOTO_TEST_STORAGE_PASSWORD
+  if [ "${GITHUB_ACTIONS:-}" = true ]; then
+    printf '::add-mask::%s\n' "$PHOTO_TEST_STORAGE_PASSWORD"
+  fi
+  compose+=(-f compose.ci-photos.yaml)
+fi
 cleanup() {
   local status=$?
   if [ "$mode" = mobile ] && [ "$status" -ne 0 ]; then
@@ -37,6 +47,7 @@ cleanup() {
 }
 trap cleanup EXIT
 "${compose[@]}" build api worker
+if [ "$mode" = mobile ]; then "${compose[@]}" build photo-storage; fi
 if [ "$mode" = deployability ]; then
   # Build the post-migration importer too; no live DB or notifier credential in CI.
   docker build --file apps/backend/Dockerfile --target forecast-import .
@@ -73,13 +84,43 @@ elif [ "$mode" = mobile ]; then
   maestro test e2e/mobile/signup.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/login.yaml
-  # A fresh install's whole first launch (#89): intro, onboarding, sign-up,
-  # first farm and first section, Home, and a second launch that skips it all.
-  bash scripts/await-device.sh
-  maestro test e2e/mobile/first_launch_setup.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/scan_pan.yaml
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/voice_fallback.yaml
+  # Cutting the assistant off mid-answer and giving a new budget (#25).
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/tap_interrupt.yaml
+  # A photo taken with no signal reaches the server exactly once when the
+  # signal returns (#17), through the stack's disposable photo storage.
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/upload_offline_resume.yaml
+  # The assistant's planning conversation (#23). Only from here on: restart the
+  # API and worker with the assistant on against the fake model, and import
+  # the committed forecast bundle the planner reads (compose.ci-assistant.yaml).
+  ASSISTANT_POLICY_DATE="$(date -u +%F)"
+  export ASSISTANT_POLICY_DATE
+  compose+=(-f compose.ci-assistant.yaml)
+  "${compose[@]}" build forecast-import
+  "${compose[@]}" run --rm forecast-import
+  "${compose[@]}" up -d --wait api worker
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/assistant_plan.yaml
+  # A fresh install's whole first launch (#89): intro, onboarding, sign-up,
+  # first farm and first section, Home, and a second launch that skips it all.
+  # Last before the API stops, because it leaves an account signed in for the
+  # two dashboard flows below.
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/first_launch_setup.yaml
   "${compose[@]}" stop api
+  # Home with the API down, then a cold start in airplane mode (#12).
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/dashboard_degraded.yaml
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/dashboard_offline.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/offline_launch.yaml
+  # Walking a boundary (#15) from a recorded walk, saved with the API down.
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/map_section_replay.yaml
 fi

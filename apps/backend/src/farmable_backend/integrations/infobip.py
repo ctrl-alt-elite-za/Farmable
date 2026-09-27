@@ -56,7 +56,9 @@ def _validated_sms_result(result: ServiceResult, destination: str) -> ServiceRes
 class Infobip(Adapter):
     """SMS and WhatsApp template delivery. Never logs message bodies, destinations, or codes.
 
-    Email delivery uses ``integrations/email`` (Gmail SMTP) instead.
+    Sign-up codes do not go through this adapter: ``farmable_backend.infobip``
+    sends them synchronously from the auth thread pool. This one serves the
+    service registry's health checks and the staging smoke test.
 
     WhatsApp template messages require a WhatsApp Business Account (WABA)
     sender registered with Infobip/Meta. There is no default sender: set

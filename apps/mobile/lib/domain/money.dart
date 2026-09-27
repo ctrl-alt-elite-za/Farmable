@@ -33,6 +33,15 @@ extension type const Cents(int value) {
 
     return '${negative ? '-' : ''}R$body';
   }
+
+  /// `R17,400.05` — every cent, for the Money screen, where a total has to
+  /// match the farmer's records exactly rather than read well from a glance.
+  String get exact {
+    final abs = value.abs();
+    final whole = Cents(abs - abs % 100).formatted;
+    final cents = (abs % 100).toString().padLeft(2, '0');
+    return '${value < 0 ? '-' : ''}$whole.$cents';
+  }
 }
 
 /// A decimal that arrived as a string, kept as a string.

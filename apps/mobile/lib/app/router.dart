@@ -31,11 +31,14 @@ import '../features/auth/sign_up_screen.dart';
 import '../features/auth/verify_screen.dart';
 import '../features/health/health_screen.dart';
 import '../features/crop_scan/crop_scan_screen.dart';
+import '../features/boundary/boundary_screen.dart';
 import '../features/farm/farm_map_screen.dart';
 import '../features/farm/farm_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/insights/alerts_screen.dart';
 import '../features/insights/insights_screen.dart';
 import '../features/insights/market_screen.dart';
+import '../features/insights/money_screen.dart';
 import '../features/placeholder/not_built_yet_screen.dart';
 import '../features/recommendations/recommendation_detail_screen.dart';
 import '../features/recommendations/recommendations_screen.dart';
@@ -134,6 +137,15 @@ GoRouter buildRouter({
           builder: (context, state) =>
               ZoneScreen(sectionId: state.pathParameters['zoneId']!),
           routes: [
+            // Walk the section's edge, check the shape, save it (#15).
+            // `?edit=1` opens on the saved shape instead of a new walk.
+            GoRoute(
+              path: 'boundary',
+              builder: (context, state) => BoundaryScreen(
+                sectionId: state.pathParameters['zoneId']!,
+                edit: state.uri.queryParameters['edit'] == '1',
+              ),
+            ),
             // "What should I plant here?" — deep-linkable like every other
             // screen. The planner is pure and the section is on disk, so
             // arriving cold at this URL with no network still answers.
@@ -197,6 +209,12 @@ GoRouter buildRouter({
     // Issue #93 first slice: crop outlooks for this account's planted land.
     GoRoute(path: '/insights/market', builder: (_, _) => const MarketScreen()),
     // -------------------------------------------------- end insights market
+
+    // ------------------------------------------------------- insights money
+    // Issue #93, design 32: money in and out, from the records on the phone.
+    GoRoute(path: '/insights/money', builder: (_, _) => const MoneyScreen()),
+    GoRoute(path: '/insights/alerts', builder: (_, _) => const AlertsScreen()),
+    // --------------------------------------------------- end insights money
 
     // ------------------------------------------------------- issue 94 profile
     GoRoute(

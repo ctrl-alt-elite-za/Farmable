@@ -16,6 +16,27 @@ FORECAST_DATA_MODE="${FORECAST_DATA_MODE:-disabled}"
 case "$FORECAST_DATA_MODE" in disabled|sample|historical) ;; *)
   echo 'Invalid forecast data mode' >&2; exit 1 ;;
 esac
+# Voice (Gemini Live). Off unless the repository variables turn it on; the model is a
+# plain, non-secret name, checked here because it lands inside --set-env-vars.
+GEMINI_LIVE_ENABLED="${GEMINI_LIVE_ENABLED:-false}"
+GEMINI_LIVE_MODEL="${GEMINI_LIVE_MODEL:-}"
+case "$GEMINI_LIVE_ENABLED" in true|false) ;; *)
+  echo 'GEMINI_LIVE_ENABLED must be true or false' >&2; exit 1 ;;
+esac
+if [[ ! "$GEMINI_LIVE_MODEL" =~ ^[A-Za-z0-9._-]{0,128}$ ]]; then
+  echo 'Invalid GEMINI_LIVE_MODEL' >&2; exit 1
+fi
+if [[ "$GEMINI_LIVE_ENABLED" == true && -z "$GEMINI_LIVE_MODEL" ]]; then
+  echo 'GEMINI_LIVE_ENABLED=true needs GEMINI_LIVE_MODEL' >&2; exit 1
+fi
+# Cloud Run caps a traffic tag plus the service name at 46 characters, so the full
+# 40-character SHA ("sha-" + 40 = 44) cannot tag any service. Twelve hex digits stay
+# unambiguous within one service's revisions and leave room for the name.
+TRAFFIC_TAG="sha-${COMMIT_SHA:0:12}"
+if (( ${#TRAFFIC_TAG} + ${#CLOUD_RUN_SERVICE} > 46 )); then
+  echo "Traffic tag ${TRAFFIC_TAG} and service ${CLOUD_RUN_SERVICE} exceed 46 characters" >&2
+  exit 1
+fi
 
 # `describe` exits non-zero both when the service is absent and when the call simply
 # failed, and the two are distinguishable only by parsing human-readable error text.
@@ -125,19 +146,14 @@ optional_secrets=(
   "AZURE_SPEECH_REGION:azure-speech-region"
   "CROP_HEALTH_API_KEY:crop-health-api-key"
   "MAPS_SERVER_API_KEY:maps-server-api-key"
-  "INFOBIP_BASE_URL:infobip-base-url"
   "INFOBIP_API_KEY:infobip-api-key"
+  "INFOBIP_BASE_URL:infobip-base-url"
   "INFOBIP_SMS_SENDER:infobip-sms-sender"
-  "SMTP_HOST:smtp-host"
-  "SMTP_USER:smtp-user"
-  "SMTP_PASSWORD:smtp-password"
-  "EMAIL_FROM_NAME:email-from-name"
-  "EMAIL_FROM_ADDRESS:email-from-address"
+  "INFOBIP_EMAIL_SENDER:infobip-email-sender"
 )
-# Live mode delivers sign-up codes through these; without them sign-up cannot
-# complete (and a live backend refuses to boot without its SMTP settings).
-otp_delivery_secrets=(INFOBIP_BASE_URL INFOBIP_API_KEY INFOBIP_SMS_SENDER SMTP_HOST SMTP_USER
-  SMTP_PASSWORD EMAIL_FROM_NAME EMAIL_FROM_ADDRESS)
+# Live mode delivers sign-up codes by SMS and email through Infobip; without all
+# four, the backend falls back to refusing to send and sign-up cannot complete.
+otp_delivery_secrets=(INFOBIP_BASE_URL INFOBIP_API_KEY INFOBIP_SMS_SENDER INFOBIP_EMAIL_SENDER)
 
 # One listing call decides existence for every candidate. Probing each secret
 # individually cannot tell NOT_FOUND from a transient 503, and reading a transient
@@ -193,10 +209,10 @@ fi
 
 gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --project="$GCP_PROJECT" --region="$GCP_REGION" \
-  --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="sha-${COMMIT_SHA}" \
+  --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="$TRAFFIC_TAG" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
-  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE,TRUSTED_PROXY_HOPS=1" \
+  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE,GEMINI_LIVE_ENABLED=$GEMINI_LIVE_ENABLED,GEMINI_LIVE_MODEL=$GEMINI_LIVE_MODEL,TRUSTED_PROXY_HOPS=1" \
   --set-secrets="$secret_args" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null
@@ -211,7 +227,7 @@ service_json="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
   --project="$GCP_PROJECT" --region="$GCP_REGION" --format=json)"
 # Resolve the URL and revision together: another deployment can advance
 # latestCreatedRevisionName while our commit tag still points at our candidate.
-if ! candidate="$(jq -ce --arg tag "sha-${COMMIT_SHA}" '
+if ! candidate="$(jq -ce --arg tag "$TRAFFIC_TAG" '
   [.status.traffic[]? | select(.tag == $tag)] |
   select(length == 1) | .[0] |
   select(.revisionName | strings | length > 0) |

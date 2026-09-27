@@ -427,6 +427,19 @@ def _rollout_env(tmp_path: Path) -> dict:
     }
 
 
+def test_rollout_refuses_a_service_name_too_long_for_the_traffic_tag(tmp_path: Path) -> None:
+    """Cloud Run rejects a traffic tag plus service name over 46 characters, and only
+    after the image is built and the database migrated. Fail before touching anything.
+    """
+    log = tmp_path / "calls.log"
+    _fake_gcloud(tmp_path, _log_calls(log) + "exit 0\n")
+    environment = {**_rollout_env(tmp_path), "CLOUD_RUN_SERVICE": "f" * 31}
+    result = _run("infra/gcp-rollout.sh", environment)
+    assert result.returncode != 0
+    assert "exceed 46 characters" in result.stderr
+    assert not log.exists() or "run deploy" not in log.read_text(encoding="utf-8")
+
+
 def test_rollout_aborts_when_describe_fails_for_any_reason_but_not_found(tmp_path: Path) -> None:
     """A transient 503 must not be read as "the service does not exist". Concluding
     absence sets service_existed=false, which arms the `gcloud run services delete`
@@ -655,7 +668,7 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     # Reuse the one place the Knative v1 container/env nesting is spelled out, so a
     # correction there cannot leave a stale second copy here.
     service_json = (
-        '{"status":{"traffic":[{"tag":"sha-' + sha + '",'
+        '{"status":{"traffic":[{"tag":"sha-' + sha[:12] + '",'
         '"url":"https://sha-' + sha[:8] + '---farmable.run.app",'
         '"revisionName":"farmable-00002"}]},' + _service_spec(REFERENCE_ENV_V1)[1:]
     )
@@ -683,6 +696,8 @@ def test_rollout_shifts_traffic_to_the_new_revision_on_the_successful_path(
     assert "run deploy" in calls
     deploy_call = calls.split("run deploy", 1)[1].split("\n", 1)[0]
     assert "--no-traffic" not in deploy_call
+    # Cloud Run rejects a tag whose length plus the service name's exceeds 46.
+    assert f"--tag=sha-{sha[:12]} " in deploy_call
     assert "update-traffic" in calls
     assert "farmable-00002=100" in calls
     assert "farmable-unrelated=100" not in calls
@@ -712,7 +727,7 @@ def test_rollout_rejects_invalid_tag_without_promoting_a_candidate(
     deployed = tmp_path / "deployed"
     sha = _rollout_env(tmp_path)["COMMIT_SHA"]
     candidate = {
-        "tag": f"sha-{sha}",
+        "tag": f"sha-{sha[:12]}",
         "revisionName": "farmable-00002",
         "url": "https://candidate.farmable.run.app",
     }
@@ -872,7 +887,7 @@ def _provider_secret_gcloud(log: Path, sha: str, *, secrets: str, versions: str)
     required_export_resource = "farmable-staging-export-token-secret"
     secrets = "\n".join(filter(None, (required_export_resource, secrets)))
     service_json = (
-        '{"status":{"traffic":[{"tag":"sha-' + sha + '",'
+        '{"status":{"traffic":[{"tag":"sha-' + sha[:12] + '",'
         '"url":"https://sha-' + sha[:8] + '---farmable.run.app",'
         '"revisionName":"farmable-00002"}]},' + _service_spec(REFERENCE_ENV_V1)[1:]
     )
@@ -899,13 +914,61 @@ def _provider_secret_gcloud(log: Path, sha: str, *, secrets: str, versions: str)
     )
 
 
-def _provider_secret_run(tmp_path: Path, log: Path, *, secrets: str, versions: str):
+def _provider_secret_run(
+    tmp_path: Path, log: Path, *, secrets: str, versions: str, env: dict[str, str] | None = None
+):
     sha = "0123456789abcdef0123456789abcdef01234567"
     _fake_gcloud(tmp_path, _provider_secret_gcloud(log, sha, secrets=secrets, versions=versions))
     _fake_curl(tmp_path)
     bucket = tmp_path / "bucket"
     bucket.mkdir()
-    return _run("infra/gcp-rollout.sh", {**_rollout_env(tmp_path), "FAKE_BUCKET": str(bucket)})
+    return _run(
+        "infra/gcp-rollout.sh",
+        {**_rollout_env(tmp_path), "FAKE_BUCKET": str(bucket), **(env or {})},
+    )
+
+
+@requires_jq
+def test_rollout_leaves_voice_off_unless_it_is_turned_on(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(tmp_path, log, secrets="", versions="")
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "GEMINI_LIVE_ENABLED=false,GEMINI_LIVE_MODEL=" in log.read_text(encoding="utf-8")
+
+
+@requires_jq
+def test_rollout_turns_voice_on_with_its_model(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(
+        tmp_path,
+        log,
+        secrets="",
+        versions="",
+        env={"GEMINI_LIVE_ENABLED": "true", "GEMINI_LIVE_MODEL": "gemini-live-2.5-flash"},
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    calls = log.read_text(encoding="utf-8")
+    assert "GEMINI_LIVE_ENABLED=true,GEMINI_LIVE_MODEL=gemini-live-2.5-flash" in calls
+
+
+@requires_jq
+@pytest.mark.parametrize(
+    ("env", "error"),
+    [
+        ({"GEMINI_LIVE_ENABLED": "true"}, "needs GEMINI_LIVE_MODEL"),
+        ({"GEMINI_LIVE_ENABLED": "yes"}, "must be true or false"),
+        # A comma would smuggle another variable into --set-env-vars.
+        ({"GEMINI_LIVE_MODEL": "m,ENVIRONMENT=production"}, "Invalid GEMINI_LIVE_MODEL"),
+    ],
+)
+def test_rollout_refuses_a_bad_voice_setting_before_deploying(
+    tmp_path: Path, env: dict[str, str], error: str
+) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(tmp_path, log, secrets="", versions="", env=env)
+    assert result.returncode != 0
+    assert error in result.stderr
+    assert not log.exists() or "run deploy" not in log.read_text(encoding="utf-8")
 
 
 @requires_jq
@@ -990,11 +1053,7 @@ OTP_DELIVERY_SECRETS = {
     "INFOBIP_BASE_URL": "infobip-base-url",
     "INFOBIP_API_KEY": "infobip-api-key",
     "INFOBIP_SMS_SENDER": "infobip-sms-sender",
-    "SMTP_HOST": "smtp-host",
-    "SMTP_USER": "smtp-user",
-    "SMTP_PASSWORD": "smtp-password",
-    "EMAIL_FROM_NAME": "email-from-name",
-    "EMAIL_FROM_ADDRESS": "email-from-address",
+    "INFOBIP_EMAIL_SENDER": "infobip-email-sender",
 }
 
 
@@ -1037,7 +1096,7 @@ def test_rollout_wires_live_otp_delivery_and_trusts_one_proxy_hop(tmp_path: Path
 def test_rollout_names_missing_live_otp_delivery_secrets(tmp_path: Path) -> None:
     log = tmp_path / "calls.log"
     result = _provider_secret_run(
-        tmp_path, log, secrets="farmable-staging-smtp-password", versions=""
+        tmp_path, log, secrets="farmable-staging-infobip-api-key", versions=""
     )
     assert result.returncode == 0, result.stderr + result.stdout
     warning = result.stdout.split("OTP delivery is not configured", 1)[1].splitlines()[0]
@@ -1046,7 +1105,7 @@ def test_rollout_names_missing_live_otp_delivery_secrets(tmp_path: Path) -> None
 
 
 @requires_jq
-@pytest.mark.parametrize("name", ["SMTP_PASSWORD", "INFOBIP_API_KEY", "EMAIL_FROM_ADDRESS"])
+@pytest.mark.parametrize("name", ["INFOBIP_API_KEY", "INFOBIP_EMAIL_SENDER"])
 def test_secret_smoke_rejects_literal_otp_delivery_values(tmp_path: Path, name: str) -> None:
     leaked = REFERENCE_ENV_V1 + ',{"name":"' + name + '","value":"super-secret-value"}'
     _fake_gcloud(tmp_path, _describe_body(leaked))
@@ -1330,3 +1389,112 @@ def test_operator_acceptance_evidence_is_documented() -> None:
     lowered = doc.lower()
     for stale in ("af-south-1", "aws", "ec2"):
         assert stale not in lowered, stale
+
+
+def _terraform_provider_secrets() -> list[str]:
+    terraform = read("infra/gcp-staging.tf")
+    block = terraform.split("provider_secrets = toset([", 1)[1].split("])", 1)[0]
+    return re.findall(r'"([a-z0-9-]+)"', block)
+
+
+def test_every_provider_secret_terraform_creates_is_wired_by_the_rollout():
+    """A secret Terraform creates but the rollout never wires is a key nobody can use."""
+    rollout = read("infra/gcp-rollout.sh")
+    optional = dict(re.findall(r'^\s+"([A-Z0-9_]+):([a-z0-9-]+)"$', rollout, re.MULTILINE))
+    always = {"database-url", "gemini-api-key"}
+    assert set(_terraform_provider_secrets()) - always == set(optional.values())
+    for env_name, secret in optional.items():
+        assert env_name == secret.upper().replace("-", "_"), env_name
+    for secret in ("infobip-api-key", "infobip-base-url", "infobip-sms-sender"):
+        assert secret in optional.values()
+
+
+def _set_secret_gcloud(tmp_path: Path, log: Path, *, secrets: str, versions: str) -> None:
+    _fake_gcloud(
+        tmp_path,
+        _log_calls(log) + 'if [[ "$*" == *"versions add"* ]]; then\n'
+        f'  cat > "{tmp_path}/stdin"; exit 0\n'
+        "fi\n"
+        'if [[ "$*" == *"secrets list"* ]]; then\n'
+        f"  printf '%s\n' {secrets}; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"versions list"* ]]; then\n'
+        f'  if [[ "$*" == *"{versions}"* ]]; then echo projects/1/versions/1; fi\n'
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+
+
+def _set_secret(tmp_path: Path, *args: str, value: str = "") -> "subprocess.CompletedProcess[str]":
+    return subprocess.run(  # noqa: S603 - fixed shell and repository script
+        [_bash(), str(ROOT / "infra/set-secret.sh"), *args],
+        capture_output=True,
+        check=False,
+        env={**os.environ, "PATH": _path(tmp_path)},
+        input=value,
+        text=True,
+    )
+
+
+def test_set_secret_lists_every_terraform_secret_by_state_without_values(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    _set_secret_gcloud(
+        tmp_path,
+        log,
+        secrets="farmable-staging-infobip-api-key farmable-staging-maps-server-api-key",
+        versions="farmable-staging-maps-server-api-key",
+    )
+    result = _set_secret(tmp_path)
+    assert result.returncode == 0, result.stderr
+    lines = dict(line.split(None, 1) for line in result.stdout.splitlines())
+    assert set(lines) == {*_terraform_provider_secrets(), "forecast-github-token"}
+    assert lines["maps-server-api-key"] == "has a value"
+    assert lines["infobip-api-key"] == "empty"
+    assert lines["infobip-sms-sender"].startswith("missing")
+    assert "versions add" not in log.read_text(encoding="utf-8")
+
+
+def test_set_secret_sends_the_value_on_stdin_never_as_an_argument(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    _set_secret_gcloud(tmp_path, log, secrets="", versions="none")
+    result = _set_secret(tmp_path, "infobip-base-url", value="https://ABC123.api.infobip.com/\r\n")
+    assert result.returncode == 0, result.stderr
+    calls = log.read_text(encoding="utf-8")
+    assert "secrets versions add farmable-staging-infobip-base-url" in calls
+    assert "--data-file=-" in calls
+    assert "infobip.com" not in calls
+    # Stored exactly as the backend validates it: host only, no newline.
+    assert (tmp_path / "stdin").read_text(encoding="utf-8") == "abc123.api.infobip.com"
+    assert "infobip.com" not in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("infobip-base-url", "https://api.example.com"),
+        ("twilio-account-sid", "not-a-sid-super-secret"),
+        ("infobip-api-key", ""),
+        ("infobip-api-key", " padded-super-secret"),
+    ],
+)
+def test_set_secret_refuses_a_value_that_would_stop_the_backend(
+    tmp_path: Path, name: str, value: str
+) -> None:
+    log = tmp_path / "calls.log"
+    _set_secret_gcloud(tmp_path, log, secrets="", versions="none")
+    result = _set_secret(tmp_path, name, value=value + "\n")
+    assert result.returncode != 0
+    assert "Refused" in result.stderr
+    assert not log.exists() or "versions add" not in log.read_text(encoding="utf-8")
+    if value:
+        assert value.strip() not in result.stdout + result.stderr
+
+
+def test_set_secret_refuses_an_unknown_name(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    _set_secret_gcloud(tmp_path, log, secrets="", versions="none")
+    result = _set_secret(tmp_path, "someone-elses-secret", value="x\n")
+    assert result.returncode != 0
+    assert "Unknown secret" in result.stderr
+    assert not log.exists() or "versions add" not in log.read_text(encoding="utf-8")

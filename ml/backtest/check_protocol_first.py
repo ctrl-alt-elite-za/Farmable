@@ -30,6 +30,9 @@ from pathlib import Path
 
 PROTOCOL_PATH = "ml/backtest/PROTOCOL.md"
 RESULTS_PATH = "ml/backtest/results"
+AMENDMENT_TWO_MARKER = (
+    b"### Amendment 2 \xe2\x80\x94 25 September 2026: seven-default decision evaluation"
+)
 
 
 class ProtocolGateError(RuntimeError):
@@ -199,6 +202,28 @@ def check_protocol_first(
         )
 
     return GateResult(protocol_commit, results_commit, check_ready)
+
+
+def check_amendment_two_merged(
+    *, repo: str | Path | None = None, main_ref: str = "origin/main"
+) -> str:
+    """Return the first mainline commit containing the exact merged amendment."""
+    repository = (Path(repo) if repo is not None else Path.cwd()).resolve()
+    check_protocol_first(repo=repository, main_ref=main_ref, check_ready=True)
+    commits = _first_parent_commits(repository, _main_commit(repository, main_ref))
+    amendment_commit = next(
+        (
+            commit
+            for commit in commits
+            if _tracked_at(repository, commit, PROTOCOL_PATH)
+            and AMENDMENT_TWO_MARKER
+            in _run_git_bytes(repository, "show", f"{commit}:{PROTOCOL_PATH}")
+        ),
+        None,
+    )
+    if amendment_commit is None:
+        raise ProtocolGateError("seven-default amendment is not independently merged on mainline")
+    return amendment_commit
 
 
 def _parser() -> argparse.ArgumentParser:
