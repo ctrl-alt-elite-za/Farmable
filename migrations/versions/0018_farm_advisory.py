@@ -55,7 +55,8 @@ def upgrade() -> None:
         ),
         sa.Index("ix_farm_profiles_owner", "owner_id"),
     )
-    op.create_table(
+    # create_table returns the Table; bulk_insert needs it, not the table's name.
+    opportunities_table = op.create_table(
         "advisory_opportunities",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("kind", sa.Text(), nullable=False),
@@ -171,7 +172,7 @@ def upgrade() -> None:
             "verified_on": VERIFIED_ON,
         },
     ]
-    op.bulk_insert("advisory_opportunities", opportunities)
+    op.bulk_insert(opportunities_table, opportunities)
 
 
 def downgrade() -> None:

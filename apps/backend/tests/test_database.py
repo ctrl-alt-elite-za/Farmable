@@ -28,6 +28,8 @@ def test_only_owned_application_tables_are_registered():
         "weight_formulas",
         "users",
         "farms",
+        "farm_profiles",
+        "advisory_opportunities",
         "sections",
         "plantings",
         "media",
