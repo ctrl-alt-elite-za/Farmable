@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, Header
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.datastructures import MutableHeaders
 from starlette.exceptions import HTTPException
@@ -39,6 +40,7 @@ from .schemas import (
     SectionWrite,
 )
 from .storage import DemoError, DemoStore, dashboard, seed_farm
+from .voice import VoiceRequest, VoiceResponse, interpret
 
 
 class DemoSafetyMiddleware:
@@ -280,6 +282,32 @@ def create_demo_app(
     def live() -> dict[str, str]:
         return {"status": "ok", "mode": "local_synthetic_demo"}
 
+    @app.get("/demo/voice", include_in_schema=False)
+    def voice_page() -> FileResponse:
+        return voice_asset("index.html", "text/html")
+
+    def voice_asset(filename: str, media_type: str) -> FileResponse:
+        return FileResponse(
+            Path(__file__).parent / "web" / filename,
+            media_type=media_type,
+            headers={
+                "Content-Security-Policy": (
+                    "default-src 'none'; script-src 'self'; style-src 'self'; "
+                    "connect-src 'self'; base-uri 'none'; "
+                    "frame-ancestors 'none'; form-action 'none'"
+                ),
+                "X-Content-Type-Options": "nosniff",
+                "Referrer-Policy": "no-referrer",
+            },
+        )
+
+    @app.get("/demo/voice/assets/{filename}", include_in_schema=False)
+    def voice_file(filename: str) -> FileResponse:
+        # A fixed allowlist, never arbitrary paths or credentials from the local filesystem.
+        if filename not in {"app.mjs", "speech.mjs", "style.css"}:
+            raise DemoError(404, "asset_not_found", "Demo asset not found")
+        return voice_asset(filename, "text/css" if filename.endswith(".css") else "text/javascript")
+
     @app.post("/demo/sessions", response_model=DemoSession, status_code=201)
     def start(payload: EmptyRequest) -> DemoSession:
         token, farm = store().create()
@@ -364,6 +392,11 @@ def create_demo_app(
     def preview(section_id: UUID, payload: PlanInputs, token: Token) -> PlanningResult:
         section = _section(store().read(token), section_id)
         return plan_section(payload.for_section(str(section.id), section.area_m2))
+
+    @app.post("/demo/sections/{section_id}/voice-preview", response_model=VoiceResponse)
+    def voice_preview(section_id: UUID, payload: VoiceRequest, token: Token) -> VoiceResponse:
+        section = _section(store().read(token), section_id)
+        return interpret(payload, section)
 
     @app.post("/demo/sections/{section_id}/plans", response_model=SavedPlan, status_code=201)
     def propose(section_id: UUID, payload: PlanWrite, token: Token, key: Key) -> SavedPlan:
