@@ -114,7 +114,8 @@ keys can be added later followed by a redeploy:
 `gemini-model`, `twilio-account-sid`, `twilio-verify-service-sid`, `twilio-auth-token`,
 `turnstile-secret`, `turnstile-hostname`, `azure-speech-key`, `azure-speech-resource`,
 `azure-speech-region`, `crop-health-api-key`, `maps-server-api-key`, `infobip-api-key`,
-`infobip-base-url`, `infobip-sms-sender`, `infobip-email-sender` — each prefixed
+`infobip-base-url`, `infobip-sms-sender`, `infobip-email-sender`, `smtp-user`,
+`smtp-password`, `email-from-address` — each prefixed
 `farmable-staging-`.
 
 **The easy way to set or replace any of them** is `infra/set-secret.sh`. It needs only
@@ -129,17 +130,27 @@ bash infra/set-secret.sh infobip-api-key    # prompt for a value and store it
 
 The next deploy wires every secret that holds a value; nothing else needs to change.
 
-**Verification codes (Infobip).** Sign-up and log-in need a phone code by SMS and an
-email code. With live integrations, the backend sends both through Infobip once all
-four `infobip-*` secrets hold a value; until then it refuses to send, and no one can
-finish signing up. From the Infobip portal:
+**Verification codes (Infobip SMS, Gmail email).** Sign-up and log-in need a phone code
+by SMS and an email code. The SMS always goes through Infobip. The email goes through
+Gmail SMTP when `smtp-user`, `smtp-password` and `email-from-address` all hold a value,
+and otherwise through Infobip email (`infobip-email-sender`). Until SMS and one email
+route are complete the backend refuses to send, and no one can finish signing up.
+From the Infobip portal:
 
-| Secret                 | Value                                                                |
-| ---------------------- | -------------------------------------------------------------------- |
-| `infobip-api-key`      | An API key with SMS and email send permission                        |
-| `infobip-base-url`     | Your personal base URL, e.g. `xxxxxx.api.infobip.com`                |
-| `infobip-sms-sender`   | A registered sender: a number, or up to 11 letters and digits        |
-| `infobip-email-sender` | An address on a domain verified in Infobip, e.g. `codes@example.com` |
+| Secret                 | Value                                                         |
+| ---------------------- | ------------------------------------------------------------- |
+| `infobip-api-key`      | An API key with SMS and email send permission                 |
+| `infobip-base-url`     | Your personal base URL, e.g. `xxxxxx.api.infobip.com`         |
+| `infobip-sms-sender`   | A registered sender: a number, or up to 11 letters and digits |
+| `infobip-email-sender` | Only without SMTP: an address on a domain verified in Infobip |
+
+For Gmail (defaults `smtp.gmail.com`, port 587, STARTTLS, from name "Almanac"):
+
+| Secret               | Value                                                          |
+| -------------------- | -------------------------------------------------------------- |
+| `smtp-user`          | The Gmail address that sends, e.g. `almanac.codes@gmail.com`   |
+| `smtp-password`      | A Gmail App Password (2-Step Verification on); spaces are fine |
+| `email-from-address` | Usually the same Gmail address                                 |
 
 Do **not** add placeholder values. Several fields are pattern-validated
 (`TWILIO_ACCOUNT_SID` must match `^AC[0-9a-fA-F]{32}$`), and a value that fails
