@@ -407,15 +407,15 @@ void main() {
       expect(find.byType(TileLayer), findsNothing);
       expect(tiles.requests, isEmpty);
       expect(find.textContaining('roughly where your farm is'), findsOneWidget);
-      expect(find.text('© OpenStreetMap contributors'), findsNothing);
+      expect(find.byKey(const Key('google-attribution')), findsNothing);
 
-      await tapOnPage(tester, find.text('Show street map'));
+      await tapOnPage(tester, find.text('Show satellite map'));
 
       expect(find.byType(TileLayer), findsOneWidget);
       expect(tiles.requests, isNotEmpty);
-      expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
+      expect(find.byKey(const Key('google-attribution')), findsOneWidget);
 
-      await tapOnPage(tester, find.text('Hide street map'));
+      await tapOnPage(tester, find.text('Hide satellite map'));
       expect(find.byType(TileLayer), findsNothing);
     });
 
@@ -506,7 +506,7 @@ void main() {
       await tester.tap(find.byTooltip('Map layers'));
       await tester.pumpAndSettle();
       expect(tiles.requests, isEmpty, reason: 'explaining is not consenting');
-      await tester.tap(find.text('Show street map'));
+      await tester.tap(find.text('Show satellite map'));
       await tester.pumpAndSettle();
 
       expect(find.byType(TileLayer), findsOneWidget);
