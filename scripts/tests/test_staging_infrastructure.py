@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import subprocess
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -966,6 +967,83 @@ def test_rollout_refuses_a_bad_voice_setting_before_deploying(
 ) -> None:
     log = tmp_path / "calls.log"
     result = _provider_secret_run(tmp_path, log, secrets="", versions="", env=env)
+    assert result.returncode != 0
+    assert error in result.stderr
+    assert not log.exists() or "run deploy" not in log.read_text(encoding="utf-8")
+
+
+def _assistant_on(**overrides: str) -> dict[str, str]:
+    today = date.today().isoformat()
+    return {
+        "ASSISTANT_ENABLED": "true",
+        "ASSISTANT_DAILY_BUDGET_MICRO_USD": "5000000",
+        "ASSISTANT_TURN_RESERVE_MICRO_USD": "20000",
+        "ASSISTANT_POLICY_DATE": today,
+        "ASSISTANT_POLICY_MODEL": "gemini-2.5-flash",
+        **overrides,
+    }
+
+
+@requires_jq
+def test_rollout_leaves_the_assistant_off_unless_it_is_turned_on(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(tmp_path, log, secrets="", versions="")
+    assert result.returncode == 0, result.stderr + result.stdout
+    calls = log.read_text(encoding="utf-8")
+    assert "GEMINI_LIVE_MODEL=,ASSISTANT_ENABLED=false" in calls
+    assert "ASSISTANT_DAILY_BUDGET_MICRO_USD" not in calls
+
+
+@requires_jq
+def test_rollout_turns_the_assistant_on_with_its_policy(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    env = _assistant_on()
+    result = _provider_secret_run(tmp_path, log, secrets="", versions="", env=env)
+    assert result.returncode == 0, result.stderr + result.stdout
+    expected = (
+        "ASSISTANT_ENABLED=true,ASSISTANT_DAILY_BUDGET_MICRO_USD=5000000,"
+        "ASSISTANT_TURN_RESERVE_MICRO_USD=20000,"
+        f"ASSISTANT_POLICY_DATE={env['ASSISTANT_POLICY_DATE']},"
+        "ASSISTANT_POLICY_MODEL=gemini-2.5-flash"
+    )
+    assert expected in log.read_text(encoding="utf-8")
+
+
+@requires_jq
+@pytest.mark.parametrize(
+    ("env", "error"),
+    [
+        ({"ASSISTANT_ENABLED": "yes"}, "ASSISTANT_ENABLED must be true or false"),
+        (_assistant_on(ASSISTANT_POLICY_MODEL=""), "needs ASSISTANT_POLICY_MODEL"),
+        (_assistant_on(ASSISTANT_DAILY_BUDGET_MICRO_USD="5e6"), "Invalid ASSISTANT_DAILY"),
+        (_assistant_on(ASSISTANT_TURN_RESERVE_MICRO_USD="0"), "above 0 and at most"),
+        (_assistant_on(ASSISTANT_TURN_RESERVE_MICRO_USD="6000000"), "above 0 and at most"),
+        # A leading zero must still compare as decimal, not octal.
+        (_assistant_on(ASSISTANT_TURN_RESERVE_MICRO_USD="09"), None),
+        (
+            _assistant_on(ASSISTANT_POLICY_DATE=(date.today() - timedelta(days=31)).isoformat()),
+            "in the last 30 days",
+        ),
+        (
+            _assistant_on(ASSISTANT_POLICY_DATE=(date.today() + timedelta(days=1)).isoformat()),
+            "in the last 30 days",
+        ),
+        (_assistant_on(ASSISTANT_POLICY_DATE="yesterday"), "in the last 30 days"),
+        # A comma would smuggle another variable into --set-env-vars.
+        (
+            _assistant_on(ASSISTANT_POLICY_MODEL="m,ENVIRONMENT=production"),
+            "Invalid ASSISTANT_POLICY_MODEL",
+        ),
+    ],
+)
+def test_rollout_checks_the_assistant_policy_before_deploying(
+    tmp_path: Path, env: dict[str, str], error: str | None
+) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(tmp_path, log, secrets="", versions="", env=env)
+    if error is None:
+        assert result.returncode == 0, result.stderr + result.stdout
+        return
     assert result.returncode != 0
     assert error in result.stderr
     assert not log.exists() or "run deploy" not in log.read_text(encoding="utf-8")
