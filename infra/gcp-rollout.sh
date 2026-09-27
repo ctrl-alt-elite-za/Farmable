@@ -69,6 +69,14 @@ if [[ "$ASSISTANT_ENABLED" == true ]]; then
   assistant_env+=",ASSISTANT_TURN_RESERVE_MICRO_USD=$ASSISTANT_TURN_RESERVE_MICRO_USD"
   assistant_env+=",ASSISTANT_POLICY_DATE=$ASSISTANT_POLICY_DATE"
   assistant_env+=",ASSISTANT_POLICY_MODEL=$ASSISTANT_POLICY_MODEL"
+  # Optional per-farmer daily cap; the backend's own default (20) applies when unset.
+  if [[ -n "${ASSISTANT_DAILY_TURNS_PER_USER:-}" ]]; then
+    if [[ ! "$ASSISTANT_DAILY_TURNS_PER_USER" =~ ^[0-9]{1,3}$ ]] ||
+      (( 10#$ASSISTANT_DAILY_TURNS_PER_USER < 1 || 10#$ASSISTANT_DAILY_TURNS_PER_USER > 100 )); then
+      echo 'ASSISTANT_DAILY_TURNS_PER_USER must be a whole number from 1 to 100' >&2; exit 1
+    fi
+    assistant_env+=",ASSISTANT_DAILY_TURNS_PER_USER=$ASSISTANT_DAILY_TURNS_PER_USER"
+  fi
 fi
 # Cloud Run caps a traffic tag plus the service name at 46 characters, so the full
 # 40-character SHA ("sha-" + 40 = 44) cannot tag any service. Twelve hex digits stay
