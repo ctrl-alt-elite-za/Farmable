@@ -114,8 +114,8 @@ def check_signup_codes(
 ) -> list[str]:
     if not send:
         return [
-            "sign-up codes not checked: staging refuses every code request until an "
-            "SMS provider is connected (#125 or #129). Prove it with ARGS=--send-code "
+            "sign-up codes not checked: staging refuses every code request until "
+            "Infobip is set up (#125's owner steps). Prove it with ARGS=--send-code "
             "and DEMO_SIGNUP_PROBE_PHONE, a spare team number"
         ]
     if not api_url:

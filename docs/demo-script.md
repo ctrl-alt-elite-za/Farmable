@@ -22,7 +22,7 @@ before the event.
 
 | # | Step | What the presenter says | Works on a real phone today? |
 |---|---|---|---|
-| 1 | Open the app, walk through the intro, **Create account** | "Thandi farms two sections outside KwaMashu. She signs up with her phone number." | ⚠️ **Not working on staging yet:** every code request returns `503 provider_unavailable`, because no SMS provider is connected to sign-up. Fixed by whichever merges of #125 (Infobip) or #129 (Twilio Verify), plus that PR's console and secret setup. Then it needs the team phone for the code. |
+| 1 | Open the app, walk through the intro, **Create account** | "Thandi farms two sections outside KwaMashu. She signs up with her phone number." | ⚠️ **Not working on staging yet:** every code request returns `503 provider_unavailable`, because no SMS provider is connected to sign-up. Codes are sent through **Infobip** (#125, merged). It works once the owner steps in #125 are done: apply Terraform for the four `infobip-*` secrets, store their values with `bash infra/set-secret.sh`, and deploy. Then it needs the team phone for the code. |
 | 2 | First farm and first section | "No title deed needed: a section is just a piece of land she uses for one thing." | ✅ First-launch setup (#89) |
 | 3 | Home: greeting, sections, "Next up", harvest | "Everything here is on her phone. It opens the same with no signal." | ✅ Offline Home (#12) |
 | 4 | Airplane mode, reopen, show the age label | "Out of coverage, nothing breaks. It says how old the numbers are." | ✅ (#12) |
