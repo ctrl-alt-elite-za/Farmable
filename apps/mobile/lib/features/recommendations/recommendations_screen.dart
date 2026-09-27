@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.g.dart';
 import '../../core/ui/buttons.dart';
@@ -54,7 +55,11 @@ class RecommendationsScreen extends ConsumerWidget {
         error: (_, _) => _Gone(onBack: () => back(context, sectionId)),
         data: (value) => value == null
             ? _Gone(onBack: () => back(context, sectionId))
-            : _Recommendations(view: value, sectionId: sectionId),
+            : _Recommendations(
+                view: value,
+                sectionId: sectionId,
+                demoPhotography: !ref.watch(farmScopeProvider).isAccount,
+              ),
       ),
     );
   }
@@ -71,8 +76,13 @@ class RecommendationsScreen extends ConsumerWidget {
 class _Recommendations extends ConsumerWidget {
   final RecommendationsView view;
   final String sectionId;
+  final bool demoPhotography;
 
-  const _Recommendations({required this.view, required this.sectionId});
+  const _Recommendations({
+    required this.view,
+    required this.sectionId,
+    required this.demoPhotography,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -148,6 +158,7 @@ class _Recommendations extends ConsumerWidget {
                 for (final recommendation in view.fits) ...[
                   RecommendationCard(
                     recommendation: recommendation,
+                    demoPhotography: demoPhotography,
                     onOpen: () => context.go(
                       '/farm/zone/$sectionId/plant/${recommendation.crop.name}',
                     ),
@@ -165,6 +176,7 @@ class _Recommendations extends ConsumerWidget {
                 for (final recommendation in view.doesNotFit) ...[
                   RecommendationCard(
                     recommendation: recommendation,
+                    demoPhotography: demoPhotography,
                     onOpen: () => context.go(
                       '/farm/zone/$sectionId/plant/${recommendation.crop.name}',
                     ),

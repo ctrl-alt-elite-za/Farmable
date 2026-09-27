@@ -26,11 +26,13 @@ import 'recommendation_chips.dart';
 class RecommendationCard extends StatelessWidget {
   final CropRecommendation recommendation;
   final VoidCallback onOpen;
+  final bool demoPhotography;
 
   const RecommendationCard({
     super.key,
     required this.recommendation,
     required this.onOpen,
+    this.demoPhotography = false,
   });
 
   @override
@@ -65,7 +67,11 @@ class RecommendationCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _Media(recommendation: recommendation, strong: strong),
+                  _Media(
+                    recommendation: recommendation,
+                    strong: strong,
+                    demoPhotography: demoPhotography,
+                  ),
                   const SizedBox(height: AlmanacDimens.sp4),
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -142,8 +148,13 @@ class RecommendationCard extends StatelessWidget {
 class _Media extends StatelessWidget {
   final CropRecommendation recommendation;
   final bool strong;
+  final bool demoPhotography;
 
-  const _Media({required this.recommendation, required this.strong});
+  const _Media({
+    required this.recommendation,
+    required this.strong,
+    required this.demoPhotography,
+  });
 
   @override
   Widget build(BuildContext context) => ClipRRect(
@@ -158,6 +169,7 @@ class _Media extends StatelessWidget {
             child: CropImagery(
               scene: CropScene.forCrop(recommendation.crop.name),
               seed: recommendation.crop.name,
+              demoPhotography: demoPhotography,
             ),
           ),
           const ImageryScrim(),

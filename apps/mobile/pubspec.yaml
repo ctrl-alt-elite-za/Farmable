@@ -114,6 +114,8 @@ flutter:
     - assets/self_test/
     # Recorded camera frames and their detections, played back in test mode.
     - assets/test_mode/
+    # Representative South African farm photography used only by the demo.
+    - assets/demo/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
