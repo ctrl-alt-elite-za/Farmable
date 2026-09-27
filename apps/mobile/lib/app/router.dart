@@ -21,6 +21,7 @@ import '../features/account/export_screen.dart';
 import '../features/account/privacy_screen.dart';
 import '../features/account/security_screen.dart';
 import '../features/account/help_screen.dart';
+import '../features/advisory/farm_profile_screen.dart';
 import '../features/auth/auth_choice_screen.dart';
 import '../features/auth/brand_intro_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
@@ -177,6 +178,10 @@ GoRouter buildRouter({
       builder: (_, _) => const AccountScreen(),
       routes: [
         GoRoute(path: 'edit', builder: (_, _) => const EditDetailsScreen()),
+        GoRoute(
+          path: 'farm-profile',
+          builder: (_, _) => const FarmProfileScreen(),
+        ),
         GoRoute(path: 'privacy', builder: (_, _) => const PrivacyScreen()),
         GoRoute(path: 'export', builder: (_, _) => const ExportScreen()),
         GoRoute(path: 'delete', builder: (_, _) => const DeleteAccountScreen()),

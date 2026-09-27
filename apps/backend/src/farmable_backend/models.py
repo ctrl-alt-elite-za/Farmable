@@ -569,6 +569,81 @@ class Farm(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class FarmProfile(Base):
+    """Optional farm facts used only to rank advisory opportunities."""
+
+    __tablename__ = "farm_profiles"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("farm_id", "owner_id"),
+            ("farms.id", "farms.owner_id"),
+            ondelete="CASCADE",
+            name="fk_farm_profiles_farm_owner",
+        ),
+        CheckConstraint(
+            (column("farm_size_ha").is_(None)) | (column("farm_size_ha") > 0),
+            name="ck_farm_profiles_size_positive",
+        ),
+        Index("ix_farm_profiles_owner", "owner_id"),
+    )
+
+    farm_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(Uuid)
+    province: Mapped[str | None] = mapped_column(Text)
+    municipality: Mapped[str | None] = mapped_column(Text)
+    farmer_type: Mapped[str | None] = mapped_column(Text)
+    business_status: Mapped[str | None] = mapped_column(Text)
+    farm_size_ha: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    annual_turnover_band: Mapped[str | None] = mapped_column(Text)
+    crops: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list, server_default="[]")
+    goals: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list, server_default="[]")
+    equipment: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list, server_default="[]")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AdvisoryOpportunity(Base):
+    """Curated, source-backed funding and procurement opportunity metadata."""
+
+    __tablename__ = "advisory_opportunities"
+    __table_args__ = (
+        CheckConstraint(
+            column("kind").in_(("funding", "procurement")),
+            name="ck_advisory_opportunities_kind",
+        ),
+        CheckConstraint(
+            (column("closes_on").is_(None))
+            | (column("opens_on").is_(None))
+            | (column("closes_on") >= column("opens_on")),
+            name="ck_advisory_opportunities_dates",
+        ),
+        UniqueConstraint("kind", "provider", "name", name="uq_advisory_opportunity_name"),
+        Index("ix_advisory_opportunities_kind_active", "kind", "active", "closes_on"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    kind: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    provider: Mapped[str] = mapped_column(Text)
+    summary: Mapped[str] = mapped_column(Text)
+    province: Mapped[str | None] = mapped_column(Text)
+    farmer_types: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list, server_default="[]")
+    business_statuses: Mapped[list] = mapped_column(
+        JSON_DOCUMENT, default=list, server_default="[]"
+    )
+    crops: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list, server_default="[]")
+    strategy_steps: Mapped[list] = mapped_column(JSON_DOCUMENT, default=list, server_default="[]")
+    opens_on: Mapped[date | None] = mapped_column(Date)
+    closes_on: Mapped[date | None] = mapped_column(Date)
+    deadline_note: Mapped[str] = mapped_column(Text)
+    source_url: Mapped[str] = mapped_column(Text)
+    application_url: Mapped[str | None] = mapped_column(Text)
+    verified_on: Mapped[date] = mapped_column(Date)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Section(Base):
     __tablename__ = "sections"
     __table_args__ = (

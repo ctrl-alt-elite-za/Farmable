@@ -42,6 +42,7 @@ from farmable_backend.models import (
     AuthSession,
     CropDiagnosis,
     Farm,
+    FarmProfile,
     FarmTask,
     FinancialRecord,
     Media,
@@ -183,6 +184,8 @@ class AccountService:
                     select(model).where(model.owner_id == owner).order_by(model.id)
                 ).all()
                 document[name] = [_row(row) for row in rows]
+            profile = session.scalar(select(FarmProfile).where(FarmProfile.owner_id == owner))
+            document["farm_profiles"] = [] if profile is None else [_row(profile)]
             # Plan history and assistant content are personal data too. Account
             # erasure explicitly deletes plan history and cascades assistant rows.
             for name, model in (
@@ -279,6 +282,7 @@ class AccountService:
                     .where(model.owner_id == owner, model.deleted_at.is_(None))
                     .values(deleted_at=now)
                 )
+            session.execute(delete(FarmProfile).where(FarmProfile.owner_id == owner))
             # Explicit deletes rather than a users-row cascade: the ownership
             # row stays so every farm foreign key, photo upload and rate row
             # keeps its referent. The credential identity itself is removed.

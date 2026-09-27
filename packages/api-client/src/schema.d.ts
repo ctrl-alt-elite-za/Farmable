@@ -74,6 +74,41 @@ export interface paths {
     patch: operations['updateAccountProfile'];
     trace?: never;
   };
+  '/advisory/farm-profile': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Profile */
+    get: operations['getFarmProfile'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update Profile */
+    patch: operations['updateFarmProfile'];
+    trace?: never;
+  };
+  '/advisory/opportunities/{kind}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Opportunities */
+    get: operations['listAdvisoryMatches'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/assistant/conversations': {
     parameters: {
       query?: never;
@@ -1086,6 +1121,46 @@ export interface components {
        */
       preferred_language: 'en' | 'af' | 'nso' | 'st' | 'xh' | 'zu';
     };
+    /** AdvisoryMatch */
+    AdvisoryMatch: {
+      /** Application Url */
+      application_url: string | null;
+      /** Closes On */
+      closes_on: string | null;
+      /** Deadline Note */
+      deadline_note: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'funding' | 'procurement';
+      /** Match Reasons */
+      match_reasons: string[];
+      /** Missing Profile Fields */
+      missing_profile_fields: string[];
+      /** Name */
+      name: string;
+      /** Opens On */
+      opens_on: string | null;
+      /** Provider */
+      provider: string;
+      /** Source Url */
+      source_url: string;
+      /** Strategy Steps */
+      strategy_steps: string[];
+      /** Summary */
+      summary: string;
+      /**
+       * Verified On
+       * Format: date
+       */
+      verified_on: string;
+    };
     /** AuthProgressResponse */
     AuthProgressResponse: {
       /**
@@ -1535,6 +1610,60 @@ export interface components {
       /** Sales Cents */
       sales_cents: number;
     };
+    /** FarmProfileUpdate */
+    FarmProfileUpdate: {
+      /** Annual Turnover Band */
+      annual_turnover_band?: string | null;
+      /** Business Status */
+      business_status?: string | null;
+      /** Crops */
+      crops?: string[];
+      /** Equipment */
+      equipment?: string[];
+      /** Farm Size Ha */
+      farm_size_ha?: number | string | null;
+      /** Farmer Type */
+      farmer_type?: string | null;
+      /** Goals */
+      goals?: string[];
+      /** Municipality */
+      municipality?: string | null;
+      /** Province */
+      province?: string | null;
+    };
+    /** FarmProfileView */
+    FarmProfileView: {
+      /** Annual Turnover Band */
+      annual_turnover_band?: string | null;
+      /** Business Status */
+      business_status?: string | null;
+      /** Crops */
+      crops?: string[];
+      /** Equipment */
+      equipment?: string[];
+      /**
+       * Farm Id
+       * Format: uuid
+       */
+      farm_id: string;
+      /** Farm Size Ha */
+      farm_size_ha?: string | null;
+      /** Farmer Type */
+      farmer_type?: string | null;
+      /** Goals */
+      goals?: string[];
+      /** Municipality */
+      municipality?: string | null;
+      /**
+       * Owner Id
+       * Format: uuid
+       */
+      owner_id: string;
+      /** Province */
+      province?: string | null;
+      /** Updated At */
+      updated_at: string | null;
+    };
     /** FarmUpdate */
     FarmUpdate: {
       /** Name */
@@ -1866,7 +1995,12 @@ export interface components {
        * Name
        * @enum {string}
        */
-      name: 'list_sections' | 'get_crop_outlook' | 'preview_planting_plan';
+      name:
+        | 'list_sections'
+        | 'get_crop_outlook'
+        | 'preview_planting_plan'
+        | 'find_funding'
+        | 'find_procurement';
     };
     /** LiveToolResult */
     LiveToolResult: {
@@ -3793,6 +3927,239 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ProfileResponse'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getFarmProfile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FarmProfileView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  updateFarmProfile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FarmProfileUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FarmProfileView'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  listAdvisoryMatches: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        kind: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdvisoryMatch'][];
         };
       };
       /** @description Unauthorized */

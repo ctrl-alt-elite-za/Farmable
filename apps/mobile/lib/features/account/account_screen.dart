@@ -173,6 +173,12 @@ class _SignedInState extends ConsumerState<_SignedIn> {
           onTap: () => context.go('/profile/edit'),
         ),
         ProfileRow(
+          icon: LucideIcons.clipboardList,
+          title: 'Farm profile for opportunities',
+          subtitle: 'Facts used to match funding and procurement routes',
+          onTap: () => context.go('/profile/farm-profile'),
+        ),
+        ProfileRow(
           icon: LucideIcons.shieldCheck,
           title: 'Privacy and consent',
           subtitle: 'What is kept, and what outside services may do',
