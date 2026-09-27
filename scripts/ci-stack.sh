@@ -86,6 +86,9 @@ elif [ "$mode" = mobile ]; then
   maestro test e2e/mobile/scan_pan.yaml
   bash scripts/await-device.sh
   maestro test e2e/mobile/voice_fallback.yaml
+  # Cutting the assistant off mid-answer and giving a new budget (#25).
+  bash scripts/await-device.sh
+  maestro test e2e/mobile/tap_interrupt.yaml
   # A photo taken with no signal reaches the server exactly once when the
   # signal returns (#17), through the stack's disposable photo storage.
   bash scripts/await-device.sh

@@ -2,7 +2,10 @@
 /// the typing box that says what voice is doing, and the spoken exchanges.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -10,9 +13,18 @@ import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.g.dart';
 import '../../../core/ui/buttons.dart';
 import '../../../domain/assistant/voice.dart';
+import '../assistant_controller.dart';
 import '../voice_controller.dart';
 
-/// Mic, or Stop while a session is open.
+/// Silences the assistant mid-answer and goes straight back to listening.
+/// The haptic tick is part of the answer: the farmer feels it land.
+void interruptVoice(WidgetRef ref) {
+  unawaited(HapticFeedback.selectionClick());
+  unawaited(ref.read(voiceControllerProvider.notifier).interrupt());
+}
+
+/// Mic; Stop while a session is open; and, while the assistant is talking,
+/// the tap that cuts it off.
 class MicButton extends ConsumerWidget {
   final bool enabled;
 
@@ -24,6 +36,23 @@ class MicButton extends ConsumerWidget {
     final controller = ref.read(voiceControllerProvider.notifier);
     final c = context.semantic;
     final on = voice.active || voice.phase == VoicePhase.consent;
+    if (voice.speaking) {
+      return Semantics(
+        identifier: 'voice-interrupt',
+        button: true,
+        label: 'Stop the answer and listen',
+        excludeSemantics: true,
+        child: IconButton.filled(
+          key: const Key('voice-interrupt'),
+          constraints: const BoxConstraints(
+            minWidth: AlmanacDimens.touchMin,
+            minHeight: AlmanacDimens.touchMin,
+          ),
+          onPressed: () => interruptVoice(ref),
+          icon: const Icon(LucideIcons.hand, size: 20),
+        ),
+      );
+    }
     return Semantics(
       identifier: on ? 'voice-stop' : 'voice-start',
       button: true,
@@ -140,9 +169,18 @@ class VoiceStrip extends ConsumerWidget {
           _Status(
             icon: voice.speaking ? LucideIcons.volume2 : LucideIcons.mic,
             words: voice.speaking
-                ? 'Answering — talk to interrupt'
+                ? 'Answering — tap or talk to interrupt'
                 : 'Listening',
           ),
+          if (voice.speaking) ...[
+            const SizedBox(height: AlmanacDimens.sp2),
+            AppPrimaryButton(
+              key: const Key('voice-interrupt-strip'),
+              label: 'Stop the answer',
+              icon: LucideIcons.hand,
+              onPressed: () => interruptVoice(ref),
+            ),
+          ],
           const SizedBox(height: AlmanacDimens.sp1),
           _LanguageChoice(language: voice.language),
         ]);
@@ -304,6 +342,15 @@ class VoiceExchanges extends ConsumerWidget {
     final exchanges = ref.watch(
       voiceControllerProvider.select((s) => s.exchanges),
     );
+    final speaking = ref.watch(
+      voiceControllerProvider.select((s) => s.speaking),
+    );
+    final chatReady = ref.watch(
+      assistantControllerProvider.select(
+        (s) => s.stage == AssistantStage.ready && !s.writing,
+      ),
+    );
+    final heardSomething = exchanges.any((e) => e.heard.trim().isNotEmpty);
     final text = Theme.of(context).textTheme;
     final c = context.semantic;
     return Column(
@@ -360,14 +407,67 @@ class VoiceExchanges extends ConsumerWidget {
                   border: Border.all(color: c.outlineVariant),
                 ),
                 child: Semantics(
-                  label: 'Assistant said',
-                  child: Text(e.reply.trim(), style: text.bodyMedium),
+                  label: e.interrupted
+                      ? 'Assistant said, before you interrupted'
+                      : 'Assistant said',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        e.interrupted ? '${e.reply.trim()}…' : e.reply.trim(),
+                        style: text.bodyMedium?.copyWith(
+                          color: e.interrupted ? c.onSurfaceVariant : null,
+                        ),
+                      ),
+                      if (e.interrupted) ...[
+                        const SizedBox(height: AlmanacDimens.sp2),
+                        Row(
+                          key: Key('voice-interrupted-$i'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              LucideIcons.hand,
+                              size: 14,
+                              color: c.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: AlmanacDimens.sp1),
+                            Text(
+                              'Interrupted',
+                              style: text.labelSmall?.copyWith(
+                                color: c.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),
         ],
+        if (heardSomething && chatReady && !speaking)
+          Padding(
+            padding: const EdgeInsets.only(top: AlmanacDimens.sp3),
+            child: AppSecondaryButton(
+              key: const Key('voice-plan'),
+              label: 'Make a plan from this',
+              icon: LucideIcons.sprout,
+              onPressed: () => _plan(ref),
+            ),
+          ),
       ],
     );
+  }
+
+  /// Hands what was said, corrections included, to the planner as one
+  /// message; if the conversation cannot take it now, it waits in the box.
+  static Future<void> _plan(WidgetRef ref) async {
+    final words = await ref.read(voiceControllerProvider.notifier).takeWords();
+    if (words == null) return;
+    final chat = ref.read(assistantControllerProvider.notifier);
+    if (!await chat.send(words)) chat.returnDraft(words);
   }
 
   /// The farmer's words stop changing once the model starts answering.

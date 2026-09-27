@@ -143,6 +143,7 @@ bash "$1" mobile
     if not scan_fails:
         expected += [
             "voice_fallback",
+            "tap_interrupt",
             "upload_offline_resume",
             "assistant_plan",
             "first_launch_setup",
