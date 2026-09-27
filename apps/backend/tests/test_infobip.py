@@ -82,6 +82,32 @@ def test_a_network_failure_is_a_fixed_provider_error():
     assert str(raised.value) == "provider_error"
 
 
+@pytest.mark.parametrize("error", [httpx.ReadTimeout, httpx.ReadError, httpx.RemoteProtocolError])
+def test_a_send_that_may_have_reached_infobip_is_delivery_unknown(error):
+    def lost(request):
+        raise error("response lost test-key", request=request)
+
+    provider, seen = _provider(lost)
+    with pytest.raises(AuthError) as raised:
+        provider.deliver(Channel.PHONE, "+27821234567", "123456")
+    assert (raised.value.code, raised.value.status_code) == ("delivery_unknown", 503)
+    assert str(raised.value) == "delivery_unknown"
+    assert len(seen) == 1
+
+
+@pytest.mark.parametrize("channel", [Channel.PHONE, Channel.EMAIL])
+def test_the_real_owner_is_warned_without_a_code(channel):
+    provider, seen = _provider(lambda _: httpx.Response(200, json={"messages": []}))
+    destination = "+27821234567" if channel is Channel.PHONE else "farmer@example.com"
+    provider.notify_existing_account(channel, destination)
+    (request,) = seen
+    body = request.content.decode()
+    assert "tried to use this" in body
+    assert "verification code" not in body
+    if channel is Channel.EMAIL:
+        assert 'name="subject"\r\n\r\nAlmanac sign-up attempt\r\n' in body
+
+
 def test_codes_are_six_random_digits():
     provider, _ = _provider(lambda _: httpx.Response(200))
     codes = {provider.create_code(Channel.PHONE) for _ in range(50)}

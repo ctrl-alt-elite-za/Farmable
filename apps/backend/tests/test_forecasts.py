@@ -350,7 +350,7 @@ def test_import_failure_and_notification_failure_do_not_stop_other_runs(
 def test_deploy_continues_when_import_fails(monkeypatch, settings, capsys):
     monkeypatch.setattr(
         forecast_cli,
-        "Settings",
+        "DatabaseSettings",
         lambda: settings.model_copy(update={"forecast_data_mode": "sample"}),
     )
 

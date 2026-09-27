@@ -51,7 +51,12 @@ void main() {
     exports = InMemoryExportStore();
     db = AlmanacDatabase.memory();
     await DemoSeed(db, now: () => now).ensureSeeded();
-    auth = ApiAuthService(api.dio(), session, now: () => now);
+    auth = ApiAuthService(
+      api.dio(),
+      session,
+      now: () => now,
+      requestVerification: (action) async => 'test-turnstile-$action',
+    );
     await auth.logIn(
       mode: LoginMode.email,
       identifier: 'thandi@example.com',

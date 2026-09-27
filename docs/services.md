@@ -19,6 +19,34 @@ adapters must be verified, not rebuilt or treated as accepted solely because the
 synthetic tests pass. PR #71 adds read-only text orchestration, not completion of
 the whole issue; see [the acceptance map](assistant-backend.md#issue-7-acceptance-map).
 
+## Live SMS/email OTP delivery (#9)
+
+`InfobipOtpProvider` (`farmable_backend/infobip.py`) replaces the fail-closed
+`DisabledOtpProvider` when `INTEGRATIONS_MODE=live` and all four `INFOBIP_*` values
+are set. It sends the phone code by Infobip SMS and the email code through
+Infobip's email API, and warns the real owner when someone signs up with their
+existing email or phone. Codes are generated locally, never by a provider, and never
+logged. A send that may already have reached Infobip (a timeout or dropped
+connection after the request left) is reported as `delivery_unknown`: the code is
+kept, and a retry with the same `Idempotency-Key` does not send a second message.
+The Twilio adapter in this module remains unwired and unused by any consumer.
+
+## WhatsApp template messages (standalone, demo-only)
+
+`Infobip.send_whatsapp_template()` sends a pre-approved WhatsApp template via
+the Infobip WhatsApp API. **Not wired into any app flow** - it exists as a
+capability, not an automatic notification; nothing currently calls it.
+Verified working end-to-end (one real send, `PENDING_ENROUTE`) against
+Infobip's shared sandbox sender `447860088970` and the
+`test_whatsapp_template_en` template. That sandbox number is Infobip's own
+and cannot carry Almanac branding (no custom name/logo/profile) - real
+branded WhatsApp requires a dedicated WhatsApp Business Account (WABA)
+registered with Infobip and verified by Meta, which is an account-level
+business process (business verification, phone number registration, Meta
+approval), not a config value or code change. Set
+`INFOBIP_WHATSAPP_SENDER` to whichever sender (sandbox or a real WABA) should
+be used once/if this is wired into a real flow.
+
 ## PR #36 scope and acceptance handoff
 
 PR #36 is a **partial adapter foundation**, not completion of issue #7. Its
@@ -90,6 +118,10 @@ configuration separate. Do not dump a rendered environment or secret settings.
 | `GEMINI_MODEL`              | `farmable-staging-gemini-model`              |
 | `CROP_HEALTH_API_KEY`       | `farmable-staging-crop-health-api-key`       |
 | `MAPS_SERVER_API_KEY`       | `farmable-staging-maps-server-api-key`       |
+| `INFOBIP_BASE_URL`          | `farmable-staging-infobip-base-url`          |
+| `INFOBIP_API_KEY`           | `farmable-staging-infobip-api-key`           |
+| `INFOBIP_SMS_SENDER`        | `farmable-staging-infobip-sms-sender`        |
+| `INFOBIP_EMAIL_SENDER`      | `farmable-staging-infobip-email-sender`      |
 
 Azure region and resource name must match the created Speech account. No Gemini
 model is guessed: set an available model explicitly, with its account quota.
@@ -98,17 +130,18 @@ package name and signing certificate, manually verified in Google Cloud.
 
 ## Reliability and fallbacks
 
-| Service        | Per-attempt bound                              | Fallback for feature consumers            |
-| -------------- | ---------------------------------------------- | ----------------------------------------- |
-| Twilio Verify  | 10 s                                           | No authentication success; retry later    |
-| Turnstile      | 5 s                                            | Reject verification; retry widget         |
-| Azure STT      | 15 s total request                             | Typed input                               |
-| Azure TTS      | 10 s per submitted sentence                    | Display text                              |
-| Gemini         | 10 s to visible first text / 60 s stream total | Explicit assistant-unavailable state      |
-| crop.health    | 20 s                                           | Keep photo, show diagnosis unavailable    |
-| SoilGrids      | 10 s                                           | Manual soil inputs / labelled cached data |
-| Open-Meteo     | 10 s                                           | Labelled cached weather / unavailable     |
-| Maps geocoding | 10 s                                           | Manual location selection                 |
+| Service                         | Per-attempt bound                              | Fallback for feature consumers                       |
+| ------------------------------- | ---------------------------------------------- | ---------------------------------------------------- |
+| Twilio Verify                   | 10 s                                           | No authentication success; retry later               |
+| Turnstile                       | 5 s                                            | Reject verification; retry widget                    |
+| Azure STT                       | 15 s total request                             | Typed input                                          |
+| Azure TTS                       | 10 s per submitted sentence                    | Display text                                         |
+| Gemini                          | 10 s to visible first text / 60 s stream total | Explicit assistant-unavailable state                 |
+| crop.health                     | 20 s                                           | Keep photo, show diagnosis unavailable               |
+| SoilGrids                       | 10 s                                           | Manual soil inputs / labelled cached data            |
+| Open-Meteo                      | 10 s                                           | Labelled cached weather / unavailable                |
+| Maps geocoding                  | 10 s                                           | Manual location selection                            |
+| Infobip (SMS and email OTP)     | 10 s, one attempt                              | `503 provider_error`, or `503 delivery_unknown` with the code kept |
 
 Only network/timeouts, HTTP 429, and 5xx retry: at most three attempts, waits
 0.5 s and 1 s plus 0–250 ms random jitter. Validation errors and other 4xx do

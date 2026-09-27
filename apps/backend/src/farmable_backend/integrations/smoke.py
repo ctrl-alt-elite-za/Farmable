@@ -101,6 +101,15 @@ async def check_services(
         else:
             passed.append(report("twilio", False, "sms_not_authorized"))
 
+    if "infobip" in services:
+        if allow_sms and os.getenv("SMOKE_PHONE"):
+            infobip = await registry.infobip.send_sms(
+                os.environ["SMOKE_PHONE"], "Farmable smoke test."
+            )
+            check(infobip)
+        else:
+            passed.append(report("infobip", False, "sms_not_authorized"))
+
     if "turnstile" in services:
         settings = registry.turnstile.settings
         turnstile_key = registry.turnstile.secret(settings.turnstile_secret) or ""

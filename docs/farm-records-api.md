@@ -45,13 +45,16 @@ or read through these routes, and `local_id` is immutable after create.
 
 Every mutation body carries a client-generated `mutation_id`. Create bodies also
 carry the client-generated record UUID as `id`; update bodies carry
-`expected_version`; delete bodies carry only `mutation_id`.
+`expected_version`; delete bodies carry `mutation_id` and the observed
+`expected_child_versions` map when deleting a section with attached records.
 
 - Replaying a byte-identical mutation returns the same logical result and writes
   no second record and no second change row.
 - Reusing a `mutation_id` for different work returns 409 `mutation_conflict`.
 - Creating an ID that already exists returns 409 `record_exists`.
 - Updating with a stale `expected_version` returns 409 `revision_conflict`.
+- Section deletion returns 409 `revision_conflict` unless every attached child
+  version observed by the client is supplied in `expected_child_versions`.
 - Updating a tombstoned record returns 409 `record_deleted`; a tombstone is
   never resurrected, and the ID cannot be recreated.
 - `PUT` replaces every field its DTO declares; fields the DTO does not declare

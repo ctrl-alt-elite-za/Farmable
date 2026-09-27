@@ -40,7 +40,12 @@ void main() {
 
   void build({SessionStorage? sessionStorage}) {
     session = sessionStorage ?? InMemorySessionStorage();
-    auth = ApiAuthService(api.dio(), session, now: () => now);
+    auth = ApiAuthService(
+      api.dio(),
+      session,
+      now: () => now,
+      requestVerification: (action) async => 'test-turnstile-$action',
+    );
     service = ApiAccountService(
       auth,
       account,

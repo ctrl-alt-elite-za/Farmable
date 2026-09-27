@@ -53,7 +53,12 @@ class RecordingAuthService extends ApiAuthService {
   String? path;
   Map<String, Object?>? query;
 
-  RecordingAuthService() : super(Dio(), InMemorySessionStorage());
+  RecordingAuthService()
+    : super(
+        Dio(),
+        InMemorySessionStorage(),
+        requestVerification: (action) async => 'test-turnstile-$action',
+      );
 
   @override
   Future<Response<Object?>> authorized(

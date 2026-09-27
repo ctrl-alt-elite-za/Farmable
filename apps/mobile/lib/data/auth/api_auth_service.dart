@@ -15,9 +15,9 @@
 ///
 /// ## Sessions and refresh
 ///
-/// The backend issues an access token and a refresh token that share one
-/// `expires_at`, thirty days out. Refreshing rotates both and starts a fresh
-/// thirty days; once `expires_at` has passed, the refresh token is dead too.
+/// The backend issues a fifteen-minute access token and a thirty-day refresh
+/// token. Refreshing rotates both and starts both lifetimes again. Once the
+/// refresh expiry has passed, the session cannot be revived.
 /// So refreshing is something to do *early* — [refreshSession] extends the
 /// session at the first opportunity with signal once it is past
 /// [refreshWhenWithin] — because a farmer out of signal for a month cannot be
@@ -29,21 +29,19 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
+import '../../core/utils/ids.dart';
 import '../../domain/auth/auth_models.dart';
 import '../../domain/auth/auth_service.dart';
 import 'session_storage.dart';
 
-/// Refresh once fewer than this remain of the session.
+/// Refresh once fewer than this remain on the access token.
 ///
-/// Twenty-eight of thirty days: in practice, the first launch with a signal
-/// once the session is two days old. Signal is patchy where this app is used,
-/// so every chance to push the deadline back is taken rather than waiting for
-/// the last week and hoping there is coverage in it.
-const Duration refreshWhenWithin = Duration(days: 28);
+const Duration refreshWhenWithin = Duration(minutes: 1);
 
 class ApiAuthService implements AuthService {
   final Dio _dio;
   final SessionStorage _storage;
+  final Future<String> Function(String action) requestVerification;
 
   /// Injectable so a test can pin it and walk a session up to its expiry.
   final DateTime Function() now;
@@ -63,7 +61,26 @@ class ApiAuthService implements AuthService {
   /// [restore] never hands that session out again for the rest of this run.
   String? _endedToken;
 
-  ApiAuthService(this._dio, this._storage, {this.now = DateTime.now});
+  ApiAuthService(
+    this._dio,
+    this._storage, {
+    required this.requestVerification,
+    this.now = DateTime.now,
+  });
+
+  Future<String> _verification(String action) async {
+    try {
+      final token = await requestVerification(action);
+      if (token.isEmpty || token.length > 2048) {
+        throw const AuthException(AuthFailure.unavailable);
+      }
+      return token;
+    } on AuthException {
+      rethrow;
+    } catch (_) {
+      throw const AuthException(AuthFailure.unavailable);
+    }
+  }
 
   /// Which session this is: changes whenever a session is granted, ended or
   /// dropped, and not when one is merely refreshed.
@@ -101,22 +118,79 @@ class ApiAuthService implements AuthService {
     required String password,
   }) async {
     final normalisedEmail = email.trim().toLowerCase();
-    final body = await _post('/auth/signup', {
+    final token = await _verification('sign_up');
+    final record = await _read();
+    final previous = _pendingIn(record);
+    final sameSignup =
+        previous != null &&
+        previous.phone == phone &&
+        previous.email == normalisedEmail &&
+        previous.idempotencyKey != null;
+    final attempt = record['signup_attempt'];
+    final rememberedKey =
+        attempt is Map &&
+            attempt['phone'] == phone &&
+            attempt['email'] == normalisedEmail
+        ? attempt['idempotency_key']
+        : null;
+    final idempotencyKey = sameSignup
+        ? previous.idempotencyKey!
+        : rememberedKey is String && _looksLikeUuid(rememberedKey)
+        ? rememberedKey
+        : newUuid();
+    // Save before dispatch: the account may be created even if no response
+    // reaches this phone. No user ID is invented, and no password or proof
+    // is persisted. A retry re-enters credentials and obtains fresh proof.
+    await _write(
+      record,
+      signupAttempt: {
+        'phone': phone,
+        'email': normalisedEmail,
+        'idempotency_key': idempotencyKey,
+      },
+    );
+    final request = {
       'first_name': firstName.trim(),
       'surname': surname.trim(),
       'phone': phone,
       'email': normalisedEmail,
       'password': password,
-    });
+      'turnstile_token': token,
+    };
+
+    late final Map<String, Object?> body;
+    try {
+      body = await _post(
+        '/auth/signup',
+        request,
+        headers: {'Idempotency-Key': idempotencyKey},
+      );
+    } on AuthException catch (error) {
+      final userId = error.deliveryUnknownUserId;
+      if (userId == null) rethrow;
+      final pending = PendingSignup(
+        userId: userId,
+        nextStep: VerificationChannel.phone,
+        phone: phone,
+        email: normalisedEmail,
+        idempotencyKey: idempotencyKey,
+      );
+      await _write(
+        await _read(),
+        pending: pending.toJson(),
+        signupAttempt: null,
+      );
+      return pending;
+    }
 
     final pending = PendingSignup(
       userId: _string(body, 'user_id'),
       nextStep: _channel(body),
       phone: phone,
       email: normalisedEmail,
+      idempotencyKey: idempotencyKey,
     );
-    final record = await _read();
-    await _write(record, pending: pending.toJson());
+    await _write(await _read(), pending: pending.toJson(), signupAttempt: null);
     return pending;
   }
 
@@ -140,6 +214,7 @@ class ApiAuthService implements AuthService {
         phone: previous?.phone ?? '',
         email: previous?.email ?? '',
         phoneVerified: true,
+        idempotencyKey: previous?.idempotencyKey,
       );
       await _write(record, pending: next.toJson());
       return VerificationContinues(next);
@@ -147,7 +222,12 @@ class ApiAuthService implements AuthService {
 
     final session = _session(body);
     _epoch++;
-    await _write(record, pending: null, session: session.toJson());
+    await _write(
+      record,
+      pending: null,
+      session: session.toJson(),
+      signupAttempt: null,
+    );
     return VerificationComplete(session);
   }
 
@@ -156,10 +236,11 @@ class ApiAuthService implements AuthService {
     required String userId,
     required VerificationChannel channel,
   }) async {
-    await _post('/auth/otp/resend', {
-      'user_id': userId,
-      'channel': channel.name,
-    });
+    await _post(
+      '/auth/otp/resend',
+      {'user_id': userId, 'channel': channel.name},
+      headers: {'Idempotency-Key': newUuid()},
+    );
   }
 
   /// [mode] is not sent: the backend takes one `identifier` and matches it
@@ -170,15 +251,22 @@ class ApiAuthService implements AuthService {
     required String identifier,
     required String password,
   }) async {
+    final token = await _verification('login');
     final body = await _post('/auth/login', {
       'identifier': mode == LoginMode.email
           ? identifier.trim().toLowerCase()
           : identifier,
       'password': password,
+      'turnstile_token': token,
     });
     final session = _session(body);
     _epoch++;
-    await _write(await _read(), session: session.toJson());
+    await _write(
+      await _read(),
+      pending: null,
+      session: session.toJson(),
+      signupAttempt: null,
+    );
     return session;
   }
 
@@ -198,7 +286,7 @@ class ApiAuthService implements AuthService {
     required String newPassword,
   }) async => throw const AuthException(AuthFailure.notYetSupported);
 
-  /// Reads the phone and nothing else. A session past its `expires_at` is
+  /// Reads the phone and nothing else. A session past its refresh expiry is
   /// treated as absent — its refresh token has lapsed with it, so there is
   /// nothing left that could revive it.
   @override
@@ -223,7 +311,8 @@ class ApiAuthService implements AuthService {
     final origin = _epoch;
     final standing = await restore();
     if (standing is! SignedIn) return standing;
-    if (standing.session.expiresAt.difference(now()) > refreshWhenWithin) {
+    if (standing.session.accessExpiresAt.difference(now()) >
+        refreshWhenWithin) {
       return standing;
     }
 
@@ -248,7 +337,7 @@ class ApiAuthService implements AuthService {
   Future<void> signOut() async {
     final record = await _read();
     final session = _sessionIn(record);
-    await _write(record, session: null, pending: null);
+    await _write(record, session: null, pending: null, signupAttempt: null);
     // After the write, not before: a refresh that starts while the write is
     // in flight still reads the old session, and has to be caught out by an
     // epoch that moves once that session is really gone.
@@ -267,7 +356,7 @@ class ApiAuthService implements AuthService {
     final record = await _read();
     _endedToken = _sessionIn(record)?.token;
     _epoch++;
-    await _write(record, session: null, pending: null);
+    await _write(record, session: null, pending: null, signupAttempt: null);
   }
 
   /// Asks the server to end every session after this phone has already
@@ -294,7 +383,7 @@ class ApiAuthService implements AuthService {
   @override
   Future<void> abandonSignup() async {
     final record = await _read();
-    await _write(record, pending: null);
+    await _write(record, pending: null, signupAttempt: null);
   }
 
   /// Makes an authenticated request, refreshing once if the server says the
@@ -482,11 +571,16 @@ class ApiAuthService implements AuthService {
   /// [AuthException] the response means. A `204` returns an empty map.
   Future<Map<String, Object?>> _post(
     String path,
-    Map<String, Object?> body,
-  ) async {
+    Map<String, Object?> body, {
+    Map<String, Object?>? headers,
+  }) async {
     final Response<Object?> response;
     try {
-      response = await _dio.post<Object?>(path, data: body);
+      response = await _dio.post<Object?>(
+        path,
+        data: body,
+        options: headers == null ? null : Options(headers: headers),
+      );
     } on DioException catch (e) {
       throw AuthException(_transportFailure(e));
     }
@@ -498,7 +592,18 @@ class ApiAuthService implements AuthService {
       if (status == 204 || data == null || data == '') return {};
       throw const AuthException(AuthFailure.unknown);
     }
-    throw AuthException(failureForResponse(status, data));
+    final error = data is Map ? data['error'] : null;
+    final code = error is Map ? error['code'] : null;
+    final unknownUserId = error is Map && code == 'delivery_unknown'
+        ? error['user_id']
+        : null;
+    throw AuthException(
+      failureForResponse(status, data),
+      deliveryUnknownUserId:
+          unknownUserId is String && _looksLikeUuid(unknownUserId)
+          ? unknownUserId
+          : null,
+    );
   }
 
   AuthSession _session(Map<String, Object?> body) {
@@ -508,7 +613,8 @@ class ApiAuthService implements AuthService {
         refreshToken: _string(body, 'refresh_token'),
         // Held in UTC, compared in UTC. `isAfter` compares instants, so the
         // phone's own time zone never shifts when a session lapses.
-        expiresAt: DateTime.parse(_string(body, 'expires_at')).toUtc(),
+        accessExpiresAt: DateTime.parse(_string(body, 'expires_at')).toUtc(),
+        expiresAt: DateTime.parse(_string(body, 'refresh_expires_at')).toUtc(),
         user: AuthUser.fromJson((body['user']! as Map).cast<String, Object?>()),
       );
     } on AuthException {
@@ -546,17 +652,26 @@ class ApiAuthService implements AuthService {
     Map<String, Object?> record, {
     Object? pending = _unchanged,
     Object? session = _unchanged,
+    Object? signupAttempt = _unchanged,
   }) async {
+    final attempt = identical(signupAttempt, _unchanged)
+        ? record['signup_attempt']
+        : signupAttempt;
     try {
       await _storage.write({
         'pending': identical(pending, _unchanged) ? record['pending'] : pending,
         'session': identical(session, _unchanged) ? record['session'] : session,
+        'signup_attempt': ?attempt,
       });
     } on SessionStorageException {
       throw const AuthException(AuthFailure.storageUnavailable);
     }
   }
 }
+
+bool _looksLikeUuid(String value) => RegExp(
+  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+).hasMatch(value);
 
 /// What a non-2xx response from `/auth/*` means to the farmer.
 ///

@@ -21,7 +21,12 @@ class Turnstile(Adapter):
             httpx.Request(
                 "POST",
                 "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-                json={"secret": secret, "response": token, "idempotency_key": str(uuid4())},
+                json={
+                    "secret": secret,
+                    "response": token,
+                    "idempotency_key": str(uuid4()),
+                    "action": action,
+                },
             )
         )
         if result.ok:

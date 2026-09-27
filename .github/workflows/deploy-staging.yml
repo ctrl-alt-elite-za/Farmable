@@ -118,6 +118,7 @@ jobs:
           CLOUD_SQL_CONNECTION: ${{ steps.config.outputs.sql_connection }}
           RUNTIME_SERVICE_ACCOUNT: ${{ steps.config.outputs.runtime_account }}
           DATABASE_SECRET: ${{ steps.config.outputs.database_secret }}
+          EXPORT_SECRET: ${{ steps.config.outputs.export_secret }}
           GEMINI_SECRET: ${{ steps.config.outputs.gemini_secret }}
           GCS_BUCKET: ${{ steps.config.outputs.media_bucket }}
           COMMIT_SHA: ${{ github.sha }}
@@ -127,6 +128,7 @@ jobs:
           INTEGRATIONS_MODE: ${{ vars.INTEGRATIONS_MODE || 'live' }}
           # Voice. Off unless both are set; the model is a plain name, not a secret.
           GEMINI_LIVE_ENABLED: ${{ vars.GEMINI_LIVE_ENABLED || 'false' }}
+          TURNSTILE_ENABLED: ${{ vars.TURNSTILE_ENABLED || 'true' }}
           GEMINI_LIVE_MODEL: ${{ vars.GEMINI_LIVE_MODEL }}
           # Typed assistant. Off unless ASSISTANT_ENABLED is true; the budget, reserve
           # and policy date are the operator's spending decision (infra/CLOUD_RULES.md).

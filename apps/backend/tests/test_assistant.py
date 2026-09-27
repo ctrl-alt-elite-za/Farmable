@@ -120,7 +120,9 @@ def assistant(tmp_path, settings):
     )
     worker = RecordRuntime(RecordsService(sessions), lambda: None)
     app.state.records = worker
-    app.state.account = AccountRuntime(AccountService(sessions))
+    app.state.account = AccountRuntime(
+        AccountService(sessions, export_token_secret="unit-export-token-secret")  # noqa: S106
+    )
     store = Store(sessions, policy(), service_settings)
     with TestClient(app) as client:
         runtime = orchestration.Runtime(store, worker, app.state.services, "disabled")
@@ -413,7 +415,9 @@ def test_expired_or_changed_policy_refuses_paid_admission(assistant):
 def test_history_is_owner_scoped_and_deleted_with_identity(assistant):
     script(assistant, [[wire([{"text": "Hello"}])]])
     _, _, identifier = post(assistant)
-    exported = AccountService(assistant.sessions).export_document(assistant.alice.auth)
+    account = AccountService(assistant.sessions, export_token_secret="unit-export-token-secret")  # noqa: S106
+    account.set_consent(assistant.alice.auth, "data_export", "1", True)
+    exported = account.export_document(assistant.alice.auth)
     assert exported["assistant_turns"][0]["id"] == str(identifier)
     assert exported["assistant_consents"][0]["id"] == str(assistant.conversation)
     assert str(assistant.bob.owner) not in json.dumps(exported)

@@ -2,13 +2,15 @@
 
 import hashlib
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from farmable_backend.models import AuthIdentity, AuthSession, Farm, Section
+
+ACCESS_TOKEN_TTL = timedelta(minutes=15)
 
 
 class ApiError(Exception):
@@ -31,9 +33,9 @@ def authenticate(session: Session, authorization: str | None) -> UUID:
     if not authorization or not re.fullmatch(r"(?i:Bearer) [A-Za-z0-9_-]{43}", authorization):
         raise ApiError(401, "invalid_session")
     digest = hashlib.sha256(authorization[7:].encode()).hexdigest()
-    owner = session.scalar(
-        select(AuthIdentity.id)
-        .join(AuthSession, AuthSession.user_id == AuthIdentity.id)
+    auth_session = session.scalar(
+        select(AuthSession)
+        .join(AuthIdentity, AuthSession.user_id == AuthIdentity.id)
         .where(
             AuthSession.access_token_hash == digest,
             AuthSession.revoked_at.is_(None),
@@ -42,14 +44,16 @@ def authenticate(session: Session, authorization: str | None) -> UUID:
             AuthIdentity.email_verified.is_(True),
         )
     )
-    if owner is None:
+    if auth_session is None or utc(auth_session.created_at) + ACCESS_TOKEN_TTL <= datetime.now(UTC):
         raise ApiError(401, "invalid_session")
-    return owner
+    return auth_session.user_id
 
 
 def farm_scope(session: Session, owner: UUID, farm: UUID, *, lock: bool = False) -> Farm:
     query = select(Farm).where(Farm.id == farm, Farm.owner_id == owner, Farm.deleted_at.is_(None))
-    record = session.scalar(query.with_for_update() if lock else query)
+    record = session.scalar(
+        query.with_for_update().execution_options(populate_existing=True) if lock else query
+    )
     if record is None:
         raise ApiError(404, "not_found")
     return record
@@ -64,7 +68,9 @@ def section_scope(
         Section.farm_id == farm,
         Section.deleted_at.is_(None),
     )
-    record = session.scalar(query.with_for_update() if lock else query)
+    record = session.scalar(
+        query.with_for_update().execution_options(populate_existing=True) if lock else query
+    )
     if record is None:
         raise ApiError(404, "not_found")
     return record

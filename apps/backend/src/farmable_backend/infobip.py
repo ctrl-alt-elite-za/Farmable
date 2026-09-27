@@ -2,7 +2,8 @@
 
 Synchronous on purpose: AuthService runs in the bounded auth thread pool and calls
 `deliver` inside its transaction. Never logs, returns or raises a code, key or
-provider response body; every failure is the same fixed `provider_error`.
+provider response body. A failure is the fixed `provider_error`, or
+`delivery_unknown` when the request may already have reached Infobip.
 """
 
 import secrets
@@ -18,6 +19,7 @@ from farmable_backend.smtp_email import SmtpEmailSender
 SMS_PATH = "/sms/2/text/advanced"
 EMAIL_PATH = "/email/3/send"
 SUBJECT = "Your Almanac verification code"
+NOTICE_SUBJECT = "Almanac sign-up attempt"
 
 
 class EmailSender(Protocol):
@@ -50,9 +52,23 @@ class InfobipOtpProvider:
     def deliver(self, channel: Channel, destination: str, code: str) -> None:
         minutes = int(OTP_TTL.total_seconds() // 60)
         text = f"Your Almanac verification code is {code}. It expires in {minutes} minutes."
+        self._send(channel, destination, SUBJECT, text)
+
+    def notify_existing_account(self, channel: Channel, destination: str) -> None:
+        # Sign-up and contact changes answer an existing email/phone exactly as
+        # they answer a new one (#9 enumeration resistance); the real owner is
+        # warned here instead.
+        noun = "phone number" if channel is Channel.PHONE else "email address"
+        text = (
+            f"Someone tried to use this {noun} for an Almanac account. "
+            "If this wasn't you, no action is needed."
+        )
+        self._send(channel, destination, NOTICE_SUBJECT, text)
+
+    def _send(self, channel: Channel, destination: str, subject: str, text: str) -> None:
         if channel is Channel.EMAIL and self.email is not None:
             html = f"<p>{escape(text)}</p>"
-            if not self.email.send(destination, SUBJECT, html, text):
+            if not self.email.send(destination, subject, html, text):
                 raise AuthError("provider_error", 503)
             return
         if channel is Channel.PHONE:
@@ -80,12 +96,18 @@ class InfobipOtpProvider:
                 files=[
                     ("from", (None, self.email_sender or "")),
                     ("to", (None, destination)),
-                    ("subject", (None, SUBJECT)),
+                    ("subject", (None, subject)),
                     ("text", (None, text)),
                 ],
             )
         try:
             response = self.client.send(request)
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
+            raise AuthError("provider_error", 503) from None  # Never reached Infobip.
+        except (httpx.TimeoutException, httpx.ReadError, httpx.RemoteProtocolError):
+            # The request may have been dispatched. AuthService keeps the code so
+            # a retry with the same Idempotency-Key never pays for a second SMS.
+            raise AuthError("delivery_unknown", 503) from None
         except httpx.HTTPError:
             raise AuthError("provider_error", 503) from None
         if not 200 <= response.status_code < 300:

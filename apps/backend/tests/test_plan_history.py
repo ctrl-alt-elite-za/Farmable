@@ -119,6 +119,8 @@ def test_history_is_owner_scoped_and_erased_with_account(planner):
     )
     assert history(planner, uuid4()).status_code == 404
     account = planner.client.app.state.account.service
+    account.set_consent(planner.alice.auth, "data_export", "1", True)
+    account.set_consent(planner.bob.auth, "data_export", "1", True)
     exported = account.export_document(planner.alice.auth)["plan_revisions"]
     assert len(exported) == 1 and exported[0]["plan_id"] == payload["plan_id"]
     assert account.export_document(planner.bob.auth)["plan_revisions"] == []

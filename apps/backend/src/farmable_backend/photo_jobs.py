@@ -7,7 +7,15 @@ from uuid import UUID, uuid4
 from sqlalchemy import or_, select
 
 from farmable_backend.gcs_photos import clean_key
-from farmable_backend.models import Farm, Media, PhotoAttempt, PhotoUpload, Section, SyncChange
+from farmable_backend.models import (
+    Farm,
+    Media,
+    PhotoAttempt,
+    PhotoUpload,
+    Section,
+    SectionDeletion,
+    SyncChange,
+)
 from farmable_backend.photo_policy import MAX_CLAIMS, RETRY_DELAYS
 from farmable_backend.record_access import ApiError, db_now, utc
 from farmable_backend.records_service import current_attempt
@@ -144,7 +152,11 @@ class PhotoJobs:
             if not self.owns(upload, attempt, token, now):
                 raise ApiError(409, "lease_lost")
             if not self.active(upload, farm, section):
-                upload.state, upload.error_code = "failed", "scope_unavailable"
+                # Let the worker requeue cleanup while it still has the
+                # in-memory published object.  Returning normally here would
+                # skip that cleanup when the scope became inactive without
+                # the cascade clearing this lease first.
+                raise ApiError(409, "scope_unavailable")
             else:
                 if not attempt.source_generation or not attempt.clean_sha256:
                     raise ApiError(409, "descriptor_missing")
@@ -205,6 +217,11 @@ class PhotoJobs:
                     .join(PhotoAttempt, PhotoAttempt.upload_id == PhotoUpload.id)
                     .where(
                         PhotoAttempt.cleaned_at.is_(None),
+                        ~select(SectionDeletion.section_id)
+                        .where(
+                            SectionDeletion.section_id == PhotoUpload.section_id,
+                        )
+                        .exists(),
                         or_(
                             PhotoAttempt.terminal_at <= now - timedelta(hours=1),
                             (PhotoUpload.state == "awaiting_upload")
@@ -218,6 +235,8 @@ class PhotoJobs:
 
     def cleanup_claim(self, upload_id, attempt_id):
         with self.locked(upload_id) as (session, upload, _farm, _section):
+            if session.get(SectionDeletion, upload.section_id) is not None:
+                return None  # Section job owns the bounded retry budget and final erasure.
             attempt = session.scalar(
                 select(PhotoAttempt)
                 .where(PhotoAttempt.id == attempt_id, PhotoAttempt.upload_id == upload_id)
@@ -261,3 +280,36 @@ class PhotoJobs:
                 attempt.cleaned_at = db_now(session)
             attempt.cleanup_token = None
             attempt.cleanup_expires_at = None
+
+    def requeue_cleanup_if_inactive(self, upload_id, attempt_id) -> bool:
+        """Requeue an object published after its section was deleted."""
+        try:
+            with self.locked(upload_id) as (session, upload, farm, section):
+                attempt = session.scalar(
+                    select(PhotoAttempt)
+                    .where(PhotoAttempt.id == attempt_id, PhotoAttempt.upload_id == upload.id)
+                    .with_for_update()
+                )
+                if self.active(upload, farm, section):
+                    return False
+                # The durable attempt may have been removed independently,
+                # but the worker still owns the in-memory published object.
+                if attempt is None:
+                    return True
+                upload.state = "failed"
+                upload.error_code = "scope_unavailable"
+                # Best-effort cleanup cannot prevent a late POST using an
+                # issued form. Keep the real form/lease deadlines and schedule
+                # a final pass after the normal safety window.
+                attempt.terminal_at = db_now(session)
+                attempt.lease_token = None
+                attempt.cleanup_token = None
+                attempt.cleanup_expires_at = None
+                attempt.cleaned_at = None
+                return True
+        except ApiError as error:
+            # A hard-removed upload has no durable row left to requeue, but its
+            # already-published object still needs the worker's best-effort
+            # cleanup.  Treat only the missing-row case as inactive; transient
+            # or unrelated API failures must not delete a live object.
+            return error.status == 404

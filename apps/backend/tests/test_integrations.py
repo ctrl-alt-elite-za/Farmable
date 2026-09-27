@@ -76,6 +76,7 @@ async def invoke(registry: ServiceRegistry, service: str):
         "soilgrids": lambda: registry.soilgrids.properties(-26.2, 28.0),
         "open_meteo": lambda: registry.open_meteo.forecast(-26.2, 28.0),
         "maps": lambda: registry.maps.geocode("Johannesburg"),
+        "infobip": lambda: registry.infobip.send_sms(PHONE, "Fixture message."),
     }
     return await calls[service]()
 
@@ -89,7 +90,8 @@ def test_fake_contracts(service, mode):
         try:
             result = await invoke(registry, service)
             assert result.ok is (mode == "success")
-            assert registry.transport.calls[service] == (1 if result.ok else 3)
+            expected_calls = 1 if service == "infobip" else (1 if result.ok else 3)
+            assert registry.transport.calls[service] == expected_calls
             if result.ok:
                 if service == "azure_tts":
                     assert result.audio == example_audio()
@@ -111,8 +113,9 @@ def test_adapters_timeout(service):
         registry.adapters[service].timeout = 0.003
         try:
             result = await invoke(registry, service)
-            assert not result.ok and result.error == "timeout"
-            assert registry.transport.calls[service] == 3
+            expected_error = "delivery_unknown" if service == "infobip" else "timeout"
+            assert not result.ok and result.error == expected_error
+            assert registry.transport.calls[service] == (1 if service == "infobip" else 3)
             assert registry.adapters[service].failures == 1  # Logical failures, not retry attempts.
         finally:
             await registry.close()
@@ -121,7 +124,7 @@ def test_adapters_timeout(service):
 
 
 def test_timeouts_match_issue():
-    assert tuple(TIMEOUTS.values()) == (10, 5, 15, 10, 60, 20, 10, 10, 10)
+    assert tuple(TIMEOUTS.values()) == (10, 5, 15, 10, 60, 20, 10, 10, 10, 10)
 
 
 def test_circuit_breaker_opens():
@@ -290,6 +293,15 @@ def test_provider_request_contracts():
             assert json.loads(crop.content)["similar_images"] is False
             maps = by_host["geocode.googleapis.com"]
             assert maps.headers["x-goog-api-key"] == "fixture-key" and "key" not in maps.url.params
+            infobip = by_host["fake.infobip.test"]
+            assert (
+                infobip.method == "POST"
+                and infobip.url.path == "/sms/3/messages"
+                and infobip.headers["authorization"] == "App fixture-key"
+            )
+            infobip_body = json.loads(infobip.content)
+            assert infobip_body["messages"][0]["destinations"] == [{"to": PHONE}]
+            assert infobip_body["messages"][0]["content"]["text"] == "Fixture message."
             assert (await registry.twilio.verify(PHONE, "123456")).data["status"] == "approved"
             await registry.azure_tts.synthesize("<script>& hello")
             assert b"&lt;script&gt;&amp; hello" in captured[-1].content

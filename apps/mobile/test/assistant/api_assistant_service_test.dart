@@ -91,7 +91,12 @@ Future<(ApiAssistantService, _Server)> _service() async {
   final storage = InMemorySessionStorage({
     'session': signedIn.session.toJson(),
   });
-  final auth = ApiAuthService(dio, storage, now: () => pinnedToday);
+  final auth = ApiAuthService(
+    dio,
+    storage,
+    now: () => pinnedToday,
+    requestVerification: (action) async => 'test-turnstile-$action',
+  );
   return (ApiAssistantService(auth), server);
 }
 

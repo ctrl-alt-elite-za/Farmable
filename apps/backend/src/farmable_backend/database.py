@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import BigInteger, DateTime, String, create_engine, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
-from farmable_backend.config import Settings
+from farmable_backend.config import DatabaseSettings
 
 # The image's Tiger geocoder adds vendor schemas to the database search path.
 # Keep ORM resolution/reflection in public without executing a SQL SET statement.
@@ -35,7 +35,7 @@ class QueueJob(ExternalBase):
     status: Mapped[str] = mapped_column(String)
 
 
-def make_engine(settings: Settings, *, migration: bool = False):
+def make_engine(settings: DatabaseSettings, *, migration: bool = False):
     options = CONNECTION_OPTIONS
     if migration:
         options += " -c lock_timeout=1000"
@@ -49,7 +49,7 @@ def make_engine(settings: Settings, *, migration: bool = False):
 
 
 class Database:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: DatabaseSettings):
         self.engine = make_engine(settings)
         self.sessions = sessionmaker(self.engine, expire_on_commit=False)
 

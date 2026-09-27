@@ -7,6 +7,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:almanac/data/auth/api_auth_service.dart';
 import 'package:almanac/data/auth/session_storage.dart';
@@ -23,8 +24,19 @@ void main() {
   late InMemorySessionStorage storage;
   late DateTime phoneNow;
 
-  ApiAuthService service() =>
-      ApiAuthService(api.dio(), storage, now: () => phoneNow);
+  ApiAuthService service() => ApiAuthService(
+    api.dio(),
+    storage,
+    now: () => phoneNow,
+    requestVerification: (action) async => 'test-turnstile-$action',
+  );
+
+  ApiAuthService serviceWithTurnstile() => ApiAuthService(
+    api.dio(),
+    storage,
+    now: () => phoneNow,
+    requestVerification: (_) async => 'fixture-token',
+  );
 
   setUp(() {
     phoneNow = DateTime.utc(2026, 9, 23, 8);
@@ -63,6 +75,21 @@ void main() {
   }
 
   group('sign-up and verification', () {
+    test('includes an acquired Turnstile token in sign-up', () async {
+      await serviceWithTurnstile().signUp(
+        firstName: 'Thandi',
+        surname: 'Mokoena',
+        phone: '+27825550123',
+        email: 'thandi@example.com',
+        password: _password,
+      );
+
+      expect(
+        api.to('/auth/signup').single.body['turnstile_token'],
+        'fixture-token',
+      );
+    });
+
     test('sends the contract body and persists the pending signup', () async {
       final pending = await service().signUp(
         firstName: ' Thandi ',
@@ -79,6 +106,7 @@ void main() {
         'phone': '+27825550123',
         'email': 'thandi@example.com',
         'password': _password,
+        'turnstile_token': 'test-turnstile-sign_up',
       });
       expect(pending.nextStep, VerificationChannel.phone);
 
@@ -90,8 +118,54 @@ void main() {
       expect((standing as AwaitingVerification).pending.userId, pending.userId);
     });
 
+    test('recovers ambiguous delivery across restart with the same idempotency key', () async {
+      api.ambiguousSignupOnce = true;
+      final first = await service().signUp(
+        firstName: 'Thandi',
+        surname: 'Mokoena',
+        phone: '+27825550123',
+        email: 'thandi@example.com',
+        password: _password,
+      );
+
+      expect(first.userId, isNotEmpty);
+      expect(first.idempotencyKey, isNotNull);
+      final stored = await storage.read();
+      expect(jsonEncode(stored), isNot(contains(_password)));
+      expect(jsonEncode(stored), isNot(contains('test-turnstile')));
+      expect((await service().restore()), isA<AwaitingVerification>());
+      final firstRequest = api.to('/auth/signup').single;
+
+      // A new service instance models a process restart. It must retain the
+      // operation key but never retain the password or Turnstile proof.
+      final restarted = service();
+      final recovered = await restarted.signUp(
+        firstName: 'Thandi',
+        surname: 'Mokoena',
+        phone: '+27825550123',
+        email: 'thandi@example.com',
+        password: _password,
+      );
+      final signupRequests = api.to('/auth/signup');
+      expect(signupRequests, hasLength(2));
+      expect(signupRequests[1].idempotencyKey, firstRequest.idempotencyKey);
+      expect(signupRequests[1].body['turnstile_token'], isNotEmpty);
+      expect(recovered.userId, first.userId);
+
+      await restarted.verify(
+        userId: recovered.userId,
+        channel: VerificationChannel.phone,
+        code: phoneCode,
+      );
+      expect((await restarted.restore()), isA<AwaitingVerification>());
+    });
+
     test('phone then email grants a session that survives a restart', () async {
       final session = await signUpAndVerify(service());
+      expect(
+        session.expiresAt.difference(session.accessExpiresAt),
+        const Duration(days: 29, hours: 23, minutes: 45),
+      );
 
       expect(session.refreshToken, isNotNull);
       expect(session.user.fullName, 'Thandi Mokoena');
@@ -177,12 +251,102 @@ void main() {
         'user_id': 'u-1',
         'channel': 'email',
       });
+      expect(api.to('/auth/otp/resend').single.idempotencyKey, isNotEmpty);
+      final firstKey = api.to('/auth/otp/resend').single.idempotencyKey;
+      expect(firstKey, isNotNull);
+      expect(firstKey!.length, inInclusiveRange(16, 200));
+      await service().resendCode(
+        userId: 'u-1',
+        channel: VerificationChannel.email,
+      );
+      expect(api.to('/auth/otp/resend').last.idempotencyKey, isNot(firstKey));
     });
   });
 
   group('login', () {
+    test('includes an acquired Turnstile token in login', () async {
+      api.seedVerified();
+      await serviceWithTurnstile().logIn(
+        mode: LoginMode.email,
+        identifier: 'thandi@example.com',
+        password: _password,
+      );
+
+      expect(
+        api.to('/auth/login').single.body['turnstile_token'],
+        'fixture-token',
+      );
+    });
+
     test(
-      'sends identifier and password only, and stores the session',
+      'failed verification never submits credentials or changes stored state',
+      () async {
+        for (final verify in <Future<String> Function(String)>[
+          (_) async => '',
+          (_) async => 'x' * 2049,
+          (_) async => throw StateError('sensitive-provider-detail'),
+        ]) {
+          final auth = ApiAuthService(
+            api.dio(),
+            storage,
+            requestVerification: verify,
+          );
+          expect(
+            await failureOf(
+              () => auth.logIn(
+                mode: LoginMode.email,
+                identifier: 'thandi@example.com',
+                password: _password,
+              ),
+            ),
+            AuthFailure.unavailable,
+          );
+          expect(
+            await failureOf(
+              () => auth.signUp(
+                firstName: 'Thandi',
+                surname: 'Mokoena',
+                phone: '+27825550123',
+                email: 'thandi@example.com',
+                password: _password,
+              ),
+            ),
+            AuthFailure.unavailable,
+          );
+          expect(api.requests, isEmpty);
+          expect(await auth.restore(), isA<SignedOut>());
+        }
+      },
+    );
+
+    test(
+      'each login attempt obtains a new token rather than replaying it',
+      () async {
+        api.seedVerified();
+        var issued = 0;
+        final auth = ApiAuthService(
+          api.dio(),
+          storage,
+          requestVerification: (action) async {
+            expect(action, 'login');
+            return 'one-use-${++issued}';
+          },
+        );
+        for (var attempt = 0; attempt < 2; attempt++) {
+          await auth.logIn(
+            mode: LoginMode.email,
+            identifier: 'thandi@example.com',
+            password: _password,
+          );
+        }
+        expect(api.to('/auth/login').map((r) => r.body['turnstile_token']), [
+          'one-use-1',
+          'one-use-2',
+        ]);
+      },
+    );
+    test(
+      'sends credentials and verification token, and stores the session',
       () async {
         api.seedVerified();
         final session = await service().logIn(
@@ -194,6 +358,7 @@ void main() {
         expect(api.to('/auth/login').single.body, {
           'identifier': 'thandi@example.com',
           'password': _password,
+          'turnstile_token': 'test-turnstile-login',
         });
         expect(session.user.email, 'thandi@example.com');
 
@@ -548,7 +713,12 @@ void main() {
       () async {
         await signUpAndVerify(service());
         final failing = _FailingWrites(storage);
-        final auth = ApiAuthService(api.dio(), failing, now: () => phoneNow);
+        final auth = ApiAuthService(
+          api.dio(),
+          failing,
+          now: () => phoneNow,
+          requestVerification: (action) async => 'test-turnstile-$action',
+        );
 
         expect(await failureOf(auth.signOut), AuthFailure.storageUnavailable);
         await pumpEventQueue();

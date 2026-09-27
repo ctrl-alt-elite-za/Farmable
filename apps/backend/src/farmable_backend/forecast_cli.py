@@ -5,7 +5,7 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
-from farmable_backend.config import Settings
+from farmable_backend.config import DatabaseSettings
 from farmable_backend.database import Database
 from farmable_backend.forecast_contract import Mode
 from farmable_backend.forecast_notifications import GitHubFailureNotifier, NotificationSettings
@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     database = None
     try:
-        config = Settings()
+        config = DatabaseSettings()
         if args.command == "import-latest" and config.forecast_data_mode == "disabled":
             print("forecast-import disabled; no changes")
             return 0

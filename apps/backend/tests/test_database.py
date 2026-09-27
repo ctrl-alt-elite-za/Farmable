@@ -14,6 +14,8 @@ from pydantic import SecretStr, ValidationError
 def test_only_owned_application_tables_are_registered():
     assert set(Base.metadata.tables) == {
         "account_profiles",
+        "pending_contact_changes",
+        "farm_locations",
         "assistant_conversations",
         "assistant_consents",
         "assistant_live_consents",
@@ -29,6 +31,7 @@ def test_only_owned_application_tables_are_registered():
         "users",
         "farms",
         "sections",
+        "section_deletions",
         "plantings",
         "media",
         "observations",
@@ -44,10 +47,18 @@ def test_only_owned_application_tables_are_registered():
         "photo_attempts",
         "photo_rates",
         "voice_session_rates",
+        "rate_limit_counters",
+        "idempotency_records",
+        "export_jobs",
+        "account_consents",
         "forecast_runs",
         "forecast_state",
         "weather_jobs",
         "weather_risk_climatology",
+        "section_kinds",
+        "crop_types",
+        "crop_calendars",
+        "planting_crops",
         "reference_imports",
         "reference_market_prices",
         "reference_crop_calendars",
@@ -82,6 +93,15 @@ def test_credentials_required_from_environment(url):
         Settings(database_url=SecretStr(url))
 
 
+@pytest.mark.parametrize("secret", [None, SecretStr(""), SecretStr("   ")])
+def test_export_token_secret_is_required(secret):
+    with pytest.raises(ValidationError):
+        Settings(
+            database_url=SecretStr("postgresql+psycopg://unit:unit@localhost/unit"),
+            export_token_secret=secret,
+        )
+
+
 def test_database_failure_is_safe(settings):
     database = Database(settings)
     database.sessions = MagicMock(side_effect=RuntimeError("credential"))
@@ -112,6 +132,8 @@ def test_worker_shares_example_task(settings):
     app = create_task_app(settings)
     assert "example_job" in app.tasks
     assert app.tasks["example_job"].queue == "default"
+    assert "retention_cleanup" in app.tasks
+    assert app.tasks["retention_cleanup"].queue == "default"
     assert app.connector._pool_args["kwargs"] == {
         "connect_timeout": 5,
         "options": "-c statement_timeout=5000 -c search_path=public",

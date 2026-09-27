@@ -52,6 +52,7 @@ class ServiceResult:
     data: dict[str, Any] | None = field(default=None, repr=False)
     audio: bytes | None = field(default=None, repr=False)
     done: bool = False
+    ambiguous: bool = False
 
 
 class ProviderFailure(Exception):
@@ -93,9 +94,21 @@ class Adapter:
         self.lock = asyncio.Lock()
 
     def failure(
-        self, error: str, status: int | None = None, *, done: bool = False
+        self,
+        error: str,
+        status: int | None = None,
+        *,
+        done: bool = False,
+        ambiguous: bool = False,
     ) -> ServiceResult:
-        return ServiceResult(self.service, False, error=error, status=status, done=done)
+        return ServiceResult(
+            self.service,
+            False,
+            error=error,
+            status=status,
+            done=done,
+            ambiguous=ambiguous,
+        )
 
     def secret(self, value: SecretStr | None) -> str | None:
         if self.settings.integrations_mode == "fake":
@@ -157,12 +170,19 @@ class Adapter:
         finally:
             await response.aclose()
 
-    async def call(self, request: httpx.Request, *, binary: bool = False) -> ServiceResult:
+    async def call(
+        self,
+        request: httpx.Request,
+        *,
+        binary: bool = False,
+        retry: bool = True,
+    ) -> ServiceResult:
         if not await self.permit():
             return self.failure("unavailable")
         try:
             failure = ProviderFailure("unavailable")
-            for attempt in range(self.max_attempts):
+            attempts = self.max_attempts if retry else 1
+            for attempt in range(attempts):
                 try:
                     async with asyncio.timeout(self.timeout):
                         result = await self.response(request, binary)
@@ -176,11 +196,17 @@ class Adapter:
                     failure = ProviderFailure("invalid_response")
                 except ProviderFailure as error:
                     failure = error
-                if not failure.retryable or attempt == self.max_attempts - 1:
+                if not failure.retryable or attempt == attempts - 1:
                     break
                 await self.sleep(0.5 * 2**attempt + self.jitter())
             await self.record(False)
-            return self.failure(failure.error, failure.status)
+            return self.failure(
+                "delivery_unknown"
+                if not retry and failure.error in {"network", "timeout"}
+                else failure.error,
+                failure.status,
+                ambiguous=not retry and failure.error in {"network", "timeout"},
+            )
         finally:
             await self.release()
 

@@ -165,7 +165,7 @@ def test_cli_notification_failure_is_safe_and_import_continues(
     (tmp_path / "invalid").mkdir()
     monkeypatch.setattr(
         forecast_cli,
-        "Settings",
+        "DatabaseSettings",
         lambda: settings.model_copy(update={"forecast_data_mode": "sample"}),
     )
     monkeypatch.setattr(

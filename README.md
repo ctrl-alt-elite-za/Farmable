@@ -60,6 +60,20 @@ See [the backend guide](apps/backend/README.md) for local services, safe default
 migrations, and integration tests. Unit tests do not require Docker. Commands for
 languages with no source files yet remain no-ops.
 
+## Verification codes (Infobip)
+
+Sign-up sends a phone code by SMS and an email code, both through Infobip
+(`apps/backend/src/farmable_backend/infobip.py`), once `INTEGRATIONS_MODE=live` and
+all four `INFOBIP_*` values in `.env.example` are set. Until then the backend refuses
+to send, and sign-up cannot finish. `INTEGRATIONS_MODE=fake` uses fixed test codes
+(`111111` by SMS, `222222` by email) and sends nothing. For staging, set the values with
+`bash infra/set-secret.sh` (see [infra/README.md](infra/README.md)).
+
+`EXPORT_TOKEN_SECRET` is always required by the API and worker; they refuse to boot
+when it is missing or blank. Use a stable, high-entropy value so export links stay
+valid across restarts. Migrations, `manage queue-schema` and the forecast importer
+never sign export links and do not read it.
+
 ## Troubleshooting
 
 **`corepack enable` fails with `EACCES`.** Plain `corepack enable` writes its

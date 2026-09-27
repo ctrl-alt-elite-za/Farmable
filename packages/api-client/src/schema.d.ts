@@ -21,6 +21,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/account/consents': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Consents */
+    get: operations['listAccountConsents'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/account/consents/{consent_type}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update Consent */
+    put: operations['setAccountConsent'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/account/contact/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Confirm Contact Change */
+    post: operations['confirmAccountContactChange'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/account/export': {
     parameters: {
       query?: never;
@@ -30,6 +81,57 @@ export interface paths {
     };
     /** Export Account */
     get: operations['exportAccount'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/account/export/jobs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create Export Job */
+    post: operations['createAccountExportJob'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/account/export/jobs/{job_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Export Job */
+    get: operations['getAccountExportJob'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/account/export/jobs/{job_id}/download': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Download Export Job */
+    get: operations['downloadAccountExportJob'];
     put?: never;
     post?: never;
     delete?: never;
@@ -1107,6 +1209,10 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /** Latitude */
+      latitude?: number | null;
+      /** Longitude */
+      longitude?: number | null;
       /** Name */
       name: string;
       /**
@@ -1274,6 +1380,28 @@ export interface components {
        */
       notice_version: 'gemini-conversation-v3';
     };
+    /** ConsentResponse */
+    ConsentResponse: {
+      /** Consent Type */
+      consent_type: string;
+      /** Granted */
+      granted: boolean;
+      /** Granted At */
+      granted_at?: string | null;
+      /** Source */
+      source: string;
+      /** Version */
+      version: string;
+      /** Withdrawn At */
+      withdrawn_at?: string | null;
+    };
+    /** ConsentUpdate */
+    ConsentUpdate: {
+      /** Granted */
+      granted: boolean;
+      /** Version */
+      version: string;
+    };
     /** ConsentView */
     ConsentView: {
       /** Granted */
@@ -1300,6 +1428,16 @@ export interface components {
       provider: 'google_gemini';
       /** Withdrawn At */
       withdrawn_at: string | null;
+    };
+    /** ContactChangeConfirm */
+    ContactChangeConfirm: {
+      /**
+       * Channel
+       * @enum {string}
+       */
+      channel: 'phone' | 'email';
+      /** Code */
+      code: string;
     };
     /** ConversationCreate */
     ConversationCreate: {
@@ -1518,6 +1656,8 @@ export interface components {
       code: string;
       /** Message */
       message: string;
+      /** User Id */
+      user_id?: string | null;
     };
     /** ErrorResponse */
     ErrorResponse: {
@@ -1569,8 +1709,47 @@ export interface components {
       /** Sales Cents */
       sales_cents: number;
     };
+    /** ExportJobCreateResponse */
+    ExportJobCreateResponse: {
+      /** Download Token */
+      download_token: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+    };
+    /** ExportJobStatusResponse */
+    ExportJobStatusResponse: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Expires At */
+      expires_at?: string | null;
+      /**
+       * Format
+       * @enum {string}
+       */
+      format: 'json' | 'zip';
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'pending' | 'ready' | 'failed' | 'expired';
+    };
     /** FarmUpdate */
     FarmUpdate: {
+      /** Latitude */
+      latitude?: number | null;
+      /** Longitude */
+      longitude?: number | null;
       /** Name */
       name?: string | null;
       /** Preferred Language */
@@ -1919,6 +2098,8 @@ export interface components {
       identifier: string;
       /** Password */
       password: string;
+      /** Turnstile Token */
+      turnstile_token: string;
     };
     /** MapAttribution */
     MapAttribution: {
@@ -2556,6 +2737,7 @@ export interface components {
      * PlantingCreate
      * @example {
      *       "crop": "cabbage",
+     *       "crop_type_code": "cabbage",
      *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
      *       "planted_on": "2026-08-01",
@@ -2565,6 +2747,8 @@ export interface components {
     PlantingCreate: {
       /** Crop */
       crop: string;
+      /** Crop Type Code */
+      crop_type_code?: string | null;
       /**
        * Id
        * Format: uuid
@@ -2592,6 +2776,7 @@ export interface components {
      * PlantingUpdate
      * @example {
      *       "crop": "tomato",
+     *       "crop_type_code": "tomato",
      *       "expected_version": 1,
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
      *       "planted_on": "2026-08-02"
@@ -2600,6 +2785,8 @@ export interface components {
     PlantingUpdate: {
       /** Crop */
       crop: string;
+      /** Crop Type Code */
+      crop_type_code?: string | null;
       /** Expected Version */
       expected_version: number;
       /**
@@ -2624,11 +2811,17 @@ export interface components {
       created_at: string;
       /** Crop */
       crop: string;
+      /** Crop Type Code */
+      crop_type_code: string | null;
       /**
        * Farm Id
        * Format: uuid
        */
       farm_id: string;
+      /** Harvest From */
+      harvest_from: string | null;
+      /** Harvest To */
+      harvest_to: string | null;
       /**
        * Id
        * Format: uuid
@@ -2687,6 +2880,10 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /** Pending Email */
+      pending_email?: string | null;
+      /** Pending Phone */
+      pending_phone?: string | null;
       /** Phone */
       phone: string;
       /** Phone Verified */
@@ -2701,8 +2898,12 @@ export interface components {
     };
     /** ProfileUpdate */
     ProfileUpdate: {
+      /** Email */
+      email?: string | null;
       /** First Name */
       first_name?: string | null;
+      /** Phone */
+      phone?: string | null;
       /** Preferred Language */
       preferred_language?: ('en' | 'af' | 'nso' | 'st' | 'xh' | 'zu') | null;
       /** Surname */
@@ -2908,11 +3109,18 @@ export interface components {
     /**
      * RecordDelete
      * @example {
+     *       "expected_child_versions": {
+     *         "3f1d4b2a-0000-4000-8000-000000000002": 1
+     *       },
      *       "expected_version": 1,
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001"
      *     }
      */
     RecordDelete: {
+      /** Expected Child Versions */
+      expected_child_versions?: {
+        [key: string]: number;
+      };
       /** Expected Version */
       expected_version: number;
       /**
@@ -2944,6 +3152,7 @@ export interface components {
      * @example {
      *       "area_m2": "1200.00",
      *       "id": "3f1d4b2a-0000-4000-8000-000000000002",
+     *       "kind": "crop",
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
      *       "name": "North block"
      *     }
@@ -2960,6 +3169,12 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /**
+       * Kind
+       * @default crop
+       * @enum {string}
+       */
+      kind: 'crop' | 'animal';
       /**
        * Mutation Id
        * Format: uuid
@@ -2986,6 +3201,7 @@ export interface components {
      * @example {
      *       "area_m2": "1250.00",
      *       "expected_version": 1,
+     *       "kind": "crop",
      *       "mutation_id": "3f1d4b2a-0000-4000-8000-000000000001",
      *       "name": "North block"
      *     }
@@ -2999,6 +3215,8 @@ export interface components {
       } | null;
       /** Expected Version */
       expected_version: number;
+      /** Kind */
+      kind?: ('crop' | 'animal') | null;
       /**
        * Mutation Id
        * Format: uuid
@@ -3030,6 +3248,11 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'crop' | 'animal';
       /** Name */
       name: string;
       /**
@@ -3054,6 +3277,11 @@ export interface components {
        * Format: date-time
        */
       expires_at: string;
+      /**
+       * Refresh Expires At
+       * Format: date-time
+       */
+      refresh_expires_at: string;
       /** Refresh Token */
       refresh_token: string;
       user: components['schemas']['UserResponse'];
@@ -3073,6 +3301,8 @@ export interface components {
       phone: string;
       /** Surname */
       surname: string;
+      /** Turnstile Token */
+      turnstile_token: string;
     };
     /** SignedForm */
     SignedForm: {
@@ -3505,6 +3735,241 @@ export interface operations {
       };
     };
   };
+  listAccountConsents: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConsentResponse'][];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  setAccountConsent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        consent_type: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ConsentUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConsentResponse'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  confirmAccountContactChange: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ContactChangeConfirm'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProfileResponse'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
   exportAccount: {
     parameters: {
       query?: {
@@ -3512,6 +3977,240 @@ export interface operations {
       };
       header?: never;
       path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+          'application/zip': unknown;
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  createAccountExportJob: {
+    parameters: {
+      query?: {
+        format?: 'json' | 'zip';
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ExportJobCreateResponse'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  getAccountExportJob: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        job_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ExportJobStatusResponse'];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          'Retry-After'?: number;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorResponse'];
+        };
+      };
+    };
+  };
+  downloadAccountExportJob: {
+    parameters: {
+      query: {
+        token: string;
+      };
+      header?: never;
+      path: {
+        job_id: string;
+      };
       cookie?: never;
     };
     requestBody?: never;

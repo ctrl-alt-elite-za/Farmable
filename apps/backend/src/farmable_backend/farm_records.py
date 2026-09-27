@@ -54,12 +54,15 @@ class FarmRecordRepository:
 
     def _section(self, section_id: UUID) -> Section:
         section = self.session.scalar(
-            select(Section).where(
+            select(Section)
+            .where(
                 Section.id == section_id,
                 Section.owner_id == self.owner_id,
                 Section.farm_id == self.farm_id,
                 Section.deleted_at.is_(None),
             )
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         if section is None:
             raise RecordNotFoundError("section not found")
@@ -210,6 +213,19 @@ class FarmRecordRepository:
                 self.session.flush((mutation,))
 
                 existing = self.session.get(Observation, observation_id)
+                if (
+                    self.session.scalar(
+                        select(SyncChange.id)
+                        .where(
+                            SyncChange.record_type == "observation",
+                            SyncChange.record_id == observation_id,
+                            SyncChange.operation == "delete",
+                        )
+                        .limit(1)
+                    )
+                    is not None
+                ):
+                    raise RecordConflictError("a deleted observation cannot be recreated")
                 if existing is not None:
                     if existing.deleted_at is not None:
                         raise RecordConflictError("a deleted observation cannot be recreated")

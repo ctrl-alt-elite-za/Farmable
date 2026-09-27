@@ -21,11 +21,17 @@ void main() {
   Future<SessionStorage> loggedIn(WidgetTester tester) async {
     final storage = InMemorySessionStorage();
     await tester.runAsync(
-      () => ApiAuthService(api.dio(), storage, now: () => pinnedToday).logIn(
-        mode: LoginMode.email,
-        identifier: 'thandi@example.com',
-        password: goodPassphrase,
-      ),
+      () =>
+          ApiAuthService(
+            api.dio(),
+            storage,
+            now: () => pinnedToday,
+            requestVerification: (action) async => 'test-turnstile-$action',
+          ).logIn(
+            mode: LoginMode.email,
+            identifier: 'thandi@example.com',
+            password: goodPassphrase,
+          ),
     );
     api.requests.clear();
     return storage;

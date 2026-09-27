@@ -247,6 +247,8 @@ def test_export_and_deletion_include_only_owned_metadata(live):
     consent(live)
     identifier = issue(live).json()["id"]
     account = live.client.app.state.account.service
+    account.set_consent(live.alice.auth, "data_export", "1", True)
+    account.set_consent(live.bob.auth, "data_export", "1", True)
     document = account.export_document(live.alice.auth)
     assert document["assistant_live_sessions"][0]["id"] == identifier
     assert document["assistant_live_consents"][0]["model"] == "fixture-live-model"

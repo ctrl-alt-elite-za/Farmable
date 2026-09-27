@@ -13,8 +13,11 @@ SERVICES = (
     "soilgrids",
     "open_meteo",
     "maps",
+    "infobip",
 )
-TIMEOUTS = dict(zip(SERVICES, (10.0, 5.0, 15.0, 10.0, 60.0, 20.0, 10.0, 10.0, 10.0), strict=True))
+TIMEOUTS = dict(
+    zip(SERVICES, (10.0, 5.0, 15.0, 10.0, 60.0, 20.0, 10.0, 10.0, 10.0, 10.0), strict=True)
+)
 
 
 class ServiceSettings(BaseSettings):
@@ -25,6 +28,9 @@ class ServiceSettings(BaseSettings):
 
     environment: Literal["development", "ci", "staging", "production"] = "production"
     integrations_mode: Literal["disabled", "fake", "live"] = "disabled"
+    # Demo descope: False skips the Turnstile check on sign-up and log-in. Rate
+    # limits and the daily SMS cap still apply. Refused in production.
+    turnstile_enabled: bool = True
     fault_twilio: bool = False
     fault_turnstile: bool = False
     fault_azure_stt: bool = False
@@ -34,6 +40,7 @@ class ServiceSettings(BaseSettings):
     fault_soilgrids: bool = False
     fault_open_meteo: bool = False
     fault_maps: bool = False
+    fault_infobip: bool = False
     twilio_account_sid: str | None = Field(
         default=None, pattern=r"^AC[0-9a-fA-F]{32}$", max_length=34
     )
@@ -44,6 +51,9 @@ class ServiceSettings(BaseSettings):
     twilio_fraud_guard_confirmed: bool = False
     turnstile_secret: SecretStr | None = Field(default=None, repr=False)
     turnstile_hostname: str | None = Field(default=None, max_length=253)
+    turnstile_site_key: str | None = Field(
+        default=None, pattern=r"^[a-zA-Z0-9_-]{1,256}$", max_length=256
+    )
     azure_speech_key: SecretStr | None = Field(default=None, repr=False)
     azure_speech_resource: str | None = Field(
         default=None, pattern=r"^[a-zA-Z0-9-]{1,63}$", max_length=63
@@ -70,6 +80,7 @@ class ServiceSettings(BaseSettings):
     infobip_sms_sender: str | None = Field(
         default=None, pattern=r"^(\+?[0-9]{3,15}|[A-Za-z0-9 ]{1,11})$", max_length=16
     )
+    infobip_whatsapp_sender: str | None = Field(default=None, max_length=32)
     infobip_email_sender: str | None = Field(
         default=None, pattern=r"^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$", max_length=254
     )
@@ -110,6 +121,8 @@ class ServiceSettings(BaseSettings):
         if self.environment not in {"ci", "staging"}:
             if any(getattr(self, "fault_" + service) for service in SERVICES):
                 raise ValueError("Fault flags require ENVIRONMENT=ci or staging")
+            if not self.turnstile_enabled and self.environment == "production":
+                raise ValueError("TURNSTILE_ENABLED=false is refused in production")
             if self.integrations_mode == "fake":
                 raise ValueError("Fake services require ENVIRONMENT=ci or staging")
         return self

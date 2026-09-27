@@ -162,6 +162,57 @@ def test_cancel_fences_late_result_and_replay_cannot_regrant(records):
     assert records.client.get(get).json()["result"] is None
 
 
+@pytest.mark.parametrize("processing", [False, True], ids=["queued", "processing"])
+def test_section_delete_cancels_diagnoses_and_fences_worker_completion(records, processing):
+    body, path, get = setup(records)
+    assert records.client.post(path, json=body).status_code == 202
+    store = DiagnosisStore(records.sessions)
+    record_id = UUID(body["id"])
+    claim = store.claim(record_id) if processing else None
+    assert (claim is not None) == processing
+    response = records.client.post(
+        f"/farms/{records.ids.farm}/sections/{records.ids.section}/delete",
+        json={
+            "mutation_id": str(uuid4()),
+            "expected_version": 1,
+            "expected_child_versions": {body["planting_id"]: 1, body["media_id"]: 1},
+        },
+    )
+    assert response.status_code == 200, response.text
+    snapshot = records.client.get(get).json()
+    assert snapshot["state"] == "cancelled"
+    assert snapshot["result"] is None
+    assert snapshot["error"] is None
+    assert record_id not in store.candidates()
+    assert store.claim(record_id) is None
+    if claim is not None:
+        row, _, _ = claim
+        assert not store.authorized(row.id, row.lease_token)
+        assert not store.finish(
+            row.id, row.lease_token, result=normalized(sample(), "tomato", synthetic=True)
+        )
+        assert not store.finish(row.id, row.lease_token, error="provider_unavailable", retry=True)
+    with records.sessions() as session:
+        row = session.get(CropDiagnosis, record_id)
+        assert row.state == "cancelled"
+        assert row.withdrawn_at is not None
+        assert row.lease_token is None
+        assert row.lease_expires_at is None
+    assert records.client.post(path, json=body).status_code == 404
+
+
+def test_conflicting_section_delete_does_not_cancel_diagnosis(records):
+    body, path, get = setup(records)
+    assert records.client.post(path, json=body).status_code == 202
+    response = records.client.post(
+        f"/farms/{records.ids.farm}/sections/{records.ids.section}/delete",
+        json={"mutation_id": str(uuid4()), "expected_version": 1},
+    )
+    assert response.status_code == 409
+    assert records.client.get(get).json()["state"] == "queued"
+    assert DiagnosisStore(records.sessions).claim(UUID(body["id"])) is not None
+
+
 def test_claim_is_single_use_and_crashed_paid_attempt_is_not_resubmitted(records):
     body, path, get = setup(records)
     records.client.post(path, json=body)
@@ -257,7 +308,9 @@ def test_untrusted_provider_payloads_are_rejected(change):
 def test_account_export_includes_diagnosis(records):
     body, path, _ = setup(records)
     records.client.post(path, json=body)
-    document = AccountService(records.sessions).export_document(records.ids.authorization)
+    account = AccountService(records.sessions, export_token_secret="unit-export-token-secret")  # noqa: S106
+    account.set_consent(records.ids.authorization, "data_export", "1", True)
+    document = account.export_document(records.ids.authorization)
     assert document["crop_diagnoses"][0]["id"] == body["id"]
 
 
@@ -281,7 +334,9 @@ def test_account_erasure_deletes_diagnoses_and_fences_inflight_result(records):
         session.get(AuthIdentity, records.ids.owner).password_hash = PASSWORD_HASHER.hash(
             "fixture-pass"
         )
-    AccountService(records.sessions).delete_account(records.ids.authorization, "fixture-pass")
+    AccountService(records.sessions, export_token_secret="unit-export-token-secret").delete_account(  # noqa: S106
+        records.ids.authorization, "fixture-pass"
+    )
     with records.sessions() as session:
         assert session.get(CropDiagnosis, row.id) is None
     assert not store.finish(

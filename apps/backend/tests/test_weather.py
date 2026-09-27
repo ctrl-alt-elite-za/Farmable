@@ -457,7 +457,13 @@ def test_weather_worker_starts_without_photo_bucket_and_closes_resources(monkeyp
     retention = SimpleNamespace(stop=asyncio.Event())
     retention.run = AsyncMock(side_effect=retention.stop.wait)
     monkeypatch.setattr(worker_entry, "RetentionWorker", lambda _: retention)
-    photo_factory = Mock()
+    photo = SimpleNamespace(stop=asyncio.Event())
+
+    async def run_photo(**kwargs):
+        await photo.stop.wait()
+
+    photo.run = AsyncMock(side_effect=run_photo)
+    photo_factory = Mock(return_value=photo)
     monkeypatch.setattr(worker_entry, "PhotoWorker", photo_factory)
     if queue_fails:
         with pytest.raises(RuntimeError, match="queue"):
@@ -470,4 +476,5 @@ def test_weather_worker_starts_without_photo_bucket_and_closes_resources(monkeyp
     weather.run.assert_awaited_once()
     services.close.assert_awaited_once()
     database.close.assert_called_once()
-    photo_factory.assert_not_called()
+    assert photo.stop.is_set()
+    photo.run.assert_awaited_once_with(cleanup_only=True)

@@ -7,13 +7,22 @@ import zipfile
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from typing import get_args
+from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
+import farmable_backend.account as account_module
 import pytest
 from farmable_backend.account import AccountService
 from farmable_backend.account_api import AccountRuntime
 from farmable_backend.account_schemas import Language
-from farmable_backend.auth import AuthService, Channel, DeterministicFakeOtpProvider, SessionTokens
+from farmable_backend.auth import (
+    AuthError,
+    AuthService,
+    Channel,
+    DeterministicFakeOtpProvider,
+    SessionTokens,
+)
+from farmable_backend.idempotency import fingerprint as idempotency_fingerprint
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.main import create_app
 from farmable_backend.models import (
@@ -32,6 +41,7 @@ from farmable_backend.models import (
     VerificationChallenge,
 )
 from farmable_backend.photo_jobs import PhotoJobs
+from farmable_backend.record_access import ApiError
 from farmable_backend.records_api import RecordRuntime
 from farmable_backend.records_service import RecordsService
 from fastapi.testclient import TestClient
@@ -50,8 +60,11 @@ def _register(auth, first_name, surname, phone, email):
     return tokens
 
 
-def _headers(tokens):
-    return {"Authorization": f"Bearer {tokens.access_token}"}
+def _headers(tokens, idempotency_label: str | None = None):
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+    if idempotency_label is not None:
+        headers["Idempotency-Key"] = f"contact-idem-{idempotency_label}-key"
+    return headers
 
 
 @pytest.fixture
@@ -81,11 +94,25 @@ def accounts(settings):
         service_settings=ServiceSettings(environment="ci", integrations_mode="fake"),
     )
     app.state.auth = auth
-    app.state.account = AccountRuntime(AccountService(sessions))
+    provider = MagicMock(wraps=DeterministicFakeOtpProvider())
+    account_service = AccountService(
+        sessions,
+        provider,
+        export_token_secret="unit-export-token-secret",  # noqa: S106
+    )
+    account_service.set_consent(_headers(alice)["Authorization"], "data_export", "1", True)
+    account_service.set_consent(_headers(bob)["Authorization"], "data_export", "1", True)
+    app.state.account = AccountRuntime(account_service)
     app.state.records = RecordRuntime(RecordsService(sessions), lambda: None)
     with TestClient(app) as client:
         yield SimpleNamespace(
-            client=client, sessions=sessions, auth=auth, alice=alice, bob=bob, app=app
+            client=client,
+            sessions=sessions,
+            auth=auth,
+            alice=alice,
+            bob=bob,
+            app=app,
+            provider=provider,
         )
     engine.dispose()
 
@@ -214,6 +241,8 @@ def test_profile_returns_only_the_authenticated_account(accounts):
         "phone_verified": True,
         "email_verified": True,
         "preferred_language": "en",
+        "pending_email": None,
+        "pending_phone": None,
     }
     assert response.headers["cache-control"] == "no-store"
 
@@ -300,6 +329,402 @@ def test_farm_details_and_preferred_language_updates_persist(accounts):
     other = accounts.client.get("/account/farm", headers=_headers(accounts.bob)).json()
     assert other["name"] == "My farm"
     assert other["owner_id"] == str(accounts.bob.user.id)
+
+
+def test_farm_location_updates_persist(accounts):
+    alice = _headers(accounts.alice)
+    updated = accounts.client.patch(
+        "/account/farm", headers=alice, json={"latitude": -26.2, "longitude": 28.3}
+    )
+    assert updated.status_code == 200
+    assert updated.json()["latitude"] == -26.2
+    assert updated.json()["longitude"] == 28.3
+    assert accounts.client.get("/account/farm", headers=alice).json() == updated.json()
+    other = accounts.client.get("/account/farm", headers=_headers(accounts.bob)).json()
+    assert other["latitude"] is None
+    assert other["longitude"] is None
+
+
+def test_farm_location_out_of_range_is_rejected(accounts):
+    alice = _headers(accounts.alice)
+    response = accounts.client.patch("/account/farm", headers=alice, json={"latitude": 95})
+    assert response.status_code == 422
+
+
+def test_email_change_requires_confirmation_before_it_applies(accounts):
+    alice = _headers(accounts.alice)
+    patched = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-one"),
+        json={"email": "sipho.new@example.com"},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["email"] == "sipho@example.com"  # Unchanged until confirmed.
+    assert patched.json()["pending_email"] == "sipho.new@example.com"
+    confirmed = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "222222"}
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["email"] == "sipho.new@example.com"
+    assert confirmed.json()["pending_email"] is None
+    assert confirmed.json()["email_verified"] is True
+    exported = accounts.app.state.account.service.export_document(alice["Authorization"])
+    assert exported["account"]["email_verified"] is True
+    assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (
+        "sipho.new@example.com"
+    )
+
+
+def test_contact_change_success_replays_without_redelivery(accounts):
+    headers = _headers(accounts.alice, "email-success-replay")
+    payload = {"email": "sipho.replay@example.com"}
+
+    first = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert first.status_code == 200
+    assert accounts.provider.deliver.call_count == 1
+    replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert replay.status_code == 200
+    assert replay.json() == first.json()
+    assert accounts.provider.deliver.call_count == 1
+
+
+def test_ambiguous_combined_contact_delivery_is_replayed_without_duplicates(accounts):
+    deliveries = []
+    provider = accounts.provider
+    inner = DeterministicFakeOtpProvider()
+
+    def deliver(channel, destination, code):
+        deliveries.append((channel, destination))
+        if channel is Channel.PHONE:
+            raise AuthError("sms_unavailable", 503)
+        inner.deliver(channel, destination, code)
+
+    provider.deliver.side_effect = deliver
+    headers = _headers(accounts.alice, "ambiguous-combined")
+    payload = {"email": "sipho.combined@example.com", "phone": "+27821234567"}
+
+    first = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert first.status_code == 503
+    assert first.json()["error"]["code"] == "sms_unavailable"
+    assert deliveries == [
+        (Channel.EMAIL, "sipho.combined@example.com"),
+        (Channel.PHONE, "+27821234567"),
+    ]
+
+    replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert replay.status_code == 503
+    assert replay.json()["error"]["code"] == "sms_unavailable"
+    assert len(deliveries) == 2
+    with accounts.sessions() as session:
+        identity = session.get(AuthIdentity, accounts.alice.user.id)
+        assert identity is not None and identity.email == "sipho@example.com"
+
+
+def test_ambiguous_contact_delivery_persists_challenge_for_confirmation(accounts):
+    provider = accounts.provider
+
+    def deliver(channel, destination, code):
+        if channel is Channel.PHONE:
+            raise AuthError("delivery_unknown", 503)
+
+    provider.deliver.side_effect = deliver
+    headers = _headers(accounts.alice, "ambiguous-phone")
+    payload = {"phone": "+27821234569"}
+
+    first = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert first.status_code == replay.status_code == 503
+    assert first.json()["error"]["code"] == "delivery_unknown"
+    assert replay.json() == first.json()
+    assert provider.deliver.call_count == 1
+
+    confirmed = accounts.client.post(
+        "/account/contact/confirm",
+        headers=_headers(accounts.alice),
+        json={"channel": "phone", "code": "111111"},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["phone"] == "+27821234569"
+
+
+def test_failed_combined_contact_delivery_does_not_repeat_first_success(accounts):
+    deliveries = []
+    provider = accounts.provider
+
+    def deliver(channel, destination, code):
+        deliveries.append((channel, destination))
+        if channel is Channel.PHONE:
+            raise AuthError("sms_rate_limited", 429, 60)
+
+    provider.deliver.side_effect = deliver
+    headers = _headers(accounts.alice, "definite-combined")
+    payload = {"email": "sipho.definite@example.com", "phone": "+27821234568"}
+
+    first = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert first.status_code == 429
+    assert deliveries == [
+        (Channel.EMAIL, "sipho.definite@example.com"),
+        (Channel.PHONE, "+27821234568"),
+    ]
+
+    replay = accounts.client.patch("/account/profile", headers=headers, json=payload)
+    assert replay.status_code == 429
+    assert len(deliveries) == 2
+
+
+def test_export_job_replay_survives_a_new_service_instance(accounts):
+    alice = _headers(accounts.alice)
+    key = "export-service-restart-key"
+    fingerprint = idempotency_fingerprint({"format": "json"}, key=key)
+    first_service = AccountService(
+        accounts.sessions,
+        accounts.provider,
+        export_token_secret="stable-export-secret",  # noqa: S106
+    )
+    first_id, first_token = first_service.create_export_job(
+        alice["Authorization"],
+        "json",
+        idempotency_key=key,
+        idempotency_scope="",
+        request_fingerprint=fingerprint,
+    )
+    restarted_service = AccountService(
+        accounts.sessions,
+        accounts.provider,
+        export_token_secret="stable-export-secret",  # noqa: S106
+    )
+    replay_id, replay_token = restarted_service.create_export_job(
+        alice["Authorization"],
+        "json",
+        idempotency_key=key,
+        idempotency_scope="",
+        request_fingerprint=fingerprint,
+    )
+    assert (replay_id, replay_token) == (first_id, first_token)
+    artifact, media_type = restarted_service.download_export_job(replay_id, replay_token)
+    assert artifact and media_type == "application/json"
+
+
+def test_phone_change_requires_confirmation_before_it_applies(accounts):
+    alice = _headers(accounts.alice)
+    patched = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "phone-one"),
+        json={"phone": "+27821234567"},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["phone"] == "+27123456789"
+    assert patched.json()["pending_phone"] == "+27821234567"
+    confirmed = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "phone", "code": "111111"}
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["phone"] == "+27821234567"
+    assert confirmed.json()["phone_verified"] is True
+
+
+def test_contact_confirmation_marks_new_values_verified_and_exports_them(accounts, monkeypatch):
+    alice = _headers(accounts.alice)
+    requested = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "verified-both"),
+        json={"email": "sipho.verified@example.com", "phone": "+27829876543"},
+    )
+    assert requested.status_code == 200
+    with accounts.sessions.begin() as session:
+        identity = session.get(AuthIdentity, accounts.alice.user.id)
+        identity.email_verified = False
+        identity.phone_verified = False
+    monkeypatch.setattr(
+        account_module,
+        "authenticate",
+        lambda _session, _authorization: accounts.alice.user.id,
+    )
+    service = accounts.app.state.account.service
+    service.confirm_contact_change(alice["Authorization"], Channel.EMAIL, "222222")
+    service.confirm_contact_change(alice["Authorization"], Channel.PHONE, "111111")
+    with accounts.sessions.begin() as session:
+        profile = service._profile(session, service._identity(session, accounts.alice.user.id))
+    assert profile.email_verified is True
+    assert profile.phone_verified is True
+    exported = service.export_document(alice["Authorization"])
+    assert exported["account"]["email_verified"] is True
+    assert exported["account"]["phone_verified"] is True
+
+
+def test_contact_change_to_current_value_cancels_pending_change(accounts):
+    alice = _headers(accounts.alice)
+    requested = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "cancel-email"),
+        json={"email": "sipho.cancel@example.com"},
+    )
+    assert requested.status_code == 200
+    cancelled = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "cancel-email-current"),
+        json={"email": "sipho@example.com"},
+    )
+    assert cancelled.status_code == 200
+    assert cancelled.json()["pending_email"] is None
+    old_code = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "222222"}
+    )
+    assert old_code.status_code == 400
+    assert old_code.json()["error"]["code"] == "no_pending_change"
+
+
+def test_contact_change_wrong_code_is_rejected_and_does_not_apply(accounts):
+    alice = _headers(accounts.alice)
+    accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-two"),
+        json={"email": "sipho.new@example.com"},
+    )
+    wrong = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "000000"}
+    )
+    assert wrong.status_code == 400
+    assert wrong.json()["error"]["code"] == "invalid_verification"
+    assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (
+        "sipho@example.com"
+    )
+
+
+def test_contact_change_attempts_commit_and_lock_out_after_restart(accounts):
+    alice = _headers(accounts.alice, "email-attempts")
+    accounts.client.patch(
+        "/account/profile", headers=alice, json={"email": "sipho.retry@example.com"}
+    )
+    for _ in range(5):
+        wrong = accounts.client.post(
+            "/account/contact/confirm",
+            headers=alice,
+            json={"channel": "email", "code": "000000"},
+        )
+        assert wrong.status_code == 400
+    with accounts.sessions() as session:
+        challenge = session.scalar(
+            select(VerificationChallenge).where(
+                VerificationChallenge.user_id == accounts.alice.user.id,
+                VerificationChallenge.channel == "email",
+                VerificationChallenge.consumed_at.is_(None),
+            )
+        )
+        assert challenge.attempts == 5
+    restarted = AccountService(
+        accounts.sessions,
+        accounts.provider,
+        export_token_secret="unit-export-token-secret",  # noqa: S106
+    )
+    with pytest.raises(ApiError, match="invalid_verification"):
+        restarted.confirm_contact_change(alice["Authorization"], Channel.EMAIL, "222222")
+    assert accounts.client.get("/account/profile", headers=alice).json()["email"] == (
+        "sipho@example.com"
+    )
+
+
+def test_contact_change_sms_budget_blocks_provider_delivery(accounts):
+    for label in ("phone-budget-one", "phone-budget-two", "phone-budget-three"):
+        response = accounts.client.patch(
+            "/account/profile",
+            headers=_headers(accounts.alice, label),
+            json={"phone": "+27821111111"},
+        )
+        assert response.status_code == 200
+    rejected = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "phone-budget-four"),
+        json={"phone": "+27821111111"},
+    )
+    assert rejected.status_code == 429
+    assert rejected.json()["error"]["code"] == "sms_phone_rate_limited"
+    assert accounts.provider.deliver.call_count == 3
+
+
+def test_email_change_ip_budget_does_not_block_another_ip(accounts):
+    accounts.client._transport.client = ("192.0.2.1", 1234)
+    for i in range(10):
+        response = accounts.client.patch(
+            "/account/profile",
+            headers=_headers(accounts.alice, f"email-ip-{i}"),
+            json={"email": f"email-ip-{i}@example.com"},
+        )
+        assert response.status_code == 200
+    blocked = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-ip-blocked"),
+        json={"email": "email-ip-blocked@example.com"},
+    )
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "email_ip_rate_limited"
+    assert accounts.provider.deliver.call_count == 10
+
+    accounts.client._transport.client = ("192.0.2.2", 1234)
+    allowed = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.bob, "email-ip-other"),
+        json={"email": "email-ip-other@example.com"},
+    )
+    assert allowed.status_code == 200
+    assert accounts.provider.deliver.call_count == 11
+
+
+def test_contact_change_email_budget_blocks_provider_delivery(accounts):
+    for label in ("email-budget-one", "email-budget-two", "email-budget-three"):
+        response = accounts.client.patch(
+            "/account/profile",
+            headers=_headers(accounts.alice, label),
+            json={"email": "sipho.email-budget@example.com"},
+        )
+        assert response.status_code == 200
+    rejected = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-budget-four"),
+        json={"email": "sipho.email-budget@example.com"},
+    )
+    assert rejected.status_code == 429
+    assert rejected.json()["error"]["code"] == "email_address_rate_limited"
+    assert accounts.provider.deliver.call_count == 3
+
+
+def test_confirm_without_a_pending_change_is_rejected(accounts):
+    alice = _headers(accounts.alice)
+    response = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "222222"}
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "no_pending_change"
+
+
+def test_email_change_to_an_existing_account_is_enumeration_safe(accounts):
+    alice = _headers(accounts.alice)
+    # Bob's email already exists. The response must look identical to a
+    # genuine pending change, and the value must never actually go pending
+    # (a later confirm attempt has nothing to confirm).
+    patched = accounts.client.patch(
+        "/account/profile",
+        headers=_headers(accounts.alice, "email-three"),
+        json={"email": "nandi@example.com"},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["email"] == "sipho@example.com"
+    assert patched.json()["pending_email"] is None
+    confirm = accounts.client.post(
+        "/account/contact/confirm", headers=alice, json={"channel": "email", "code": "222222"}
+    )
+    assert confirm.status_code == 400
+    assert confirm.json()["error"]["code"] == "no_pending_change"
+    # Bob's own account is completely unaffected.
+    bob_profile = accounts.client.get("/account/profile", headers=_headers(accounts.bob)).json()
+    assert bob_profile["email"] == "nandi@example.com"
+
+
+def test_contact_change_rejects_unauthenticated_callers(accounts):
+    response = accounts.client.post(
+        "/account/contact/confirm", json={"channel": "email", "code": "222222"}
+    )
+    assert response.status_code == 401
 
 
 def test_owner_scope_blocks_cross_account_reads_and_mutations(accounts):
@@ -400,6 +825,226 @@ def test_export_rejects_an_unsupported_format(accounts):
     assert response.json()["error"]["code"] == "validation_error"
 
 
+def test_export_job_create_poll_download_round_trip(accounts):
+    _seed_records(accounts)
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert created.status_code == 201
+    job_id = created.json()["id"]
+    download_token = created.json()["download_token"]
+
+    status = accounts.client.get(f"/account/export/jobs/{job_id}", headers=alice)
+    assert status.status_code == 200
+    assert status.json()["status"] == "ready"
+    assert status.json()["format"] == "json"
+
+    downloaded = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    assert downloaded.status_code == 200
+    assert downloaded.headers["content-type"] == "application/json"
+    document = downloaded.json()
+    expected = accounts.client.get("/account/export?format=json", headers=alice).json()
+    assert document == expected
+
+
+def test_export_job_zip_download_matches_synchronous_export(accounts):
+    _seed_records(accounts)
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=zip", headers=alice)
+    job_id, download_token = created.json()["id"], created.json()["download_token"]
+    downloaded = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    assert downloaded.headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(downloaded.content)) as archive:
+        document = json.loads(archive.read("export.json"))
+    expected = accounts.client.get("/account/export?format=json", headers=alice).json()
+    assert document == expected
+
+
+def test_export_job_is_scoped_to_owner(accounts):
+    alice = _headers(accounts.alice)
+    bob = _headers(accounts.bob)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id = created.json()["id"]
+    status = accounts.client.get(f"/account/export/jobs/{job_id}", headers=bob)
+    assert status.status_code == 404
+
+
+def test_export_job_download_rejects_wrong_token(accounts):
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id = created.json()["id"]
+    response = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": "not-the-real-token"}
+    )
+    assert response.status_code == 404
+
+
+def test_export_job_download_rejects_unknown_job(accounts):
+    response = accounts.client.get(
+        f"/account/export/jobs/{uuid4()}/download", params={"token": "anything"}
+    )
+    assert response.status_code == 404
+
+
+def test_export_job_never_contains_credential_or_session_material(accounts):
+    alice = _headers(accounts.alice)
+    owner_id = accounts.alice.user.id
+    with accounts.sessions() as session:
+        identity = session.get(AuthIdentity, owner_id)
+        material = [identity.password_hash]
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id, download_token = created.json()["id"], created.json()["download_token"]
+    downloaded = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    for value in material:
+        assert value not in downloaded.text
+    assert PASSWORD not in downloaded.text
+    for table in ("verification_challenges", "auth_sessions", "auth_identities"):
+        assert table not in downloaded.text
+
+
+def test_export_job_creation_is_rate_limited(accounts):
+    alice = _headers(accounts.alice)
+    for _ in range(5):
+        response = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+        assert response.status_code == 201
+    limited = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert limited.status_code == 429
+    assert limited.json()["error"]["code"] == "export_rate_limited"
+    assert "Retry-After" in limited.headers
+    # A rejected creation must not have built or stored a sixth artifact.
+    with accounts.sessions() as session:
+        from farmable_backend.models import ExportJob
+
+        count = len(
+            session.scalars(
+                select(ExportJob).where(ExportJob.owner_id == accounts.alice.user.id)
+            ).all()
+        )
+        assert count == 5
+
+
+def test_export_job_creation_replays_idempotently(accounts):
+    alice = _headers(accounts.alice)
+    alice["Idempotency-Key"] = "export-job-key-1"
+    first = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    replay = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert first.status_code == replay.status_code == 201
+    assert replay.json() == first.json()
+
+    conflict = accounts.client.post("/account/export/jobs?format=zip", headers=alice)
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "idempotency_key_conflict"
+
+    with accounts.sessions() as session:
+        from farmable_backend.models import ExportJob, IdempotencyRecord
+
+        jobs = session.scalars(
+            select(ExportJob).where(ExportJob.owner_id == accounts.alice.user.id)
+        ).all()
+        assert len(jobs) == 1
+        record = session.get(
+            IdempotencyRecord,
+            ("account_export_job_create", str(accounts.alice.user.id), "export-job-key-1"),
+        )
+        assert record is not None
+        assert "download_token" not in record.response_body
+
+
+def test_export_job_idempotency_is_scoped_to_the_account(accounts):
+    alice = {**_headers(accounts.alice), "Idempotency-Key": "shared-export-key"}
+    bob = {**_headers(accounts.bob), "Idempotency-Key": "shared-export-key"}
+    alice_job = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    bob_job = accounts.client.post("/account/export/jobs?format=json", headers=bob)
+    assert alice_job.status_code == bob_job.status_code == 201
+    assert alice_job.json()["id"] != bob_job.json()["id"]
+
+
+def test_export_requires_active_consent(accounts):
+    alice = _headers(accounts.alice)
+    accounts.app.state.account.service.set_consent(
+        alice["Authorization"], "data_export", "1", False
+    )
+    response = accounts.client.post("/account/export/jobs", headers=alice)
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "consent_required"
+    synchronous = accounts.client.get("/account/export", headers=alice)
+    assert synchronous.status_code == 403
+    assert synchronous.json()["error"]["code"] == "consent_required"
+
+
+def test_export_job_download_is_single_use_state_tracked(accounts):
+    """The token is one-shot; status polling does not consume it."""
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id, download_token = created.json()["id"], created.json()["download_token"]
+    first = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    second = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    assert first.status_code == 200
+    assert second.status_code == 404
+
+
+def test_export_job_rejects_invalid_idempotency_keys(accounts):
+    alice = _headers(accounts.alice)
+    for key in ("", "short", "x" * 201):
+        headers = {**alice, "Idempotency-Key": key}
+        response = accounts.client.post("/account/export/jobs?format=json", headers=headers)
+        assert response.status_code == 400
+        assert response.json()["error"]["code"] == "idempotency_key_required"
+
+
+def test_expired_export_job_cleanup_clears_artifact_and_blocks_download(accounts):
+    alice = _headers(accounts.alice)
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    job_id, download_token = created.json()["id"], created.json()["download_token"]
+    from farmable_backend.models import ExportJob
+
+    with accounts.sessions.begin() as session:
+        job = session.get(ExportJob, UUID(job_id))
+        job.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+
+    cleared = accounts.app.state.account.service.cleanup_expired_export_jobs()
+    assert cleared == 1
+
+    response = accounts.client.get(
+        f"/account/export/jobs/{job_id}/download", params={"token": download_token}
+    )
+    assert response.status_code == 404
+    with accounts.sessions() as session:
+        job = session.get(ExportJob, UUID(job_id))
+        assert job.artifact is None
+        assert job.download_token_hash is None
+        assert job.status == "expired"
+
+    # Idempotent / retry-safe: running the sweep again finds nothing more.
+    assert accounts.app.state.account.service.cleanup_expired_export_jobs() == 0
+
+
+def test_expired_export_job_idempotent_replay_is_rejected(accounts):
+    alice = _headers(accounts.alice, "expired-export-replay")
+    created = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert created.status_code == 201
+    job_id = created.json()["id"]
+    from farmable_backend.models import ExportJob
+
+    with accounts.sessions.begin() as session:
+        job = session.get(ExportJob, UUID(job_id))
+        job.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    assert accounts.app.state.account.service.cleanup_expired_export_jobs() == 1
+
+    replay = accounts.client.post("/account/export/jobs?format=json", headers=alice)
+    assert replay.status_code == 404
+    assert replay.json()["error"]["code"] == "export_not_found"
+
+
 def test_logout_revokes_only_the_current_session(accounts):
     alice = _headers(accounts.alice)
     second = accounts.auth.login("sipho@example.com", PASSWORD)
@@ -407,6 +1052,26 @@ def test_logout_revokes_only_the_current_session(accounts):
     assert accounts.client.get("/account/profile", headers=alice).status_code == 401
     survivor = accounts.client.get("/account/profile", headers=_headers(second))
     assert survivor.status_code == 200
+    stale = accounts.client.post(
+        "/auth/refresh", json={"refresh_token": accounts.alice.refresh_token}
+    )
+    assert stale.status_code == 401
+
+
+def test_logout_after_access_expiry_revokes_refresh_token(accounts):
+    alice = _headers(accounts.alice)
+    with accounts.sessions.begin() as session:
+        stored = session.scalar(
+            select(AuthSession).where(
+                AuthSession.access_token_hash
+                == hashlib.sha256(accounts.alice.access_token.encode()).hexdigest()
+            )
+        )
+        assert stored is not None
+        stored.created_at = datetime.now(UTC) - timedelta(minutes=16)
+
+    assert accounts.client.get("/account/profile", headers=alice).status_code == 401
+    assert accounts.client.post("/auth/logout", headers=alice).status_code == 204
     stale = accounts.client.post(
         "/auth/refresh", json={"refresh_token": accounts.alice.refresh_token}
     )
@@ -456,7 +1121,12 @@ def test_deleted_account_loses_login_refresh_and_record_access(accounts):
     )
     assert refreshed.status_code == 401
     login = accounts.client.post(
-        "/auth/login", json={"identifier": "sipho@example.com", "password": PASSWORD}
+        "/auth/login",
+        json={
+            "identifier": "sipho@example.com",
+            "password": PASSWORD,
+            "turnstile_token": "fixture-token",
+        },
     )
     assert login.status_code == 401
     assert login.json()["error"]["code"] == "invalid_credentials"
@@ -623,6 +1293,50 @@ def test_deletion_leaves_other_owners_untouched(accounts):
         f"/farms/{farm.json()['id']}/sections", headers=_headers(accounts.alice)
     )
     assert stale.status_code == 401
+
+
+def test_delete_is_retry_safe_after_session_already_revoked(accounts):
+    # Simulates a client retrying a DELETE whose response was lost: the first
+    # call's session-revocation has already landed, so the retry has no live
+    # session to authenticate with. It must fail safely (401, no 500) rather
+    # than double-run cleanup or raise on an already-deleted identity.
+    alice = _headers(accounts.alice)
+    first = accounts.client.request(
+        "DELETE", "/account", headers=alice, json={"password": PASSWORD}
+    )
+    assert first.status_code == 204
+    retry = accounts.client.request(
+        "DELETE", "/account", headers=alice, json={"password": PASSWORD}
+    )
+    assert retry.status_code == 401
+    assert retry.json()["error"]["code"] == "invalid_session"
+
+
+def test_deletion_leaves_only_anonymous_audit_rows(accounts):
+    _seed_records(accounts)
+    owner_id = accounts.alice.user.id
+    removed = accounts.client.request(
+        "DELETE", "/account", headers=_headers(accounts.alice), json={"password": PASSWORD}
+    )
+    assert removed.status_code == 204
+    with accounts.sessions() as session:
+        mutations = session.scalars(
+            select(SyncMutation).where(SyncMutation.owner_id == owner_id)
+        ).all()
+        for row in mutations:
+            fields = {c.name for c in row.__table__.columns}
+            assert fields == {
+                "id",
+                "mutation_id",
+                "farm_id",
+                "owner_id",
+                "operation",
+                "record_type",
+                "record_id",
+                "request_fingerprint",
+                "created_at",
+            }
+            assert "@" not in str(row.request_fingerprint)
 
 
 @pytest.mark.parametrize(
