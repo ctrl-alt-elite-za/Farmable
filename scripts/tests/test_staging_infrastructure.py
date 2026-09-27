@@ -996,6 +996,9 @@ def test_rollout_turns_the_assistant_on_with_its_policy(tmp_path: Path) -> None:
             _assistant_on(ASSISTANT_POLICY_MODEL="m,ENVIRONMENT=production"),
             "Invalid ASSISTANT_POLICY_MODEL",
         ),
+        (_assistant_on(ASSISTANT_DAILY_TURNS_PER_USER="0"), "from 1 to 100"),
+        (_assistant_on(ASSISTANT_DAILY_TURNS_PER_USER="101"), "from 1 to 100"),
+        (_assistant_on(ASSISTANT_DAILY_TURNS_PER_USER="5,X=1"), "from 1 to 100"),
     ],
 )
 def test_rollout_checks_the_assistant_policy_before_deploying(
@@ -1454,3 +1457,19 @@ def test_set_secret_refuses_an_unknown_name(tmp_path: Path) -> None:
     assert result.returncode != 0
     assert "Unknown secret" in result.stderr
     assert not log.exists() or "versions add" not in log.read_text(encoding="utf-8")
+
+
+@requires_jq
+@pytest.mark.parametrize(("cap", "expected"), [(None, None), ("30", "30")])
+def test_rollout_passes_a_daily_turn_cap_only_when_set(
+    tmp_path: Path, cap: str | None, expected: str | None
+) -> None:
+    log = tmp_path / "calls.log"
+    env = _assistant_on() if cap is None else _assistant_on(ASSISTANT_DAILY_TURNS_PER_USER=cap)
+    result = _provider_secret_run(tmp_path, log, secrets="", versions="", env=env)
+    assert result.returncode == 0, result.stderr + result.stdout
+    calls = log.read_text(encoding="utf-8")
+    if expected is None:
+        assert "ASSISTANT_DAILY_TURNS_PER_USER" not in calls
+    else:
+        assert f",ASSISTANT_DAILY_TURNS_PER_USER={expected}" in calls

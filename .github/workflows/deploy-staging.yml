@@ -135,6 +135,7 @@ jobs:
           ASSISTANT_TURN_RESERVE_MICRO_USD: ${{ vars.ASSISTANT_TURN_RESERVE_MICRO_USD }}
           ASSISTANT_POLICY_DATE: ${{ vars.ASSISTANT_POLICY_DATE }}
           ASSISTANT_POLICY_MODEL: ${{ vars.ASSISTANT_POLICY_MODEL }}
+          ASSISTANT_DAILY_TURNS_PER_USER: ${{ vars.ASSISTANT_DAILY_TURNS_PER_USER }}
           # Optional. Empty falls back to the prefix implied by GCP_DATABASE_SECRET,
           # which Terraform guarantees is "${name_prefix}-database-url".
           SECRET_PREFIX: ${{ vars.GCP_SECRET_PREFIX }}
