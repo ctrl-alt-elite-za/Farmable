@@ -34,12 +34,13 @@ from typing import Any
 
 NAMESPACE = uuid.UUID("7d4f0c9e-2b1a-4c3e-9f5d-6a8b0c1d2e3f")
 
+DEMO_EMAIL = "thandi.demo@example.com"
 ACCOUNT = {
     "first_name": "Thandi",
     "surname": "Mokoena",
     # Invented. The local fake provider sends nothing anywhere.
     "phone": "+27825550123",
-    "email": "thandi.demo@example.com",
+    "email": DEMO_EMAIL,
     "password": "three blind field mice",
 }
 FARM_NAME = "Thandi Farm"
@@ -102,7 +103,7 @@ def sign_in(api: Api) -> None:
     else:
         print("Demo account exists; logging in")
     status, session = api.call(
-        "POST", "/auth/login", {"identifier": ACCOUNT["email"], "password": ACCOUNT["password"]}
+        "POST", "/auth/login", {"identifier": DEMO_EMAIL, "password": ACCOUNT["password"]}
     )
     if status != 200:
         # An account that was created but never verified cannot log in, and its
@@ -234,7 +235,7 @@ def seed(api: Api, today: date) -> None:
         ("expense", "labour", 60000, None, "Weeding help, two days", 12),
         ("income", "sale", 240000, "Spinach Beds", "Spinach bunches at the market", 3),
     ]
-    for kind, category, cents, section, note, days_ago in financials:
+    for kind, category, cents, where, note, days_ago in financials:
         post(
             "financials",
             f"{kind}/{note}",
@@ -244,7 +245,7 @@ def seed(api: Api, today: date) -> None:
                 "category": category,
                 "amount_cents": cents,
                 "date": (today - timedelta(days=days_ago)).isoformat(),
-                "section_id": ids[section] if section else None,
+                "section_id": ids[where] if where else None,
                 "note": note,
             },
         )
@@ -278,7 +279,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     seed(api, date.today())
     if not args.existing:
-        print(f"Log in on the phone as {ACCOUNT['email']} / {ACCOUNT['password']}")
+        # The fixed local password is in the README; never echo a credential.
+        print(f"Log in on the phone as {DEMO_EMAIL} (password: see the README)")
     return 0
 
 
