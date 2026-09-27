@@ -1,7 +1,11 @@
-"""Seed Thandi's demo account on the LOCAL fallback backend (fake integrations).
+"""Seed Thandi's demo farm: on the LOCAL fallback backend, or an existing account.
 
     bash scripts/local-demo/start.sh
     uv run python scripts/local-demo/seed_demo_account.py
+
+    # The real demo account on staging (already signed up and verified):
+    uv run python scripts/local-demo/seed_demo_account.py \
+        --api https://farmable-backend-mm2c2uwikq-bq.a.run.app --existing EMAIL_OR_PHONE
 
 Creates (or logs into) an invented account and fills its farm through the
 public API, the way phones and the web would: four sections (one walked and
@@ -9,14 +13,18 @@ mapped), current plantings, tasks (one overdue), health checks (one needing a
 look) and money in and out. Every record has a fixed id derived from its name,
 so running this twice replays the same mutations instead of duplicating them.
 
-Only for the local stack: sign-up codes are the fake provider's fixed 111111
-(phone) and 222222 (email). Never point this at staging or production.
+Local mode signs up with the fake provider's fixed codes 111111 (phone) and
+222222 (email), so it only runs against localhost. --existing never signs up:
+it logs into an account you already own, asking for the password at a prompt
+(or reading DEMO_PASSWORD), and only then adds the records.
 """
 
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -103,6 +111,17 @@ def sign_in(api: Api) -> None:
             "Could not log in to the demo account (it may be unverified). "
             "Run: bash scripts/local-demo/reset.sh, then seed again."
         )
+    api.token = session["access_token"]
+
+
+def log_in_existing(api: Api, identifier: str) -> None:
+    password = os.environ.get("DEMO_PASSWORD") or getpass.getpass(f"Password for {identifier}: ")
+    status, session = api.call(
+        "POST", "/auth/login", {"identifier": identifier, "password": password}
+    )
+    if status != 200:
+        code = session.get("error", {}).get("code") if isinstance(session, dict) else session
+        raise SystemExit(f"Could not log in as {identifier}: HTTP {status} {code}")
     api.token = session["access_token"]
 
 
@@ -238,13 +257,28 @@ def seed(api: Api, today: date) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
     parser.add_argument("--api", default="http://127.0.0.1:8000")
+    parser.add_argument(
+        "--existing",
+        metavar="EMAIL_OR_PHONE",
+        help="log into this existing account instead of signing up the local one",
+    )
     args = parser.parse_args(argv)
-    if not args.api.startswith(("http://127.0.0.1", "http://localhost")):
-        raise SystemExit("This seeds the LOCAL fallback backend only (fixed fake codes).")
+    local = args.api.startswith(("http://127.0.0.1", "http://localhost"))
     api = Api(args.api)
-    sign_in(api)
+    if args.existing:
+        if not (local or args.api.startswith("https://")):
+            raise SystemExit("Use https for a remote API.")
+        log_in_existing(api, args.existing)
+    elif local:
+        sign_in(api)
+    else:
+        raise SystemExit(
+            "Sign-up with the fixed fake codes is local only. For a real account "
+            "that already exists, pass --existing EMAIL_OR_PHONE."
+        )
     seed(api, date.today())
-    print(f"Log in on the phone as {ACCOUNT['email']} / {ACCOUNT['password']}")
+    if not args.existing:
+        print(f"Log in on the phone as {ACCOUNT['email']} / {ACCOUNT['password']}")
     return 0
 
 
