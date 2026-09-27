@@ -16,10 +16,19 @@ scorable switches; it explicitly identifies the **7 starting crops** and the
 post-version-1 timing of Amendment 2. This is a valid negative result under the
 approved amendment, not a reason to change the experiment.
 
-Issue #20 remains open pending the amended Colab execution, independent review of
-the amended real artifacts, results-PR checks/merge, and final mainline history
-verification. Existing PR #102 approval and CI cover its implementation revision,
-not these new result artifacts or the fallback wording fix.
+As of 27 September, implementation PR #102 is merged and results PR #108 has
+passing CI at `ea68f3a1664de18b6aace0d7bfdb10c9f27cc0a3`. The amended artifact
+validator and original protocol history gate pass against fetched main `034bfcc`.
+On 27 September the project owner authorized skipping the amended Colab run and
+independent results review where they do not affect the demo. These are waived
+acceptance steps, not completed checks: no amended Colab execution or independent
+results approval is claimed. The offline evaluation is not a demo runtime
+dependency. The separate tomato price artifact is not a backend import bundle;
+the archived version 1 snapshot must not be presented as corrected tomato advice.
+The 174 ML/service/reference-import tests, Ruff, ML adapter mypy, both published
+artifact validators and original protocol history gate passed locally again.
+Results-PR merge and final mainline history verification remain outstanding;
+the owner's waiver does not change repository branch-protection requirements.
 
 ## Historical checkpoints
 

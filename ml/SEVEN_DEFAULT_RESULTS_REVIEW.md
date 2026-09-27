@@ -1,7 +1,9 @@
 # Issue 20 Amendment 2 result review
 
-**Status:** locally reproduced and validated; awaiting amended Colab execution,
-independent result review and PR acceptance. Issue #20 is not yet complete.
+**Status:** locally reproduced and validated; awaiting results-PR merge and final
+mainline history verification. On 27 September the owner waived the amended
+Colab execution and independent results review for demo completion. Neither is
+claimed as performed; repository branch protection still applies.
 
 **Run ID:** `69dbbedc531c3d1baf8349e0b9936dc9fb17aa702d84895d31594d6a12c9b2f7`
 
@@ -89,14 +91,23 @@ changes in pooled gains cannot be attributed to improved model skill.
 
 ## Remaining acceptance requirements
 
-1. Run `ml/notebooks/seven_default_backtest.ipynb` at the exact published revision
-   in Colab with the audited workbooks; retain its true runtime identity and
-   compare decision/price values with this run. No browser provider is available
-   in this execution session, so no amended Colab run is claimed.
-2. Obtain independent review of the real amended artifacts and their comparison.
-   PR #102's approvals reviewed implementation before these results existed.
-3. Pass the results PR's required checks and merge through the normal review
-   process, after PR #102. Native Make is unavailable here; no new successful
+Checkpoint on 27 September 2026: implementation PR #102 merged on 26 September.
+Results PR #108 is based on `main`; its checks at revision
+`ea68f3a1664de18b6aace0d7bfdb10c9f27cc0a3` passed, but it has no independent
+result review yet. The full amended artifact validator and original protocol
+history gate passed again against fetched main `034bfcc`. This does not establish
+the amended result's final mainline ordering while its PR remains unmerged.
+
+1. Amended Colab execution: waived by the owner on 27 September because the
+   offline evaluation does not run in the demo. The notebook remains available
+   for later cross-platform verification; no amended Colab execution is claimed.
+2. Independent amended-results review: waived by the owner for demo completion.
+   PR #102's approvals reviewed implementation before these results existed and
+   are not represented as approval of these artifacts. No statistical claim or
+   experimental rule is changed by this administrative waiver.
+3. Merge the results PR through the normal repository process; rerun checks if
+   its revision changes. The waiver does not override branch protection.
+   Native Make is unavailable here; no new successful
    complete `make lint`, `make typecheck` or `make test` run is claimed.
 4. Re-run the protocol history gate on final mainline and verify Amendment 2
    precedes introduction of this distinct result directory before closing #20.
