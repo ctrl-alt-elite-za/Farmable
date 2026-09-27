@@ -876,13 +876,61 @@ def _provider_secret_gcloud(log: Path, sha: str, *, secrets: str, versions: str)
     )
 
 
-def _provider_secret_run(tmp_path: Path, log: Path, *, secrets: str, versions: str):
+def _provider_secret_run(
+    tmp_path: Path, log: Path, *, secrets: str, versions: str, env: dict[str, str] | None = None
+):
     sha = "0123456789abcdef0123456789abcdef01234567"
     _fake_gcloud(tmp_path, _provider_secret_gcloud(log, sha, secrets=secrets, versions=versions))
     _fake_curl(tmp_path)
     bucket = tmp_path / "bucket"
     bucket.mkdir()
-    return _run("infra/gcp-rollout.sh", {**_rollout_env(tmp_path), "FAKE_BUCKET": str(bucket)})
+    return _run(
+        "infra/gcp-rollout.sh",
+        {**_rollout_env(tmp_path), "FAKE_BUCKET": str(bucket), **(env or {})},
+    )
+
+
+@requires_jq
+def test_rollout_leaves_voice_off_unless_it_is_turned_on(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(tmp_path, log, secrets="", versions="")
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "GEMINI_LIVE_ENABLED=false,GEMINI_LIVE_MODEL=" in log.read_text(encoding="utf-8")
+
+
+@requires_jq
+def test_rollout_turns_voice_on_with_its_model(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(
+        tmp_path,
+        log,
+        secrets="",
+        versions="",
+        env={"GEMINI_LIVE_ENABLED": "true", "GEMINI_LIVE_MODEL": "gemini-live-2.5-flash"},
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    calls = log.read_text(encoding="utf-8")
+    assert "GEMINI_LIVE_ENABLED=true,GEMINI_LIVE_MODEL=gemini-live-2.5-flash" in calls
+
+
+@requires_jq
+@pytest.mark.parametrize(
+    ("env", "error"),
+    [
+        ({"GEMINI_LIVE_ENABLED": "true"}, "needs GEMINI_LIVE_MODEL"),
+        ({"GEMINI_LIVE_ENABLED": "yes"}, "must be true or false"),
+        # A comma would smuggle another variable into --set-env-vars.
+        ({"GEMINI_LIVE_MODEL": "m,ENVIRONMENT=production"}, "Invalid GEMINI_LIVE_MODEL"),
+    ],
+)
+def test_rollout_refuses_a_bad_voice_setting_before_deploying(
+    tmp_path: Path, env: dict[str, str], error: str
+) -> None:
+    log = tmp_path / "calls.log"
+    result = _provider_secret_run(tmp_path, log, secrets="", versions="", env=env)
+    assert result.returncode != 0
+    assert error in result.stderr
+    assert not log.exists() or "run deploy" not in log.read_text(encoding="utf-8")
 
 
 @requires_jq
