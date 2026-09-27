@@ -15,6 +15,19 @@ FORECAST_DATA_MODE="${FORECAST_DATA_MODE:-disabled}"
 case "$FORECAST_DATA_MODE" in disabled|sample|historical) ;; *)
   echo 'Invalid forecast data mode' >&2; exit 1 ;;
 esac
+# Voice (Gemini Live). Off unless the repository variables turn it on; the model is a
+# plain, non-secret name, checked here because it lands inside --set-env-vars.
+GEMINI_LIVE_ENABLED="${GEMINI_LIVE_ENABLED:-false}"
+GEMINI_LIVE_MODEL="${GEMINI_LIVE_MODEL:-}"
+case "$GEMINI_LIVE_ENABLED" in true|false) ;; *)
+  echo 'GEMINI_LIVE_ENABLED must be true or false' >&2; exit 1 ;;
+esac
+if [[ ! "$GEMINI_LIVE_MODEL" =~ ^[A-Za-z0-9._-]{0,128}$ ]]; then
+  echo 'Invalid GEMINI_LIVE_MODEL' >&2; exit 1
+fi
+if [[ "$GEMINI_LIVE_ENABLED" == true && -z "$GEMINI_LIVE_MODEL" ]]; then
+  echo 'GEMINI_LIVE_ENABLED=true needs GEMINI_LIVE_MODEL' >&2; exit 1
+fi
 # Cloud Run caps a traffic tag plus the service name at 46 characters, so the full
 # 40-character SHA ("sha-" + 40 = 44) cannot tag any service. Twelve hex digits stay
 # unambiguous within one service's revisions and leave room for the name.
@@ -173,7 +186,7 @@ gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="$TRAFFIC_TAG" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
-  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE" \
+  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE,GEMINI_LIVE_ENABLED=$GEMINI_LIVE_ENABLED,GEMINI_LIVE_MODEL=$GEMINI_LIVE_MODEL" \
   --set-secrets="$secret_args" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null
