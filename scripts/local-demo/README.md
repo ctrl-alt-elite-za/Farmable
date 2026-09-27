@@ -2,7 +2,8 @@
 
 A backup for the demo if staging isn't ready: the backend runs on a laptop
 with **fake integrations**, and Thandi's account is seeded with a lived-in farm.
-Local use only: never point any of this at staging or production.
+The backend scripts are local only: never point them at staging or production.
+The seeder can also fill the **real demo account** on staging (section 2).
 
 - Sign-up codes are fixed: **111111** (phone) and **222222** (email).
 - The typed assistant answers with the scripted fake model. Voice needs real
@@ -34,8 +35,19 @@ Either:
 UV_PYTHON=3.12 uv run python scripts/local-demo/seed_demo_account.py
 ```
 
-Safe to run again: records have fixed ids, so nothing is duplicated. It
-refuses any API that isn't `localhost` / `127.0.0.1`.
+Safe to run again: records have fixed ids, so nothing is duplicated. Sign-up
+with the fake codes refuses any API that isn't `localhost` / `127.0.0.1`.
+
+**The real demo account on staging.** To fill an account that is already signed
+up and verified (it never signs up and never uses the fake codes):
+
+```bash
+UV_PYTHON=3.12 uv run python scripts/local-demo/seed_demo_account.py \
+  --api https://farmable-backend-mm2c2uwikq-bq.a.run.app --existing <email or phone>
+```
+
+It asks for the password (or reads `DEMO_PASSWORD`). It adds records beside
+any already there and renames the account's only farm to Thandi Farm.
 
 Seeded: Thandi Farm, 4 sections (Cabbage Field already walked and mapped near
 KwaMashu, North Plot empty), 3 plantings, 5 tasks (weeding 4 days overdue),
