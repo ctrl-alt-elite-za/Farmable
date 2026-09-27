@@ -2,7 +2,7 @@
 ///
 /// Like Home it renders from local storage and nothing else — the farm, its
 /// sections and their shapes are all on the phone. The one thing here that
-/// can reach a server is the street map under the shapes, and that waits for
+/// can reach a server is the satellite map under the shapes, and that waits for
 /// the farmer to say yes.
 library;
 
@@ -179,7 +179,7 @@ class _FarmTabState extends ConsumerState<_FarmTab> {
                       onSelect: (s) => setState(() => _selectedId = s.id),
                     ),
                   ),
-                  // Drawn from the phone — true whether or not a street map
+                  // Drawn from the phone — true whether or not a satellite map
                   // is loading underneath, and true with no signal at all.
                   if (!tiles || view.offline)
                     const Positioned(

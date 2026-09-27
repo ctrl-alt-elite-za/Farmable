@@ -6,14 +6,18 @@
 /// the hardware until the person taps Run.
 library;
 
+import 'dart:typed_data';
+
 import 'package:almanac/app/router.dart';
 import 'package:almanac/app/theme/app_theme.dart';
 import 'package:almanac/data/device/ar_probe.dart';
 import 'package:almanac/domain/device/permission_copy.dart';
 import 'package:almanac/domain/device/self_test.dart';
+import 'package:almanac/features/farm/farm_map_data.dart';
 import 'package:almanac/features/self_test/self_test_controller.dart';
 import 'package:almanac/features/self_test/self_test_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,12 +30,31 @@ Future<void> _pump(WidgetTester tester, SelfTestDevices devices) async {
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    MaterialApp(
-      theme: almanacLightTheme(),
-      home: SelfTestScreen(devices: devices),
+    ProviderScope(
+      // The satellite map's pictures: a stand-in that fetches nothing.
+      overrides: [farmMapTileProviderProvider.overrideWithValue(_NoTiles())],
+      child: MaterialApp(
+        theme: almanacLightTheme(),
+        home: SelfTestScreen(devices: devices),
+      ),
     ),
   );
 }
+
+class _NoTiles extends TileProvider {
+  @override
+  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) =>
+      MemoryImage(_pixel);
+}
+
+final _pixel = Uint8List.fromList(const [
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, //
+  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+  0x0B, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x60, 0x00, 0x02, 0x00,
+  0x00, 0x05, 0x00, 0x01, 0x7A, 0x5E, 0xAB, 0x3F, 0x00, 0x00, 0x00, 0x00,
+  0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+]);
 
 /// Pumps fake time forward until the run finishes. The checks wait on real
 /// durations (a 3-second recording, a preview hold), all under the test's fake
@@ -266,7 +289,7 @@ void main() {
   });
 
   testWidgets('the map fetches nothing until asked, and credits '
-      'OpenStreetMap when shown', (tester) async {
+      'Google when shown', (tester) async {
     final log = HardwareCalls();
     await _pump(tester, healthyPhone(log));
     await _runToEnd(tester);
@@ -279,6 +302,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('self-test-map')), findsOneWidget);
-    expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
+    expect(find.byKey(const Key('google-attribution')), findsOneWidget);
+    expect(find.textContaining('Google'), findsWidgets);
   });
 }

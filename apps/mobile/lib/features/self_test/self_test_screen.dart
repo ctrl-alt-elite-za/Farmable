@@ -1,12 +1,13 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/config.dart';
 import '../../app/theme/app_theme.dart';
@@ -17,6 +18,8 @@ import '../../core/ui/layout.dart';
 import '../../data/device/location_service.dart';
 import '../../domain/device/permission_copy.dart';
 import '../../domain/device/self_test.dart';
+import '../farm/farm_map_data.dart';
+import '../farm/satellite_tiles.dart';
 import 'self_test_controller.dart';
 
 /// Checks, on a real phone, the device capabilities later features depend on
@@ -424,28 +427,25 @@ class OutcomePill extends StatelessWidget {
   }
 }
 
-/// The fix, and — only if the person asks — the fix on a map.
+/// The fix, and — only if the person asks — the fix on a satellite map.
 ///
-/// Map tiles come from OpenStreetMap's servers, and the tiles a map asks for
-/// say roughly where the phone is. So nothing is fetched until the person
-/// taps "Show on a map", after the screen has said exactly that; until then
-/// the self-test sends nothing anywhere, as its intro promises. Once shown,
-/// the map carries OpenStreetMap's attribution, which its licence requires.
-class _FixMap extends StatefulWidget {
+/// Map pictures come from Google through Almanac's server, and the pictures a
+/// map asks for say roughly where the phone is. So nothing is fetched until the
+/// person taps "Show on a map", after the screen has said exactly that; until
+/// then the self-test sends nothing anywhere, as its intro promises. The view
+/// frames the fix and its accuracy circle, so how sure the phone is shows at a
+/// glance, and Google is credited as its terms require.
+class _FixMap extends ConsumerStatefulWidget {
   final LocationFix fix;
 
   const _FixMap({required this.fix});
 
   @override
-  State<_FixMap> createState() => _FixMapState();
+  ConsumerState<_FixMap> createState() => _FixMapState();
 }
 
-class _FixMapState extends State<_FixMap> {
+class _FixMapState extends ConsumerState<_FixMap> {
   var _shown = false;
-
-  static final _copyright = Uri.parse(
-    'https://www.openstreetmap.org/copyright',
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -460,8 +460,8 @@ class _FixMapState extends State<_FixMap> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Showing the map loads map pictures from OpenStreetMap, '
-                'which lets their servers see roughly where this phone is. '
+                'Showing the map loads aerial photos from Google through '
+                'Almanac, which lets Google see roughly where this phone is. '
                 'Nothing else is sent.',
                 style: text.bodySmall?.copyWith(color: c.onSurfaceVariant),
               ),
@@ -487,18 +487,29 @@ class _FixMapState extends State<_FixMap> {
           child: FlutterMap(
             key: const Key('self-test-map'),
             options: MapOptions(
-              initialCenter: point,
-              initialZoom: 16,
+              backgroundColor: c.surfaceContainer,
+              initialCameraFit: CameraFit.bounds(
+                bounds: accuracyBounds(point, widget.fix.accuracyMetres),
+                padding: const EdgeInsets.all(AlmanacDimens.sp5),
+                maxZoom: 19,
+              ),
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.none,
               ),
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                // Identifies the app to OpenStreetMap, as its tile usage
-                // policy asks. One fix, fetched once, on request.
-                userAgentPackageName: 'za.co.almanac.app',
+              satelliteLayer(ref.watch(farmMapTileProviderProvider)),
+              CircleLayer(
+                circles: [
+                  CircleMarker(
+                    point: point,
+                    radius: widget.fix.accuracyMetres,
+                    useRadiusInMeter: true,
+                    color: c.primary.withValues(alpha: 0.18),
+                    borderColor: c.primary,
+                    borderStrokeWidth: 1.5,
+                  ),
+                ],
               ),
               MarkerLayer(
                 markers: [
@@ -508,46 +519,28 @@ class _FixMapState extends State<_FixMap> {
                   ),
                 ],
               ),
-              // Not flutter_map's SimpleAttributionWidget: that is a single
-              // row that overflows rather than wraps on a narrow phone or at
-              // a large text size. This wraps, and stays tappable.
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Semantics(
-                  link: true,
-                  child: GestureDetector(
-                    onTap: () => launchUrl(
-                      _copyright,
-                      mode: LaunchMode.externalApplication,
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(AlmanacDimens.sp2),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AlmanacDimens.sp2,
-                        vertical: AlmanacDimens.sp1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: c.surface.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(AlmanacDimens.rSm),
-                      ),
-                      child: Text(
-                        '© OpenStreetMap contributors',
-                        maxLines: 2,
-                        style: text.labelSmall?.copyWith(
-                          color: c.onSurface,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              const GoogleAttribution(),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// A box around [point] that holds its accuracy circle, never tighter than
+/// 30 m across so a very sure fix still shows its surroundings.
+LatLngBounds accuracyBounds(LatLng point, double accuracyMetres) {
+  final r = accuracyMetres.clamp(15, 5000).toDouble();
+  const metresPerDegree = 111320.0;
+  final dLat = r / metresPerDegree;
+  final dLon =
+      r /
+      (metresPerDegree * math.cos(point.latitudeInRad).abs().clamp(0.01, 1));
+  return LatLngBounds(
+    LatLng(point.latitude - dLat, point.longitude - dLon),
+    LatLng(point.latitude + dLat, point.longitude + dLon),
+  );
 }
 
 class _ReportCard extends StatelessWidget {

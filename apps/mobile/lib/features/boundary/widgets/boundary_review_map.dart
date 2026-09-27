@@ -5,9 +5,10 @@
 /// handle halfway along each side adds a corner there; a long press on a
 /// corner removes it, down to three.
 ///
-/// Drawn on a plain ground, needing nothing but the phone. The street map
+/// Drawn on a plain ground, needing nothing but the phone. The satellite map
 /// beneath appears only if the farmer has already said yes to it on the
-/// Farm tab — the same consent, never asked again here.
+/// Farm tab — the same consent, never asked again here. Framed on the walked
+/// shape, close enough to place each corner against the imagery.
 library;
 
 import 'package:flutter/material.dart';
@@ -19,7 +20,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.g.dart';
 import '../../farm/farm_map_data.dart';
-import '../../farm/widgets/farm_map.dart' show OsmAttribution;
+import '../../farm/satellite_tiles.dart';
 
 class BoundaryReviewMap extends ConsumerWidget {
   final List<LatLng> corners;
@@ -67,12 +68,7 @@ class BoundaryReviewMap extends ConsumerWidget {
         ),
       ),
       children: [
-        if (tiles)
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'za.co.almanac.app',
-            tileProvider: ref.watch(farmMapTileProviderProvider),
-          ),
+        if (tiles) satelliteLayer(ref.watch(farmMapTileProviderProvider)),
         PolygonLayer(
           polygons: [
             Polygon(
@@ -126,7 +122,7 @@ class BoundaryReviewMap extends ConsumerWidget {
               ),
           ],
         ),
-        if (tiles) const OsmAttribution(),
+        if (tiles) const GoogleAttribution(),
       ],
     );
   }
