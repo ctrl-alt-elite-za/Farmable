@@ -569,10 +569,11 @@ AuthFailure failureForResponse(int status, Object? data) {
   final code = error is Map ? error['code'] : null;
 
   switch (code) {
-    // An unverified account logging in gets the same answer as a wrong
-    // password, for the same reason: no account-existence oracle.
-    case 'invalid_credentials' || 'account_unverified':
+    case 'invalid_credentials':
       return AuthFailure.invalidCredentials;
+    // Sent only once the password matched; see `AuthFailure.accountUnverified`.
+    case 'account_unverified':
+      return AuthFailure.accountUnverified;
     case 'account_exists':
       return AuthFailure.accountExists;
     case 'invalid_verification':

@@ -250,8 +250,11 @@ class AuthService:
             password_valid = self._verify_password(password_hash, password)
             if user is None or user.password_hash is None or not password_valid:
                 raise AuthError("invalid_credentials", 401)
+            # Only after the password matched: whoever sees this already holds
+            # the account's credentials, so it reveals nothing about who has an
+            # account, and it tells a half-verified farmer what to do next.
             if not (user.phone_verified and user.email_verified):
-                raise AuthError("invalid_credentials", 401)
+                raise AuthError("account_unverified", 401)
             return self._new_session(session, user)
 
     def refresh(self, refresh_token: str) -> SessionTokens:
@@ -391,7 +394,7 @@ class InMemoryAuthService:
             raise AuthError("invalid_credentials", 401)
         user = self.users[user_id]
         if not user["phone_verified"] or not user["email_verified"]:
-            raise AuthError("invalid_credentials", 401)
+            raise AuthError("account_unverified", 401)
         return self._new_session(user_id)
 
     def refresh(self, refresh_token: str) -> SessionTokens:

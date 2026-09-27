@@ -301,6 +301,9 @@ String authAdvice(AuthFailure failure) => switch (failure) {
   AuthFailure.invalidCredentials =>
     'That email or phone and password do not go together. Check them and '
         'try again.',
+  AuthFailure.accountUnverified =>
+    "This account's phone and email are not both confirmed yet, so it cannot "
+        'open. Ask the Almanac team to finish setting it up.',
   AuthFailure.accountExists =>
     'There is already an account with this email. Log in instead, or use '
         'another address.',

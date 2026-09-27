@@ -267,7 +267,7 @@ void main() {
       );
       expect(
         failureForResponse(401, err('account_unverified')),
-        AuthFailure.invalidCredentials,
+        AuthFailure.accountUnverified,
       );
       expect(
         failureForResponse(503, err('provider_unavailable')),
