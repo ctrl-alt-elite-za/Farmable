@@ -17,12 +17,14 @@ class FarmHeroCard extends StatelessWidget {
   final FarmSnapshot farm;
   final VoidCallback onOpenFarm;
   final VoidCallback onOpenMap;
+  final bool demoPhotography;
 
   const FarmHeroCard({
     super.key,
     required this.farm,
     required this.onOpenFarm,
     required this.onOpenMap,
+    this.demoPhotography = false,
   });
 
   @override
@@ -39,7 +41,11 @@ class FarmHeroCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              CropImagery(scene: CropScene.farm, seed: farm.farm.id),
+              CropImagery(
+                scene: CropScene.farm,
+                seed: farm.farm.id,
+                demoPhotography: demoPhotography,
+              ),
               const ImageryScrim(),
               Positioned(
                 top: AlmanacDimens.sp4,

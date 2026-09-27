@@ -68,6 +68,9 @@ locals {
     "infobip-base-url",
     "infobip-sms-sender",
     "infobip-email-sender",
+    "smtp-user",
+    "smtp-password",
+    "email-from-address",
   ])
 }
 

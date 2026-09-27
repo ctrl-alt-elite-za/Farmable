@@ -197,10 +197,15 @@ optional_secrets=(
   "INFOBIP_BASE_URL:infobip-base-url"
   "INFOBIP_SMS_SENDER:infobip-sms-sender"
   "INFOBIP_EMAIL_SENDER:infobip-email-sender"
+  "SMTP_USER:smtp-user"
+  "SMTP_PASSWORD:smtp-password"
+  "EMAIL_FROM_ADDRESS:email-from-address"
 )
-# Live mode delivers sign-up codes by SMS and email through Infobip; without all
-# four, the backend falls back to refusing to send and sign-up cannot complete.
-otp_delivery_secrets=(INFOBIP_BASE_URL INFOBIP_API_KEY INFOBIP_SMS_SENDER INFOBIP_EMAIL_SENDER)
+# Live mode sends the SMS code through Infobip and the email code through Gmail SMTP
+# (all three SMTP values) or else Infobip email. Without SMS and one email route the
+# backend refuses to send and sign-up cannot complete.
+otp_delivery_secrets=(INFOBIP_BASE_URL INFOBIP_API_KEY INFOBIP_SMS_SENDER)
+smtp_delivery_secrets=(SMTP_USER SMTP_PASSWORD EMAIL_FROM_ADDRESS)
 
 # One listing call decides existence for every candidate. Probing each secret
 # individually cannot tell NOT_FOUND from a transient 503, and reading a transient
@@ -249,6 +254,13 @@ if [[ "$INTEGRATIONS_MODE" == live ]]; then
   for env_name in "${otp_delivery_secrets[@]}"; do
     [[ " ${wired[*]:-} " == *" ${env_name} "* ]] || missing_otp+=("$env_name")
   done
+  smtp_complete=true
+  for env_name in "${smtp_delivery_secrets[@]}"; do
+    [[ " ${wired[*]:-} " == *" ${env_name} "* ]] || smtp_complete=false
+  done
+  if [[ "$smtp_complete" != true && " ${wired[*]:-} " != *" INFOBIP_EMAIL_SENDER "* ]]; then
+    missing_otp+=("INFOBIP_EMAIL_SENDER (or SMTP_USER, SMTP_PASSWORD and EMAIL_FROM_ADDRESS)")
+  fi
   if [[ ${#missing_otp[@]} -gt 0 ]]; then
     echo "::warning::Live sign-up OTP delivery is not configured; missing: ${missing_otp[*]}"
   fi

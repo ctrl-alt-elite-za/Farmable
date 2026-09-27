@@ -156,6 +156,7 @@ class _DashboardState extends ConsumerState<_Dashboard> {
           _Gutter(
             child: FarmHeroCard(
               farm: farm,
+              demoPhotography: !view.isAccount,
               onOpenFarm: () => context.go('/farm'),
               onOpenMap: () => context.push('/farm/map'),
             ),
@@ -190,6 +191,7 @@ class _DashboardState extends ConsumerState<_Dashboard> {
             // they do not know to swipe to.
             ZoneCarousel(
               sections: farm.sections,
+              demoPhotography: !view.isAccount,
               onOpen: (section) => context.push('/farm/zone/${section.id}'),
               onCentreChanged: (section) =>
                   setState(() => _centreId = section.id),

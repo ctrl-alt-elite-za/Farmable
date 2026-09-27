@@ -63,6 +63,7 @@ double carouselOpacityFor(double page, int index) {
 class ZoneCarousel extends StatefulWidget {
   final List<SectionSummary> sections;
   final void Function(SectionSummary section) onOpen;
+  final bool demoPhotography;
 
   /// Fires whenever a different section reaches the centre.
   ///
@@ -75,6 +76,7 @@ class ZoneCarousel extends StatefulWidget {
     super.key,
     required this.sections,
     required this.onOpen,
+    this.demoPhotography = false,
     this.onCentreChanged,
   });
 
@@ -270,6 +272,7 @@ class _ZoneCarouselState extends State<ZoneCarousel> {
               child: ZoneCard(
                 section: section,
                 isCentre: page == _centre,
+                demoPhotography: widget.demoPhotography,
                 onTap: () => _tap(page, section),
               ),
             ),

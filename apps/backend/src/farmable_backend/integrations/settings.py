@@ -84,6 +84,29 @@ class ServiceSettings(BaseSettings):
     infobip_email_sender: str | None = Field(
         default=None, pattern=r"^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$", max_length=254
     )
+    # Email codes by SMTP instead of Infobip email. Gmail by default, so only the
+    # user, app password and from address need setting; set-secret.sh mirrors these.
+    smtp_host: str = Field(
+        default="smtp.gmail.com", pattern=r"^[a-zA-Z0-9.-]{1,253}$", max_length=253
+    )
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_tls_mode: Literal["starttls", "ssl"] = "starttls"
+    smtp_user: str | None = Field(
+        default=None, pattern=r"^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$", max_length=254
+    )
+    smtp_password: SecretStr | None = Field(default=None, repr=False)
+    email_from_name: str = Field(default="Almanac", pattern=r"^[^\r\n<>\"]{1,78}$")
+    email_from_address: str | None = Field(
+        default=None, pattern=r"^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$", max_length=254
+    )
+
+    @field_validator("smtp_password", mode="before")
+    @classmethod
+    def app_password_without_spaces(cls, value: object) -> object:
+        # Google shows an app password as four groups of four; SMTP wants it joined.
+        if isinstance(value, str):
+            return "".join(value.split())
+        return value
 
     @field_validator("infobip_base_url", mode="before")
     @classmethod

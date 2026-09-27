@@ -1,12 +1,12 @@
 /// The farm imagery.
 ///
-/// Every "photograph" in this app is **drawn**, not shipped. The design set
-/// does the same thing — every scene in `design/v1` is generated SVG — and the
-/// reasons carry straight over:
+/// The scene painter remains the default for account farms. The seeded demo
+/// can opt into representative South African photographs. The design set does
+/// the same thing — every scene in `design/v1` is generated SVG — and the
+/// reasons for keeping personal farm imagery drawn carry straight over:
 ///
-/// * There is no photograph of Sipho's cabbage field, and dressing the demo in
-///   stock photography of somebody else's farm would put a picture in front of
-///   a farmer that is not their land.
+/// * There is no photograph of an account farmer's actual field, so showing
+///   representative imagery there could mislead them about what the app knows.
 /// * A scene is a few hundred bytes of arithmetic. Photographs of four
 ///   sections at the density an entry-level phone needs are megabytes in the
 ///   APK, downloaded over the prepaid data this product exists to respect.
@@ -51,7 +51,25 @@ class CropImagery extends StatelessWidget {
   /// crop get different rows, hollows and sun positions from this.
   final String seed;
 
-  const CropImagery({super.key, required this.scene, required this.seed});
+  /// Representative South African photos are reserved for the seeded demo.
+  /// Account farms keep generated scenes so no image is mistaken for a
+  /// farmer's own land.
+  final bool demoPhotography;
+
+  const CropImagery({
+    super.key,
+    required this.scene,
+    required this.seed,
+    this.demoPhotography = false,
+  });
+
+  String get _asset => switch (scene) {
+    CropScene.farm => 'assets/demo/farm.jpg',
+    CropScene.cabbage => 'assets/demo/cabbage.jpg',
+    CropScene.tomato => 'assets/demo/tomato.jpg',
+    CropScene.spinach => 'assets/demo/spinach.jpg',
+    CropScene.bare => 'assets/demo/bare.jpg',
+  };
 
   @override
   Widget build(BuildContext context) => RepaintBoundary(
@@ -63,12 +81,33 @@ class CropImagery extends StatelessWidget {
     // Clipped here rather than at each call site: whatever box this widget is
     // handed is the box it paints in, and no caller has to remember.
     child: ClipRect(
-      child: CustomPaint(
-        painter: _ScenePainter(scene: scene, seed: seed.hashCode),
-        size: Size.infinite,
-        isComplex: true,
-        willChange: false,
-      ),
+      child: demoPhotography
+          ? LayoutBuilder(
+              builder: (context, constraints) {
+                final width = math.max(
+                  constraints.maxWidth,
+                  constraints.maxHeight * 4 / 3,
+                );
+                final cacheWidth = width.isFinite
+                    ? (width * MediaQuery.devicePixelRatioOf(context))
+                          .round()
+                          .clamp(1, 1200)
+                          .toInt()
+                    : null;
+                return Image.asset(
+                  _asset,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
+                  cacheWidth: cacheWidth,
+                );
+              },
+            )
+          : CustomPaint(
+              painter: _ScenePainter(scene: scene, seed: seed.hashCode),
+              size: Size.infinite,
+              isComplex: true,
+              willChange: false,
+            ),
     ),
   );
 }

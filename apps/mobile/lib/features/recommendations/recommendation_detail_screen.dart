@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.g.dart';
 import '../../core/ui/badges.dart';
@@ -67,6 +68,7 @@ class RecommendationDetailScreen extends ConsumerWidget {
             section: screen.section,
             label: screen.label,
             sectionId: sectionId,
+            demoPhotography: !ref.watch(farmScopeProvider).isAccount,
           );
         },
       ),
@@ -98,12 +100,14 @@ class _Detail extends ConsumerWidget {
   final SectionSummary section;
   final String label;
   final String sectionId;
+  final bool demoPhotography;
 
   const _Detail({
     required this.recommendation,
     required this.section,
     required this.label,
     required this.sectionId,
+    required this.demoPhotography,
   });
 
   @override
@@ -123,7 +127,11 @@ class _Detail extends ConsumerWidget {
         ListView(
           padding: const EdgeInsets.only(bottom: 196),
           children: [
-            _Hero(recommendation: recommendation, sectionName: section.name),
+            _Hero(
+              recommendation: recommendation,
+              sectionName: section.name,
+              demoPhotography: demoPhotography,
+            ),
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AlmanacDimens.gutter,
@@ -228,8 +236,13 @@ class _Detail extends ConsumerWidget {
 class _Hero extends StatelessWidget {
   final CropRecommendation recommendation;
   final String sectionName;
+  final bool demoPhotography;
 
-  const _Hero({required this.recommendation, required this.sectionName});
+  const _Hero({
+    required this.recommendation,
+    required this.sectionName,
+    required this.demoPhotography,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -246,6 +259,7 @@ class _Hero extends StatelessWidget {
             child: CropImagery(
               scene: CropScene.forCrop(recommendation.crop.name),
               seed: recommendation.crop.name,
+              demoPhotography: demoPhotography,
             ),
           ),
           const ImageryScrim(),

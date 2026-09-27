@@ -35,12 +35,14 @@ class SectionRow extends StatelessWidget {
   final SectionSummary section;
   final DateTime today;
   final VoidCallback onOpen;
+  final bool demoPhotography;
 
   const SectionRow({
     super.key,
     required this.section,
     required this.today,
     required this.onOpen,
+    this.demoPhotography = false,
   });
 
   @override
@@ -84,6 +86,7 @@ class SectionRow extends StatelessWidget {
                       child: CropImagery(
                         scene: CropScene.forCrop(section.planting?.crop),
                         seed: section.id,
+                        demoPhotography: demoPhotography,
                       ),
                     ),
                   ),

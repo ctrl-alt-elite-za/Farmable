@@ -37,7 +37,8 @@ pattern_for() {
     turnstile-hostname) echo '^[a-zA-Z0-9.-]{1,253}$' ;;
     infobip-base-url) echo '^([a-z0-9-]+\.)?api\.infobip\.com$' ;;
     infobip-sms-sender) echo '^(\+?[0-9]{3,15}|[A-Za-z0-9 ]{1,11})$' ;;
-    infobip-email-sender) echo '^[^@[:space:]<>]+@[^@[:space:]<>]+\.[^@[:space:]<>]+$' ;;
+    infobip-email-sender|smtp-user|email-from-address)
+      echo '^[^@[:space:]<>]+@[^@[:space:]<>]+\.[^@[:space:]<>]+$' ;;
     database-url) echo '^postgresql\+psycopg://' ;;
     *) echo '' ;;
   esac
@@ -74,6 +75,10 @@ if [[ "$name" == infobip-base-url ]]; then
   value="${value#https://}"
   value="${value%/}"
   value="${value,,}"
+fi
+if [[ "$name" == smtp-password ]]; then
+  # Google shows an app password as four groups of four; SMTP wants it joined.
+  value="${value//[[:space:]]/}"
 fi
 if [[ -z "$value" || "$value" != "${value#[[:space:]]}" || "$value" != "${value%[[:space:]]}" ]]; then
   echo "Refused: the value is empty or starts or ends with whitespace." >&2
