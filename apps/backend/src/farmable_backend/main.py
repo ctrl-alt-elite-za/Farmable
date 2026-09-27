@@ -36,6 +36,7 @@ from farmable_backend.forecast_api import router as forecast_router
 from farmable_backend.gcs_photos import create_photos
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
+from farmable_backend.integrations.twilio_otp import create_live_otp_provider
 from farmable_backend.logging import configure_logging
 from farmable_backend.middleware import RateLimiter, SafeDefaultsMiddleware, error_response
 from farmable_backend.planning.api import router as planning_router
@@ -56,7 +57,6 @@ from farmable_backend.schemas import (
     UserResponse,
     VerifyOtpRequest,
 )
-from farmable_backend.integrations.twilio_otp import create_live_otp_provider
 from farmable_backend.voice_api import router as voice_router
 
 

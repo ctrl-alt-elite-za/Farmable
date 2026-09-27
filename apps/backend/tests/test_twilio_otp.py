@@ -6,6 +6,10 @@ import httpx
 import pytest
 from farmable_backend.auth import AuthError, AuthService, Channel, SessionTokens
 from farmable_backend.integrations.settings import ServiceSettings
+from farmable_backend.integrations.twilio_otp import (
+    TwilioVerifyOtpProvider,
+    create_live_otp_provider,
+)
 from farmable_backend.models import (
     AuthIdentity,
     AuthSession,
@@ -14,7 +18,6 @@ from farmable_backend.models import (
     User,
     VerificationChallenge,
 )
-from farmable_backend.integrations.twilio_otp import TwilioVerifyOtpProvider, create_live_otp_provider
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
