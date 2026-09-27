@@ -34,6 +34,7 @@ from farmable_backend.database import Database
 from farmable_backend.diagnosis_api import router as diagnosis_router
 from farmable_backend.forecast_api import router as forecast_router
 from farmable_backend.gcs_photos import create_photos
+from farmable_backend.infobip import create_infobip_provider
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
@@ -116,7 +117,7 @@ def create_app(
                 provider = (
                     DeterministicFakeOtpProvider()
                     if integration_config.integrations_mode == "fake"
-                    else None
+                    else create_infobip_provider(integration_config)
                 )
                 app.state.auth = AuthService(database.sessions, provider)
                 app.state.records = RecordRuntime(

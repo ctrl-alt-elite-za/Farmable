@@ -1219,3 +1219,112 @@ def test_operator_acceptance_evidence_is_documented() -> None:
     lowered = doc.lower()
     for stale in ("af-south-1", "aws", "ec2"):
         assert stale not in lowered, stale
+
+
+def _terraform_provider_secrets() -> list[str]:
+    terraform = read("infra/gcp-staging.tf")
+    block = terraform.split("provider_secrets = toset([", 1)[1].split("])", 1)[0]
+    return re.findall(r'"([a-z0-9-]+)"', block)
+
+
+def test_every_provider_secret_terraform_creates_is_wired_by_the_rollout():
+    """A secret Terraform creates but the rollout never wires is a key nobody can use."""
+    rollout = read("infra/gcp-rollout.sh")
+    optional = dict(re.findall(r'^\s+"([A-Z0-9_]+):([a-z0-9-]+)"$', rollout, re.MULTILINE))
+    always = {"database-url", "gemini-api-key"}
+    assert set(_terraform_provider_secrets()) - always == set(optional.values())
+    for env_name, secret in optional.items():
+        assert env_name == secret.upper().replace("-", "_"), env_name
+    for secret in ("infobip-api-key", "infobip-base-url", "infobip-sms-sender"):
+        assert secret in optional.values()
+
+
+def _set_secret_gcloud(tmp_path: Path, log: Path, *, secrets: str, versions: str) -> None:
+    _fake_gcloud(
+        tmp_path,
+        _log_calls(log) + 'if [[ "$*" == *"versions add"* ]]; then\n'
+        f'  cat > "{tmp_path}/stdin"; exit 0\n'
+        "fi\n"
+        'if [[ "$*" == *"secrets list"* ]]; then\n'
+        f"  printf '%s\n' {secrets}; exit 0\n"
+        "fi\n"
+        'if [[ "$*" == *"versions list"* ]]; then\n'
+        f'  if [[ "$*" == *"{versions}"* ]]; then echo projects/1/versions/1; fi\n'
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+
+
+def _set_secret(tmp_path: Path, *args: str, value: str = "") -> "subprocess.CompletedProcess[str]":
+    return subprocess.run(  # noqa: S603 - fixed shell and repository script
+        [_bash(), str(ROOT / "infra/set-secret.sh"), *args],
+        capture_output=True,
+        check=False,
+        env={**os.environ, "PATH": _path(tmp_path)},
+        input=value,
+        text=True,
+    )
+
+
+def test_set_secret_lists_every_terraform_secret_by_state_without_values(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    _set_secret_gcloud(
+        tmp_path,
+        log,
+        secrets="farmable-staging-infobip-api-key farmable-staging-maps-server-api-key",
+        versions="farmable-staging-maps-server-api-key",
+    )
+    result = _set_secret(tmp_path)
+    assert result.returncode == 0, result.stderr
+    lines = dict(line.split(None, 1) for line in result.stdout.splitlines())
+    assert set(lines) == {*_terraform_provider_secrets(), "forecast-github-token"}
+    assert lines["maps-server-api-key"] == "has a value"
+    assert lines["infobip-api-key"] == "empty"
+    assert lines["infobip-sms-sender"].startswith("missing")
+    assert "versions add" not in log.read_text(encoding="utf-8")
+
+
+def test_set_secret_sends_the_value_on_stdin_never_as_an_argument(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    _set_secret_gcloud(tmp_path, log, secrets="", versions="none")
+    result = _set_secret(tmp_path, "infobip-base-url", value="https://ABC123.api.infobip.com/\r\n")
+    assert result.returncode == 0, result.stderr
+    calls = log.read_text(encoding="utf-8")
+    assert "secrets versions add farmable-staging-infobip-base-url" in calls
+    assert "--data-file=-" in calls
+    assert "infobip.com" not in calls
+    # Stored exactly as the backend validates it: host only, no newline.
+    assert (tmp_path / "stdin").read_text(encoding="utf-8") == "abc123.api.infobip.com"
+    assert "infobip.com" not in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("infobip-base-url", "https://api.example.com"),
+        ("twilio-account-sid", "not-a-sid-super-secret"),
+        ("infobip-api-key", ""),
+        ("infobip-api-key", " padded-super-secret"),
+    ],
+)
+def test_set_secret_refuses_a_value_that_would_stop_the_backend(
+    tmp_path: Path, name: str, value: str
+) -> None:
+    log = tmp_path / "calls.log"
+    _set_secret_gcloud(tmp_path, log, secrets="", versions="none")
+    result = _set_secret(tmp_path, name, value=value + "\n")
+    assert result.returncode != 0
+    assert "Refused" in result.stderr
+    assert not log.exists() or "versions add" not in log.read_text(encoding="utf-8")
+    if value:
+        assert value.strip() not in result.stdout + result.stderr
+
+
+def test_set_secret_refuses_an_unknown_name(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    _set_secret_gcloud(tmp_path, log, secrets="", versions="none")
+    result = _set_secret(tmp_path, "someone-elses-secret", value="x\n")
+    assert result.returncode != 0
+    assert "Unknown secret" in result.stderr
+    assert not log.exists() or "versions add" not in log.read_text(encoding="utf-8")
