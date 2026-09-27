@@ -63,6 +63,7 @@ class ObservationList extends StatelessWidget {
               observation: observation,
               sectionId: sectionId,
               crop: crop,
+              demoPhotography: demoPhotography,
               today: today,
               last: observation == observations.last,
               onTap: () => onTap(observation),
@@ -80,6 +81,7 @@ class ObservationTile extends StatelessWidget {
 
   /// What is planted here, for the thumbnail. Null on bare land.
   final String? crop;
+  final bool demoPhotography;
   final DateTime today;
   final bool last;
   final VoidCallback onTap;
@@ -90,6 +92,7 @@ class ObservationTile extends StatelessWidget {
     required this.observation,
     required this.sectionId,
     required this.crop,
+    this.demoPhotography = false,
     required this.today,
     required this.last,
     required this.onTap,
@@ -120,11 +123,8 @@ class ObservationTile extends StatelessWidget {
                 width: 56,
                 height: 56,
                 // No photograph was captured with this record. The tile shows
-                // the section's own land rather than a grey box, so the row
-                // still reads as a place — and it is drawn, so it costs
-                // nothing to store. It draws the crop that is actually
-                // planted: every thumbnail on a cabbage field was rendering
-                // bare soil, which reads as a picture that failed to load.
+                // the section's crop: a representative photo in the demo and
+                // a drawn scene on account farms.
                 child: CropImagery(
                   scene: CropScene.forCrop(crop),
                   seed: '$sectionId-${observation.id}',
