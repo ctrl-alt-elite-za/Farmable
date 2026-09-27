@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 state="$HOME/.farmable-local"
-pgbin=/usr/lib/postgresql/14/bin
+pgbin="${PG_BIN:-/usr/lib/postgresql/14/bin}"  # set PG_BIN if PostgreSQL lives elsewhere
 # shellcheck source=/dev/null
 source scripts/local-demo/env.sh
 if ! "$pgbin/pg_isready" -q -h 127.0.0.1 -p 5433; then
