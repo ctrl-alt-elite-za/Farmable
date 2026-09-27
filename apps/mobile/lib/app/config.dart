@@ -35,6 +35,14 @@ const walkReplay = String.fromEnvironment('WALK_REPLAY', defaultValue: 'field');
 /// watching could tell. `scripts/check-test-mode.sh` fails such a build.
 const demoMode = bool.fromEnvironment('DEMO_MODE');
 
+/// Whether sign-up and log-in open the Cloudflare Turnstile challenge. Off
+/// only for a backend deployed with `TURNSTILE_ENABLED=false`, which accepts
+/// the placeholder token the app then sends.
+const turnstileEnabled = bool.fromEnvironment(
+  'TURNSTILE_ENABLED',
+  defaultValue: true,
+);
+
 /// Stamped by CI so a report can be traced back to the build that produced it.
 const buildSha = String.fromEnvironment('BUILD_SHA', defaultValue: 'unknown');
 

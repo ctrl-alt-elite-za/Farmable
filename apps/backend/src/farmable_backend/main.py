@@ -365,6 +365,8 @@ def create_app(
         services = getattr(request.app.state, "services", None)
         if services is None:
             raise AuthError("turnstile_failed", 503)
+        if not services.turnstile.settings.turnstile_enabled:
+            return  # Descoped for the demo; see ServiceSettings.turnstile_enabled.
         result = await services.turnstile.validate(token, action=action)
         if not result.ok:
             raise AuthError("turnstile_failed", 503)

@@ -584,6 +584,41 @@ def test_turnstile_down_refuses(settings):
         assert session.scalar(select(Farm)) is None
 
 
+def test_turnstile_descoped_lets_signup_and_login_pass(settings):
+    # Turnstile itself is down, so passing proves the check is skipped, not satisfied.
+    off = {"environment": "ci", "integrations_mode": "fake", "fault_turnstile": True}
+    engine = _engine()
+    sessions = sessionmaker(engine, expire_on_commit=False)
+    auth = AuthService(sessions, CountingOtpProvider())
+    app = create_app(
+        settings,
+        readiness=lambda: {},
+        service_settings=ServiceSettings(**off, turnstile_enabled=False),
+    )
+    app.state.auth = auth
+    app.state.services = ServiceRegistry(ServiceSettings(**off, turnstile_enabled=False))
+    with TestClient(app) as client:
+        signup = _signup_request(client)
+        assert signup.status_code == 200
+        user_id = signup.json()["user_id"]
+        client.post("/auth/verify/phone", json={"user_id": user_id, "code": "111111"})
+        client.post("/auth/verify/email", json={"user_id": user_id, "code": "222222"})
+        login = client.post(
+            "/auth/login",
+            json={
+                "identifier": "sipho@example.com",
+                "password": PASSWORD,
+                "turnstile_token": "turnstile-disabled",
+            },
+        )
+        assert login.status_code == 200
+
+
+def test_turnstile_cannot_be_descoped_in_production():
+    with pytest.raises(ValueError, match="TURNSTILE_ENABLED"):
+        ServiceSettings(environment="production", turnstile_enabled=False)
+
+
 def test_idempotency_fingerprint_never_runs_on_the_event_loop(settings, monkeypatch):
     import asyncio
 

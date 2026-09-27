@@ -19,6 +19,11 @@ esac
 # Voice (Gemini Live). Off unless the repository variables turn it on; the model is a
 # plain, non-secret name, checked here because it lands inside --set-env-vars.
 GEMINI_LIVE_ENABLED="${GEMINI_LIVE_ENABLED:-false}"
+# Demo descope: false lets sign-up and log-in pass without the Turnstile check.
+TURNSTILE_ENABLED="${TURNSTILE_ENABLED:-true}"
+case "$TURNSTILE_ENABLED" in true|false) ;; *)
+  echo 'TURNSTILE_ENABLED must be true or false' >&2; exit 1 ;;
+esac
 GEMINI_LIVE_MODEL="${GEMINI_LIVE_MODEL:-}"
 case "$GEMINI_LIVE_ENABLED" in true|false) ;; *)
   echo 'GEMINI_LIVE_ENABLED must be true or false' >&2; exit 1 ;;
@@ -212,7 +217,7 @@ gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="$TRAFFIC_TAG" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
-  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE,GEMINI_LIVE_ENABLED=$GEMINI_LIVE_ENABLED,GEMINI_LIVE_MODEL=$GEMINI_LIVE_MODEL,TRUSTED_PROXY_HOPS=1" \
+  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE,GEMINI_LIVE_ENABLED=$GEMINI_LIVE_ENABLED,GEMINI_LIVE_MODEL=$GEMINI_LIVE_MODEL,TURNSTILE_ENABLED=$TURNSTILE_ENABLED,TRUSTED_PROXY_HOPS=1" \
   --set-secrets="$secret_args" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null

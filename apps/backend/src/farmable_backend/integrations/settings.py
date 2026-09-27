@@ -28,6 +28,9 @@ class ServiceSettings(BaseSettings):
 
     environment: Literal["development", "ci", "staging", "production"] = "production"
     integrations_mode: Literal["disabled", "fake", "live"] = "disabled"
+    # Demo descope: False skips the Turnstile check on sign-up and log-in. Rate
+    # limits and the daily SMS cap still apply. Refused in production.
+    turnstile_enabled: bool = True
     fault_twilio: bool = False
     fault_turnstile: bool = False
     fault_azure_stt: bool = False
@@ -95,6 +98,8 @@ class ServiceSettings(BaseSettings):
         if self.environment not in {"ci", "staging"}:
             if any(getattr(self, "fault_" + service) for service in SERVICES):
                 raise ValueError("Fault flags require ENVIRONMENT=ci or staging")
+            if not self.turnstile_enabled and self.environment == "production":
+                raise ValueError("TURNSTILE_ENABLED=false is refused in production")
             if self.integrations_mode == "fake":
                 raise ValueError("Fake services require ENVIRONMENT=ci or staging")
         return self

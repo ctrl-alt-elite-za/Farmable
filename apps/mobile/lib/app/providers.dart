@@ -147,7 +147,9 @@ final authServiceProvider = Provider<AuthService>((ref) {
           ApiAuthService.client(apiUrl),
           storage,
           now: now,
-          requestVerification: ref.watch(authChallengeProvider).requestToken,
+          requestVerification: turnstileEnabled
+              ? ref.watch(authChallengeProvider).requestToken
+              : (action) async => 'turnstile-disabled',
         );
 });
 
