@@ -171,6 +171,10 @@ class PendingSignup {
 /// account-existence oracle, and issue #9 requires generic login errors.
 enum AuthFailure {
   invalidCredentials,
+
+  /// The password was right but the phone or email was never confirmed. Only
+  /// reachable with the account's password, so it reveals no one's account.
+  accountUnverified,
   accountExists,
   invalidVerification,
   tooManyAttempts,

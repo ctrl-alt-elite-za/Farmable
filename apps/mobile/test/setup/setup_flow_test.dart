@@ -425,6 +425,29 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget);
   });
 
+  testWidgets('a farm that takes too long offers to ask again, calmly, and '
+      'asking again brings it', (tester) async {
+    api.seedVerified();
+    final farms = _serverFarm(api);
+    farms.offline = true;
+    await pumpAuthApp(tester, location: '/auth/login', api: api, online: true);
+    await _logIn(tester);
+    expect(find.byType(FarmOnItsWay), findsOneWidget);
+    expect(find.text('Try again'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 16));
+    expect(find.text('Try again'), findsOneWidget);
+    expectNoFailureLanguage(tester);
+
+    farms.offline = false;
+    await tapLabel(tester, 'Try again', settle: false);
+    // The server has the farm with no sections, so setup is next.
+    await _until(
+      tester,
+      () => find.byType(FarmSetupScreen).evaluate().isNotEmpty,
+    );
+  });
+
   testWidgets('the section screen stands alone and returns where it was '
       'asked to', (tester) async {
     api.seedVerified();

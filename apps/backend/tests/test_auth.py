@@ -97,17 +97,29 @@ def test_unverified_account_cannot_log_in_and_errors_are_generic(settings):
             "password": PASSWORD,
         },
     )
-    unverified = test_client.post(
-        "/auth/login", json={"identifier": "nandi@example.com", "password": PASSWORD}
+    wrong_password = test_client.post(
+        "/auth/login", json={"identifier": "nandi@example.com", "password": "not the password"}
     )
     missing = test_client.post(
         "/auth/login", json={"identifier": "missing@example.com", "password": PASSWORD}
     )
-    assert unverified.status_code == 401
+    # Without the password, an unverified account is indistinguishable from none.
+    assert wrong_password.status_code == 401
     assert missing.status_code == 401
-    assert unverified.json() == missing.json()
+    assert wrong_password.json() == missing.json()
     assert missing.json() == {
         "error": {"code": "invalid_credentials", "message": "Unable to log in with those details"}
+    }
+    # With it, the farmer is told what is actually missing.
+    unverified = test_client.post(
+        "/auth/login", json={"identifier": "nandi@example.com", "password": PASSWORD}
+    )
+    assert unverified.status_code == 401
+    assert unverified.json() == {
+        "error": {
+            "code": "account_unverified",
+            "message": "Verify your phone and email before logging in",
+        }
     }
     test_client.close()
 

@@ -33,7 +33,13 @@ import 'setup_providers.dart';
 import 'widgets/farm_on_its_way.dart';
 
 class SetupGateScreen extends ConsumerStatefulWidget {
-  const SetupGateScreen({super.key});
+  const SetupGateScreen({
+    super.key,
+    this.patience = const Duration(seconds: 15),
+  });
+
+  /// How long the farm may take before the wait offers a retry.
+  final Duration patience;
 
   @override
   ConsumerState<SetupGateScreen> createState() => _SetupGateScreenState();
@@ -41,6 +47,40 @@ class SetupGateScreen extends ConsumerStatefulWidget {
 
 class _SetupGateScreenState extends ConsumerState<SetupGateScreen> {
   bool _left = false;
+  bool _slow = false;
+  Timer? _patience;
+
+  @override
+  void initState() {
+    super.initState();
+    _wait();
+  }
+
+  @override
+  void dispose() {
+    _patience?.cancel();
+    super.dispose();
+  }
+
+  void _wait() {
+    _patience?.cancel();
+    _patience = Timer(widget.patience, () {
+      if (mounted) setState(() => _slow = true);
+    });
+  }
+
+  /// Asks the server for the account's farm again, and the server again for
+  /// whether it has sections.
+  void _retry() {
+    final standing = ref.read(authViewModelProvider).value;
+    final controller = ref.read(syncControllerProvider);
+    if (controller != null) unawaited(controller.standing(standing));
+    setState(() {
+      _slow = false;
+      _askedFor = null;
+    });
+    _wait();
+  }
 
   /// The server's answer for the farm with this id, once asked. Asked at most
   /// once per farm.
@@ -101,7 +141,9 @@ class _SetupGateScreenState extends ConsumerState<SetupGateScreen> {
   @override
   Widget build(BuildContext context) {
     final destination = _destination();
-    if (destination == null) return const FarmOnItsWay();
+    if (destination == null) {
+      return FarmOnItsWay(onRetry: _slow ? _retry : null);
+    }
     if (!_left) {
       _left = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
