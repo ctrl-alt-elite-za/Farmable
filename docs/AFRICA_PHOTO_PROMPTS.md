@@ -1,18 +1,18 @@
 # Africa grounded photo prompt map
 
-This document maps the app's shipped image assets and photo-like visual surfaces, then provides prompts for creating realistic African farm photography for them. It is a prompt and implementation reference; it does not add or replace image assets.
+This document maps the app's photo-like surfaces, preserves the generation prompts, and records the representative images now used by the seeded demo.
 
 ## Scope and image inventory
 
-The mobile app is Flutter. Its farm and crop surfaces currently use `CropImagery`, a deterministic `CustomPainter` illustration, rather than photographs. This is stated in `apps/mobile/lib/core/ui/crop_imagery.dart`: farm imagery is drawn to avoid implying that stock photography depicts a farmer's actual land, and to keep the app small for users with limited data. The prompts below are therefore for a future opt-in photographic art direction or user-selected demo imagery; they should not be presented as pictures of a specific farmer's own farm.
+The mobile app is Flutter. Farm and crop surfaces use `CropImagery`: deterministic `CustomPainter` scenes on account farms and representative South African photographs only on the seeded demo. The images are not presented as a specific farmer's own land. Their five JPEGs add about 1.5 MB to the app bundle.
 
 | Image or scene | Current source | Current dimensions | Where it appears / role |
 | --- | --- | --- | --- |
-| Farm overview | `CropScene.farm` in `apps/mobile/lib/core/ui/crop_imagery.dart` | Runtime-drawn; no intrinsic pixel size. Home card is 16:11 (for example, 576 × 396 px at 2× for a 360 dp-wide phone); auth hero is adaptive and portrait; farm/section surfaces can use other sizes. | Auth choice hero, home farm hero, and farm-related imagery. |
-| Cabbage field | `CropScene.cabbage` in `crop_imagery.dart` | Runtime-drawn; cards can be 16:11, 128 dp high, or a 38%-screen-height hero. | Section/farm cards and zone hero, observation fallback, crop recommendation cards/details. |
-| Tomato field | `CropScene.tomato` in `crop_imagery.dart` | Runtime-drawn; same responsive targets as cabbage. | Same crop imagery surfaces when the crop is tomato. |
-| Spinach/leafy crop field | `CropScene.spinach` in `crop_imagery.dart` | Runtime-drawn; same responsive targets as cabbage. Also the fallback for an unrecognised crop. | Same crop imagery surfaces when the crop is spinach or an unrecognised crop. |
-| Bare/unplanted plot | `CropScene.bare` in `crop_imagery.dart` | Runtime-drawn; same responsive targets as cabbage. | Empty or unplanted sections and crop imagery surfaces. |
+| Farm overview | `CropScene.farm` in `apps/mobile/lib/core/ui/crop_imagery.dart`; demo file `apps/mobile/assets/demo/farm.jpg` | Demo photo 1200 × 900 px (4:3), 307 KB; account farm uses a runtime-drawn scene. UI crops responsively, including a 16:11 home hero. | Home farm hero on the seeded demo; representative photo is excluded from account farms. |
+| Cabbage field | `CropScene.cabbage`; demo file `apps/mobile/assets/demo/cabbage.jpg` | Demo photo 1200 × 900 px (4:3), 278 KB; account farm uses a runtime-drawn scene. Cards and heroes crop responsively. | Demo section/farm cards and zone hero, observation fallback, crop recommendation cards/details. |
+| Tomato field | `CropScene.tomato`; demo file `apps/mobile/assets/demo/tomato.jpg` | Demo photo 1200 × 900 px (4:3), 348 KB; account farm uses a runtime-drawn scene. | Same demo crop surfaces when the crop is tomato. |
+| Spinach/leafy crop field | `CropScene.spinach`; demo file `apps/mobile/assets/demo/spinach.jpg` | Demo photo 1200 × 900 px (4:3), 244 KB; account farm uses a runtime-drawn scene. Also the fallback for an unrecognised crop. | Same demo crop surfaces when the crop is spinach or an unrecognised crop. |
+| Bare/unplanted plot | `CropScene.bare`; demo file `apps/mobile/assets/demo/bare.jpg` | Demo photo 1200 × 900 px (4:3), 326 KB; account farm uses a runtime-drawn scene. | Empty demo sections and crop imagery surfaces. |
 | Camera self-test sample | `apps/mobile/assets/self_test/sample_field.jpg` | 640 × 480 px (4:3) | Loaded by `materializeSampleImage` in `apps/mobile/lib/data/device/object_detector.dart` for an on-device detector timing/self-test; also the recorded photo-taker sample in test mode. This is a synthetic illustration, not a field photograph or model-accuracy evidence. |
 | Camera playback frames 00–07 | `apps/mobile/assets/test_mode/frame_00.jpg` … `frame_07.jpg` | Each 480 × 360 px (4:3), declared by `apps/mobile/assets/test_mode/recording.json`. | Eight-frame recorded camera preview in test mode; detection overlays are synthetic and defined in `recording.json` and `crop_scan.json`. Frames are illustrated, not photographic evidence. |
 | App icons and launch images | `apps/mobile/android/app/src/main/res/` and `apps/mobile/ios/Runner/Assets.xcassets/` | Device-specific icon and launch-image sizes; these are branding assets, not photographs. | Android/iOS app launch and home screen. Do not generate photographic replacements for these. |
@@ -20,9 +20,9 @@ The mobile app is Flutter. Its farm and crop surfaces currently use `CropImagery
 
 Live camera captures and farmer-uploaded observation photos are user-generated, device-dependent images. They have no fixed bundled dimensions and should remain authentic captures rather than AI-generated replacements.
 
-### In-app surfaces using the drawn scenes
+### In-app surfaces using crop imagery
 
-The shared scene painter is used by the auth choice hero (`features/auth/auth_choice_screen.dart`), onboarding art (`features/auth/widgets/onboarding_art.dart`), home farm hero (`features/home/widgets/farm_hero_card.dart`), farm section cards (`features/farm/widgets/farm_sections.dart`), zone cards and zone detail hero (`features/home/widgets/zone_card.dart`, `features/zone/widgets/zone_hero.dart`), observation fallback tiles (`features/zone/widgets/observation_list.dart`), and recommendation cards/details (`features/recommendations/widgets/recommendation_card.dart`, `features/recommendations/recommendation_detail_screen.dart`). All are responsive Flutter layouts, so a generated image needs a clean central subject, safe crops at portrait and landscape ratios, and no text or important detail at the edges.
+`CropImagery` provides representative photos for the seeded demo and the existing painter for account farms. Demo photos appear on the home farm hero, section carousel and list, zone hero, observation fallback tiles, and bundled crop recommendations/details. Auth choice and onboarding artwork keep their existing compositions. All surfaces are responsive Flutter layouts, so the images are cropped with `BoxFit.cover` and use the existing text scrim.
 
 ## Shared direction for every prompt
 

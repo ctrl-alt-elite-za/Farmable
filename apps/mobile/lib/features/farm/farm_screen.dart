@@ -136,6 +136,7 @@ class _FarmTabState extends ConsumerState<_FarmTab> {
         key: ValueKey('section-${section.id}'),
         section: section,
         today: view.today,
+        demoPhotography: !view.isAccount,
         onOpen: () => _open(section),
       ),
       const SizedBox(height: AlmanacDimens.sp3),

@@ -16,6 +16,7 @@ class ZoneHero extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onScan;
   final VoidCallback onMore;
+  final bool demoPhotography;
 
   const ZoneHero({
     super.key,
@@ -23,6 +24,7 @@ class ZoneHero extends StatelessWidget {
     required this.onBack,
     required this.onScan,
     required this.onMore,
+    this.demoPhotography = false,
   });
 
   @override
@@ -45,6 +47,7 @@ class ZoneHero extends StatelessWidget {
             child: CropImagery(
               scene: CropScene.forCrop(planting?.crop),
               seed: section.id,
+              demoPhotography: demoPhotography,
             ),
           ),
           const ImageryScrim(),

@@ -18,6 +18,7 @@ class ObservationList extends StatelessWidget {
   final List<Observation> observations;
   final String sectionId;
   final String? crop;
+  final bool demoPhotography;
   final DateTime today;
   final void Function(Observation observation) onTap;
   final VoidCallback onAdd;
@@ -30,6 +31,7 @@ class ObservationList extends StatelessWidget {
     required this.observations,
     required this.sectionId,
     required this.crop,
+    this.demoPhotography = false,
     required this.today,
     required this.onTap,
     required this.onAdd,
@@ -126,6 +128,7 @@ class ObservationTile extends StatelessWidget {
                 child: CropImagery(
                   scene: CropScene.forCrop(crop),
                   seed: '$sectionId-${observation.id}',
+                  demoPhotography: demoPhotography,
                 ),
               ),
             ),

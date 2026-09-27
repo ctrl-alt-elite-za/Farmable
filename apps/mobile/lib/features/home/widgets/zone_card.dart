@@ -25,12 +25,14 @@ class ZoneCard extends StatelessWidget {
   /// the same route is a Flutter error, and the carousel has three cards on
   /// screen showing, in a looping strip, potentially the same section twice.
   final bool isCentre;
+  final bool demoPhotography;
 
   const ZoneCard({
     super.key,
     required this.section,
     required this.onTap,
     required this.isCentre,
+    this.demoPhotography = false,
   });
 
   @override
@@ -47,7 +49,11 @@ class ZoneCard extends StatelessWidget {
           children: [
             ColoredBox(
               color: c.surfaceContainerHigh,
-              child: CropImagery(scene: scene, seed: section.id),
+              child: CropImagery(
+                scene: scene,
+                seed: section.id,
+                demoPhotography: demoPhotography,
+              ),
             ),
             const ImageryScrim(),
             Positioned(

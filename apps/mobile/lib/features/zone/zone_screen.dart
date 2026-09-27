@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../app/providers.dart';
 import '../../app/theme/tokens.g.dart';
 import '../../core/ui/buttons.dart';
 import '../../core/ui/layout.dart';
@@ -40,7 +41,11 @@ class ZoneScreen extends ConsumerWidget {
         error: (_, _) => _Gone(onBack: () => _back(context)),
         data: (view) => view == null
             ? _Gone(onBack: () => _back(context))
-            : _Zone(view: view, actions: actions),
+            : _Zone(
+                view: view,
+                actions: actions,
+                demoPhotography: !ref.watch(farmScopeProvider).isAccount,
+              ),
       ),
     );
   }
@@ -57,8 +62,13 @@ class ZoneScreen extends ConsumerWidget {
 class _Zone extends StatelessWidget {
   final ZoneView view;
   final ZoneActions actions;
+  final bool demoPhotography;
 
-  const _Zone({required this.view, required this.actions});
+  const _Zone({
+    required this.view,
+    required this.actions,
+    required this.demoPhotography,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +79,7 @@ class _Zone extends StatelessWidget {
       children: [
         ZoneHero(
           section: section,
+          demoPhotography: demoPhotography,
           onBack: () => ZoneScreen._back(context),
           onScan: () => context.go('/health/camera'),
           onMore: () =>
@@ -146,6 +157,7 @@ class _Zone extends StatelessWidget {
                 observations: view.observations,
                 sectionId: section.id,
                 crop: section.planting?.crop,
+                demoPhotography: demoPhotography,
                 today: view.today,
                 onAdd: () =>
                     showObservationEditor(context: context, actions: actions),
