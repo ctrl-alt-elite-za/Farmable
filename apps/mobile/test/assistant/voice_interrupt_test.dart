@@ -6,6 +6,7 @@ library;
 
 import 'package:almanac/data/assistant/fake_voice.dart';
 import 'package:almanac/domain/assistant/assistant_models.dart';
+import 'package:almanac/domain/auth/auth_models.dart';
 import 'package:almanac/features/assistant/voice_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -321,4 +322,36 @@ void main() {
       'Budget: R5,000 → R3,000',
     );
   });
+
+  testWidgets('a cut-off reply shows even when the typed chat is not ready', (
+    tester,
+  ) async {
+    // TEST_MODE's fake provider also talks on the signed-out demo farm; what
+    // it said, and that it was cut off, must still be on screen there.
+    await pumpAssistant(
+      tester,
+      api: FakeAssistantApi(granted: true),
+      standing: const SignedOut(),
+      overrides: [voiceControllerProvider.overrideWith(_SpokenVoice.new)],
+    );
+    expect(
+      find.textContaining('Cabbages suit the north plot', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('Interrupted'), findsOneWidget);
+  });
+}
+
+class _SpokenVoice extends VoiceController {
+  @override
+  VoiceState build() => const VoiceState(
+    exchanges: [
+      VoiceExchange(
+        heard: 'Plan the north plot for me',
+        reply: 'Cabbages suit the north plot this season.',
+        done: true,
+        interrupted: true,
+      ),
+    ],
+  );
 }

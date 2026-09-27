@@ -236,6 +236,20 @@ class _AssistantSheetState extends ConsumerState<AssistantSheet> {
     final controller = ref.read(assistantControllerProvider.notifier);
     final planOnPhone = _PlanOnThisPhone(onOpen: _leaveFor);
 
+    // Voice runs only in a ready conversation, except in TEST_MODE, where
+    // the fake provider also talks on the signed-out demo farm. What it says
+    // must still show there, or a cut-off reply could never be seen.
+    final spoken = ref.watch(
+      voiceControllerProvider.select((s) => s.exchanges.isNotEmpty),
+    );
+    if (spoken && state.stage != AssistantStage.ready) {
+      return ListView(
+        key: const Key('assistant-voice-only'),
+        controller: _scroll,
+        children: const [VoiceExchanges()],
+      );
+    }
+
     switch (state.stage) {
       case AssistantStage.starting:
         return const _Starting();
