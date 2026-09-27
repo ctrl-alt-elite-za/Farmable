@@ -53,6 +53,8 @@ from farmable_backend.infobip import create_infobip_provider
 from farmable_backend.integrations.registry import ServiceRegistry
 from farmable_backend.integrations.settings import ServiceSettings
 from farmable_backend.logging import configure_logging
+from farmable_backend.maps_api import TileAuth
+from farmable_backend.maps_api import router as maps_router
 from farmable_backend.middleware import (
     RateLimiter,
     SafeDefaultsMiddleware,
@@ -193,6 +195,7 @@ def create_app(
     )
     app.state.sha = settings.commit_sha if settings else os.getenv("COMMIT_SHA", "unknown")
     app.state.auth_executor = auth_executor
+    app.state.tile_auth = TileAuth()
     app.add_middleware(RecordBodyLimit)
     app.add_middleware(
         SafeDefaultsMiddleware,
@@ -208,6 +211,7 @@ def create_app(
     app.include_router(forecast_router)
     app.include_router(planning_router)
     app.include_router(diagnosis_router)
+    app.include_router(maps_router)
 
     @app.exception_handler(ApiError)
     async def record_error(request: Request, exc: ApiError) -> JSONResponse:

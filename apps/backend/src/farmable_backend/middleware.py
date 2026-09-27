@@ -54,9 +54,15 @@ def client_address(scope: Scope, trusted_proxy_hops: int = 0) -> str:
 class RateLimiter:
     """Sliding 60s window per caller address (see ``client_address``)."""
 
-    def __init__(self, clock: Callable[[], float] = time.monotonic, max_ips: int = 10_000):
+    def __init__(
+        self,
+        clock: Callable[[], float] = time.monotonic,
+        max_ips: int = 10_000,
+        limit: int = 120,
+    ):
         self.clock = clock
         self.max_ips = max_ips
+        self.limit = limit
         self.hits: dict[str, deque[float]] = {}
         self.lock = threading.Lock()
         self.last_cleanup = 0.0
@@ -72,17 +78,30 @@ class RateLimiter:
             hits = self.hits.setdefault(ip, deque())
             while hits and hits[0] <= now - 60:
                 hits.popleft()
-            if len(hits) >= 120:
+            if len(hits) >= self.limit:
                 return max(1, math.ceil(60 - (now - hits[0])))
             hits.append(now)
             return None
 
 
+# One map screen asks for dozens of tiles at once. They get their own, larger
+# budget so a map can neither be starved by nor starve the rest of the app.
+TILE_PATH_PREFIX = "/maps/tiles/"
+TILES_PER_MINUTE = 900
+
+
 class SafeDefaultsMiddleware:
-    def __init__(self, app: ASGIApp, limiter: RateLimiter, trusted_proxy_hops: int = 0):
+    def __init__(
+        self,
+        app: ASGIApp,
+        limiter: RateLimiter,
+        trusted_proxy_hops: int = 0,
+        tile_limiter: RateLimiter | None = None,
+    ):
         self.app = app
         self.limiter = limiter
         self.trusted_proxy_hops = trusted_proxy_hops
+        self.tile_limiter = tile_limiter or RateLimiter(limit=TILES_PER_MINUTE)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -106,7 +125,12 @@ class SafeDefaultsMiddleware:
             await send(message)
 
         try:
-            retry_after = self.limiter.retry_after(ip)
+            limiter = (
+                self.tile_limiter
+                if str(scope.get("path", "")).startswith(TILE_PATH_PREFIX)
+                else self.limiter
+            )
+            retry_after = limiter.retry_after(ip)
             if retry_after is not None:
                 await error_response(
                     429,
@@ -125,5 +149,11 @@ class SafeDefaultsMiddleware:
                         scope, receive, safe_send
                     )
         finally:
-            logger.info("Request completed", extra={"fields": {"status": status}})
+            # A map screen is dozens of tile requests; only failed ones are worth a line.
+            tile = str(scope.get("path", "")).startswith(TILE_PATH_PREFIX)
+            logger.log(
+                logging.DEBUG if tile and status < 400 else logging.INFO,
+                "Request completed",
+                extra={"fields": {"status": status}},
+            )
             request_id.reset(context)
