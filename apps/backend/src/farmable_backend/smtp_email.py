@@ -17,9 +17,11 @@ from typing import Literal
 
 logger = logging.getLogger(__name__)
 
-MAX_ATTEMPTS = 3
+# Worst case 2 x 5 s + 0.5 s backoff stays under the app's 15 s receive timeout, so a
+# slow send fails cleanly instead of finishing after the app has given up.
+MAX_ATTEMPTS = 2
 BACKOFF_BASE_SECONDS = 0.5
-CONNECT_TIMEOUT_SECONDS = 10
+CONNECT_TIMEOUT_SECONDS = 5
 
 
 class SmtpEmailSender:

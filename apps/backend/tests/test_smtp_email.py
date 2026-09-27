@@ -142,3 +142,11 @@ def test_the_app_password_is_accepted_as_google_shows_it():
     settings = ServiceSettings(**(LIVE | {"smtp_password": "abcd efgh ijkl mnop"}))
     assert settings.smtp_password is not None
     assert settings.smtp_password.get_secret_value() == APP_PASSWORD
+
+
+def test_the_worst_case_send_finishes_before_the_app_gives_up():
+    from farmable_backend.smtp_email import BACKOFF_BASE_SECONDS, CONNECT_TIMEOUT_SECONDS
+
+    backoff = sum(BACKOFF_BASE_SECONDS * 2**attempt for attempt in range(MAX_ATTEMPTS - 1))
+    # The app's auth receive timeout is 15 s (api_auth_service.dart); leave headroom.
+    assert MAX_ATTEMPTS * CONNECT_TIMEOUT_SECONDS + backoff <= 12
