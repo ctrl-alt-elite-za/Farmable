@@ -39,6 +39,10 @@ env:
   # neither mode belongs in them.
   TEST_MODE: 'false'
   DEMO_MODE: 'false'
+  # A labelled preview of recorded crop boxes for the demo (#26), until #16 ships
+  # a model. Off unless the repository variable turns it on; the scan screen
+  # always says it is a recording, so it is not a live-detection claim.
+  SCAN_PREVIEW: ${{ vars.SCAN_PREVIEW || 'false' }}
 
 jobs:
   scopes:
@@ -166,7 +170,8 @@ jobs:
             --dart-define=API_URL="$MOBILE_API_BASE_URL" \
             --dart-define=BUILD_SHA="$BUILD_SHA" \
             --dart-define=TEST_MODE="$TEST_MODE" \
-            --dart-define=DEMO_MODE="$DEMO_MODE"
+            --dart-define=DEMO_MODE="$DEMO_MODE" \
+            --dart-define=SCAN_PREVIEW="$SCAN_PREVIEW"
       - name: Package Almanac-unsigned.ipa
         working-directory: apps/mobile
         run: |
@@ -224,7 +229,8 @@ jobs:
             --dart-define=API_URL="$MOBILE_API_BASE_URL" \
             --dart-define=BUILD_SHA="$BUILD_SHA" \
             --dart-define=TEST_MODE="$TEST_MODE" \
-            --dart-define=DEMO_MODE="$DEMO_MODE"
+            --dart-define=DEMO_MODE="$DEMO_MODE" \
+            --dart-define=SCAN_PREVIEW="$SCAN_PREVIEW"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: almanac-android-arm64-apk-${{ env.MOBILE_ARTIFACT_KIND }}

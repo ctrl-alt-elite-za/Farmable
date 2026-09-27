@@ -94,11 +94,12 @@ class _CropScanScreenState extends State<CropScanScreen>
                       'The camera stays off until crop scanning is ready.',
                 )
               else ...[
-                const ConstraintChip(
+                ConstraintChip(
                   icon: LucideIcons.film,
                   tone: ChipTone.warn,
-                  text:
-                      'Test replay — synthetic crop boxes, not live detections',
+                  text: controller.isPreview
+                      ? 'Preview — recorded crop boxes, not live detections'
+                      : 'Test replay — synthetic crop boxes, not live detections',
                 ),
                 const SizedBox(height: AlmanacDimens.sp4),
                 Text(
@@ -151,7 +152,9 @@ class _CropScanScreenState extends State<CropScanScreen>
                                   AlmanacDimens.sp2,
                                 ),
                                 child: Text(
-                                  'Test replay • synthetic boxes',
+                                  controller.isPreview
+                                      ? 'Preview • recorded boxes'
+                                      : 'Test replay • synthetic boxes',
                                   style: text.labelSmall,
                                 ),
                               ),
@@ -202,7 +205,9 @@ class _CropScanScreenState extends State<CropScanScreen>
                 if (controller.phase == CropScanPhase.playing ||
                     controller.phase == CropScanPhase.opening)
                   AppSecondaryButton(
-                    label: 'Stop replay',
+                    label: controller.isPreview
+                        ? 'Stop preview'
+                        : 'Stop replay',
                     icon: LucideIcons.square,
                     onPressed: () => unawaited(controller.stop()),
                   )
@@ -210,7 +215,9 @@ class _CropScanScreenState extends State<CropScanScreen>
                   Semantics(
                     identifier: 'crop-scan-start',
                     child: AppPrimaryButton(
-                      label: 'Start test replay',
+                      label: controller.isPreview
+                          ? 'Start preview'
+                          : 'Start test replay',
                       icon: LucideIcons.play,
                       onPressed: () {
                         _selected = null;

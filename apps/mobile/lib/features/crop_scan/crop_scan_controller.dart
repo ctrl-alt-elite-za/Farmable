@@ -10,10 +10,15 @@ import '../../domain/vision/crop_frame_processor.dart';
 
 enum CropScanPhase { idle, opening, playing, stopped, unavailable, failed }
 
-/// Test replay only until #16 supplies approved artifacts and native adapters.
-/// No live camera or generic ML Kit detector is substituted for the crop model.
+/// Test replay, or a labelled preview ([scanPreview]), until #16 supplies
+/// approved artifacts and native adapters. No live camera or generic ML Kit
+/// detector is substituted for the crop model.
 class CropScanController extends ChangeNotifier {
   final bool replayEnabled;
+
+  /// The recording is shown as a preview to people, not as a test replay.
+  /// Its on-screen wording says so; it can never read as live detection.
+  final bool isPreview;
   final RecordedCameraSource Function() _createSource;
   final _watch = Stopwatch()..start();
   final Duration Function()? clock;
@@ -33,9 +38,11 @@ class CropScanController extends ChangeNotifier {
   CropScanController({
     bool replay = testMode,
     bool demo = demoMode,
+    bool preview = scanPreview,
     this.clock,
     RecordedCameraSource Function()? createSource,
-  }) : replayEnabled = replay && !demo,
+  }) : isPreview = preview && !replay,
+       replayEnabled = (replay && !demo) || preview,
        _createSource =
            createSource ??
            (() =>
