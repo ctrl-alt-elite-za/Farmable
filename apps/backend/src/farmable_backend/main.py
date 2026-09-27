@@ -56,7 +56,7 @@ from farmable_backend.schemas import (
     UserResponse,
     VerifyOtpRequest,
 )
-from farmable_backend.twilio_otp import create_live_otp_provider
+from farmable_backend.integrations.twilio_otp import create_live_otp_provider
 from farmable_backend.voice_api import router as voice_router
 
 

@@ -14,7 +14,7 @@ from farmable_backend.models import (
     User,
     VerificationChallenge,
 )
-from farmable_backend.twilio_otp import TwilioVerifyOtpProvider, create_live_otp_provider
+from farmable_backend.integrations.twilio_otp import TwilioVerifyOtpProvider, create_live_otp_provider
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
