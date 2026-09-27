@@ -14,7 +14,7 @@ function uuid() {
 var json_headers = { 'Content-Type': 'application/json' };
 var login = http.post(API_URL + '/auth/login', {
   headers: json_headers,
-  body: JSON.stringify({ identifier: EMAIL, password: PASSWORD }),
+  body: JSON.stringify({ identifier: EMAIL, password: PASSWORD, turnstile_token: 'fixture-token' }),
 });
 if (login.status !== 200) throw new Error('login returned ' + login.status);
 var auth = {

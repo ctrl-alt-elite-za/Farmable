@@ -5,7 +5,7 @@
 // hold exactly one media record, and exactly one observation pointing at it.
 var login = http.post(API_URL + '/auth/login', {
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ identifier: EMAIL, password: PASSWORD }),
+  body: JSON.stringify({ identifier: EMAIL, password: PASSWORD, turnstile_token: 'fixture-token' }),
 });
 if (login.status !== 200) throw new Error('login returned ' + login.status);
 var auth = { Authorization: 'Bearer ' + json(login.body).access_token };
