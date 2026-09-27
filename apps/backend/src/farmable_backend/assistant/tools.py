@@ -1,18 +1,36 @@
 """An explicit read-only tool allowlist. Never dispatch arbitrary names/SQL/URLs."""
 
 import json
+from datetime import UTC, datetime
 
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from farmable_backend.assistant.schemas import OutlookArgs, SectionListArgs
+from farmable_backend.assistant.schemas import AdvisoryArgs, OutlookArgs, SectionListArgs
 from farmable_backend.forecasts import outlook
-from farmable_backend.models import Section
+from farmable_backend.models import AdvisoryOpportunity, Farm, FarmProfile, Section
 from farmable_backend.planning.contracts import PlanRequest
 from farmable_backend.planning.service import Planner
 from farmable_backend.record_access import ApiError, section_scope
 
 DECLARATIONS = [
+    {
+        "name": "find_funding",
+        "description": (
+            "Find curated South African agricultural funding opportunities matched to the "
+            "current farm profile. Show source and verification date; never claim eligibility "
+            "is final."
+        ),
+        "parameters": {"type": "OBJECT", "properties": {"limit": {"type": "INTEGER"}}},
+    },
+    {
+        "name": "find_procurement",
+        "description": (
+            "Find curated procurement routes and strategy steps for the current farm profile. "
+            "Use official sources and say when live tender details must be checked."
+        ),
+        "parameters": {"type": "OBJECT", "properties": {"limit": {"type": "INTEGER"}}},
+    },
     {
         "name": "preview_planting_plan",
         "description": "Compare active-outlook allocations without saving. Ask the farmer for "
@@ -132,6 +150,65 @@ def execute(store, auth, conversation_id, name, args, mode):
                     ],
                     "truncated": len(rows) > payload.limit,
                 }
+        if name in {"find_funding", "find_procurement"}:
+            payload = AdvisoryArgs.model_validate(args)
+            kind = "funding" if name == "find_funding" else "procurement"
+            with store.sessions() as session:
+                conversation = store.scope(session, auth, conversation_id)
+                store.require_consent(session, conversation_id)
+                farm = session.scalar(
+                    select(Farm).where(
+                        Farm.id == conversation.farm_id,
+                        Farm.owner_id == conversation.owner_id,
+                        Farm.deleted_at.is_(None),
+                    )
+                )
+                profile = session.get(FarmProfile, conversation.farm_id)
+                rows = session.scalars(
+                    select(AdvisoryOpportunity)
+                    .where(
+                        AdvisoryOpportunity.kind == kind,
+                        AdvisoryOpportunity.active.is_(True),
+                    )
+                    .order_by(
+                        AdvisoryOpportunity.closes_on.is_(None), AdvisoryOpportunity.closes_on
+                    )
+                    .limit(100)
+                ).all()
+                if farm is None:
+                    raise ApiError(404, "farm_not_found")
+                province = (profile.province if profile else "") or ""
+                crops = {str(value).lower() for value in (profile.crops if profile else [])}
+                today = datetime.now(UTC).date()
+                result = []
+                for row in rows:
+                    if row.closes_on is not None and row.closes_on < today:
+                        continue
+                    if row.province and row.province.lower() not in {"all", province.lower()}:
+                        continue
+                    crop_match = (
+                        not row.crops
+                        or not crops
+                        or crops.intersection(str(value).lower() for value in row.crops)
+                    )
+                    if not crop_match:
+                        continue
+                    result.append(
+                        {
+                            "name": row.name,
+                            "provider": row.provider,
+                            "summary": row.summary,
+                            "deadline": row.closes_on.isoformat() if row.closes_on else None,
+                            "deadline_note": row.deadline_note,
+                            "source_url": row.source_url,
+                            "application_url": row.application_url,
+                            "verified_on": row.verified_on.isoformat(),
+                            "strategy_steps": row.strategy_steps or [],
+                        }
+                    )
+                    if len(result) >= payload.limit:
+                        break
+                return {"kind": kind, "profile_complete": profile is not None, "matches": result}
         if name == "get_crop_outlook":
             query = OutlookArgs.model_validate(args)
             with store.sessions() as session:

@@ -83,6 +83,8 @@ def test_explicit_audio_consent_is_not_inferred_from_text_consent(live):
         "list_sections",
         "get_crop_outlook",
         "preview_planting_plan",
+        "find_funding",
+        "find_procurement",
     }
     assert issue(live, identifier).json()["error"]["code"] == "voice_session_not_replayable"
     assert issue(live).json()["error"]["code"] == "voice_session_in_progress"

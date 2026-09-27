@@ -64,7 +64,13 @@ class LiveIssued(LiveSessionResponse):
 
 class LiveToolCall(StrictModel):
     id: str = Field(min_length=1, max_length=128)
-    name: Literal["list_sections", "get_crop_outlook", "preview_planting_plan"]
+    name: Literal[
+        "list_sections",
+        "get_crop_outlook",
+        "preview_planting_plan",
+        "find_funding",
+        "find_procurement",
+    ]
     args: dict[str, Any]
 
     @model_validator(mode="after")

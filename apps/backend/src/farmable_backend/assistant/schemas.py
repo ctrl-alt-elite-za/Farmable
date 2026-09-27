@@ -55,6 +55,10 @@ class OutlookArgs(StrictModel):
     plant_month: Month
 
 
+class AdvisoryArgs(StrictModel):
+    limit: Annotated[StrictInt, Field(ge=1, le=10)] = 5
+
+
 class StreamEvent(StrictModel):
     """Each SSE data object has this envelope; render text as plain text."""
 

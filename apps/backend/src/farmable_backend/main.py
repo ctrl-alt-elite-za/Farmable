@@ -16,6 +16,8 @@ from starlette.exceptions import HTTPException
 from farmable_backend.account import AccountService
 from farmable_backend.account_api import AccountRuntime
 from farmable_backend.account_api import router as account_router
+from farmable_backend.advisory import AdvisoryService
+from farmable_backend.advisory_api import router as advisory_router
 from farmable_backend.assistant.api import router as assistant_router
 from farmable_backend.assistant.live_api import router as assistant_live_router
 from farmable_backend.assistant.runtime import Runtime as AssistantRuntime
@@ -126,6 +128,7 @@ def create_app(
                     RecordsService(database.sessions), lambda: create_photos(config)
                 )
                 app.state.account = AccountRuntime(AccountService(database.sessions))
+                app.state.advisory = AccountRuntime(AdvisoryService(database.sessions))
                 app.state.assistant = AssistantRuntime(
                     AssistantStore(database.sessions, AssistantSettings(), integration_config),
                     app.state.records,
@@ -146,6 +149,9 @@ def create_app(
                 account = getattr(app.state, "account", None)
                 if account is not None:
                     await run_in_threadpool(account.close)
+                advisory = getattr(app.state, "advisory", None)
+                if advisory is not None:
+                    await run_in_threadpool(advisory.close)
             finally:
                 try:
                     if database is not None:
@@ -173,6 +179,7 @@ def create_app(
     app.add_middleware(SafeDefaultsMiddleware, limiter=limiter or RateLimiter())
     app.include_router(records_router)
     app.include_router(account_router)
+    app.include_router(advisory_router)
     app.include_router(assistant_router)
     app.include_router(assistant_live_router)
     app.include_router(voice_router)
