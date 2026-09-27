@@ -28,6 +28,48 @@ fi
 if [[ "$GEMINI_LIVE_ENABLED" == true && -z "$GEMINI_LIVE_MODEL" ]]; then
   echo 'GEMINI_LIVE_ENABLED=true needs GEMINI_LIVE_MODEL' >&2; exit 1
 fi
+# Typed assistant (#23). Off unless the repository variables turn it on. The budget,
+# reserve and policy date are the operator's spending decision (infra/CLOUD_RULES.md);
+# they are checked here, before deploying, because the backend otherwise refuses every
+# turn with assistant_policy_required. ASSISTANT_POLICY_MODEL must equal the
+# gemini-model secret, which this script cannot read.
+ASSISTANT_ENABLED="${ASSISTANT_ENABLED:-false}"
+case "$ASSISTANT_ENABLED" in true|false) ;; *)
+  echo 'ASSISTANT_ENABLED must be true or false' >&2; exit 1 ;;
+esac
+assistant_env="ASSISTANT_ENABLED=$ASSISTANT_ENABLED"
+if [[ "$ASSISTANT_ENABLED" == true ]]; then
+  for name in ASSISTANT_DAILY_BUDGET_MICRO_USD ASSISTANT_TURN_RESERVE_MICRO_USD \
+    ASSISTANT_POLICY_DATE ASSISTANT_POLICY_MODEL; do
+    [[ -n "${!name:-}" ]] || { echo "ASSISTANT_ENABLED=true needs $name" >&2; exit 1; }
+  done
+  [[ "$ASSISTANT_DAILY_BUDGET_MICRO_USD" =~ ^[0-9]{1,10}$ ]] || {
+    echo 'Invalid ASSISTANT_DAILY_BUDGET_MICRO_USD' >&2; exit 1; }
+  [[ "$ASSISTANT_TURN_RESERVE_MICRO_USD" =~ ^[0-9]{1,9}$ ]] || {
+    echo 'Invalid ASSISTANT_TURN_RESERVE_MICRO_USD' >&2; exit 1; }
+  # Base 10 explicitly: a leading zero would otherwise read as octal.
+  if (( 10#$ASSISTANT_TURN_RESERVE_MICRO_USD <= 0 ||
+        10#$ASSISTANT_TURN_RESERVE_MICRO_USD > 10#$ASSISTANT_DAILY_BUDGET_MICRO_USD )); then
+    echo 'ASSISTANT_TURN_RESERVE_MICRO_USD must be above 0 and at most the daily budget' >&2
+    exit 1
+  fi
+  policy_age=-1
+  if [[ "$ASSISTANT_POLICY_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] &&
+    policy_seconds="$(date -u -d "$ASSISTANT_POLICY_DATE" +%s 2>/dev/null)"; then
+    # Whole days from the policy date to today (UTC), negative for a future date.
+    today_seconds="$(date -u -d "$(date -u +%F)" +%s)"
+    policy_age=$(( (today_seconds - policy_seconds) / 86400 ))
+  fi
+  if (( policy_age < 0 || policy_age > 30 )); then
+    echo 'ASSISTANT_POLICY_DATE must be a date in the last 30 days' >&2; exit 1
+  fi
+  [[ "$ASSISTANT_POLICY_MODEL" =~ ^[A-Za-z0-9._-]{1,128}$ ]] || {
+    echo 'Invalid ASSISTANT_POLICY_MODEL' >&2; exit 1; }
+  assistant_env+=",ASSISTANT_DAILY_BUDGET_MICRO_USD=$ASSISTANT_DAILY_BUDGET_MICRO_USD"
+  assistant_env+=",ASSISTANT_TURN_RESERVE_MICRO_USD=$ASSISTANT_TURN_RESERVE_MICRO_USD"
+  assistant_env+=",ASSISTANT_POLICY_DATE=$ASSISTANT_POLICY_DATE"
+  assistant_env+=",ASSISTANT_POLICY_MODEL=$ASSISTANT_POLICY_MODEL"
+fi
 # Cloud Run caps a traffic tag plus the service name at 46 characters, so the full
 # 40-character SHA ("sha-" + 40 = 44) cannot tag any service. Twelve hex digits stay
 # unambiguous within one service's revisions and leave room for the name.
@@ -190,7 +232,7 @@ gcloud run deploy "$CLOUD_RUN_SERVICE" \
   --image="$IMAGE" --platform=managed "${deploy_traffic_args[@]}" --tag="$TRAFFIC_TAG" \
   --service-account="$RUNTIME_SERVICE_ACCOUNT" \
   --add-cloudsql-instances="$CLOUD_SQL_CONNECTION" \
-  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE,GEMINI_LIVE_ENABLED=$GEMINI_LIVE_ENABLED,GEMINI_LIVE_MODEL=$GEMINI_LIVE_MODEL" \
+  --set-env-vars="COMMIT_SHA=$COMMIT_SHA,ENVIRONMENT=staging,INTEGRATIONS_MODE=${INTEGRATIONS_MODE},FORECAST_DATA_MODE=$FORECAST_DATA_MODE,GEMINI_LIVE_ENABLED=$GEMINI_LIVE_ENABLED,GEMINI_LIVE_MODEL=$GEMINI_LIVE_MODEL,$assistant_env" \
   --set-secrets="$secret_args" \
   --command=/app/cloudrun-entrypoint.sh --port=8000 --min=1 --max=1 \
   --cpu=1 --memory=512Mi --no-cpu-throttling --allow-unauthenticated --quiet >/dev/null
