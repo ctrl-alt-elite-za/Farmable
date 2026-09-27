@@ -291,7 +291,7 @@ def _fake_gcloud(tmp_path: Path, body: str) -> None:
             "  printf '%s\\n' 'farmable-staging-export-token-secret'; exit 0\n"
             "fi\n"
         )
-    if "secrets versions list" not in body:
+    if "versions list" not in body:
         required_secret_stub += (
             'if [[ "$*" == *"secrets versions list"* ]]; then\n'
             '  if [[ "$*" == *"farmable-staging-export-token-secret"* ]]; then\n'
@@ -1401,7 +1401,8 @@ def test_every_provider_secret_terraform_creates_is_wired_by_the_rollout():
     """A secret Terraform creates but the rollout never wires is a key nobody can use."""
     rollout = read("infra/gcp-rollout.sh")
     optional = dict(re.findall(r'^\s+"([A-Z0-9_]+):([a-z0-9-]+)"$', rollout, re.MULTILINE))
-    always = {"database-url", "gemini-api-key"}
+    # Wired unconditionally, each from its own GCP_*_SECRET variable.
+    always = {"database-url", "gemini-api-key", "export-token-secret"}
     assert set(_terraform_provider_secrets()) - always == set(optional.values())
     for env_name, secret in optional.items():
         assert env_name == secret.upper().replace("-", "_"), env_name
