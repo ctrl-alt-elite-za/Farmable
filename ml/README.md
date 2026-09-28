@@ -123,6 +123,14 @@ Validate the complete amended run with `uv run python
 ml/backtest/validate_seven_default.py <run_id>`; this checks the ledger,
 derived report and sentence, price artifact and manifest hashes.
 
+The first amended local run is now available alongside the archived version 1
+artifacts. See [Amendment 2 results and acceptance status](SEVEN_DEFAULT_RESULTS_REVIEW.md).
+Its generated sentence is `INSUFFICIENT EVIDENCE`: cabbage has no scorable
+switches. This is not a seven-crop headline claim. On 27 September the owner
+waived amended Colab execution and independent results review for demo completion;
+neither is claimed as performed. See the acceptance status for remaining merge
+and mainline history checks.
+
 `ml/backtest/run_retrospective.py` implements the registered scenario. It verifies
 the protocol history gate before reading workbooks, checks each workbook's bytes,
 hash, sheet and cell audit, and never connects to a database. Supply the original

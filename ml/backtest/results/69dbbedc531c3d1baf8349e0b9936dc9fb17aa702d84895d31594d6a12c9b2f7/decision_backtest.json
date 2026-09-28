@@ -1,0 +1,251 @@
+{
+  "bootstrap": {
+    "minimum_valid_fraction": 0.9,
+    "replicates": 10000,
+    "seed": 20
+  },
+  "caveats": [
+    "Simulated decisions are not observed farmer incomes.",
+    "Guideline yields and Western Cape budgets are assumptions.",
+    "Year-cluster resampling retains dependence within years, but not between years.",
+    "At most 13 planting-year clusters limit confidence-interval interpretation.",
+    "Current-vintage Johannesburg history has unresolved publication/revision uncertainty.",
+    "The next-month observation cutoff is analytical, not a publisher release-date claim.",
+    "Current-vintage CPI and the full 2025 mean enter retrospective prediction and scoring.",
+    "Planting calendars, harvest offsets and guideline yields are provisional frozen assumptions.",
+    "VAT bases are mixed or unknown; source-displayed treatment has not been harmonized.",
+    "Western Cape production costs are applied to Johannesburg market prices.",
+    "Post-2024 spinach prices are missing; the Q1 2025 candidate source is not spliced in.",
+    "Missing realized prices for late harvests remain explicit skips, not zero gains.",
+    "Working-capital interest and fixed costs are excluded from the listed gross margins.",
+    "Tomatoes are excluded from production and switching calculations; a separate price-only forecast is available.",
+    "Amendment 2 was registered after the version 1 result was observed."
+  ],
+  "coverage": {
+    "complete_historical_grid": true,
+    "data_kind": "historical",
+    "decision_keys": 1092,
+    "end_month": "2024-12",
+    "observed_months": 156,
+    "start_month": "2012-01"
+  },
+  "currency": "ZAR",
+  "data_kind": "historical",
+  "excluded": {
+    "beetroot": "No cost budget in the issue's included crop set.",
+    "pumpkins": "No cost budget in the issue's included crop set.",
+    "tomatoes": "No compatible reviewed fresh-market tomato production budget; the published version 1 result paired a processing budget with fresh-market prices."
+  },
+  "information_policy": {
+    "status": "verified_observation_cutoff_only"
+  },
+  "input_hashes": {
+    "budget_source_audit.json": "105501be5296caa2b41acd1fa2d3c00df5911cbe5cc76610bd8504182abf6258",
+    "calendar_source_audit.json": "84f3e74a029490da32f7911f92e005d754555ea2539defa79cc02485effdd4b2",
+    "cpi_za_monthly.csv": "7a02be81e4e719bf86da93a95e6ddea4d93e607fa2fc306d95e234c4b384bbce",
+    "market_workbook_audit.json": "0dc4a4e596bcd05614a6012104eebaf8d836bda06581d40a883977874023afb2",
+    "statistics-on-fresh-produce-markets-2008-ms-excel.xls": "e811a155aa457fbecd5d7e76dc6a5edfd19908b4272b2e525e6512f124f438f0",
+    "statistics-on-fresh-produce-markets-2009-ms-excel.xls": "5ac5d44fda3244454ca1082359c13ca708bde7785f173d259b68b13a4a605f3b",
+    "statistics-on-fresh-produce-markets-2010-ms-excel.xls": "ff6ce2e0943a018b0f7448d1f57ee1a92bfec84bc161b382fbb6e6631e2e20e5",
+    "statistics-on-fresh-produce-markets-2011-ms-excel.xls": "9a5448b48781de24ed21951cb4219663566b739033ad77efa289af81d675ace4",
+    "statistics-on-fresh-produce-markets-2012-ms-excel.xls": "92814310dd2a140042c262d93659953c050b9c070881ccdcbb297371d711c5ff",
+    "statistics-on-fresh-produce-markets-2013.xlsx": "84b842196d7e43eab0da025957ceaa288154e718c79cf13ecd2c8465159f8334",
+    "statistics-on-fresh-produce-markets-2014.xlsx": "a66e4ab76bba14d21f867c10bd75f43763e842dc1046d8f49d46952da96c67ac",
+    "statistics-on-fresh-produce-markets-2015-ms-excel.xls": "3fc3912a8d0c73c6e20022a9b01d3108a013413adcf67c2a754db5d344f8a0cd",
+    "statistics-on-fresh-produce-markets-2016-ms-excel.xls": "06718acbf883fab6f0cb27f312457cc0607781fc4f1586517e4c2519cf8f01ab",
+    "statistics-on-fresh-produce-markets-2017-ms-excel.xls": "8892faebec9a96b66a06691ba73e5317a1af2218ff274441ea966101c29a176e",
+    "statistics-on-fresh-produce-markets-2018-ms-excel-final-for-the-web.xls": "39c61010120392ad97bdc818e517b87b33b86ed2fab0f1f9639e1edc27157b84",
+    "statistics-on-fresh-produce-markets-2019.xls": "26e3ce6749f04db4f7ed8d4356c3c0faee8ffba54f6fb59e10d7f1f5d615bf36",
+    "statistics-on-fresh-produce-markets-2020.xlsx": "fcfadd459775233adb5ae647b8efd360446c147842d147948e63a5be411a0609",
+    "statistics-on-fresh-produce-markets-2021.xlsx": "e102f77a1ea0b7e180471a7a1a492c8cf38a4e5a0a042f26cfb8339c54df2fbf",
+    "statistics-on-fresh-produce-markets-2022.xlsx": "119d89c2882b3a2971a4de23741fdbe6b0cb35e4360bb66541188cafa91d7e99",
+    "statistics-on-fresh-produce-markets-2023.xlsx": "2e4f4e0a2d534452da0c5b95e7be2daefdf6d033fb9e607a7faca4bb92db97bd",
+    "statistics-on-fresh-produce-markets-2024.xlsx": "3a1d8fd63fb1b9876b4b72c7056e0677b02a59262f012fc2c7d26d8689645b26"
+  },
+  "price_basis_year": 2025,
+  "results": {
+    "butternut": {
+      "bootstrap_valid_replicates": 10000,
+      "decisions": 30,
+      "eligible": 156,
+      "median_gain_ci90": [
+        27898.53716104161,
+        39303.16849866829
+      ],
+      "median_gain_pct": 853.0169100692283,
+      "median_gain_rand": 35048.65073056641,
+      "no_switches": 0,
+      "null_reasons": {},
+      "p10_gain_rand": 14783.956578917237,
+      "percentage_excluded_switches": 2,
+      "planting_year_clusters": 10,
+      "positive_default_margin_switches": 28,
+      "skipped": 126,
+      "switch_rate": 1.0,
+      "switch_win_rate": 1.0,
+      "switches": 30,
+      "worst_loss_rand": 0.0
+    },
+    "cabbage": {
+      "bootstrap_valid_replicates": 0,
+      "decisions": 75,
+      "eligible": 156,
+      "median_gain_ci90": null,
+      "median_gain_pct": null,
+      "median_gain_rand": null,
+      "no_switches": 75,
+      "null_reasons": {
+        "median_gain_ci90": "no_scorable_switches",
+        "median_gain_pct": "no_positive_default_margin_switches",
+        "median_gain_rand": "no_scorable_switches",
+        "p10_gain_rand": "no_scorable_switches",
+        "switch_win_rate": "no_scorable_switches",
+        "worst_loss_rand": "no_scorable_switches"
+      },
+      "p10_gain_rand": null,
+      "percentage_excluded_switches": 0,
+      "planting_year_clusters": 11,
+      "positive_default_margin_switches": 0,
+      "skipped": 81,
+      "switch_rate": 0.0,
+      "switch_win_rate": null,
+      "switches": 0,
+      "worst_loss_rand": null
+    },
+    "carrots": {
+      "bootstrap_valid_replicates": 10000,
+      "decisions": 64,
+      "eligible": 156,
+      "median_gain_ci90": [
+        8039.329338261534,
+        15145.96380365199
+      ],
+      "median_gain_pct": 40.015461572883794,
+      "median_gain_rand": 13117.762187723438,
+      "no_switches": 31,
+      "null_reasons": {},
+      "p10_gain_rand": -10506.901788490144,
+      "percentage_excluded_switches": 0,
+      "planting_year_clusters": 11,
+      "positive_default_margin_switches": 33,
+      "skipped": 92,
+      "switch_rate": 0.515625,
+      "switch_win_rate": 0.7575757575757576,
+      "switches": 33,
+      "worst_loss_rand": -33021.54506506648
+    },
+    "green_beans": {
+      "bootstrap_valid_replicates": 10000,
+      "decisions": 51,
+      "eligible": 156,
+      "median_gain_ci90": [
+        38152.19743575808,
+        58521.73992394652
+      ],
+      "median_gain_pct": 365.58361335806643,
+      "median_gain_rand": 45309.751269864726,
+      "no_switches": 0,
+      "null_reasons": {},
+      "p10_gain_rand": 18434.467395240237,
+      "percentage_excluded_switches": 33,
+      "planting_year_clusters": 11,
+      "positive_default_margin_switches": 18,
+      "skipped": 105,
+      "switch_rate": 1.0,
+      "switch_win_rate": 1.0,
+      "switches": 51,
+      "worst_loss_rand": 0.0
+    },
+    "onions": {
+      "bootstrap_valid_replicates": 10000,
+      "decisions": 22,
+      "eligible": 156,
+      "median_gain_ci90": [
+        24743.20341402128,
+        36459.21224671839
+      ],
+      "median_gain_pct": 353.9681322094279,
+      "median_gain_rand": 30133.496101367713,
+      "no_switches": 0,
+      "null_reasons": {},
+      "p10_gain_rand": 6059.317560153831,
+      "percentage_excluded_switches": 0,
+      "planting_year_clusters": 11,
+      "positive_default_margin_switches": 22,
+      "skipped": 134,
+      "switch_rate": 1.0,
+      "switch_win_rate": 0.9090909090909091,
+      "switches": 22,
+      "worst_loss_rand": -16209.186032837431
+    },
+    "pooled": {
+      "bootstrap_valid_replicates": 10000,
+      "decisions": 400,
+      "eligible": 1092,
+      "median_gain_ci90": [
+        39204.61682613434,
+        47638.45297551965
+      ],
+      "median_gain_pct": 266.3971511440796,
+      "median_gain_rand": 44295.785340504015,
+      "no_switches": 117,
+      "null_reasons": {},
+      "p10_gain_rand": 14131.64154551904,
+      "percentage_excluded_switches": 142,
+      "planting_year_clusters": 11,
+      "positive_default_margin_switches": 141,
+      "skipped": 692,
+      "switch_rate": 0.7075,
+      "switch_win_rate": 0.9646643109540636,
+      "switches": 283,
+      "worst_loss_rand": -33021.54506506648
+    },
+    "potatoes": {
+      "bootstrap_valid_replicates": 10000,
+      "decisions": 63,
+      "eligible": 156,
+      "median_gain_ci90": [
+        27576.049891554052,
+        37705.06472283491
+      ],
+      "median_gain_pct": 357.93283173459713,
+      "median_gain_rand": 32097.739066185506,
+      "no_switches": 11,
+      "null_reasons": {},
+      "p10_gain_rand": 17533.65426674482,
+      "percentage_excluded_switches": 18,
+      "planting_year_clusters": 11,
+      "positive_default_margin_switches": 34,
+      "skipped": 93,
+      "switch_rate": 0.8253968253968254,
+      "switch_win_rate": 1.0,
+      "switches": 52,
+      "worst_loss_rand": 0.0
+    },
+    "spinach": {
+      "bootstrap_valid_replicates": 10000,
+      "decisions": 95,
+      "eligible": 156,
+      "median_gain_ci90": [
+        61036.43071944608,
+        75820.73276262873
+      ],
+      "median_gain_pct": 1095.8370153524993,
+      "median_gain_rand": 66966.47395410472,
+      "no_switches": 0,
+      "null_reasons": {},
+      "p10_gain_rand": 45619.10368260903,
+      "percentage_excluded_switches": 89,
+      "planting_year_clusters": 11,
+      "positive_default_margin_switches": 6,
+      "skipped": 61,
+      "switch_rate": 1.0,
+      "switch_win_rate": 1.0,
+      "switches": 95,
+      "worst_loss_rand": 0.0
+    }
+  },
+  "scenario": "retrospective_fixed_2025_seven_defaults",
+  "schema_version": 3,
+  "unit": "ZAR/ha/month"
+}

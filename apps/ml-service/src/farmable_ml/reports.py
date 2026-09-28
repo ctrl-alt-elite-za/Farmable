@@ -371,6 +371,7 @@ def render_sentence(report: dict[str, Any]) -> str:
     if pooled["median_gain_rand"] is None or any(rate is None for rate in rates):
         reason = "switch statistics are undefined for one or more defaults."
         if report["scenario"] == SEVEN_DEFAULT_SCENARIO:
+            reason = "switch statistics are undefined for one or more of the 7 starting crops."
             reason += (
                 " Tomatoes excluded: no compatible reviewed fresh-market production budget. "
                 + AMENDMENT_TIMING

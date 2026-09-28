@@ -26,6 +26,16 @@ from test_retrospective_simulation import cpi, prices
 from validate_seven_default import validate as validate_result
 
 
+def test_committed_amendment_two_artifacts_validate():
+    """CI checks the published bytes, not only temporary synthetic outputs."""
+    output = runner.ROOT / "ml"
+    runs = sorted((output / "forecast/price_only_results").iterdir())
+    assert runs, "the amended real run must be published alongside version 1"
+    for directory in runs:
+        if directory.is_dir():
+            validate_result(output, directory.name)
+
+
 def test_gate_precedes_real_data_access(tmp_path, monkeypatch):
     def reject(**kwargs):
         raise ProtocolGateError("amendment not merged")
@@ -113,6 +123,7 @@ def test_amended_runner_is_reproducible_and_excludes_tomato_economics(
     assert {"cost", "yield", "profit", "harvest_offset"}.isdisjoint(tomato["rows"][0])
     sentence = (first / "backtest/results" / run_id / "slide_sentence.txt").read_text()
     assert "Tomatoes excluded" in sentence
+    assert "7 starting crops" in sentence
     # Amendment 2 was written after version 1 was seen; every output must say so.
     assert sentence.rstrip().endswith(AMENDMENT_TIMING)
     assert AMENDMENT_TIMING in report["caveats"]
@@ -122,6 +133,7 @@ def test_amended_runner_is_reproducible_and_excludes_tomato_economics(
     undefined["results"]["cabbage"]["switch_win_rate"] = None
     insufficient = render_sentence(undefined)
     assert insufficient.startswith("INSUFFICIENT EVIDENCE")
+    assert "7 starting crops" in insufficient
     assert insufficient.rstrip().endswith(AMENDMENT_TIMING)
     comparison = (first / "backtest/results" / run_id / "version_comparison.md").read_text()
     assert "Version 1: eight defaults" in comparison
