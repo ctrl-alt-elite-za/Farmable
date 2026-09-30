@@ -128,6 +128,41 @@ void main() {
     }
   });
 
+  testWidgets('a scan preview in a demo build plays, and always says it is a '
+      'recording', (tester) async {
+    final controller = CropScanController(
+      replay: false,
+      demo: true,
+      preview: true,
+      clock: () => Duration(
+        microseconds: tester.binding.clock.now().microsecondsSinceEpoch,
+      ),
+      createSource: () => RecordedCameraSource(
+        bundle: _FixtureBundle(),
+        asset: 'assets/test_mode/crop_scan.json',
+      ),
+    );
+    await pumpScan(tester, controller);
+    expect(
+      find.text('Preview — recorded crop boxes, not live detections'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Test replay'), findsNothing);
+    expect(find.text('Live scanning is not ready yet'), findsNothing);
+
+    await reveal(tester, find.text('Start preview'), 200);
+    await tester.tap(find.text('Start preview'));
+    for (var i = 0; i < 20 && controller.result == null; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(controller.result, isNotNull);
+    expect(find.text('Preview • recorded boxes'), findsOneWidget);
+    await reveal(tester, find.text('Stop preview'), 200);
+    await tester.tap(find.text('Stop preview'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Home and the existing section action reach the gated scan', (
     tester,
   ) async {

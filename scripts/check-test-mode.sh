@@ -20,8 +20,11 @@ set -euo pipefail
 
 test_mode="${TEST_MODE:-false}"
 demo_mode="${DEMO_MODE:-false}"
+# A labelled preview of recorded crop boxes (#26), allowed in any build: the
+# screen always says it is a recording, never live detection.
+scan_preview="${SCAN_PREVIEW:-false}"
 
-for pair in "TEST_MODE=$test_mode" "DEMO_MODE=$demo_mode"; do
+for pair in "TEST_MODE=$test_mode" "DEMO_MODE=$demo_mode" "SCAN_PREVIEW=$scan_preview"; do
   value="${pair#*=}"
   if [ "$value" != "true" ] && [ "$value" != "false" ]; then
     echo "FAIL: ${pair%%=*} must be exactly 'true' or 'false', got '$value'." >&2
@@ -37,4 +40,4 @@ if [ "$test_mode" = "true" ] && [ "$demo_mode" = "true" ]; then
   exit 1
 fi
 
-echo "PASS: build modes are allowed (test_mode=$test_mode demo_mode=$demo_mode)"
+echo "PASS: build modes are allowed (test_mode=$test_mode demo_mode=$demo_mode scan_preview=$scan_preview)"

@@ -602,7 +602,14 @@ def _run_guard(**env):
         cwd=repo,
         # Inherited so bash can start at all, but with the two variables under
         # test always coming from the caller and never from the developer's shell.
-        env={**{k: v for k, v in os.environ.items() if k not in ("TEST_MODE", "DEMO_MODE")}, **env},
+        env={
+            **{
+                k: v
+                for k, v in os.environ.items()
+                if k not in ("TEST_MODE", "DEMO_MODE", "SCAN_PREVIEW")
+            },
+            **env,
+        },
         capture_output=True,
         text=True,
     )
@@ -660,6 +667,7 @@ def test_the_guard_runs_against_the_values_the_device_builds_compile_in():
         assert "check-test-mode.sh" in run
         assert '--dart-define=TEST_MODE="$TEST_MODE"' in run
         assert '--dart-define=DEMO_MODE="$DEMO_MODE"' in run
+        assert '--dart-define=SCAN_PREVIEW="$SCAN_PREVIEW"' in run
         assert run.index("check-test-mode.sh") < run.index("flutter build")
 
 
@@ -906,3 +914,23 @@ def test_the_assistant_runs_only_for_its_own_flow_onward():
         assert env["ASSISTANT_POLICY_MODEL"] == "fixture-model"
         assert env["FORECAST_DATA_MODE"] == "retrospective"
     assert override["services"]["forecast-import"]["profiles"] == ["tools"]
+
+
+@pytest.mark.parametrize("demo_mode", ["true", "false"])
+def test_a_labelled_scan_preview_is_allowed_in_any_build(demo_mode):
+    """SCAN_PREVIEW shows recorded boxes, always labelled as a recording (#26)."""
+    result = _run_guard(TEST_MODE="false", DEMO_MODE=demo_mode, SCAN_PREVIEW="true")
+    assert result.returncode == 0, result.stderr
+    assert "scan_preview=true" in result.stdout
+
+
+def test_a_scan_preview_dart_cannot_read_is_refused():
+    result = _run_guard(TEST_MODE="false", DEMO_MODE="false", SCAN_PREVIEW="1")
+    assert result.returncode == 1
+    assert "SCAN_PREVIEW must be exactly" in result.stderr
+
+
+def test_the_scan_preview_is_off_unless_the_repository_turns_it_on():
+    repo = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load((repo / ".github/workflows/mobile.yml").read_text())
+    assert workflow["env"]["SCAN_PREVIEW"] == "${{ vars.SCAN_PREVIEW || 'false' }}"

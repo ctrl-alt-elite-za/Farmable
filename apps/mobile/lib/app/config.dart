@@ -35,6 +35,13 @@ const walkReplay = String.fromEnvironment('WALK_REPLAY', defaultValue: 'field');
 /// watching could tell. `scripts/check-test-mode.sh` fails such a build.
 const demoMode = bool.fromEnvironment('DEMO_MODE');
 
+/// Shows the crop scan as a **labelled preview** of recorded boxes, in any
+/// build, until #16 supplies an approved model. Nothing else is faked: voice,
+/// sign-up and the API stay real. The screen always says it is a recording,
+/// never live detection, so nobody watching is misled; a preview cannot hide
+/// that label. Checked by `scripts/check-test-mode.sh` like the other modes.
+const scanPreview = bool.fromEnvironment('SCAN_PREVIEW');
+
 /// Stamped by CI so a report can be traced back to the build that produced it.
 const buildSha = String.fromEnvironment('BUILD_SHA', defaultValue: 'unknown');
 
