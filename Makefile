@@ -18,7 +18,7 @@ ML_SERVICE_TEST_FILES := $(shell find apps/ml-service -name 'test_*.py' -o -name
 ML_ADAPTER_TEST_FILES := $(shell find $(MYPY_ML_ADAPTER_ROOTS) -name 'test_*.py' -o -name '*_test.py' 2>/dev/null)
 
 .PHONY: setup lint format typecheck test test-integration hooks check-no-raw-sql client db-migrate queue-schema
-.PHONY: client-check security-audit migration-safety deployability e2e-api e2e-degradation e2e-mobile mobile-test-build
+.PHONY: client-check security-audit migration-safety deployability e2e-api e2e-degradation e2e-mobile mobile-test-build demo-ready
 .PHONY: smoke smoke-voice mobile-checks demo-regression
 
 smoke:
@@ -138,6 +138,12 @@ mobile-checks:
 	cd apps/mobile && flutter test --exclude-tags demo-api
 	cd apps/mobile && flutter test --plain-name 'renders the farm with no network and no spinner' test/home_screen_test.dart
 	uv run python scripts/test_mobile_contract.py
+
+# Can we demo right now? READY, or every problem (#26). Needs API_URL.
+# ARGS=--send-code (with DEMO_SIGNUP_PROBE_PHONE) proves sign-up codes send;
+# ARGS=--e2e also runs e2e/api against staging.
+demo-ready:
+	uv run python scripts/demo_ready.py $(ARGS)
 
 demo-regression:
 	uv run python -m farmable_backend.demo_api.rehearse
