@@ -1,0 +1,122 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  color: #193627;
+  background: #f4f7f1;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 860px;
+  margin: auto;
+  padding: 24px;
+}
+header {
+  margin-bottom: 24px;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  margin: 8px 0 16px;
+}
+h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+p {
+  line-height: 1.55;
+}
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+}
+.notice {
+  background: #fff1c8;
+  padding: 12px;
+  border-radius: 8px;
+}
+section {
+  margin: 16px 0;
+  padding: 24px;
+  border: 1px solid #d4dfd0;
+  border-radius: 16px;
+  background: white;
+}
+label {
+  display: block;
+  line-height: 1.5;
+}
+input:not([type='checkbox']),
+select,
+textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0 16px;
+  font: inherit;
+  border: 1px solid #839c84;
+  border-radius: 8px;
+  background: white;
+}
+button {
+  font: inherit;
+  padding: 11px 16px;
+  margin: 6px 8px 6px 0;
+  background: #245d3a;
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #d6a433;
+  outline-offset: 3px;
+}
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+.consent {
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+.allocation {
+  display: flex;
+  gap: 4px;
+  margin: 16px 0;
+}
+.block {
+  flex: 1;
+  background: #e7eedf;
+  padding: 12px 4px;
+  text-align: center;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+#status {
+  color: #8a3412;
+}
+#reply {
+  font-size: 1.1rem;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+td,
+th {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #d4dfd0;
+}

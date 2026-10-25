@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Farmable — voice rehearsal</title>
+    <link rel="stylesheet" href="/demo/voice/assets/style.css" />
+    <script type="module" src="/demo/voice/assets/app.mjs"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Farmable · local MVP rehearsal</p>
+        <h1>Talk through a planting plan</h1>
+        <p class="notice">Prototype using sample crop and market data. Not a live forecast.</p>
+        <p>
+          English commands only. Not the production Azure/Gemini assistant. Synthetic farms only.
+        </p>
+      </header>
+      <section>
+        <h2>Your example farm</h2>
+        <button id="open" type="button">Explore demo farm</button>
+        <button id="reset" type="button" disabled>Reset this example farm</button>
+        <p id="farm" aria-live="polite">Open an example farm to start.</p>
+        <label
+          >Section
+          <select id="section" disabled></select
+        ></label>
+        <p id="section-info"></p>
+        <p id="approved" aria-live="polite"></p>
+      </section>
+      <section>
+        <h2>Planning controls</h2>
+        <div class="controls">
+          <label
+            >Available budget (rand)<input
+              id="budget"
+              type="number"
+              min="0"
+              max="10000000"
+              step="0.01"
+              value="3000"
+          /></label>
+          <label
+            >Minimum cabbage share (%)<input
+              id="share"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value="0"
+          /></label>
+          <label
+            >Minimum spinach share (%)<input
+              id="spinach-share"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value="0"
+          /></label>
+          <label>Planting date<input id="date" type="date" value="2026-09-18" /></label>
+        </div>
+        <p>Sample dates: September 2026. Soil: unknown. No live weather assessment.</p>
+        <button id="compare" type="button" disabled>Compare / recalculate</button>
+      </section>
+      <section>
+        <h2>Speak or type</h2>
+        <label class="consent"
+          ><input id="consent" type="checkbox" />
+          I consent to browser speech processing for this synthetic demo. The browser may send audio
+          or spoken text to its vendor; internet may be needed. Farmable does not save audio or
+          transcripts. Do not share personal details.
+        </label>
+        <div class="actions">
+          <button id="mic" type="button" disabled>Tap to speak / interrupt</button>
+          <button id="stop" type="button">Stop audio / listening</button>
+          <button id="speak" type="button" disabled>Read reply aloud</button>
+        </div>
+        <p id="voice-state" role="status">idle</p>
+        <p id="interim" aria-live="polite"></p>
+        <label
+          >Review or type your message<textarea
+            id="transcript"
+            rows="3"
+            maxlength="300"
+            placeholder="I only have R2100 and keep at least half as cabbage"
+          ></textarea>
+        </label>
+        <button id="send" type="button" disabled>Use reviewed message</button>
+        <p>
+          Try “compare cabbage and spinach”, “I only have three thousand rand”, “keep at least half
+          as cabbage” or “plant cabbage”. Messages never approve a plan automatically.
+        </p>
+        <p id="status" role="status"></p>
+        <p id="reply" aria-live="polite"></p>
+      </section>
+      <section>
+        <h2>Proposed planting</h2>
+        <div id="result"><p>Compare crops to see an allocation.</p></div>
+        <button id="save" type="button" disabled>Save proposal</button>
+        <button id="approve" type="button" disabled>Approve saved plan</button>
+        <p id="saved" aria-live="polite"></p>
+      </section>
+    </main>
+  </body>
+</html>
